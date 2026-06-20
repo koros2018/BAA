@@ -142,7 +142,28 @@ def get_file_path(file_id: str) -> Optional[Path]:
     return None
 
 
-# ── 端点 ──────────────────────────────────────────────────
+# ── 引擎导入（懒加载） ──────────────────────────────────
+
+_engine_modules_loaded = False
+_drawing_parser = None
+_semantic_analyzer = None
+_func_registry = None
+_attribution_analyzer = None
+
+
+def _ensure_engine():
+    global _engine_modules_loaded, _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer
+    if _engine_modules_loaded:
+        return
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+    from src.baa_engine.atomic_functions import FuncRegistry
+    from src.baa_engine.attribution_analyzer import AttributionAnalyzer
+    _drawing_parser = DrawingParser()
+    _semantic_analyzer = SemanticAnalyzer()
+    _func_registry = FuncRegistry()
+    _attribution_analyzer = AttributionAnalyzer()
+    _engine_modules_loaded = True
 
 @app.get("/health")
 async def health():
@@ -190,28 +211,191 @@ async def deconstruct(
 
     # 存储文件
     file_id = generate_file_id()
-    store_file(content, file_id, ext)
+    file_path = store_file(content, file_id, ext)
 
-    # 调用核心引擎进行解析（暂返回mock数据）
+    # 调用核心引擎进行解析
     start = time.time()
-    elements = [
-        {"type": "wall", "count": 12, "total_length": 45.6},
-        {"type": "column", "count": 8, "total_volume": 15.2},
-        {"type": "beam", "count": 16, "total_length": 62.4},
-        {"type": "slab", "count": 4, "total_area": 320.0},
-        {"type": "door", "count": 10, "note": "含防火门2个"},
-        {"type": "window", "count": 8, "total_area": 45.0},
-        {"type": "stair", "count": 2, "note": "疏散楼梯"},
-    ]
+    _ensure_engine()
+
+    # Step 1: 图纸解析
+    result = _drawing_parser.parse(str(file_path), file_id=file_id)
+    if not result.success:
+        return {
+            "status": "error",
+            "error_code": "PARSE_FAILED",
+            "message": f"图纸解析失败: {result.error}",
+            "file_id": file_id,
+        }
+
+    # Step 2: 语义分析（限制采样1000个防OOM）
+    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions)
+    entities = semantic["entities"]
+    relations = semantic["relations"]
+
+    # Step 3: 规范判定
+    findings = []
+    registry_funcs = _func_registry.list_all()
+    total_checks = 0
+    for e in entities:
+        for func in registry_funcs:
+            total_checks += 1
+            r = func.execute(e)
+            if r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                findings.append(f.finding_id)
+
+    # 统计
+    type_stats = {}
+    for e in entities:
+        t = e["type"]
+        if t not in type_stats:
+            type_stats[t] = {"count": 0, "bbox_areas": []}
+        type_stats[t]["count"] += 1
+        bbox = e["bbox"]
+        type_stats[t]["bbox_areas"].append(bbox.get("width", 0) * bbox.get("height", 0))
+
+    elements = []
+    for t, stats in sorted(type_stats.items()):
+        areas = stats["bbox_areas"]
+        total_area = sum(areas) if areas else 0
+        elem = {"type": t, "count": stats["count"]}
+        if t in ("wall", "corridor", "stair"):
+            elem["total_length_m"] = round(total_area ** 0.5, 1)
+        elif t in ("door", "fire_door", "window"):
+            elem["total_count"] = stats["count"]
+        elif t == "fire_zone":
+            elem["total_area_sqm"] = round(total_area, 1)
+        elements.append(elem)
+
     elapsed = int((time.time() - start) * 1000)
 
     return {
         "status": "success",
         "elements": elements,
-        "confidence": 0.92,
+        "relations": len(relations),
+        "findings": len(findings),
+        "total_checks": total_checks,
+        "confidence": 0.85 if len(entities) > 0 else 0,
         "file_id": file_id,
         "processing_time_ms": elapsed,
     }
+
+
+@app.post("/review")
+async def review(
+    file: UploadFile = File(...),
+    full: bool = Query(False, description="返回完整图元列表"),
+    api_key: str = Depends(verify_api_key),
+):
+    """图纸合规审查（免费试用）"""
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "UNSUPPORTED_FORMAT",
+                "message": f"不支持的文件格式: {ext}",
+            }
+        )
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "FILE_TOO_LARGE",
+                "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",
+            }
+        )
+
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
+
+    start = time.time()
+    _ensure_engine()
+
+    # 解析
+    result = _drawing_parser.parse(str(file_path), file_id=file_id)
+    if not result.success:
+        return {
+            "status": "error",
+            "error_code": "PARSE_FAILED",
+            "message": f"图纸解析失败: {result.error}",
+            "file_id": file_id,
+        }
+
+    # 语义分析（采样1000限制）
+    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions)
+    entities = semantic["entities"]
+
+    # 规范判定
+    from collections import Counter
+    clause_results = Counter()
+    details = []
+    registry_funcs = _func_registry.list_all()
+    for e in entities:
+        for func in registry_funcs:
+            r = func.execute(e)
+            clause_results[func.clause_id] += 1
+            if r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
+                    "entity_id": e["id"],
+                    "entity_type": e["type"],
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": f.extracted_params["extracted_value"],
+                    "required_value": f.extracted_params.get("required_value", 1.2),
+                    "difference": f.extracted_params.get("difference", 0),
+                    "explanation": f.explanation[:120],
+                })
+
+    elapsed = int((time.time() - start) * 1000)
+
+    # 统计
+    entity_types = Counter(e["type"] for e in entities)
+    violation_count = Counter(d["clause_id"] for d in details)
+
+    response_data = {
+        "status": "success",
+        "summary": {
+            "total_entities": len(entities),
+            "entity_types": dict(entity_types),
+            "total_checks": len(entities) * len(registry_funcs),
+            "violations": len(details),
+            "violation_by_clause": dict(violation_count.most_common(10)),
+        },
+        "details": details[:100],  # 最多返回100条
+        "file_id": file_id,
+        "processing_time_ms": elapsed,
+    }
+
+    if full:
+        response_data["all_entities"] = [
+            {"id": e["id"], "type": e["type"], "bbox": e["bbox"]}
+            for e in entities
+        ]
+
+    return response_data
 
 
 @app.post("/reconstruct")

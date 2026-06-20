@@ -74,14 +74,25 @@ class SemanticAnalyzer:
         self._entity_counter = 0
 
     def analyze(self, primitives: List[RawPrimitive],
-                dimensions: List[Dict] = None) -> Dict[str, Any]:
+                dimensions: List[Dict] = None,
+                max_entities: int = 1000) -> Dict[str, Any]:
         """
         执行语义分析
 
-        输入: 原始图元列表（来自 drawing_parser）
+        参数:
+            primitives: 原始图元列表
+            dimensions: 尺寸标注列表
+            max_entities: 最大处理实体数（超过则采样，防OOM）
+
         输出: 结构化语义数据（entities + relations + attributes）
         """
         self._entity_counter = 0
+
+        # 采样限制，防止全量关系构建OOM
+        if len(primitives) > max_entities:
+            import random
+            random.seed(42)
+            primitives = random.sample(primitives, max_entities)
 
         # Step 1: 图元分类归并
         entities = self._classify_entities(primitives)
