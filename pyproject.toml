@@ -1,0 +1,12 @@
+[project]
+name = "BAA"
+version = "0.1.0"
+description = "Blueprint AI Agent - 图纸合规智能体"
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]

@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人脸表情识别研究系统</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E40AF',
+                        secondary: '#3B82F6',
+                        accent: '#F97316',
+                        dark: '#0F172A',
+                        light: '#F9FAFB',
+                        'primary-light': '#3B82F6',
+                        'primary-dark': '#1E3A8A',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .bg-gradient-blue {
+                background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            }
+            .bg-gradient-dark {
+                background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            }
+            .border-glow {
+                box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen flex flex-col">
+        <!-- 顶部导航栏 -->
+        <header class="bg-gradient-blue text-white shadow-md">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fa fa-face-smile-o text-2xl"></i>
+                    <h1 class="text-xl font-bold">人脸表情识别研究系统</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="px-3 py-1 bg-white/20 rounded hover:bg-white/30 transition">
+                        <i class="fa fa-question-circle mr-1"></i> 帮助
+                    </button>
+                    <button class="px-3 py-1 bg-white/20 rounded hover:bg-white/30 transition">
+                        <i class="fa fa-user mr-1"></i> 登录
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="flex-grow flex">
+            <!-- 左侧导航栏 -->
+            <aside class="w-64 bg-white shadow-md z-10">
+                <nav class="p-4">
+                    <ul class="space-y-2">
+                        <li>
+                            <button id="nav-dashboard" class="w-full flex items-center px-4 py-3 text-left rounded-lg bg-primary text-white">
+                                <i class="fa fa-dashboard w-6"></i>
+                                <span>系统概览</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-dataset" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-database w-6"></i>
+                                <span>数据集管理</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-model" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-code-fork w-6"></i>
+                                <span>模型设计</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-training" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-cogs w-6"></i>
+                                <span>训练与验证</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-demo" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-play-circle w-6"></i>
+                                <span>实时演示</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-results" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-bar-chart w-6"></i>
+                                <span>结果分析</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button id="nav-settings" class="w-full flex items-center px-4 py-3 text-left rounded-lg hover:bg-gray-100 text-gray-700">
+                                <i class="fa fa-cog w-6"></i>
+                                <span>系统设置</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- 中央内容区域 -->
+            <div class="flex-grow p-6 overflow-auto">
+                <!-- 系统概览页面 -->
+                <div id="dashboard-page" class="space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">系统概览</h2>
+                        <div class="flex space-x-2">
+                            <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                <i class="fa fa-refresh mr-1"></i> 刷新
+                            </button>
+                            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                                <i class="fa fa-download mr-1"></i> 导出报告
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">已处理数据集</h3>
+                                <span class="text-primary text-2xl"><i class="fa fa-database"></i></span>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800">3</p>
+                            <p class="text-sm text-gray-500 mt-2">FER-2013, CK+, AffectNet</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">训练模型</h3>
+                                <span class="text-primary text-2xl"><i class="fa fa-code-fork"></i></span>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800">5</p>
+                            <p class="text-sm text-gray-500 mt-2">CNN, ResNet, EfficientNet, VGG19, 自定义</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">最高准确率</h3>
+                                <span class="text-primary text-2xl"><i class="fa fa-line-chart"></i></span>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800">89.7%</p>
+                            <p class="text-sm text-gray-500 mt-2">在CK+数据集上的VGG19模型</p>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">最近训练</h3>
+                                <span class="text-primary text-2xl"><i class="fa fa-clock-o"></i></span>
+                            </div>
+                            <p class="text-3xl font-bold text-gray-800">今天</p>
+                            <p class="text-sm text-gray-500 mt-2">EfficientNet模型，FER-2013数据集</p>
+                        </div>
+                    </div>
+
+                    <!-- 图表区域 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">模型准确率对比</h3>
+                            <div class="h-80">
+                                <canvas id="accuracy-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">数据集分布</h3>
+                            <div class="h-80">
+                                <canvas id="dataset-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 最近活动 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">最近活动</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-primary/10 p-2 rounded-full text-primary">
+                                    <i class="fa fa-upload"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">上传了新的数据集</p>
+                                    <p class="text-sm text-gray-500">AffectNet 数据集，包含 400,000 张图像</p>
+                                    <p class="text-xs text-gray-400 mt-1">今天 14:30</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-green-100 p-2 rounded-full text-green-600">
+                                    <i class="fa fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">模型训练完成</p>
+                                    <p class="text-sm text-gray-500">EfficientNet 模型在 FER-2013 数据集上达到 82.3% 准确率</p>
+                                    <p class="text-xs text-gray-400 mt-1">今天 11:15</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                                    <i class="fa fa-edit"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">更新了模型配置</p>
+                                    <p class="text-sm text-gray-500">修改了 VGG19 模型的学习率和批量大小</p>
+                                    <p class="text-xs text-gray-400 mt-1">昨天 16:45</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据集管理页面 -->
+                <div id="dataset-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">数据集管理</h2>
+                        <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                            <i class="fa fa-plus mr-1"></i> 导入数据集
+                        </button>
+                    </div>
+
+                    <!-- 数据集列表 -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        数据集名称
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        图像数量
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        表情类别
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        上传日期
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        状态
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        操作
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                                <i class="fa fa-database text-primary"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    FER-2013
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    公开数据集
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">35,887</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">7</div>
+                                        <div class="text-xs text-gray-500">
+                                            愤怒、厌恶、恐惧、快乐、悲伤、惊讶、中性
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        2023-05-15
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            已处理
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button class="text-primary hover:text-primary-dark mr-3">查看</button>
+                                        <button class="text-gray-600 hover:text-gray-900 mr-3">预处理</button>
+                                        <button class="text-red-600 hover:text-red-900">删除</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                                <i class="fa fa-database text-primary"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    CK+
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    公开数据集
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">11,000</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">8</div>
+                                        <div class="text-xs text-gray-500">
+                                            愤怒、厌恶、恐惧、快乐、悲伤、惊讶、中性、轻蔑
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        2023-06-22
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            已处理
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button class="text-primary hover:text-primary-dark mr-3">查看</button>
+                                        <button class="text-gray-600 hover:text-gray-900 mr-3">预处理</button>
+                                        <button class="text-red-600 hover:text-red-900">删除</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                                <i class="fa fa-database text-primary"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    AffectNet
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    公开数据集
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">400,000</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">8</div>
+                                        <div class="text-xs text-gray-500">
+                                            中立、幸福、惊奇等及其混合形式
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        2023-07-10
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            待处理
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button class="text-primary hover:text-primary-dark mr-3">查看</button>
+                                        <button class="text-gray-600 hover:text-gray-900 mr-3">预处理</button>
+                                        <button class="text-red-600 hover:text-red-900">删除</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 数据预处理 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">数据预处理</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">选择数据集</h4>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input id="dataset-fer2013" name="dataset" type="radio" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="dataset-fer2013" class="ml-2 block text-sm text-gray-700">
+                                            FER-2013
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="dataset-ck" name="dataset" type="radio" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="dataset-ck" class="ml-2 block text-sm text-gray-700">
+                                            CK+
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="dataset-affectnet" name="dataset" type="radio" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="dataset-affectnet" class="ml-2 block text-sm text-gray-700">
+                                            AffectNet
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">预处理选项</h4>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input id="preprocess-normalize" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="preprocess-normalize" class="ml-2 block text-sm text-gray-700">
+                                            归一化
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="preprocess-crop" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="preprocess-crop" class="ml-2 block text-sm text-gray-700">
+                                            裁剪与缩放 (48x48)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="preprocess-grayscale" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="preprocess-grayscale" class="ml-2 block text-sm text-gray-700">
+                                            灰度化
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="preprocess-contrast" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="preprocess-contrast" class="ml-2 block text-sm text-gray-700">
+                                            对比度增强
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="preprocess-noise" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="preprocess-noise" class="ml-2 block text-sm text-gray-700">
+                                            噪声去除
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <h4 class="text-md font-medium text-gray-700 mb-3">数据增强</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input id="augment-rotate" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="augment-rotate" class="ml-2 block text-sm text-gray-700">
+                                            旋转 (±15°)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="augment-flip" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="augment-flip" class="ml-2 block text-sm text-gray-700">
+                                            水平翻转
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="augment-brightness" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="augment-brightness" class="ml-2 block text-sm text-gray-700">
+                                            亮度调整 (±20%)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="augment-ratio" class="block text-sm font-medium text-gray-700 mb-1">
+                                        增强比例
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input id="augment-ratio" type="range" min="0" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                        <span id="augment-ratio-value" class="ml-2 text-sm text-gray-700 w-12">100%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition mr-2">
+                                预览
+                            </button>
+                            <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                开始处理
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 数据预览 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">数据预览</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                                <img src="https://p26-doubao-search-sign.byteimg.com/labis/50cdfbd21a62f80cc974dfaaa80a8be7~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=zkBFM104hM4ce9Sq5MIOVorBeEU%3D" alt="表情示例" class="w-full h-full object-cover">
+                                <div class="p-2 bg-white">
+                                    <p class="text-xs font-medium text-gray-900">快乐</p>
+                                    <p class="text-xs text-gray-500">FER-2013_001</p>
+                                </div>
+                            </div>
+                            <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                                <img src="https://p3-doubao-search-sign.byteimg.com/pgc-image/8ae88543b33348a3b8f2042b8391b00d~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=OEWUgWE6mL44Pui5wjsdJgSR87o%3D" alt="表情示例" class="w-full h-full object-cover">
+                                <div class="p-2 bg-white">
+                                    <p class="text-xs font-medium text-gray-900">惊讶</p>
+                                    <p class="text-xs text-gray-500">FER-2013_002</p>
+                                </div>
+                            </div>
+                            <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                                <img src="https://p3-doubao-search-sign.byteimg.com/tos-cn-i-qvj2lq49k0/8f59fdb96a2d487288acfeceab9bd973~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=wdSWYUJwA%2F0%2FwNtkdlBQ9q6RyQM%3D" alt="表情示例" class="w-full h-full object-cover">
+                                <div class="p-2 bg-white">
+                                    <p class="text-xs font-medium text-gray-900">愤怒</p>
+                                    <p class="text-xs text-gray-500">CK+_001</p>
+                                </div>
+                            </div>
+                            <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                                <img src="https://p26-doubao-search-sign.byteimg.com/labis/2af2bc9d98556dabd3320e663b11fe54~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=Yuwpb%2FWZutI3C3rupnmVgQvt5R8%3D" alt="表情示例" class="w-full h-full object-cover">
+                                <div class="p-2 bg-white">
+                                    <p class="text-xs font-medium text-gray-900">悲伤</p>
+                                    <p class="text-xs text-gray-500">CK+_002</p>
+                                </div>
+                            </div>
+                            <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                                <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+                                    <i class="fa fa-plus text-2xl"></i>
+                                </div>
+                                <div class="p-2 bg-white">
+                                    <p class="text-xs font-medium text-gray-900">添加样本</p>
+                                    <p class="text-xs text-gray-500">上传新图像</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模型设计页面 -->
+                <div id="model-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">模型设计</h2>
+                        <div class="flex space-x-2">
+                            <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                <i class="fa fa-save mr-1"></i> 保存模型
+                            </button>
+                            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                                <i class="fa fa-plus mr-1"></i> 新建模型
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 模型选择 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">CNN</h3>
+                                <div class="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-code-fork text-primary"></i>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                基础卷积神经网络，适合入门级表情识别任务
+                            </p>
+                            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                                <span>参数数量: 约1.2M</span>
+                                <span>准确率: 75-80%</span>
+                            </div>
+                            <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                选择模型
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">ResNet</h3>
+                                <div class="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-code-fork text-primary"></i>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                残差网络，通过跳跃连接解决梯度消失问题
+                            </p>
+                            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                                <span>参数数量: 约2.5M</span>
+                                <span>准确率: 82-85%</span>
+                            </div>
+                            <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                选择模型
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">EfficientNet</h3>
+                                <div class="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-code-fork text-primary"></i>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                高效网络，在参数量和准确率之间取得良好平衡
+                            </p>
+                            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                                <span>参数数量: 约3.8M</span>
+                                <span>准确率: 85-88%</span>
+                            </div>
+                            <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                选择模型
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">VGG19</h3>
+                                <div class="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-code-fork text-primary"></i>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                深度卷积网络，具有丰富的特征提取能力
+                            </p>
+                            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                                <span>参数数量: 约14.7M</span>
+                                <span>准确率: 87-89%</span>
+                            </div>
+                            <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                选择模型
+                            </button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-700">自定义模型</h3>
+                                <div class="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                    <i class="fa fa-plus text-primary"></i>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">
+                                根据需求自定义网络架构和参数
+                            </p>
+                            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                                <span>参数数量: 可配置</span>
+                                <span>准确率: 取决于设计</span>
+                            </div>
+                            <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                创建自定义模型
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 模型配置 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">模型架构</h3>
+                                <div class="border border-gray-200 rounded-lg p-4 min-h-[400px]">
+                                    <div class="flex flex-col items-center space-y-4">
+                                        <div class="w-full max-w-md bg-gray-100 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">输入层</p>
+                                            <p class="text-sm text-gray-500">48x48x1 (灰度图像)</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-primary/10 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">卷积层 1</p>
+                                            <p class="text-sm text-gray-500">32个 3x3 卷积核, ReLU激活</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-primary/10 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">池化层 1</p>
+                                            <p class="text-sm text-gray-500">2x2 Max Pooling</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-primary/10 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">卷积层 2</p>
+                                            <p class="text-sm text-gray-500">64个 3x3 卷积核, ReLU激活</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-primary/10 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">池化层 2</p>
+                                            <p class="text-sm text-gray-500">2x2 Max Pooling</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-green-100 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">SE注意力模块</p>
+                                            <p class="text-sm text-gray-500">通道注意力机制</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-gray-100 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">全连接层</p>
+                                            <p class="text-sm text-gray-500">128个神经元, ReLU激活</p>
+                                        </div>
+                                        <div class="w-0.5 h-6 bg-gray-300"></div>
+                                        <div class="w-full max-w-md bg-gray-100 rounded-lg p-3 text-center">
+                                            <p class="font-medium text-gray-700">输出层</p>
+                                            <p class="text-sm text-gray-500">7个神经元, Softmax激活</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">模型参数</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="model-name" class="block text-sm font-medium text-gray-700 mb-1">
+                                            模型名称
+                                        </label>
+                                        <input type="text" id="model-name" value="VGG19-SE" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label for="input-size" class="block text-sm font-medium text-gray-700 mb-1">
+                                            输入尺寸
+                                        </label>
+                                        <div class="flex space-x-2">
+                                            <input type="number" id="input-width" value="48" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <span class="flex items-center">x</span>
+                                            <input type="number" id="input-height" value="48" class="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="num-classes" class="block text-sm font-medium text-gray-700 mb-1">
+                                            类别数量
+                                        </label>
+                                        <input type="number" id="num-classes" value="7" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label for="activation" class="block text-sm font-medium text-gray-700 mb-1">
+                                            激活函数
+                                        </label>
+                                        <select id="activation" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <option value="relu" selected>ReLU</option>
+                                            <option value="leaky_relu">Leaky ReLU</option>
+                                            <option value="elu">ELU</option>
+                                            <option value="mish">Mish</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="dropout" class="block text-sm font-medium text-gray-700 mb-1">
+                                            Dropout 比率
+                                        </label>
+                                        <div class="flex items-center">
+                                            <input type="range" id="dropout" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                            <span id="dropout-value" class="ml-2 text-sm text-gray-700 w-12">0.5</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            注意力机制
+                                        </label>
+                                        <div class="flex items-center">
+                                            <input id="attention-se" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                            <label for="attention-se" class="ml-2 block text-sm text-gray-700">
+                                                SE注意力模块
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            残差连接
+                                        </label>
+                                        <div class="flex items-center">
+                                            <input id="residual" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                            <label for="residual" class="ml-2 block text-sm text-gray-700">
+                                                添加残差连接
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-6">
+                                    <button class="w-full py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                        更新模型配置
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模型分析 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">模型分析</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">参数量</h4>
+                                <p class="text-3xl font-bold text-gray-800">14.7M</p>
+                                <p class="text-sm text-gray-500 mt-1">可训练参数总数</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">计算复杂度</h4>
+                                <p class="text-3xl font-bold text-gray-800">2.3 GFLOPs</p>
+                                <p class="text-sm text-gray-500 mt-1">每秒浮点运算次数</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">模型大小</h4>
+                                <p class="text-3xl font-bold text-gray-800">58.8 MB</p>
+                                <p class="text-sm text-gray-500 mt-1">保存的模型文件大小</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <h4 class="text-md font-medium text-gray-700 mb-3">层详情</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                层名称
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                类型
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                输出形状
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                参数
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                input
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                Input
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                (48, 48, 1)
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                0
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                conv1_1
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                Conv2D
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                (48, 48, 64)
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                640
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                conv1_2
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                Conv2D
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                (48, 48, 64)
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                36,928
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                pool1
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                MaxPooling2D
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                (24, 24, 64)
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                0
+                                            </td>
+                                        </tr>
+                                        <!-- 更多层信息 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 训练与验证页面 -->
+                <div id="training-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">训练与验证</h2>
+                        <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                            <i class="fa fa-play mr-1"></i> 开始训练
+                        </button>
+                    </div>
+
+                    <!-- 训练配置 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div>
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">数据集选择</h3>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input id="train-dataset-fer2013" name="train-dataset" type="radio" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="train-dataset-fer2013" class="ml-2 block text-sm text-gray-700">
+                                            FER-2013
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="train-dataset-ck" name="train-dataset" type="radio" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="train-dataset-ck" class="ml-2 block text-sm text-gray-700">
+                                            CK+
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="train-dataset-affectnet" name="train-dataset" type="radio" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="train-dataset-affectnet" class="ml-2 block text-sm text-gray-700">
+                                            AffectNet
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label for="train-ratio" class="block text-sm font-medium text-gray-700 mb-1">
+                                        训练/验证/测试比例
+                                    </label>
+                                    <div class="flex items-center space-x-2">
+                                        <input type="number" id="train-ratio" value="70" class="w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <span>:</span>
+                                        <input type="number" id="val-ratio" value="15" class="w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <span>:</span>
+                                        <input type="number" id="test-ratio" value="15" class="w-1/3 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">训练参数</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="batch-size" class="block text-sm font-medium text-gray-700 mb-1">
+                                            批量大小
+                                        </label>
+                                        <input type="number" id="batch-size" value="64" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label for="epochs" class="block text-sm font-medium text-gray-700 mb-1">
+                                            训练轮数
+                                        </label>
+                                        <input type="number" id="epochs" value="50" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label for="optimizer" class="block text-sm font-medium text-gray-700 mb-1">
+                                            优化器
+                                        </label>
+                                        <select id="optimizer" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <option value="adam" selected>Adam</option>
+                                            <option value="sgd">SGD</option>
+                                            <option value="rmsprop">RMSprop</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="learning-rate" class="block text-sm font-medium text-gray-700 mb-1">
+                                            学习率
+                                        </label>
+                                        <div class="flex items-center">
+                                            <input type="range" id="learning-rate" min="0" max="100" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                            <span id="learning-rate-value" class="ml-2 text-sm text-gray-700 w-16">0.001</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="loss-function" class="block text-sm font-medium text-gray-700 mb-1">
+                                            损失函数
+                                        </label>
+                                        <select id="loss-function" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <option value="categorical_crossentropy" selected>交叉熵损失</option>
+                                            <option value="mean_squared_error">均方误差</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">训练策略</h3>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input id="strategy-early-stopping" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="strategy-early-stopping" class="ml-2 block text-sm text-gray-700">
+                                            早停策略
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="strategy-learning-rate-decay" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="strategy-learning-rate-decay" class="ml-2 block text-sm text-gray-700">
+                                            学习率衰减
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="strategy-model-checkpoint" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="strategy-model-checkpoint" class="ml-2 block text-sm text-gray-700">
+                                            模型检查点
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input id="strategy-data-augmentation" type="checkbox" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="strategy-data-augmentation" class="ml-2 block text-sm text-gray-700">
+                                            数据增强
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <label for="patience" class="block text-sm font-medium text-gray-700 mb-1">
+                                        早停耐心值
+                                    </label>
+                                    <input type="number" id="patience" value="10" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div class="mt-4">
+                                    <label for="monitor-metric" class="block text-sm font-medium text-gray-700 mb-1">
+                                        监控指标
+                                    </label>
+                                    <select id="monitor-metric" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="val_accuracy" selected>验证准确率</option>
+                                        <option value="val_loss">验证损失</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 训练进度 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-700">训练进度</h3>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                    <i class="fa fa-pause"></i>
+                                </button>
+                                <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                    <i class="fa fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm text-gray-700 mb-1">
+                                <span>Epoch 23/50</span>
+                                <span>45% 完成</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-primary h-2.5 rounded-full" style="width: 45%"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">损失曲线</h4>
+                                <div class="h-64">
+                                    <canvas id="loss-chart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">准确率曲线</h4>
+                                <div class="h-64">
+                                    <canvas id="accuracy-training-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <h4 class="text-md font-medium text-gray-700 mb-3">训练日志</h4>
+                            <div class="bg-gray-50 rounded-lg p-4 h-40 overflow-y-auto scrollbar-hide text-sm text-gray-700">
+                                <p>Epoch 23/50</p>
+                                <p>- 3s - loss: 0.4567 - accuracy: 0.8234 - val_loss: 0.5678 - val_accuracy: 0.7987</p>
+                                <p>- 学习率调整为: 0.0005</p>
+                                <p>Epoch 22/50</p>
+                                <p>- 3s - loss: 0.4678 - accuracy: 0.8192 - val_loss: 0.5789 - val_accuracy: 0.7956</p>
+                                <p>Epoch 21/50</p>
+                                <p>- 3s - loss: 0.4789 - accuracy: 0.8156 - val_loss: 0.5890 - val_accuracy: 0.7923</p>
+                                <p>- 验证准确率提高，保存模型</p>
+                                <p>Epoch 20/50</p>
+                                <p>- 3s - loss: 0.4901 - accuracy: 0.8103 - val_loss: 0.6012 - val_accuracy: 0.7876</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模型评估 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">模型评估</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">准确率</h4>
+                                <p class="text-3xl font-bold text-gray-800">82.3%</p>
+                                <p class="text-sm text-gray-500 mt-1">正确预测的样本比例</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">精确率</h4>
+                                <p class="text-3xl font-bold text-gray-800">81.7%</p>
+                                <p class="text-sm text-gray-500 mt-1">正例预测的准确性</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">召回率</h4>
+                                <p class="text-3xl font-bold text-gray-800">80.9%</p>
+                                <p class="text-sm text-gray-500 mt-1">正例被正确识别的比例</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-md font-medium text-gray-700 mb-2">F1分数</h4>
+                                <p class="text-3xl font-bold text-gray-800">81.3%</p>
+                                <p class="text-sm text-gray-500 mt-1">精确率和召回率的调和平均</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">混淆矩阵</h4>
+                                <div class="h-80">
+                                    <canvas id="confusion-matrix"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">类别性能</h4>
+                                <div class="h-80 overflow-y-auto scrollbar-hide">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    表情类别
+                                                </th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    准确率
+                                                </th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    精确率
+                                                </th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    召回率
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    愤怒
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    76.5%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    74.2%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    72.8%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    厌恶
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    89.2%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    87.5%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    85.3%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    恐惧
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    72.1%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    70.5%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    68.9%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    快乐
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    94.7%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    93.8%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    95.2%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    悲伤
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    78.3%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    76.9%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    77.5%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    惊讶
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    91.5%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    90.2%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    92.1%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    中性
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    85.6%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    84.7%
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    86.2%
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实时演示页面 -->
+                <div id="demo-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">实时演示</h2>
+                        <div class="flex space-x-2">
+                            <button id="start-camera" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                                <i class="fa fa-camera mr-1"></i> 开始摄像头
+                            </button>
+                            <button id="upload-image" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                                <i class="fa fa-upload mr-1"></i> 上传图像
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 演示区域 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                                <div class="relative">
+                                    <div id="camera-placeholder" class="w-full aspect-video bg-gray-100 flex items-center justify-center">
+                                        <div class="text-center">
+                                            <i class="fa fa-camera text-4xl text-gray-400 mb-2"></i>
+                                            <p class="text-gray-500">点击"开始摄像头"按钮启动实时演示</p>
+                                        </div>
+                                    </div>
+                                    <video id="camera-feed" class="w-full h-full object-cover hidden"></video>
+                                    <canvas id="camera-canvas" class="absolute top-0 left-0 w-full h-full hidden"></canvas>
+                                    <div class="absolute top-4 right-4 bg-white/80 rounded-full p-2 cursor-pointer hover:bg-white transition">
+                                        <i class="fa fa-refresh text-gray-700"></i>
+                                    </div>
+                                </div>
+                                <div class="p-4 bg-gray-50">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-gray-800">实时表情识别</h3>
+                                            <p class="text-sm text-gray-500">当前模型: VGG19-SE</p>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                                <i class="fa fa-pause"></i>
+                                            </button>
+                                            <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                                <i class="fa fa-cog"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="bg-white rounded-xl shadow-md p-6">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-4">识别结果</h3>
+                                <div class="space-y-6">
+                                    <div>
+                                        <h4 class="text-md font-medium text-gray-700 mb-2">当前表情</h4>
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                                                <i class="fa fa-smile-o text-3xl text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-2xl font-bold text-gray-800">快乐</p>
+                                                <p class="text-sm text-gray-500">置信度: 94.7%</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-md font-medium text-gray-700 mb-2">表情分布</h4>
+                                        <div class="h-64">
+                                            <canvas id="emotion-distribution"></canvas>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-md font-medium text-gray-700 mb-2">历史记录</h4>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                                        <i class="fa fa-smile-o text-primary"></i>
+                                                    </div>
+                                                    <span class="text-sm text-gray-700">快乐</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">10:32</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                                        <i class="fa fa-meh-o text-primary"></i>
+                                                    </div>
+                                                    <span class="text-sm text-gray-700">中性</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">10:31</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                                        <i class="fa fa-smile-o text-primary"></i>
+                                                    </div>
+                                                    <span class="text-sm text-gray-700">快乐</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">10:30</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 模型解释性 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">模型解释性</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">热力图</h4>
+                                <div class="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <p class="text-gray-500">启动摄像头后显示热力图</p>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">
+                                    热力图显示模型关注的面部区域，帮助理解模型决策过程
+                                </p>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">特征重要性</h4>
+                                <div class="h-64">
+                                    <canvas id="feature-importance"></canvas>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">
+                                    显示不同面部区域对表情识别的贡献度
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 结果分析页面 -->
+                <div id="results-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">结果分析</h2>
+                        <div class="flex space-x-2">
+                            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                                <i class="fa fa-download mr-1"></i> 导出报告
+                            </button>
+                            <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                                <i class="fa fa-print mr-1"></i> 打印
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 模型比较 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">模型比较</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            模型
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            数据集
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            准确率
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            精确率
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            召回率
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            F1分数
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            训练时间
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                VGG19-SE
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            FER-2013
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            82.3%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            81.7%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            80.9%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            81.3%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            25分钟
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                EfficientNet
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            FER-2013
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            81.5%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            80.8%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            80.2%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            80.5%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            35分钟
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                ResNet
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            FER-2013
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            79.8%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            79.1%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            78.5%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            78.8%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            20分钟
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                VGG19-SE
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            CK+
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            89.7%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            89.2%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            88.9%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            89.0%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            15分钟
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                CNN
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            FER-2013
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            75.6%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            74.9%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            74.2%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            74.5%
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            10分钟
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 性能分析 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">准确率对比</h3>
+                            <div class="h-80">
+                                <canvas id="model-comparison-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">训练时间与准确率关系</h3>
+                            <div class="h-80">
+                                <canvas id="time-accuracy-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 错误分析 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">错误分析</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">常见错误类型</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between text-sm text-gray-700 mb-1">
+                                            <span>恐惧 vs 惊讶</span>
+                                            <span>12.5%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div class="bg-red-500 h-2.5 rounded-full" style="width: 12.5%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-sm text-gray-700 mb-1">
+                                            <span>悲伤 vs 中性</span>
+                                            <span>8.3%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div class="bg-red-500 h-2.5 rounded-full" style="width: 8.3%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-sm text-gray-700 mb-1">
+                                            <span>愤怒 vs 厌恶</span>
+                                            <span>6.7%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div class="bg-red-500 h-2.5 rounded-full" style="width: 6.7%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-sm text-gray-700 mb-1">
+                                            <span>其他错误</span>
+                                            <span>5.2%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div class="bg-red-500 h-2.5 rounded-full" style="width: 5.2%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-700 mb-3">错误样本分析</h4>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                        <div class="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                                            <img src="https://p3-doubao-search-sign.byteimg.com/tos-cn-i-qvj2lq49k0/8f59fdb96a2d487288acfeceab9bd973~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=wdSWYUJwA%2F0%2FwNtkdlBQ9q6RyQM%3D" alt="错误样本" class="w-full h-full object-cover">
+                                        </div>
+                                        <p class="text-sm font-medium text-gray-700">真实: 愤怒</p>
+                                        <p class="text-sm text-red-500">预测: 厌恶</p>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                        <div class="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                                            <img src="https://p26-doubao-search-sign.byteimg.com/labis/2af2bc9d98556dabd3320e663b11fe54~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1788331181&x-signature=Yuwpb%2FWZutI3C3rupnmVgQvt5R8%3D" alt="错误样本" class="w-full h-full object-cover">
+                                        </div>
+                                        <p class="text-sm font-medium text-gray-700">真实: 悲伤</p>
+                                        <p class="text-sm text-red-500">预测: 中性</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 改进建议 -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">改进建议</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                                    <i class="fa fa-lightbulb-o"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">数据增强优化</p>
+                                    <p class="text-sm text-gray-600">增加更多种类的数据增强方法，如随机裁剪、色彩抖动等，以提高模型的泛化能力。</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                                    <i class="fa fa-lightbulb-o"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">模型架构调整</p>
+                                    <p class="text-sm text-gray-600">考虑在VGG19基础上添加更多的注意力模块，特别是在浅层特征提取部分。</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                                    <i class="fa fa-lightbulb-o"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">类别平衡处理</p>
+                                    <p class="text-sm text-gray-600">FER-2013数据集中各类别样本数量不平衡，建议采用过采样或权重调整策略。</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4">
+                                <div class="bg-blue-100 p-2 rounded-full text-blue-600">
+                                    <i class="fa fa-lightbulb-o"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">迁移学习</p>
+                                    <p class="text-sm text-gray-600">考虑使用在大规模人脸数据集上预训练的模型作为初始化，可能会提高收敛速度和最终性能。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统设置页面 -->
+                <div id="settings-page" class="hidden space-y-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">系统设置</h2>
+                        <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition">
+                            <i class="fa fa-save mr-1"></i> 保存设置
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">通用设置</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="language" class="block text-sm font-medium text-gray-700 mb-1">
+                                        语言
+                                    </label>
+                                    <select id="language" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="zh-CN" selected>简体中文</option>
+                                        <option value="en-US">English</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="theme" class="block text-sm font-medium text-gray-700 mb-1">
+                                        主题
+                                    </label>
+                                    <select id="theme" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="light" selected>浅色</option>
+                                        <option value="dark">深色</option>
+                                        <option value="auto">跟随系统</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="notifications" class="block text-sm font-medium text-gray-700 mb-1">
+                                        通知
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input id="notifications" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="notifications" class="ml-2 block text-sm text-gray-700">
+                                            启用系统通知
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="auto-save" class="block text-sm font-medium text-gray-700 mb-1">
+                                        自动保存
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input id="auto-save" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="auto-save" class="ml-2 block text-sm text-gray-700">
+                                            自动保存模型和训练进度
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="auto-save-interval" class="block text-sm font-medium text-gray-700 mb-1">
+                                        自动保存间隔 (分钟)
+                                    </label>
+                                    <input type="number" id="auto-save-interval" value="5" min="1" max="60" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">性能设置</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="gpu-acceleration" class="block text-sm font-medium text-gray-700 mb-1">
+                                        GPU 加速
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input id="gpu-acceleration" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="gpu-acceleration" class="ml-2 block text-sm text-gray-700">
+                                            使用 GPU 加速训练
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="batch-size-gpu" class="block text-sm font-medium text-gray-700 mb-1">
+                                        GPU 批量大小
+                                    </label>
+                                    <input type="number" id="batch-size-gpu" value="64" min="1" max="512" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="num-workers" class="block text-sm font-medium text-gray-700 mb-1">
+                                        数据加载工作线程数
+                                    </label>
+                                    <input type="number" id="num-workers" value="4" min="0" max="16" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="memory-limit" class="block text-sm font-medium text-gray-700 mb-1">
+                                        内存限制 (GB)
+                                    </label>
+                                    <input type="number" id="memory-limit" value="8" min="1" max="64" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="precision" class="block text-sm font-medium text-gray-700 mb-1">
+                                        计算精度
+                                    </label>
+                                    <select id="precision" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="float32" selected>Float32</option>
+                                        <option value="float16">Float16 (半精度)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">数据设置</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="data-directory" class="block text-sm font-medium text-gray-700 mb-1">
+                                        数据目录
+                                    </label>
+                                    <input type="text" id="data-directory" value="/data/facial_expression" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="model-directory" class="block text-sm font-medium text-gray-700 mb-1">
+                                        模型保存目录
+                                    </label>
+                                    <input type="text" id="model-directory" value="/models/facial_expression" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="cache-size" class="block text-sm font-medium text-gray-700 mb-1">
+                                        缓存大小 (GB)
+                                    </label>
+                                    <input type="number" id="cache-size" value="10" min="1" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="clean-cache" class="block text-sm font-medium text-gray-700 mb-1">
+                                        清理缓存
+                                    </label>
+                                    <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                        清理
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">用户设置</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                                        用户名
+                                    </label>
+                                    <input type="text" id="username" value="researcher" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                                        邮箱
+                                    </label>
+                                    <input type="email" id="email" value="researcher@example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="change-password" class="block text-sm font-medium text-gray-700 mb-1">
+                                        修改密码
+                                    </label>
+                                    <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition">
+                                        修改
+                                    </button>
+                                </div>
+                                <div>
+                                    <label for="notifications-email" class="block text-sm font-medium text-gray-700 mb-1">
+                                        邮件通知
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input id="notifications-email" type="checkbox" checked class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                                        <label for="notifications-email" class="ml-2 block text-sm text-gray-700">
+                                            训练完成时发送邮件通知
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 页脚 -->
+        <footer class="bg-gray-800 text-white py-4">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <p class="text-sm">© 2023 人脸表情识别研究系统. 保留所有权利.</p>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-sm text-gray-300 hover:text-white transition">关于我们</a>
+                    <a href="#" class="text-sm text-gray-300 hover:text-white transition">隐私政策</a>
+                    <a href="#" class="text-sm text-gray-300 hover:text-white transition">使用条款</a>
+                    <a href="#" class="text-sm text-gray-300 hover:text-white transition">联系我们</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // 页面切换
+        document.addEventListener('DOMContentLoaded', function() {
+            const navButtons = document.querySelectorAll('nav button');
+            const pages = document.querySelectorAll('[id$="-page"]');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.id.replace('nav-', '') + '-page';
+                    
+                    // 更新导航按钮样式
+                    navButtons.forEach(btn => {
+                        btn.classList.remove('bg-primary', 'text-white');
+                        btn.classList.add('hover:bg-gray-100', 'text-gray-700');
+                    });
+                    this.classList.add('bg-primary', 'text-white');
+                    this.classList.remove('hover:bg-gray-100', 'text-gray-700');
+                    
+                    // 显示目标页面，隐藏其他页面
+                    pages.forEach(page => {
+                        if (page.id === targetId) {
+                            page.classList.remove('hidden');
+                        } else {
+                            page.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+            // 初始化图表
+            initCharts();
+            
+            // 初始化滑块值显示
+            initSliders();
+            
+            // 初始化摄像头功能
+            initCamera();
+        });
+
+        // 初始化图表
+        function initCharts() {
+            // 模型准确率对比图表
+            const accuracyCtx = document.getElementById('accuracy-chart');
+            if (accuracyCtx) {
+                new Chart(accuracyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['CNN', 'ResNet', 'EfficientNet', 'VGG19', 'VGG19-SE'],
+                        datasets: [{
+                            label: 'FER-2013 准确率',
+                            data: [75.6, 79.8, 81.5, 83.2, 82.3],
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }, {
+                            label: 'CK+ 准确率',
+                            data: [78.2, 83.5, 85.7, 88.9, 89.7],
+                            backgroundColor: 'rgba(249, 115, 22, 0.5)',
+                            borderColor: 'rgba(249, 115, 22, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 数据集分布图表
+            const datasetCtx = document.getElementById('dataset-chart');
+            if (datasetCtx) {
+                new Chart(datasetCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['愤怒', '厌恶', '恐惧', '快乐', '悲伤', '惊讶', '中性'],
+                        datasets: [{
+                            data: [4953, 547, 5121, 8989, 6077, 4002, 6198],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(168, 85, 247, 0.7)',
+                                'rgba(249, 115, 22, 0.7)',
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(251, 191, 36, 0.7)',
+                                'rgba(107, 114, 128, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // 训练损失曲线
+            const lossCtx = document.getElementById('loss-chart');
+            if (lossCtx) {
+                new Chart(lossCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 23}, (_, i) => i + 1),
+                        datasets: [{
+                            label: '训练损失',
+                            data: [1.8, 1.5, 1.3, 1.1, 0.95, 0.85, 0.78, 0.72, 0.67, 0.63, 0.59, 0.56, 0.53, 0.50, 0.48, 0.46, 0.45, 0.44, 0.43, 0.44, 0.45, 0.46, 0.457],
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }, {
+                            label: '验证损失',
+                            data: [1.7, 1.4, 1.2, 1.05, 0.98, 0.92, 0.88, 0.85, 0.83, 0.82, 0.81, 0.80, 0.79, 0.78, 0.77, 0.76, 0.75, 0.74, 0.73, 0.72, 0.71, 0.70, 0.69],
+                            borderColor: 'rgba(249, 115, 22, 1)',
+                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 训练准确率曲线
+            const accuracyTrainingCtx = document.getElementById('accuracy-training-chart');
+            if (accuracyTrainingCtx) {
+                new Chart(accuracyTrainingCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: 23}, (_, i) => i + 1),
+                        datasets: [{
+                            label: '训练准确率',
+                            data: [35, 45, 52, 58, 63, 67, 70, 73, 75, 77, 78, 79, 80, 81, 81.5, 81.8, 82.0, 82.2, 82.3, 82.2, 82.1, 82.2, 82.3],
+                            borderColor: 'rgba(34, 197, 94, 1)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }, {
+                            label: '验证准确率',
+                            data: [38, 48, 55, 60, 64, 67, 69, 71, 72, 73, 74, 75, 76, 77, 77.5, 78.0, 78.5, 79.0, 79.2, 79.4, 79.6, 79.7, 79.8],
+                            borderColor: 'rgba(251, 191, 36, 1)',
+                            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                min: 30,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 混淆矩阵
+            const confusionMatrixCtx = document.getElementById('confusion-matrix');
+            if (confusionMatrixCtx) {
+                new Chart(confusionMatrixCtx, {
+                    type: 'matrix',
+                    data: {
+                        datasets: [{
+                            label: '混淆矩阵',
+                            data: [
+                                { x: '愤怒', y: '愤怒', v: 765 },
+                                { x: '愤怒', y: '厌恶', v: 45 },
+                                { x: '愤怒', y: '恐惧', v: 30 },
+                                { x: '愤怒', y: '快乐', v: 5 },
+                                { x: '愤怒', y: '悲伤', v: 20 },
+                                { x: '愤怒', y: '惊讶', v: 10 },
+                                { x: '愤怒', y: '中性', v: 25 },
+                                // 更多数据点...
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // 表情分布图表
+            const emotionDistributionCtx = document.getElementById('emotion-distribution');
+            if (emotionDistributionCtx) {
+                new Chart(emotionDistributionCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['愤怒', '厌恶', '恐惧', '快乐', '悲伤', '惊讶', '中性'],
+                        datasets: [{
+                            data: [5, 2, 3, 94.7, 1, 3, 10.3],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.7)',
+                                'rgba(168, 85, 247, 0.7)',
+                                'rgba(249, 115, 22, 0.7)',
+                                'rgba(34, 197, 94, 0.7)',
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(251, 191, 36, 0.7)',
+                                'rgba(107, 114, 128, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // 特征重要性图表
+            const featureImportanceCtx = document.getElementById('feature-importance');
+            if (featureImportanceCtx) {
+                new Chart(featureImportanceCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['眼睛区域', '眉毛区域', '鼻子区域', '嘴巴区域', '脸颊区域', '额头区域', '下巴区域'],
+                        datasets: [{
+                            label: '特征重要性',
+                            data: [85, 75, 40, 90, 60, 30, 45],
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(59, 130, 246, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: {
+                                    display: true
+                                },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 模型比较图表
+            const modelComparisonCtx = document.getElementById('model-comparison-chart');
+            if (modelComparisonCtx) {
+                new Chart(modelComparisonCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['CNN', 'ResNet', 'EfficientNet', 'VGG19', 'VGG19-SE'],
+                        datasets: [{
+                            label: 'FER-2013 准确率',
+                            data: [75.6, 79.8, 81.5, 83.2, 82.3],
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)'
+                        }, {
+                            label: 'CK+ 准确率',
+                            data: [78.2, 83.5, 85.7, 88.9, 89.7],
+                            backgroundColor: 'rgba(249, 115, 22, 0.7)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 时间-准确率关系图表
+            const timeAccuracyCtx = document.getElementById('time-accuracy-chart');
+            if (timeAccuracyCtx) {
+                new Chart(timeAccuracyCtx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: '模型性能',
+                            data: [
+                                { x: 10, y: 75.6, r: 10, model: 'CNN' },
+                                { x: 20, y: 79.8, r: 15, model: 'ResNet' },
+                                { x: 35, y: 81.5, r: 20, model: 'EfficientNet' },
+                                { x: 40, y: 83.2, r: 25, model: 'VGG19' },
+                                { x: 25, y: 82.3, r: 22, model: 'VGG19-SE' }
+                            ],
+                            backgroundColor: function(context) {
+                                const index = context.dataIndex;
+                                const model = context.dataset.data[index].model;
+                                const colors = {
+                                    'CNN': 'rgba(239, 68, 68, 0.7)',
+                                    'ResNet': 'rgba(168, 85, 247, 0.7)',
+                                    'EfficientNet': 'rgba(249, 115, 22, 0.7)',
+                                    'VGG19': 'rgba(34, 197, 94, 0.7)',
+                                    'VGG19-SE': 'rgba(59, 130, 246, 0.7)'
+                                };
+                                return colors[model] || 'rgba(107, 114, 128, 0.7)';
+                            }
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '训练时间 (分钟)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '准确率 (%)'
+                                },
+                                min: 70,
+                                max: 90
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const model = context.dataset.data[context.dataIndex].model;
+                                        const accuracy = context.parsed.y;
+                                        const time = context.parsed.x;
+                                        return `${model}: ${accuracy}% (${time}分钟)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 初始化滑块值显示
+        function initSliders() {
+            // 增强比例滑块
+            const augmentRatio = document.getElementById('augment-ratio');
+            const augmentRatioValue = document.getElementById('augment-ratio-value');
+            if (augmentRatio && augmentRatioValue) {
+                augmentRatio.addEventListener('input', function() {
+                    augmentRatioValue.textContent = this.value + '%';
+                });
+            }
+
+            // Dropout比率滑块
+            const dropout = document.getElementById('dropout');
+            const dropoutValue = document.getElementById('dropout-value');
+            if (dropout && dropoutValue) {
+                dropout.addEventListener('input', function() {
+                    dropoutValue.textContent = (this.value / 100).toFixed(1);
+                });
+            }
+
+            // 学习率滑块
+            const learningRate = document.getElementById('learning-rate');
+            const learningRateValue = document.getElementById('learning-rate-value');
+            if (learningRate && learningRateValue) {
+                learningRate.addEventListener('input', function() {
+                    const value = Math.pow(10, -3 - this.value / 50);
+                    learningRateValue.textContent = value.toFixed(6);
+                });
+            }
+        }
+
+        // 初始化摄像头功能
+        function initCamera() {
+            const startCameraBtn = document.getElementById('start-camera');
+            const cameraPlaceholder = document.getElementById('camera-placeholder');
+            const cameraFeed = document.getElementById('camera-feed');
+            const cameraCanvas = document.getElementById('camera-canvas');
+            
+            if (startCameraBtn && cameraPlaceholder && cameraFeed && cameraCanvas) {
+                startCameraBtn.addEventListener('click', function() {
+                    // 在实际应用中，这里会请求摄像头权限并启动摄像头
+                    // 由于这是一个演示系统，我们只模拟这个过程
+                    
+                    // 隐藏占位符，显示视频和画布
+                    cameraPlaceholder.classList.add('hidden');
+                    cameraFeed.classList.remove('hidden');
+                    cameraCanvas.classList.remove('hidden');
+                    
+                    // 更改按钮文本
+                    this.innerHTML = '<i class="fa fa-stop mr-1"></i> 停止摄像头';
+                    
+                    // 模拟摄像头启动
+                    setTimeout(() => {
+                        alert('摄像头已启动！在实际应用中，这里会显示摄像头画面并进行实时表情识别。');
+                    }, 1000);
+                    
+                    // 切换按钮功能
+                    this.addEventListener('click', function() {
+                        // 隐藏视频和画布，显示占位符
+                        cameraPlaceholder.classList.remove('hidden');
+                        cameraFeed.classList.add('hidden');
+                        cameraCanvas.classList.add('hidden');
+                        
+                        // 更改按钮文本
+                        this.innerHTML = '<i class="fa fa-camera mr-1"></i> 开始摄像头';
+                    }, { once: true });
+                });
+            }
+        }
+    </script>
+</body>
+</html>

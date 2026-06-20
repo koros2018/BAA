@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+.env
+
+# Data - large generated files
+data/drawings/synthetic/*.dxf
+data/models/*.pth
+data/models/*.pt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
