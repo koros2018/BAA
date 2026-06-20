@@ -106,18 +106,46 @@ class AtomicFunction:
     def _extract_value(self, entity: Dict[str, Any]) -> float:
         """从实体中提取判定所需的值"""
         props = entity.get("properties", {})
-        # 不同类型有不同的属性提取方式
-        key_map = {
-            "DIM-001": "clear_width",   # 疏散楼梯净宽
-            "DIM-002": "area",          # 防火分区面积
-            "DIM-003": "width",         # 消防车道宽度
-            "DIST-001": "travel_distance", # 疏散距离
-            "COUNT-001": "count",       # 安全出口数量
-            "ATTR-001": "fire_rating",  # 防火门等级
-            "EXIST-001": "exists",      # 楼梯间存在性
-        }
-        key = key_map.get(self.func_id, "value")
-        return props.get(key, 0.0)
+        entity_type = entity.get("type", "")
+        func_id = self.func_id
+
+        # 根据函数类型和实体类型智能提取
+        # 宽度类：优先用width/clear_width，根据实体类型自适应
+        if func_id in ("DIM-001", "DIM-003", "DIM-004"):  # 宽度判定
+            val = props.get("width", props.get("clear_width", 0.0))
+            if val > 100:  # 100mm以上视为mm单位
+                val = val / 1000
+            return val
+
+        if func_id == "DIM-002":  # 面积判定
+            val = props.get("area", 0.0)
+            if val >= 100:  # mm²→m²
+                val = val / 1000000
+            return val
+
+        if func_id == "DIST-001":  # 距离判定
+            val = props.get("travel_distance", props.get("length", 0.0))
+            if val > 100:  # mm→m
+                val = val / 1000
+            return val
+
+        if func_id == "COUNT-001":  # 数量判定
+            return props.get("count", props.get("exit_count", 1.0))
+
+        if func_id == "ATTR-001":  # 防火门等级
+            return props.get("fire_rating", props.get("rating", 0.0))
+
+        if func_id == "EXIST-001":  # 存在性判定
+            return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+
+        if func_id in ("DIM-005", "AREA-001"):  # 面积判定（窗/避难层）
+            val = props.get("area", props.get("width", 0) * props.get("height", 0))
+            if val >= 100:  # ≥100mm²即视为mm²→m²
+                val = val / 1000000
+            return val
+
+        # 兜底：直接用value或0
+        return props.get("value", 0.0)
 
 
 # ── 函数注册表 ────────────────────────────────────────────
