@@ -80,7 +80,7 @@ class DrawingParser:
             )
 
         try:
-            self._doc = ezdxf.read(str(path))
+            self._doc = ezdxf.readfile(str(path))
         except Exception as e:
             return DrawingResult(
                 file_path=file_path,

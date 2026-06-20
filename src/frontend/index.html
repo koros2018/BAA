@@ -1,0 +1,164 @@
+"""
+BAA 前端 - 7页面单页应用
+系统概览 | 图纸管理 | 规范库 | AI审图 | 对比演示 | 结果分析 | 系统设置
+纯HTML/CSS/JS，无后端依赖
+"""
+import os
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "src", "frontend")
+
+
+def generate_index_html() -> str:
+    return """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BAA - Blueprint AI Agent · 图纸合规智能体</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .sidebar-item { @apply flex items-center gap-3 px-4 py-2.5 text-sm rounded-lg cursor-pointer transition-colors; }
+  .sidebar-item:hover { @apply bg-gray-100; }
+  .sidebar-item.active { @apply bg-blue-50 text-blue-700 font-medium; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .card { @apply bg-white rounded-xl border border-gray-200 p-5; }
+  .stat-card { @apply card flex items-center gap-4; }
+  .heatmap-bar { @apply h-4 rounded-full transition-all; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<div class="flex h-screen">
+  <!-- 左侧导航 -->
+  <div class="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
+    <div class="p-4 border-b border-gray-100">
+      <h1 class="text-lg font-bold text-blue-700">BAA</h1>
+      <p class="text-xs text-gray-400">Blueprint AI Agent</p>
+    </div>
+    <nav class="flex-1 p-3 space-y-1" id="sidebar">
+      <div class="sidebar-item active" data-page="home"><i class="fa fa-home w-5"></i>系统概览</div>
+      <div class="sidebar-item" data-page="drawings"><i class="fa fa-file-image-o w-5"></i>图纸管理</div>
+      <div class="sidebar-item" data-page="specs"><i class="fa fa-book w-5"></i>规范库</div>
+      <div class="sidebar-item" data-page="review"><i class="fa fa-search w-5"></i>AI审图</div>
+      <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
+      <div class="sidebar-item" data-page="analysis"><i class="fa fa-bar-chart w-5"></i>结果分析</div>
+      <div class="sidebar-item" data-page="settings"><i class="fa fa-cog w-5"></i>系统设置</div>
+    </nav>
+    <div class="p-3 border-t border-gray-100 text-xs text-gray-400">
+      v0.1.0-alpha · 一人公司
+    </div>
+  </div>
+
+  <!-- 主内容 -->
+  <div class="flex-1 overflow-y-auto p-6">
+    <!-- ===== 系统概览 ===== -->
+    <div class="page active" id="page-home">
+      <h2 class="text-xl font-bold mb-6">系统概览</h2>
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="stat-card"><i class="fa fa-file text-2xl text-blue-500"></i><div><p class="text-2xl font-bold">0</p><p class="text-xs text-gray-400">已处理图纸</p></div></div>
+        <div class="stat-card"><i class="fa fa-book text-2xl text-green-500"></i><div><p class="text-2xl font-bold">10</p><p class="text-xs text-gray-400">规范库条目</p></div></div>
+        <div class="stat-card"><i class="fa fa-check-circle text-2xl text-teal-500"></i><div><p class="text-2xl font-bold">--</p><p class="text-xs text-gray-400">审查通过率</p></div></div>
+        <div class="stat-card"><i class="fa fa-clock-o text-2xl text-orange-500"></i><div><p class="text-2xl font-bold">--</p><p class="text-xs text-gray-400">最近审查</p></div></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="card"><canvas id="chart-spec-freq" height="200"></canvas></div>
+        <div class="card"><canvas id="chart-violation-type" height="200"></canvas></div>
+      </div>
+      <div class="card"><h3 class="font-medium mb-3">最近活动</h3><ul class="space-y-2 text-sm text-gray-500"><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>系统初始化完成 — 今天 12:00</li><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>规范JSON库加载完成（10条L1级）— 今天 12:00</li><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>核心引擎v0.1就绪 — 今天 12:00</li></ul></div>
+    </div>
+
+    <!-- ===== 图纸管理 ===== -->
+    <div class="page" id="page-drawings">
+      <h2 class="text-xl font-bold mb-6">图纸管理</h2>
+      <div class="card mb-6 text-center py-12 border-dashed border-2">
+        <i class="fa fa-cloud-upload text-4xl text-gray-300 mb-3"></i>
+        <p class="text-gray-400">将DXF图纸拖拽到此处</p>
+        <p class="text-xs text-gray-300 mt-1">支持格式: .dxf（最大50MB）</p>
+      </div>
+      <div class="card"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2">#</th><th class="pb-2">图纸名称</th><th class="pb-2">大小</th><th class="pb-2">状态</th><th class="pb-2">操作</th></tr></thead><tbody id="drawing-list"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无图纸，请上传</td></tr></tbody></table></div>
+    </div>
+
+    <!-- ===== 规范库 ===== -->
+    <div class="page" id="page-specs">
+      <h2 class="text-xl font-bold mb-4">规范与图集库</h2>
+      <div class="flex gap-2 mb-4"><button class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"><i class="fa fa-plus mr-1"></i>添加规范</button></div>
+      <div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">规范内容</th><th class="pb-2 px-2">级别</th><th class="pb-2 px-2">原子函数</th></tr></thead><tbody id="spec-list"></tbody></table></div>
+      <div class="mt-4 card"><h3 class="text-sm font-medium mb-2">覆盖率</h3><div class="flex items-center gap-2"><div class="flex-1 bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" style="width:100%"></div></div><span class="text-xs text-gray-400">10/10 (100%)</span></div></div>
+    </div>
+
+    <!-- ===== AI审图 ===== -->
+    <div class="page" id="page-review">
+      <h2 class="text-xl font-bold mb-6">AI审图与修正</h2>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card"><h3 class="text-sm font-medium mb-3">图纸预览</h3><div class="bg-gray-100 rounded-lg h-80 flex items-center justify-center text-gray-300 text-sm"><i class="fa fa-file-image-o text-4xl mr-2"></i>选择图纸后预览</div></div>
+        <div class="card"><h3 class="text-sm font-medium mb-3">审查结果</h3><div id="review-results" class="space-y-2 text-sm text-gray-400">暂无审查记录</div></div>
+      </div>
+      <div class="card" id="attribution-panel"><h3 class="text-sm font-medium mb-3">归因分析详情</h3><div class="text-sm text-gray-400">审查完成后显示归因分析</div></div>
+    </div>
+
+    <!-- ===== 对比演示 ===== -->
+    <div class="page" id="page-compare">
+      <h2 class="text-xl font-bold mb-6">图纸对比演示</h2>
+      <div class="grid grid-cols-2 gap-4"><div class="card"><h3 class="text-sm font-medium mb-3">图纸A（原始）</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300">暂无数据</div></div><div class="card"><h3 class="text-sm font-medium mb-3">图纸B（修改后）</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300">暂无数据</div></div></div>
+    </div>
+
+    <!-- ===== 结果分析 ===== -->
+    <div class="page" id="page-analysis">
+      <h2 class="text-xl font-bold mb-6">结果分析</h2>
+      <div class="grid grid-cols-2 gap-4"><div class="card"><canvas id="chart-trend" height="180"></canvas></div><div class="card"><canvas id="chart-violation-dist" height="180"></canvas></div></div>
+      <div class="mt-4 card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸名称</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th></tr></thead><tbody id="analysis-table"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody></table></div>
+    </div>
+
+    <!-- ===== 系统设置 ===== -->
+    <div class="page" id="page-settings">
+      <h2 class="text-xl font-bold mb-6">系统设置</h2>
+      <div class="space-y-4">
+        <div class="card"><h3 class="font-medium mb-3">⚙️ 基本设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>默认规范集</span><span class="text-blue-600">GB50016建筑防火规范</span></div><div class="flex justify-between"><span>审查级别</span><span class="text-blue-600">L1级</span></div></div></div>
+        <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
+        <div class="card"><h3 class="font-medium mb-3">🤖 模型配置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>检测模型</span><span>YOLOv8+Attention (待训练)</span></div><div class="flex justify-between"><span>LoRA微调</span><span>等待真实图纸</span></div><div class="flex justify-between"><span>原子函数</span><span>10/30 已注册</span></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 页面切换
+document.querySelectorAll('.sidebar-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('page-' + item.dataset.page).classList.add('active');
+  });
+});
+
+// 规范库数据
+const specData = [
+  {id:'GB50016-5.5.18', title:'疏散楼梯净宽', level:'L1', func:'DIM-001'},
+  {id:'GB50016-6.1.1', title:'防火分区面积', level:'L1', func:'DIM-002'},
+  {id:'GB50016-7.1.1', title:'消防车道宽度', level:'L1', func:'DIM-003'},
+  {id:'GB50016-5.5.17', title:'疏散距离', level:'L1', func:'DIST-001'},
+  {id:'GB50016-5.5.8', title:'安全出口数量', level:'L1', func:'COUNT-001'},
+  {id:'GB50016-6.5.1', title:'防火门等级', level:'L1', func:'ATTR-001'},
+  {id:'GB50016-5.5.18-2', title:'疏散走道宽度', level:'L1', func:'DIM-004'},
+  {id:'GB50016-7.4.1', title:'避难层面积', level:'L1', func:'AREA-001'},
+  {id:'GB50016-5.5.12', title:'楼梯间设置', level:'L1', func:'EXIST-001'},
+  {id:'GB50016-7.2.4', title:'消防窗面积', level:'L1', func:'DIM-005'},
+];
+const specTbody = document.getElementById('spec-list');
+specData.forEach((s, i) => {
+  specTbody.innerHTML += '<tr class="border-b border-gray-50"><td class="py-2 px-2">'+(i+1)+'</td><td class="py-2 px-2 font-mono text-xs">'+s.id+'</td><td class="py-2 px-2">'+s.title+'</td><td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">'+s.level+'</span></td><td class="py-2 px-2 font-mono text-xs">'+s.func+'</td></tr>';
+});
+
+// 图表占位
+['chart-spec-freq','chart-violation-type','chart-trend','chart-violation-dist'].forEach(id => {
+  const ctx = document.getElementById(id);
+  if(ctx) new Chart(ctx, {type: id.includes('trend')?'line':'doughnut', data:{labels:['暂无数据'], datasets:[{data:[1],backgroundColor:['#e5e7eb']}]}, options:{responsive:true,plugins:{legend:{display:false}}}});
+});
+</script>
+</body>
+</html>"""
