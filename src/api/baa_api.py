@@ -35,8 +35,9 @@ _api_key = os.getenv("BAA_API_KEY", "")
 if _api_key:
     API_KEYS.add(_api_key)
 
-# 共享密钥（用于 auth_token 验证）
-AUTH_SECRET = os.getenv("BAA_AUTH_SECRET", "baa-dev-secret-change-in-production")
+# 共享密钥（用于 auth_token 验证，支持多密钥宽限期）
+# 格式：逗号分隔，第一个为最新密钥，后续为旧密钥（48h宽限期）
+AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "baa-dev-secret-change-in-production").split(",") if s.strip()]
 
 
 # ── 授权验证 ──────────────────────────────────────────────
@@ -46,23 +47,36 @@ import hashlib
 import base64
 
 
-def generate_auth_token(payload: dict) -> str:
-    """生成 auth_token（JWT格式，HMAC-SHA256）"""
+def generate_auth_token(payload: dict, secret: str = None) -> str:
+    """生成 auth_token（JWT格式，HMAC-SHA256）
+    默认使用最新密钥
+    """
+    if secret is None:
+        secret = AUTH_SECRETS[0]  # 最新密钥
     header = {"alg": "HS256", "typ": "JWT"}
     header_b64 = base64.urlsafe_b64encode(
-        json.dumps(header).encode()).rstrip(b"=").decode()
+        json.dumps(header, separators=(",", ":")).encode()).rstrip(b"=").decode()
     payload_b64 = base64.urlsafe_b64encode(
-        json.dumps(payload).encode()).rstrip(b"=").decode()
+        json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
     signing_input = f"{header_b64}.{payload_b64}"
     sig = hmac.new(
-        AUTH_SECRET.encode(), signing_input.encode(), hashlib.sha256
+        secret.encode(), signing_input.encode(), hashlib.sha256
     ).digest()
     sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
     return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
 def verify_auth_token(token: str) -> Optional[dict]:
-    """验证 auth_token"""
+    """验证 auth_token，使用所有活跃密钥（支持宽限期）"""
+    for secret in AUTH_SECRETS:
+        result = _verify_with_secret(token, secret)
+        if result is not None:
+            return result
+    return None
+
+
+def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
+    """用单个密钥验证"""
     try:
         parts = token.split(".")
         if len(parts) != 3:
@@ -71,12 +85,11 @@ def verify_auth_token(token: str) -> Optional[dict]:
         header_b64, payload_b64, sig_b64 = parts
         signing_input = f"{header_b64}.{payload_b64}"
 
-        # 补回 padding
         def add_padding(s):
             return s + "=" * (4 - len(s) % 4)
 
         expected_sig = hmac.new(
-            AUTH_SECRET.encode(), signing_input.encode(), hashlib.sha256
+            secret.encode(), signing_input.encode(), hashlib.sha256
         ).digest()
 
         actual_sig = base64.urlsafe_b64decode(add_padding(sig_b64))
