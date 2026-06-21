@@ -588,18 +588,22 @@ if MODELS_DIR.exists():
 if __name__ == "__main__":
     import uvicorn
     import sys
+    import os
     port = int(os.getenv("BAA_PORT", "8000"))
+    workers = int(os.getenv("BAA_WORKERS", "4"))  # 默认4 worker
 
     # 日志输出到项目 data/logs/ 下
     log_dir = DATA_DIR / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "baa-api.log"
     print(f"[BAA] 日志路径: {log_file}", flush=True)
+    print(f"[BAA] Worker 数: {workers}", flush=True)
 
     uvicorn.run(
         "src.api.baa_api:app",
         host="0.0.0.0",
         port=port,
+        workers=workers,
         log_config=None,
         access_log=False,
         log_level="info"
