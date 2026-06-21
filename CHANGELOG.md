@@ -28,7 +28,28 @@
 - 无API_KEY时不验证（开发模式）
 - sys.path在模块级设置，确保引擎导入
 
-## v1.3.0 (2026-06-21) — MCP Server + Skill 包（DD-9实现）
+## v1.7.0 (2026-06-21) — 自动图纸修正引擎（V2.0第一步）
+
+### 新增
+- **自动图纸修正引擎** (`src/baa_engine/correction_engine.py`)
+  - 19条修正模板覆盖全部原子函数
+  - 6种修正操作：resize / add / replace / relocate / seal / add_lighting
+  - 优先级分级：high / medium / low
+  - 每条建议含：实体信息、规范依据、具体操作步骤、参数
+- **API集成**：`/review` 端点返回 `corrections` 字段
+- **前端展示**：AI审图页新增修正建议区块（蓝色背景+优先级标签）
+
+### 修正模板示例
+| 原子函数 | 规范 | 操作 | 建议内容 |
+|---------|------|:----:|--------|
+| DIM-001 | 疏散楼梯净宽 | resize | 加宽梯段至1.2m |
+| DIM-002 | 防火分区面积 | resize | 增设防火隔墙划分 |
+| EXIST-001 | 楼梯间设置 | add | 增设防烟楼梯间 |
+| ATTR-001 | 防火门等级 | replace | 更换为甲级防火门 |
+| DIST-001 | 疏散距离 | relocate | 调整布局/增加出口 |
+| COUNT-001 | 安全出口数量 | add | 增设疏散门 |
+
+## v1.6.1 (2026-06-21) — 解析器增强 + DWG支持 + 测试归档
 
 ### 新增
 - **MCP Server** (`src/mcp/baa_mcp_server.py`)
