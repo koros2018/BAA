@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.4.0 (2026-06-21) — 前端增强 + EMA2对接方案
+
+### 新增
+- **EMA2 × BAA 对接方案文档** (`docs/07-重大变更/工程可行性研究报告及设计（终稿）/EMA2×BAA对接方案.md`)
+  - 完整API对接清单（5端点）
+  - 异常处理对照表（8种错误码）
+  - 任务全生命周期（审查→付费→重构→异常重试）
+  - 环境配置指南
+- **EMA2侧 baa_client.py** (`ema2_baa_client.py`)
+  - 完整封装：health / deconstruct / review / reconstruct / check_order
+  - 异常映射：error_code → Python异常类
+  - 用户可见错误提示
+  - run_full_flow 一键编排
+  - 命令行模式
+
+### 前端增强
+- 概览页从 /health 获取实时状态
+- 图纸管理支持上传并调用 /review
+- AI审图页显示违规详情
+- 规范库动态加载20条含 building_type
+- 设置页可配置API地址/密钥
+- 结果分析页显示审查历史
+
+### API认证简化
+- security = HTTPBearer(auto_error=False)
+- 无API_KEY时不验证（开发模式）
+- sys.path在模块级设置，确保引擎导入
+
 ## v1.3.0 (2026-06-21) — MCP Server + Skill 包（DD-9实现）
 
 ### 新增
