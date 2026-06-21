@@ -1,5 +1,42 @@
 # Changelog
 
+## v1.3.0 (2026-06-21) — MCP Server + Skill 包（DD-9实现）
+
+### 新增
+- **MCP Server** (`src/mcp/baa_mcp_server.py`)
+  - 3个工具：baa_deconstruct, baa_reconstruct, baa_review
+  - 支持 stdio 和 streamable-http 两种传输模式
+  - 懒加载引擎模块，building_type 参数，auth_token 授权验证
+- **Skill 包** (`src/skill/`)
+  - SKILL.md 使用说明
+  - scripts/ 包含完整CLI工具（deconstruct/reconstruct/review）
+  - baa_client.py BAA API 客户端封装
+  - 支持环境变量和配置文件两种配置方式
+
+### 测试
+- MCP Server 初始化+工具列表+deconstruct调用全部通过
+- Skill 命令行工具用法提示正确
+- 真实图纸批量验证：东莞通建筑图 34748图元/962实体/4.58s
+
+## v1.2.0 (2026-06-21) — 智能判定过滤
+
+### 改进
+- AtomicFunction 新增 target_entities 字段
+- execute() 支持类型匹配，不匹配返回 None
+- 19个函数全部配置了目标实体类型
+- 过滤率 90.8%（76次检查→7次有效判定）
+- API层判定循环适配 execute 返回 None
+
+## v1.1.0 (2026-06-21) — 规范阈值按建筑类型区分 + L2扩展
+
+### 新增
+- Clause 支持 building_type 维度阈值（civil/industrial）
+- 规范从10条扩展至20条（10L1 + 10L2）
+- 原子函数从10个扩展至19个
+- SpecRepository.get_threshold() 方法
+- API端点 /deconstruct、/review 新增 building_type 参数
+- 语义分析器返回 building_type 元数据
+
 ## v1.0.0 (2026-06-21) — V1.0 正式发布 🚀
 
 ### 新增
