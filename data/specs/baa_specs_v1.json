@@ -13,13 +13,17 @@
       "operator": ">=",
       "threshold": 1.2,
       "unit": "m"
+    },
+    "building_type_thresholds": {
+      "civil": 1.2,
+      "industrial": 1.1
     }
   },
   {
     "clause_id": "GB50016-6.1.1",
     "standard": "GB 50016-2014",
     "title": "防火分区面积",
-    "text": "每个防火分区的最大允许建筑面积不应大于2500㎡。",
+    "text": "每个防火分区的最大允许建筑面积不应大于2500㎡（民用）/ 4000㎡（工业，一二级单层）。",
     "level": "L1",
     "func_id": "DIM-002",
     "category": "fire_safety",
@@ -29,6 +33,10 @@
       "operator": "<=",
       "threshold": 2500,
       "unit": "㎡"
+    },
+    "building_type_thresholds": {
+      "civil": 2500,
+      "industrial": 4000
     }
   },
   {
@@ -51,7 +59,7 @@
     "clause_id": "GB50016-5.5.17",
     "standard": "GB 50016-2014",
     "title": "疏散距离",
-    "text": "房间内任一点至最近安全出口的直线距离不应大于30m。",
+    "text": "房间内任一点至最近安全出口的直线距离不应大于30m（民用）/ 40m（工业）。",
     "level": "L1",
     "func_id": "DIST-001",
     "category": "evacuation",
@@ -61,6 +69,10 @@
       "operator": "<=",
       "threshold": 30.0,
       "unit": "m"
+    },
+    "building_type_thresholds": {
+      "civil": 30.0,
+      "industrial": 40.0
     }
   },
   {
@@ -99,7 +111,7 @@
     "clause_id": "GB50016-5.5.18-2",
     "standard": "GB 50016-2014",
     "title": "疏散走道宽度",
-    "text": "疏散走道的净宽度不应小于1.1m。",
+    "text": "疏散走道的净宽度不应小于1.1m（民用）/ 1.0m（工业）。",
     "level": "L1",
     "func_id": "DIM-004",
     "category": "evacuation",
@@ -109,6 +121,10 @@
       "operator": ">=",
       "threshold": 1.1,
       "unit": "m"
+    },
+    "building_type_thresholds": {
+      "civil": 1.1,
+      "industrial": 1.0
     }
   },
   {
@@ -157,6 +173,166 @@
       "operator": ">=",
       "threshold": 1.0,
       "unit": "㎡"
+    }
+  },
+  {
+    "clause_id": "GB50016-5.5.19",
+    "standard": "GB 50016-2014",
+    "title": "人员密集场所疏散门净宽",
+    "text": "人员密集场所的疏散门，其净宽度不应小于1.4m。",
+    "level": "L2",
+    "func_id": "DIM-006",
+    "category": "evacuation",
+    "params": {
+      "target_entity": "exit_door",
+      "property": "clear_width",
+      "operator": ">=",
+      "threshold": 1.4,
+      "unit": "m"
+    }
+  },
+  {
+    "clause_id": "GB50016-6.6.1",
+    "standard": "GB 50016-2014",
+    "title": "管道井封堵",
+    "text": "电缆井、管道井应在每层楼板处用不低于楼板耐火极限的不燃材料封堵。",
+    "level": "L2",
+    "func_id": "EXIST-002",
+    "category": "fire_safety",
+    "params": {
+      "target_entity": "shaft",
+      "property": "sealed",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
+    }
+  },
+  {
+    "clause_id": "GB50016-6.5.3",
+    "standard": "GB 50016-2014",
+    "title": "防火卷帘宽度",
+    "text": "除中庭外，防火分隔部位的防火卷帘宽度不应大于10m。",
+    "level": "L2",
+    "func_id": "DIM-007",
+    "category": "fire_safety",
+    "params": {
+      "target_entity": "fire_curtain",
+      "property": "width",
+      "operator": "<=",
+      "threshold": 10.0,
+      "unit": "m"
+    }
+  },
+  {
+    "clause_id": "GB50016-5.5.24",
+    "standard": "GB 50016-2014",
+    "title": "高层住宅剪刀楼梯",
+    "text": "高层住宅建筑的疏散楼梯，当采用剪刀楼梯时，梯段间应设置防火隔墙。",
+    "level": "L2",
+    "func_id": "EXIST-003",
+    "category": "evacuation",
+    "params": {
+      "target_entity": "scissor_staircase",
+      "property": "fire_wall_exists",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
+    }
+  },
+  {
+    "clause_id": "GB50016-10.1.5",
+    "standard": "GB 50016-2014",
+    "title": "消防应急照明",
+    "text": "建筑内疏散照明的地面最低水平照度不应低于1.0lx。",
+    "level": "L2",
+    "func_id": "LIGHT-001",
+    "category": "lighting",
+    "params": {
+      "target_entity": "evacuation_lighting",
+      "property": "illuminance",
+      "operator": ">=",
+      "threshold": 1.0,
+      "unit": "lx"
+    }
+  },
+  {
+    "clause_id": "GB50016-10.3.1",
+    "standard": "GB 50016-2014",
+    "title": "疏散指示标志",
+    "text": "疏散走道和安全出口处应设置疏散指示标志。",
+    "level": "L2",
+    "func_id": "EXIST-004",
+    "category": "evacuation",
+    "params": {
+      "target_entity": "exit_sign",
+      "property": "exists",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
+    }
+  },
+  {
+    "clause_id": "GB50016-8.3.1",
+    "standard": "GB 50016-2014",
+    "title": "自动灭火系统（一类高层）",
+    "text": "一类高层公共建筑（除游泳池、溜冰场外）应设置自动灭火系统。",
+    "level": "L2",
+    "func_id": "EXIST-005",
+    "category": "fire_safety",
+    "params": {
+      "target_entity": "sprinkler_system",
+      "property": "exists",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
+    }
+  },
+  {
+    "clause_id": "GB50016-8.4.1",
+    "standard": "GB 50016-2014",
+    "title": "火灾自动报警系统",
+    "text": "一类高层公共建筑应设置火灾自动报警系统。",
+    "level": "L2",
+    "func_id": "EXIST-006",
+    "category": "fire_safety",
+    "params": {
+      "target_entity": "fire_alarm",
+      "property": "exists",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
+    }
+  },
+  {
+    "clause_id": "GB50016-6.7.1",
+    "standard": "GB 50016-2014",
+    "title": "保温材料燃烧等级",
+    "text": "建筑内外保温系统应选用A级或B1级保温材料。",
+    "level": "L2",
+    "func_id": "ATTR-002",
+    "category": "structure",
+    "params": {
+      "target_entity": "insulation",
+      "property": "fire_rating",
+      "operator": ">=",
+      "threshold": 2.0,
+      "unit": "级"
+    }
+  },
+  {
+    "clause_id": "GB50016-6.2.4",
+    "standard": "GB 50016-2014",
+    "title": "设备井防火隔墙",
+    "text": "电缆井、管道井与房间、走道等相连通的孔洞，应采用防火封堵材料封堵。",
+    "level": "L2",
+    "func_id": "EXIST-002",
+    "category": "fire_safety",
+    "params": {
+      "target_entity": "shaft",
+      "property": "hole_sealed",
+      "operator": "==",
+      "threshold": 1.0,
+      "unit": "有/无"
     }
   }
 ]

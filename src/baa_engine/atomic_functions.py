@@ -144,6 +144,22 @@ class AtomicFunction:
                 val = val / 1000000
             return val
 
+        # L2 新增函数
+        if func_id in ("DIM-006", "DIM-007"):  # 疏散门净宽 / 防火卷帘宽度
+            val = props.get("width", props.get("clear_width", 0.0))
+            if val > 100:  # mm→m
+                val = val / 1000
+            return val
+
+        if func_id in ("EXIST-002", "EXIST-003", "EXIST-004", "EXIST-005", "EXIST-006"):  # 存在性判定
+            return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+
+        if func_id == "ATTR-002":  # 保温材料等级
+            return props.get("fire_rating", props.get("rating", 0.0))
+
+        if func_id == "LIGHT-001":  # 照度
+            return props.get("illuminance", props.get("lux", 0.0))
+
         # 兜底：直接用value或0
         return props.get("value", 0.0)
 
@@ -175,6 +191,25 @@ class FuncRegistry:
                        "GB50016-5.5.12", "建筑应设置楼梯间", "==", 1.0, "有/无"),
         AtomicFunction("DIM-005", "窗净面积判定", FuncCategory.DIMENSION,
                        "GB50016-7.2.4", "消防窗净面积不应小于1.0㎡", ">=", 1.0, "㎡"),
+        # L2 规范原子函数（5个）
+        AtomicFunction("DIM-006", "疏散门净宽判定", FuncCategory.DIMENSION,
+                       "GB50016-5.5.19", "人员密集场所疏散门净宽不应小于1.4m", ">=", 1.4, "m"),
+        AtomicFunction("DIM-007", "防火卷帘宽度判定", FuncCategory.DIMENSION,
+                       "GB50016-6.5.3", "防火分隔防火卷帘宽度不应大于10m", "<=", 10.0, "m"),
+        AtomicFunction("EXIST-002", "管道井封堵判定", FuncCategory.EXIST,
+                       "GB50016-6.6.1", "管道井应每层用不燃材料封堵", "==", 1.0, "有/无"),
+        AtomicFunction("EXIST-003", "剪刀楼梯分隔判定", FuncCategory.EXIST,
+                       "GB50016-5.5.24", "剪刀楼梯梯段间应设置防火隔墙", "==", 1.0, "有/无"),
+        AtomicFunction("EXIST-004", "疏散指示标志判定", FuncCategory.EXIST,
+                       "GB50016-10.3.1", "疏散走道和安全出口应设疏散指示标志", "==", 1.0, "有/无"),
+        AtomicFunction("EXIST-005", "自动灭火系统判定", FuncCategory.EXIST,
+                       "GB50016-8.3.1", "一类高层应设置自动灭火系统", "==", 1.0, "有/无"),
+        AtomicFunction("EXIST-006", "火灾报警系统判定", FuncCategory.EXIST,
+                       "GB50016-8.4.1", "一类高层应设置火灾自动报警系统", "==", 1.0, "有/无"),
+        AtomicFunction("ATTR-002", "保温材料等级判定", FuncCategory.ATTR,
+                       "GB50016-6.7.1", "保温材料应选用A或B1级", ">=", 2.0, "级"),
+        AtomicFunction("LIGHT-001", "应急照明照度判定", FuncCategory.DIMENSION,
+                       "GB50016-10.1.5", "疏散照明照度不应低于1.0lx", ">=", 1.0, "lx"),
     ]
 
     # 框架预留 20 个位置（V2.0扩展）

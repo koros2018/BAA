@@ -230,6 +230,7 @@ async def health():
 @app.post("/deconstruct")
 async def deconstruct(
     file: UploadFile = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
     api_key: str = Depends(verify_api_key),
 ):
     """图纸解构（免费）"""
@@ -278,17 +279,24 @@ async def deconstruct(
         }
 
     # Step 2: 语义分析（限制采样1000个防OOM）
-    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions)
+    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
     entities = semantic["entities"]
     relations = semantic["relations"]
 
-    # Step 3: 规范判定
+    # Step 3: 规范判定（使用 building_type 确定阈值）
+    from src.baa_engine.spec_repository import SpecRepository
+    repo = SpecRepository()
     findings = []
     registry_funcs = _func_registry.list_all()
     total_checks = 0
     for e in entities:
         for func in registry_funcs:
             total_checks += 1
+            # 根据 building_type 获取实际阈值
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
             r = func.execute(e)
             if r.result != "PASS":
                 clause = {
@@ -334,6 +342,7 @@ async def deconstruct(
         "total_checks": total_checks,
         "confidence": 0.85 if len(entities) > 0 else 0,
         "file_id": file_id,
+        "building_type": building_type,
         "processing_time_ms": elapsed,
     }
 
@@ -342,6 +351,7 @@ async def deconstruct(
 async def review(
     file: UploadFile = File(...),
     full: bool = Query(False, description="返回完整图元列表"),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
     api_key: str = Depends(verify_api_key),
 ):
     """图纸合规审查（免费试用）"""
@@ -386,16 +396,23 @@ async def review(
         }
 
     # 语义分析（采样1000限制）
-    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions)
+    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
     entities = semantic["entities"]
 
-    # 规范判定
+    # 规范判定（使用 building_type 确定阈值）
+    from src.baa_engine.spec_repository import SpecRepository
+    repo = SpecRepository()
     from collections import Counter
     clause_results = Counter()
     details = []
     registry_funcs = _func_registry.list_all()
     for e in entities:
         for func in registry_funcs:
+            # 根据 building_type 获取实际阈值
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
             r = func.execute(e)
             clause_results[func.clause_id] += 1
             if r.result != "PASS":
@@ -436,6 +453,7 @@ async def review(
         },
         "details": details[:100],  # 最多返回100条
         "file_id": file_id,
+        "building_type": building_type,
         "processing_time_ms": elapsed,
     }
 

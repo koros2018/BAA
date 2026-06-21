@@ -14,7 +14,7 @@ from src.baa_engine.attribution_analyzer import AttributionAnalyzer
 def test_func_registry_initial():
     """测试原子函数注册表初始化"""
     registry = FuncRegistry()
-    assert registry.count == 10, f"应有10个初始函数，实际{registry.count}"
+    assert registry.count == 19, f"应有19个原子函数（10L1+9L2），实际{registry.count}"
     assert registry.capacity == 30, f"框架应为30个位置"
 
 
@@ -59,7 +59,7 @@ def test_func_execute_pass():
 def test_spec_repository():
     """测试规范库"""
     repo = SpecRepository()
-    assert repo.count == 10
+    assert repo.count == 20
 
     clause = repo.get("GB50016-5.5.18")
     assert clause is not None

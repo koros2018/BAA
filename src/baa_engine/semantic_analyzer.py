@@ -75,7 +75,8 @@ class SemanticAnalyzer:
 
     def analyze(self, primitives: List[RawPrimitive],
                 dimensions: List[Dict] = None,
-                max_entities: int = 1000) -> Dict[str, Any]:
+                max_entities: int = 1000,
+                building_type: str = "civil") -> Dict[str, Any]:
         """
         执行语义分析
 
@@ -107,6 +108,7 @@ class SemanticAnalyzer:
             "entities": [e.to_dict() for e in entities],
             "relations": [self._rel_to_dict(r) for r in relations],
             "attributes": attributes,
+            "building_type": building_type,
         }
 
     def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
