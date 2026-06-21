@@ -43,7 +43,19 @@ if _api_key:
 
 # 共享密钥（用于 auth_token 验证，支持多密钥宽限期）
 # 格式：逗号分隔，第一个为最新密钥，后续为旧密钥（48h宽限期）
-AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "baa-dev-secret-change-in-production").split(",") if s.strip()]
+AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "").split(",") if s.strip()]
+if not AUTH_SECRETS:
+    # 开发模式默认密钥
+    AUTH_SECRETS = ["baa-dev-secret-change-in-production"]
+
+
+# ── 线程池（CPU密集型引擎任务用） ─────────────────────────
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+ENGINE_THREAD_POOL = ThreadPoolExecutor(
+    max_workers=min(8, (os.cpu_count() or 4) * 2),
+    thread_name_prefix="baa-engine"
+)
 
 
 # ── 授权验证 ──────────────────────────────────────────────
@@ -124,7 +136,40 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
 # 前端静态文件路径
 FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"
 
-app = FastAPI(title="BAA API", version="1.0.0")
+
+# ── 引擎预热（app启动时加载） ──────────────────────────────
+
+def _load_engine():
+    """预热加载引擎模块，每个 worker 启动时执行一次"""
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+    from src.baa_engine.atomic_functions import FuncRegistry
+    from src.baa_engine.attribution_analyzer import AttributionAnalyzer
+    from src.baa_engine.spec_repository import SpecRepository
+    global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo
+    _drawing_parser = DrawingParser()
+    _semantic_analyzer = SemanticAnalyzer()
+    _func_registry = FuncRegistry()
+    _attribution_analyzer = AttributionAnalyzer()
+    _spec_repo = SpecRepository()
+    print(f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范")
+
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时：预热引擎
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(ENGINE_THREAD_POOL, _load_engine)
+    yield
+    # 关闭时：清理线程池
+    ENGINE_THREAD_POOL.shutdown(wait=False)
+
+
+app = FastAPI(title="BAA API", version="1.0.0", lifespan=lifespan)
 security = HTTPBearer(auto_error=False)
 
 # 挂载前端静态文件
@@ -208,26 +253,14 @@ def get_file_path(file_id: str) -> Optional[Path]:
 
 # ── 引擎导入（懒加载） ──────────────────────────────────
 
-_engine_modules_loaded = False
+# ── 引擎引用（由 lifespan 预热加载） ──────────────────────
+
 _drawing_parser = None
 _semantic_analyzer = None
 _func_registry = None
 _attribution_analyzer = None
+_spec_repo = None
 
-
-def _ensure_engine():
-    global _engine_modules_loaded, _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer
-    if _engine_modules_loaded:
-        return
-    from src.baa_engine.drawing_parser import DrawingParser
-    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
-    from src.baa_engine.atomic_functions import FuncRegistry
-    from src.baa_engine.attribution_analyzer import AttributionAnalyzer
-    _drawing_parser = DrawingParser()
-    _semantic_analyzer = SemanticAnalyzer()
-    _func_registry = FuncRegistry()
-    _attribution_analyzer = AttributionAnalyzer()
-    _engine_modules_loaded = True
 
 @app.get("/health")
 async def health():
@@ -281,10 +314,12 @@ async def deconstruct(
 
     # 调用核心引擎进行解析
     start = time.time()
-    _ensure_engine()
+    loop = asyncio.get_event_loop()
 
-    # Step 1: 图纸解析
-    result = _drawing_parser.parse(str(file_path), file_id=file_id)
+    # Step 1: 图纸解析（CPU密集型 → 线程池）
+    result = await loop.run_in_executor(
+        ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id
+    )
     if not result.success:
         return {
             "status": "error",
@@ -293,8 +328,14 @@ async def deconstruct(
             "file_id": file_id,
         }
 
-    # Step 2: 语义分析（限制采样1000个防OOM）
-    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
+    # Step 2: 语义分析（CPU密集型 → 线程池）
+    semantic = await loop.run_in_executor(
+        ENGINE_THREAD_POOL,
+        lambda: _semantic_analyzer.analyze(
+            result.primitives, result.dimensions,
+            building_type=building_type
+        )
+    )
     entities = semantic["entities"]
     relations = semantic["relations"]
 
@@ -399,10 +440,12 @@ async def review(
     file_path = store_file(content, file_id, ext)
 
     start = time.time()
-    _ensure_engine()
+    loop = asyncio.get_event_loop()
 
-    # 解析
-    result = _drawing_parser.parse(str(file_path), file_id=file_id)
+    # 解析（CPU密集型 → 线程池）
+    result = await loop.run_in_executor(
+        ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id
+    )
     if not result.success:
         return {
             "status": "error",
@@ -411,8 +454,14 @@ async def review(
             "file_id": file_id,
         }
 
-    # 语义分析（采样1000限制）
-    semantic = _semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
+    # 语义分析（采样1000限制 → 线程池）
+    semantic = await loop.run_in_executor(
+        ENGINE_THREAD_POOL,
+        lambda: _semantic_analyzer.analyze(
+            result.primitives, result.dimensions,
+            building_type=building_type
+        )
+    )
     entities = semantic["entities"]
 
     # 规范判定（使用 building_type 确定阈值）
