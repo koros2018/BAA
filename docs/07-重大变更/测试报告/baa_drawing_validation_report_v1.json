@@ -1,0 +1,75 @@
+{
+  "report_date": "2026-06-21",
+  "baa_version": "v1.6.0",
+  "engine": {
+    "atomic_functions": 19,
+    "specs": 20,
+    "levels": {
+      "L1": 10,
+      "L2": 10
+    }
+  },
+  "drawings": [
+    {
+      "file": "东莞通-建筑-外部参照（不打印）.dxf",
+      "building_type": "civil",
+      "parse_time": 1.0,
+      "status": "parsed",
+      "primitives": 34748,
+      "dimensions": 0,
+      "analyze_time": 0.833,
+      "entities": 962,
+      "relations": 462241,
+      "total_checks": 1184,
+      "violations": 1184,
+      "total_time": 1.833
+    },
+    {
+      "file": "4.通风BS170826.dxf",
+      "building_type": "civil",
+      "parse_time": 0.018,
+      "status": "parsed",
+      "primitives": 9,
+      "dimensions": 0,
+      "analyze_time": 0.021,
+      "entities": 8,
+      "relations": 28,
+      "total_checks": 16,
+      "violations": 16,
+      "total_time": 0.039
+    },
+    {
+      "file": "东莞通-设备-外部参照（不打印）.dxf",
+      "building_type": "civil",
+      "parse_time": 0.029,
+      "status": "parsed",
+      "primitives": 0,
+      "dimensions": 0,
+      "analyze_time": 0.0,
+      "entities": 0,
+      "relations": 0,
+      "total_checks": 0,
+      "violations": 0,
+      "total_time": 0.029
+    },
+    {
+      "file": "drawing_0001.dxf",
+      "building_type": "civil",
+      "parse_time": 0.01,
+      "status": "parsed",
+      "primitives": 12,
+      "dimensions": 0,
+      "analyze_time": 0.0,
+      "entities": 12,
+      "relations": 80,
+      "total_checks": 6,
+      "violations": 6,
+      "total_time": 0.01
+    }
+  ],
+  "summary": {
+    "total_files": 4,
+    "parsed": 4,
+    "failed": 0
+  }
+}

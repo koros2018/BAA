@@ -48,28 +48,30 @@ class DrawingResult:
 class DrawingParser:
     """图纸解析引擎 - 基于 ezdxf"""
 
-    SUPPORTED_FORMATS = {".dxf"}
+    SUPPORTED_FORMATS = {".dxf", ".dwg"}
 
     def __init__(self):
         self._doc = None
 
     def parse(self, file_path: str, file_id: str = None) -> DrawingResult:
         """
-        解析 DXF 图纸，提取原始图元
+        解析 DXF/DWG 图纸，提取原始图元
 
         参数:
-            file_path: DXF 文件路径
+            file_path: 图纸文件路径（支持 dxf, dwg）
             file_id: 文件标识（可选，自动生成）
 
         返回:
             DrawingResult 包含原始图元列表
         """
         path = Path(file_path)
-        if path.suffix.lower() not in self.SUPPORTED_FORMATS:
+        ext = path.suffix.lower()
+
+        if ext not in self.SUPPORTED_FORMATS:
             return DrawingResult(
                 file_path=file_path,
                 file_id=file_id or f"baa-file-{path.stem}",
-                error=f"不支持的文件格式: {path.suffix}。支持: dxf"
+                error=f"不支持的文件格式: {ext}。支持: dxf, dwg"
             )
 
         if not path.exists():
@@ -80,7 +82,27 @@ class DrawingParser:
             )
 
         try:
-            self._doc = ezdxf.readfile(str(path))
+            # DWG 文件：先用 ezdwg 转 DXF 再读
+            if ext == ".dwg":
+                try:
+                    import ezdwg
+                    dwg_doc = ezdwg.read(str(path))
+                    # 用 ezdwg 的 export_dxf 写临时文件
+                    import tempfile
+                    tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+                    tmp_path = tmp.name
+                    tmp.close()
+                    dwg_doc.export_dxf(tmp_path)
+                    self._doc = ezdxf.readfile(tmp_path)
+                    Path(tmp_path).unlink(missing_ok=True)
+                except Exception as dwg_e:
+                    return DrawingResult(
+                        file_path=file_path,
+                        file_id=file_id or f"baa-file-{path.stem}",
+                        error=f"DWG 读取失败: {dwg_e}"
+                    )
+            else:
+                self._doc = ezdxf.readfile(str(path))
         except Exception as e:
             return DrawingResult(
                 file_path=file_path,

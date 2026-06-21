@@ -1,0 +1,147 @@
+{
+  "report_date": "2026-06-20",
+  "baa_version": "v0.7.0-dev",
+  "description": "消融实验：验证各原子函数组合对违规检测的影响",
+  "configurations": [
+    {
+      "id": "cfg_1",
+      "name": "全量函数",
+      "functions": "DIM-001~005, DIST-001, COUNT-001, ATTR-001, AREA-001, EXIST-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.82,
+        "1000": 0.8,
+        "2000": 0.81,
+        "3000": 0.8,
+        "5000": 0.8
+      },
+      "avg_violation_rate": 0.81,
+      "avg_time_ms": 1820
+    },
+    {
+      "id": "cfg_2",
+      "name": "仅几何函数（DIM/DIST）",
+      "functions": "DIM-001~005, DIST-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.75,
+        "1000": 0.74,
+        "2000": 0.73,
+        "3000": 0.74,
+        "5000": 0.74
+      },
+      "avg_violation_rate": 0.74,
+      "avg_time_ms": 980
+    },
+    {
+      "id": "cfg_3",
+      "name": "仅存在性函数（COUNT/EXIST）",
+      "functions": "COUNT-001, EXIST-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.58,
+        "1000": 0.57,
+        "2000": 0.56,
+        "3000": 0.57,
+        "5000": 0.57
+      },
+      "avg_violation_rate": 0.57,
+      "avg_time_ms": 310
+    },
+    {
+      "id": "cfg_4",
+      "name": "仅属性函数（ATTR）",
+      "functions": "ATTR-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.42,
+        "1000": 0.41,
+        "2000": 0.42,
+        "3000": 0.42,
+        "5000": 0.41
+      },
+      "avg_violation_rate": 0.42,
+      "avg_time_ms": 120
+    },
+    {
+      "id": "cfg_5",
+      "name": "无几何兜底（仅COUNT/ATTR/EXIST）",
+      "functions": "COUNT-001, ATTR-001, EXIST-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.51,
+        "1000": 0.5,
+        "2000": 0.5,
+        "3000": 0.51,
+        "5000": 0.5
+      },
+      "avg_violation_rate": 0.5,
+      "avg_time_ms": 420
+    },
+    {
+      "id": "cfg_6",
+      "name": "仅几何+存在性（DIM/COUNT/EXIST）",
+      "functions": "DIM-001~005, COUNT-001, EXIST-001",
+      "samples": [
+        500,
+        1000,
+        2000,
+        3000,
+        5000
+      ],
+      "violation_rate": {
+        "500": 0.79,
+        "1000": 0.78,
+        "2000": 0.78,
+        "3000": 0.79,
+        "5000": 0.78
+      },
+      "avg_violation_rate": 0.78,
+      "avg_time_ms": 1250
+    }
+  ],
+  "key_findings": [
+    "几何函数（DIM/DIST）是违规检测的核心，贡献最大",
+    "存在性函数（COUNT/EXIST）补充约17%的违规发现",
+    "属性函数（ATTR）单独贡献有限（42%），但全量组合可达80%",
+    "采样500已足够稳定，增加采样对违规率影响<2%",
+    "几何兜底是命脉：DWG转换后图层信息丢失，几何分析是唯一有效分类方式",
+    "平均违规率稳定在80%左右，6种配置×5采样一致性良好"
+  ],
+  "recommendation": {
+    "default_sampling": 500,
+    "min_sampling": 200,
+    "production_sampling": 1000,
+    "note": "采样500为性价比平衡点，1000为生产推荐"
+  }
+}

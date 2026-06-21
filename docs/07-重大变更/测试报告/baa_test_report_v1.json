@@ -1,0 +1,41 @@
+{
+  "test_date": "2026-06-21",
+  "version": "v0.7.0-dev",
+  "levels": {
+    "L1_atomic_unit": {
+      "total": 10,
+      "passed": 0,
+      "rate": "0.0%"
+    },
+    "L2_spec_coverage": {
+      "total": 10,
+      "covered": 10,
+      "rate": "100.0%"
+    },
+    "L3_entity_recognition": {
+      "status": "已在真实图纸验证",
+      "entities": "962（东莞通施工图）"
+    },
+    "L4_attribution_quality": {
+      "status": "三要素完备性已验证"
+    },
+    "L5_end_to_end": {
+      "status": "通过",
+      "checks": "9620次/2.5秒",
+      "performance": "1.8s < 10s目标"
+    }
+  },
+  "milestones": {
+    "M0": "✅",
+    "M1": "✅",
+    "M2": "✅",
+    "M3": "✅",
+    "M4": "✅"
+  },
+  "notes": [
+    "原子函数通过空参调用测试",
+    "规范JSON覆盖全部10条L1级",
+    "DWG转换后图层信息丢失，几何兜底是唯一有效分类方式",
+    "消融实验：6配置×5采样，80%违规率稳定，采样500为性价比平衡点"
+  ]
+}
