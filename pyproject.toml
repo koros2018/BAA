@@ -1,6 +1,6 @@
 [project]
 name = "BAA"
-version = "0.1.0"
+version = "1.0.0"
 description = "Blueprint AI Agent - 图纸合规智能体"
 
 [tool.pytest.ini_options]

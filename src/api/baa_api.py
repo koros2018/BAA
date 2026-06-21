@@ -18,7 +18,10 @@ from fastapi.staticfiles import StaticFiles
 
 # ── 配置 ──────────────────────────────────────────────────
 
-DATA_DIR = Path(os.getenv("BAA_DATA_DIR", "/tmp/baa"))
+# ── 项目工作路径（默认：项目根目录下的 data/） ───────────
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # src/../
+DATA_DIR = Path(os.getenv("BAA_DATA_DIR", str(PROJECT_ROOT / "data")))
 FILES_DIR = DATA_DIR / "files"
 MODELS_DIR = DATA_DIR / "models"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -98,11 +101,14 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
 
         payload = json.loads(base64.urlsafe_b64decode(add_padding(payload_b64)))
 
-        # 验证有效期
+        # 验证有效期（兼容带时区和不带时区的时间字符串）
         expires = payload.get("expires_at")
         if expires:
+            from datetime import timezone
             exp_time = datetime.fromisoformat(expires)
-            if datetime.utcnow() > exp_time:
+            if exp_time.tzinfo is None:
+                exp_time = exp_time.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > exp_time:
                 return None
 
         return payload
@@ -112,8 +118,39 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
 
 # ── FastAPI 应用 ──────────────────────────────────────────
 
+# 前端静态文件路径
+FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"
+
 app = FastAPI(title="BAA API", version="1.0.0")
 security = HTTPBearer()
+
+# 挂载前端静态文件
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+
+
+@app.get("/")
+async def root():
+    """返回前端 UI 页面"""
+    from fastapi.responses import HTMLResponse
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        content = index_path.read_text(encoding="utf-8")
+        return HTMLResponse(content=content, status_code=200)
+    # 降级：返回 JSON 信息
+    return {
+        "service": "BAA - Building Audit Assistant",
+        "version": "1.0.0",
+        "api_docs": "/docs",
+        "endpoints": {
+            "/health": "服务健康检查",
+            "/deconstruct": "图纸解析与违规范判定",
+            "/review": "图纸合规审查（详细报告）",
+            "/reconstruct": "图纸重构",
+            "/order/{order_id}": "查询订单/任务状态",
+        },
+        "note": "前端 UI 文件未找到，请检查 src/frontend/index.html"
+    }
 
 app.add_middleware(
     CORSMiddleware,
@@ -512,5 +549,20 @@ if MODELS_DIR.exists():
 
 if __name__ == "__main__":
     import uvicorn
+    import sys
     port = int(os.getenv("BAA_PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
+    # 日志输出到项目 data/logs/ 下
+    log_dir = DATA_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "baa-api.log"
+    print(f"[BAA] 日志路径: {log_file}", flush=True)
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        log_config=None,
+        access_log=False,
+        log_level="info"
+    )

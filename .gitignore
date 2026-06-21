@@ -1,33 +1,22 @@
+# BAA .gitignore
+
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
-build/
-.eggs/
-
-# Virtual environment
+.venv/
 venv/
-.env
 
-# Data - large generated files
-data/drawings/synthetic/*.dxf
-data/models/*.pth
-data/models/*.pt
+# 项目运行数据（大文件，不提交）
+data/*.dwg
+data/*.rar
+data/*.zip
+data/files/
+data/logs/baa-api.log
+
+# 模型训练输出
+runs/
 
 # IDE
 .vscode/
 .idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temp
-*.tmp
-*.swp
-*.swo
-*~
-
-# Logs
-*.log

@@ -1,15 +1,4 @@
-"""
-BAA 前端 - 7页面单页应用
-系统概览 | 图纸管理 | 规范库 | AI审图 | 对比演示 | 结果分析 | 系统设置
-纯HTML/CSS/JS，无后端依赖
-"""
-import os
-
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "src", "frontend")
-
-
-def generate_index_html() -> str:
-    return """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -161,4 +150,4 @@ specData.forEach((s, i) => {
 });
 </script>
 </body>
-</html>"""
+</html>

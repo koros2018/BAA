@@ -7,7 +7,7 @@ import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from fastapi.testclient import TestClient
-from src.api.baa_api import app, generate_auth_token, verify_auth_token, AUTH_SECRET
+from src.api.baa_api import app, generate_auth_token, verify_auth_token, AUTH_SECRETS
 
 
 client = TestClient(app)
@@ -20,7 +20,7 @@ os.environ["BAA_AUTH_SECRET"] = "test-secret"
 import importlib
 import src.api.baa_api
 importlib.reload(src.api.baa_api)
-from src.api.baa_api import app, API_KEYS, AUTH_SECRET
+from src.api.baa_api import app, API_KEYS, AUTH_SECRETS
 
 API_KEYS.add("test-api-key")
 
@@ -58,7 +58,7 @@ def test_generate_and_verify_auth_token():
         "order_id": "test-order-001",
         "service": "reconstruct",
         "issued_at": "2026-06-20T09:00:00",
-        "expires_at": "2026-06-20T12:00:00",
+        "expires_at": "2026-12-31T23:59:59",
         "quota": {"max_requests": 1, "max_file_size_mb": 50},
         "client_id": "ema2-platform",
     }
