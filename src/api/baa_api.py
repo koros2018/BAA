@@ -524,6 +524,26 @@ async def review(
         "processing_time_ms": elapsed,
     }
 
+    # 生成修正建议
+    try:
+        from src.baa_engine.correction_engine import CorrectionEngine
+        correction_engine = CorrectionEngine()
+        review_result_for_correction = {
+            "findings": [{
+                "entity_id": d["entity_id"],
+                "entity_type": d["entity_type"],
+                "clause_id": d["clause_id"],
+                "clause_title": d["clause_title"],
+                "extracted_value": d["extracted_value"],
+                "required_value": d["required_value"],
+                "difference": d["difference"],
+            } for d in details]
+        }
+        corrections = correction_engine.generate_for_result(review_result_for_correction)
+        response_data["corrections"] = corrections
+    except Exception as e:
+        response_data["corrections"] = []
+
     if full:
         response_data["all_entities"] = [
             {"id": e["id"], "type": e["type"], "bbox": e["bbox"]}

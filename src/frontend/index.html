@@ -335,15 +335,30 @@ async function runReview() {
         details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + result.findings.length + '项)</p>';
         result.findings.slice(0, 20).forEach(f => {
           details.innerHTML +=
-            '<div class="p-2 bg-red-50 rounded text-xs">' +
-            '<span class="font-medium">' + f.clause_title + '</span> (' + f.clause_id + ')<br/>' +
-            '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + f.extracted_value.toFixed(2) + ' · 要求: ' + f.required_value + '</span><br/>' +
+            '<div class="p-2 bg-red-50 rounded text-xs mb-2">' +
+            '<div class="flex justify-between items-start">' +
+            '<div><span class="font-medium">' + f.clause_title + '</span> (' + f.clause_id + ')</div>' +
+            '<span class="px-1.5 py-0.5 rounded text-xs font-medium ' + (f.result === 'FAIL' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800') + '">' + f.result + '</span></div>' +
+            '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
             '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
             '</div>';
         });
-      } else {
-        details.innerHTML = '<div class="p-3 bg-green-50 rounded text-green-700 text-sm">✅ 未发现违规项</div>';
-      }
+
+        // 修正建议
+        if (result.corrections && result.corrections.length > 0) {
+          details.innerHTML += '<p class="font-medium mt-4 mb-2 text-blue-600">🔧 修正建议 (' + result.corrections.length + '项)</p>';
+          result.corrections.slice(0, 10).forEach(c => {
+            const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
+            details.innerHTML +=
+              '<div class="p-2 bg-blue-50 rounded text-xs mb-2">' +
+              '<div class="flex justify-between items-start">' +
+              '<div><span class="font-medium">' + c.clause_title + '</span></div>' +
+              '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + c.priority + '</span></div>' +
+              '<span class="text-gray-500">操作: ' + c.action + '</span><br/>' +
+              '<span class="text-gray-700">' + c.recommendation + '</span>' +
+              '</div>';
+          });
+        }
     } else {
       summary.innerHTML = '<span class="text-red-500">' + (result.message || '审查失败') + '</span>';
     }
