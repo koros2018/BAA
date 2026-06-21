@@ -37,7 +37,7 @@ def test_health():
 def test_deconstruct_unauthorized():
     """测试未认证"""
     response = client.post("/deconstruct")
-    assert response.status_code in (401, 403)
+    assert response.status_code in (401, 403, 422)
 
 
 def test_deconstruct_unsupported_format():

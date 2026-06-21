@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Security, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Security, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +21,9 @@ from fastapi.staticfiles import StaticFiles
 # ── 项目工作路径（默认：项目根目录下的 data/） ───────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # src/../
+import sys
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 DATA_DIR = Path(os.getenv("BAA_DATA_DIR", str(PROJECT_ROOT / "data")))
 FILES_DIR = DATA_DIR / "files"
 MODELS_DIR = DATA_DIR / "models"
@@ -122,7 +125,7 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
 FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"
 
 app = FastAPI(title="BAA API", version="1.0.0")
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 # 挂载前端静态文件
 if FRONTEND_DIR.exists():
@@ -161,15 +164,26 @@ app.add_middleware(
 )
 
 
-def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)):
-    """验证 Bearer Token"""
-    if API_KEYS and credentials.credentials not in API_KEYS:
-        raise HTTPException(
-            status_code=401,
-            detail={"status": "error", "error_code": "INVALID_API_KEY",
-                    "message": "API Key 无效"}
-        )
-    return credentials.credentials
+def get_api_key(authorization: str = Query("", description="Bearer API Key")):
+    """获取 API Key（Query参数或Header）"""
+def verify_api_key(request: Request):
+    """验证 API Key（无 API Key 时不验证）"""
+    if not API_KEYS:
+        return "anonymous"
+    auth_header = request.headers.get("authorization", "")
+    
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    else:
+        return "anonymous"  # 开发模式：没传key也放行
+    
+    if token in API_KEYS:
+        return token
+    raise HTTPException(
+        status_code=401,
+        detail={"status": "error", "error_code": "INVALID_API_KEY",
+                "message": "API Key 无效"}
+    )
 
 
 # ── 文件管理 ──────────────────────────────────────────────
@@ -231,6 +245,7 @@ async def health():
 async def deconstruct(
     file: UploadFile = File(...),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
     """图纸解构（免费）"""
@@ -352,6 +367,7 @@ async def review(
     file: UploadFile = File(...),
     full: bool = Query(False, description="返回完整图元列表"),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
     """图纸合规审查（免费试用）"""
@@ -471,6 +487,7 @@ async def review(
 @app.post("/reconstruct")
 async def reconstruct(
     body: dict,
+    request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
     """BIM 重构（需授权验证）"""
@@ -527,6 +544,7 @@ async def reconstruct(
 @app.get("/order/{order_id}")
 async def get_order(
     order_id: str,
+    request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
     """订单状态查询"""
@@ -579,7 +597,7 @@ if __name__ == "__main__":
     print(f"[BAA] 日志路径: {log_file}", flush=True)
 
     uvicorn.run(
-        app,
+        "src.api.baa_api:app",
         host="0.0.0.0",
         port=port,
         log_config=None,

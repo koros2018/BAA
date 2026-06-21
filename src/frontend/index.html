@@ -17,6 +17,8 @@
   .card { @apply bg-white rounded-xl border border-gray-200 p-5; }
   .stat-card { @apply card flex items-center gap-4; }
   .heatmap-bar { @apply h-4 rounded-full transition-all; }
+  .loading { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -37,8 +39,8 @@
       <div class="sidebar-item" data-page="analysis"><i class="fa fa-bar-chart w-5"></i>结果分析</div>
       <div class="sidebar-item" data-page="settings"><i class="fa fa-cog w-5"></i>系统设置</div>
     </nav>
-    <div class="p-3 border-t border-gray-100 text-xs text-gray-400">
-      v0.1.0-alpha · 一人公司
+    <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
+      连接中...
     </div>
   </div>
 
@@ -47,106 +49,340 @@
     <!-- ===== 系统概览 ===== -->
     <div class="page active" id="page-home">
       <h2 class="text-xl font-bold mb-6">系统概览</h2>
-      <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="stat-card"><i class="fa fa-file text-2xl text-blue-500"></i><div><p class="text-2xl font-bold">0</p><p class="text-xs text-gray-400">已处理图纸</p></div></div>
-        <div class="stat-card"><i class="fa fa-book text-2xl text-green-500"></i><div><p class="text-2xl font-bold">10</p><p class="text-xs text-gray-400">规范库条目</p></div></div>
-        <div class="stat-card"><i class="fa fa-check-circle text-2xl text-teal-500"></i><div><p class="text-2xl font-bold">--</p><p class="text-xs text-gray-400">审查通过率</p></div></div>
-        <div class="stat-card"><i class="fa fa-clock-o text-2xl text-orange-500"></i><div><p class="text-2xl font-bold">--</p><p class="text-xs text-gray-400">最近审查</p></div></div>
+      <div class="grid grid-cols-4 gap-4 mb-6" id="home-stats">
+        <div class="stat-card"><i class="fa fa-file text-2xl text-blue-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">已处理图纸</p></div></div>
+        <div class="stat-card"><i class="fa fa-book text-2xl text-green-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">规范库条目</p></div></div>
+        <div class="stat-card"><i class="fa fa-check-circle text-2xl text-teal-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">审查通过率</p></div></div>
+        <div class="stat-card"><i class="fa fa-clock-o text-2xl text-orange-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">最近审查</p></div></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="card"><canvas id="chart-spec-freq" height="200"></canvas></div>
         <div class="card"><canvas id="chart-violation-type" height="200"></canvas></div>
       </div>
-      <div class="card"><h3 class="font-medium mb-3">最近活动</h3><ul class="space-y-2 text-sm text-gray-500"><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>系统初始化完成 — 今天 12:00</li><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>规范JSON库加载完成（10条L1级）— 今天 12:00</li><li><i class="fa fa-circle text-green-400 text-xs mr-2"></i>核心引擎v0.1就绪 — 今天 12:00</li></ul></div>
+      <div class="card"><h3 class="font-medium mb-3">服务状态</h3><pre id="health-status" class="text-sm text-gray-500">加载中...</pre></div>
     </div>
 
     <!-- ===== 图纸管理 ===== -->
     <div class="page" id="page-drawings">
       <h2 class="text-xl font-bold mb-6">图纸管理</h2>
-      <div class="card mb-6 text-center py-12 border-dashed border-2">
-        <i class="fa fa-cloud-upload text-4xl text-gray-300 mb-3"></i>
-        <p class="text-gray-400">将DXF图纸拖拽到此处</p>
-        <p class="text-xs text-gray-300 mt-1">支持格式: .dxf（最大50MB）</p>
+      <div class="card mb-6">
+        <div class="flex items-center gap-4">
+          <input type="file" id="file-input" accept=".dxf,.dwg" class="text-sm" />
+          <select id="building-type" class="text-sm border rounded px-2 py-1">
+            <option value="civil">民用建筑</option>
+            <option value="industrial">工业建筑</option>
+          </select>
+          <button onclick="uploadAndReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+            <i class="fa fa-upload mr-1"></i>上传并审查
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">支持格式: .dxf / .dwg（最大50MB）</p>
       </div>
-      <div class="card"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2">#</th><th class="pb-2">图纸名称</th><th class="pb-2">大小</th><th class="pb-2">状态</th><th class="pb-2">操作</th></tr></thead><tbody id="drawing-list"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无图纸，请上传</td></tr></tbody></table></div>
+      <div id="upload-progress" class="hidden card mb-4 text-sm text-gray-500"><i class="fa fa-spinner loading mr-2"></i>处理中...</div>
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">文件</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">实体</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">时间</th><th class="pb-2 px-2">状态</th></tr></thead>
+          <tbody id="drawing-list"><tr><td colspan="6" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ===== 规范库 ===== -->
     <div class="page" id="page-specs">
       <h2 class="text-xl font-bold mb-4">规范与图集库</h2>
-      <div class="flex gap-2 mb-4"><button class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"><i class="fa fa-plus mr-1"></i>添加规范</button></div>
-      <div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">规范内容</th><th class="pb-2 px-2">级别</th><th class="pb-2 px-2">原子函数</th></tr></thead><tbody id="spec-list"></tbody></table></div>
-      <div class="mt-4 card"><h3 class="text-sm font-medium mb-2">覆盖率</h3><div class="flex items-center gap-2"><div class="flex-1 bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" style="width:100%"></div></div><span class="text-xs text-gray-400">10/10 (100%)</span></div></div>
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">规范内容</th><th class="pb-2 px-2">级别</th><th class="pb-2 px-2">分类</th><th class="pb-2 px-2">原子函数</th></tr></thead>
+          <tbody id="spec-list"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ===== AI审图 ===== -->
     <div class="page" id="page-review">
       <h2 class="text-xl font-bold mb-6">AI审图与修正</h2>
       <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="card"><h3 class="text-sm font-medium mb-3">图纸预览</h3><div class="bg-gray-100 rounded-lg h-80 flex items-center justify-center text-gray-300 text-sm"><i class="fa fa-file-image-o text-4xl mr-2"></i>选择图纸后预览</div></div>
-        <div class="card"><h3 class="text-sm font-medium mb-3">审查结果</h3><div id="review-results" class="space-y-2 text-sm text-gray-400">暂无审查记录</div></div>
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">上传图纸</h3>
+          <input type="file" id="review-file" accept=".dxf,.dwg" class="text-sm mb-3 w-full" />
+          <select id="review-building-type" class="text-sm border rounded px-2 py-1 mb-3 w-full">
+            <option value="civil">民用建筑</option>
+            <option value="industrial">工业建筑</option>
+          </select>
+          <button onclick="runReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full">
+            <i class="fa fa-search mr-1"></i>开始审查
+          </button>
+          <div id="review-loading" class="hidden mt-3 text-sm text-gray-500"><i class="fa fa-spinner loading mr-2"></i>正在审查...</div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">审查结果</h3>
+          <div id="review-summary" class="text-sm text-gray-400">上传图纸后开始审查</div>
+          <div id="review-details" class="mt-3 space-y-2 text-sm"></div>
+        </div>
       </div>
-      <div class="card" id="attribution-panel"><h3 class="text-sm font-medium mb-3">归因分析详情</h3><div class="text-sm text-gray-400">审查完成后显示归因分析</div></div>
     </div>
 
     <!-- ===== 对比演示 ===== -->
     <div class="page" id="page-compare">
       <h2 class="text-xl font-bold mb-6">图纸对比演示</h2>
-      <div class="grid grid-cols-2 gap-4"><div class="card"><h3 class="text-sm font-medium mb-3">图纸A（原始）</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300">暂无数据</div></div><div class="card"><h3 class="text-sm font-medium mb-3">图纸B（修改后）</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300">暂无数据</div></div></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card"><h3 class="text-sm font-medium mb-3">原始图纸</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300 text-sm">上传图纸后自动对比</div></div>
+        <div class="card"><h3 class="text-sm font-medium mb-3">审查标注</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300 text-sm">审查完成后显示标注</div></div>
+      </div>
     </div>
 
     <!-- ===== 结果分析 ===== -->
     <div class="page" id="page-analysis">
       <h2 class="text-xl font-bold mb-6">结果分析</h2>
-      <div class="grid grid-cols-2 gap-4"><div class="card"><canvas id="chart-trend" height="180"></canvas></div><div class="card"><canvas id="chart-violation-dist" height="180"></canvas></div></div>
-      <div class="mt-4 card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸名称</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th></tr></thead><tbody id="analysis-table"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody></table></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card"><canvas id="chart-trend" height="180"></canvas></div>
+        <div class="card"><canvas id="chart-violation-dist" height="180"></canvas></div>
+      </div>
+      <div class="mt-4 card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th></tr></thead>
+          <tbody id="analysis-table"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ===== 系统设置 ===== -->
     <div class="page" id="page-settings">
       <h2 class="text-xl font-bold mb-6">系统设置</h2>
       <div class="space-y-4">
-        <div class="card"><h3 class="font-medium mb-3">⚙️ 基本设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>默认规范集</span><span class="text-blue-600">GB50016建筑防火规范</span></div><div class="flex justify-between"><span>审查级别</span><span class="text-blue-600">L1级</span></div></div></div>
+        <div class="card"><h3 class="font-medium mb-3">⚙️ API配置</h3>
+          <div class="space-y-3 text-sm">
+            <div class="flex items-center gap-3">
+              <span class="w-24">API地址</span>
+              <input id="api-base" value="http://localhost:8000" class="flex-1 border rounded px-2 py-1 text-xs font-mono" />
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="w-24">API密钥</span>
+              <input id="api-key" type="password" placeholder="可选" class="flex-1 border rounded px-2 py-1 text-xs font-mono" />
+            </div>
+            <button onclick="testConnection()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"><i class="fa fa-plug mr-1"></i>测试连接</button>
+            <span id="conn-status" class="text-xs"></span>
+          </div>
+        </div>
         <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
-        <div class="card"><h3 class="font-medium mb-3">🤖 模型配置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>检测模型</span><span>YOLOv8+Attention (待训练)</span></div><div class="flex justify-between"><span>LoRA微调</span><span>等待真实图纸</span></div><div class="flex justify-between"><span>原子函数</span><span>10/30 已注册</span></div></div></div>
+        <div class="card"><h3 class="font-medium mb-3">🤖 引擎状态</h3><div class="space-y-2 text-sm" id="engine-status">加载中...</div></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// 页面切换
+// ── 全局状态 ──────────────────────────────────────────────
+const API_BASE = () => document.getElementById('api-base')?.value || 'http://localhost:8000';
+const API_KEY = () => document.getElementById('api-key')?.value || '';
+const HEADERS = () => API_KEY() ? {'Authorization': 'Bearer ' + API_KEY()} : {};
+let reviewHistory = [];
+
+// ── 页面切换 ──────────────────────────────────────────────
 document.querySelectorAll('.sidebar-item').forEach(item => {
   item.addEventListener('click', () => {
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('page-' + item.dataset.page).classList.add('active');
+    if (item.dataset.page === 'home') loadDashboard();
+    if (item.dataset.page === 'specs') loadSpecs();
+    if (item.dataset.page === 'analysis') loadAnalysis();
   });
 });
 
-// 规范库数据
-const specData = [
-  {id:'GB50016-5.5.18', title:'疏散楼梯净宽', level:'L1', func:'DIM-001'},
-  {id:'GB50016-6.1.1', title:'防火分区面积', level:'L1', func:'DIM-002'},
-  {id:'GB50016-7.1.1', title:'消防车道宽度', level:'L1', func:'DIM-003'},
-  {id:'GB50016-5.5.17', title:'疏散距离', level:'L1', func:'DIST-001'},
-  {id:'GB50016-5.5.8', title:'安全出口数量', level:'L1', func:'COUNT-001'},
-  {id:'GB50016-6.5.1', title:'防火门等级', level:'L1', func:'ATTR-001'},
-  {id:'GB50016-5.5.18-2', title:'疏散走道宽度', level:'L1', func:'DIM-004'},
-  {id:'GB50016-7.4.1', title:'避难层面积', level:'L1', func:'AREA-001'},
-  {id:'GB50016-5.5.12', title:'楼梯间设置', level:'L1', func:'EXIST-001'},
-  {id:'GB50016-7.2.4', title:'消防窗面积', level:'L1', func:'DIM-005'},
-];
-const specTbody = document.getElementById('spec-list');
-specData.forEach((s, i) => {
-  specTbody.innerHTML += '<tr class="border-b border-gray-50"><td class="py-2 px-2">'+(i+1)+'</td><td class="py-2 px-2 font-mono text-xs">'+s.id+'</td><td class="py-2 px-2">'+s.title+'</td><td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">'+s.level+'</span></td><td class="py-2 px-2 font-mono text-xs">'+s.func+'</td></tr>';
-});
+// ── API 调用 ──────────────────────────────────────────────
+async function apiGet(path) {
+  const r = await fetch(API_BASE() + path, {headers: HEADERS()});
+  return r.json();
+}
 
-// 图表占位
-['chart-spec-freq','chart-violation-type','chart-trend','chart-violation-dist'].forEach(id => {
-  const ctx = document.getElementById(id);
-  if(ctx) new Chart(ctx, {type: id.includes('trend')?'line':'doughnut', data:{labels:['暂无数据'], datasets:[{data:[1],backgroundColor:['#e5e7eb']}]}, options:{responsive:true,plugins:{legend:{display:false}}}});
+async function apiPostFile(path, file, extraParams = {}) {
+  const form = new FormData();
+  form.append('file', file);
+  const params = new URLSearchParams(extraParams);
+  const url = API_BASE() + path + (params.toString() ? '?' + params.toString() : '');
+  const r = await fetch(url, {method: 'POST', headers: HEADERS(), body: form});
+  return r.json();
+}
+
+// ── 测试连接 ──────────────────────────────────────────────
+async function testConnection() {
+  const s = document.getElementById('conn-status');
+  s.className = 'text-xs text-yellow-600';
+  s.textContent = '连接中...';
+  try {
+    const data = await apiGet('/health');
+    s.className = 'text-xs text-green-600';
+    s.textContent = '✅ 连接成功 | ' + data.version + ' | 引擎: ' + data.engine_status;
+  } catch (e) {
+    s.className = 'text-xs text-red-600';
+    s.textContent = '❌ 连接失败: ' + e.message;
+  }
+}
+
+// ── 概览页 ──────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const health = await apiGet('/health');
+    document.getElementById('version-info').textContent = health.version + ' · 引擎就绪';
+    document.getElementById('health-status').textContent = JSON.stringify(health, null, 2);
+    document.getElementById('home-stats').querySelectorAll('.stat-card')[0].querySelector('.text-2xl').textContent = reviewHistory.length;
+    document.getElementById('home-stats').querySelectorAll('.stat-card')[1].querySelector('.text-2xl').textContent = '20';
+    if (reviewHistory.length > 0) {
+      const last = reviewHistory[reviewHistory.length - 1];
+      document.getElementById('home-stats').querySelectorAll('.stat-card')[2].querySelector('.text-2xl').textContent =
+        last.total_checks > 0 ? Math.round((1 - last.violations / last.total_checks) * 100) + '%' : '--';
+      document.getElementById('home-stats').querySelectorAll('.stat-card')[3].querySelector('.text-2xl').textContent = last.file_id.slice(0, 12);
+    }
+  } catch (e) {
+    document.getElementById('version-info').textContent = '⚠️ 服务未连接';
+    document.getElementById('health-status').textContent = '连接失败: ' + e.message;
+  }
+}
+
+// ── 规范库 ──────────────────────────────────────────────
+async function loadSpecs() {
+  try {
+    const r = await fetch('/data/specs/baa_specs_v1.json?' + Date.now());
+    const specs = await r.json();
+    const tbody = document.getElementById('spec-list');
+    tbody.innerHTML = '';
+    specs.forEach((s, i) => {
+      tbody.innerHTML += '<tr class="border-b border-gray-50">' +
+        '<td class="py-2 px-2">' + (i + 1) + '</td>' +
+        '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
+        '<td class="py-2 px-2">' + s.title + '</td>' +
+        '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (s.level === 'L1' ? 'green' : 'yellow') + '-100 text-' + (s.level === 'L1' ? 'green' : 'yellow') + '-700 rounded text-xs">' + s.level + '</span></td>' +
+        '<td class="py-2 px-2 text-xs">' + s.category + '</td>' +
+        '<td class="py-2 px-2 font-mono text-xs">' + s.func_id + '</td></tr>';
+    });
+  } catch (e) {
+    document.getElementById('spec-list').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-400">加载失败: ' + e.message + '</td></tr>';
+  }
+}
+
+// ── 图纸上传 + 审查 ──────────────────────────────────────
+async function uploadAndReview() {
+  const file = document.getElementById('file-input').files[0];
+  if (!file) { alert('请先选择图纸文件'); return; }
+  const bt = document.getElementById('building-type').value;
+
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '<i class="fa fa-spinner loading mr-2"></i>正在处理 ' + file.name + '...';
+
+  try {
+    const result = await apiPostFile('/review', file, {building_type: bt, full: 'false'});
+    progress.className = 'hidden';
+
+    const tbody = document.getElementById('drawing-list');
+    if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+
+    const row = tbody.insertRow(0);
+    row.className = 'border-b border-gray-50 text-sm';
+    row.innerHTML =
+      '<td class="py-2 px-2">' + file.name + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + (bt === 'civil' ? '民用' : '工业') + '</td>' +
+      '<td class="py-2 px-2">' + (result.summary?.total_entities || '-') + '</td>' +
+      '<td class="py-2 px-2 text-red-600 font-medium">' + (result.summary?.violations || '-') + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + new Date().toLocaleTimeString() + '</td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">✅ 完成</span></td>';
+
+    reviewHistory.push(result.summary || {});
+    loadDashboard();
+  } catch (e) {
+    progress.innerHTML = '❌ 处理失败: ' + e.message;
+    progress.className = 'card mb-4 text-sm text-red-500';
+  }
+}
+
+// ── AI审图 ──────────────────────────────────────────────
+async function runReview() {
+  const file = document.getElementById('review-file').files[0];
+  if (!file) { alert('请先选择图纸文件'); return; }
+  const bt = document.getElementById('review-building-type').value;
+
+  const loading = document.getElementById('review-loading');
+  loading.className = 'mt-3 text-sm text-gray-500';
+  loading.innerHTML = '<i class="fa fa-spinner loading mr-2"></i>正在审查...';
+
+  try {
+    const result = await apiPostFile('/review', file, {building_type: bt, full: 'true'});
+    loading.className = 'hidden';
+
+    const summary = document.getElementById('review-summary');
+    if (result.status === 'success') {
+      summary.innerHTML =
+        '<div class="grid grid-cols-2 gap-2 mb-3">' +
+        '<div><span class="text-gray-400">实体:</span> <strong>' + (result.summary?.total_entities || 0) + '</strong></div>' +
+        '<div><span class="text-gray-400">总检查:</span> <strong>' + (result.summary?.total_checks || 0) + '</strong></div>' +
+        '<div><span class="text-gray-400">违规:</span> <strong class="text-red-600">' + (result.summary?.violations || 0) + '</strong></div>' +
+        '<div><span class="text-gray-400">建筑类型:</span> <strong>' + (result.building_type === 'civil' ? '民用' : '工业') + '</strong></div>' +
+        '</div>';
+
+      if (result.summary?.entity_types) {
+        summary.innerHTML += '<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">';
+        for (const [type, count] of Object.entries(result.summary.entity_types)) {
+          summary.innerHTML += '<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + type + ': ' + count + '</span>';
+        }
+        summary.innerHTML += '</div>';
+      }
+
+      const details = document.getElementById('review-details');
+      details.innerHTML = '';
+      if (result.findings && result.findings.length > 0) {
+        details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + result.findings.length + '项)</p>';
+        result.findings.slice(0, 20).forEach(f => {
+          details.innerHTML +=
+            '<div class="p-2 bg-red-50 rounded text-xs">' +
+            '<span class="font-medium">' + f.clause_title + '</span> (' + f.clause_id + ')<br/>' +
+            '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + f.extracted_value.toFixed(2) + ' · 要求: ' + f.required_value + '</span><br/>' +
+            '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
+            '</div>';
+        });
+      } else {
+        details.innerHTML = '<div class="p-3 bg-green-50 rounded text-green-700 text-sm">✅ 未发现违规项</div>';
+      }
+    } else {
+      summary.innerHTML = '<span class="text-red-500">' + (result.message || '审查失败') + '</span>';
+    }
+  } catch (e) {
+    loading.innerHTML = '❌ 审查失败: ' + e.message;
+    loading.className = 'mt-3 text-sm text-red-500';
+  }
+}
+
+// ── 结果分析 ──────────────────────────────────────────────
+function loadAnalysis() {
+  const tbody = document.getElementById('analysis-table');
+  if (reviewHistory.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  reviewHistory.forEach((h, i) => {
+    const passRate = h.total_checks > 0 ? Math.round((1 - h.violations / h.total_checks) * 100) : 0;
+    tbody.innerHTML += '<tr class="border-b border-gray-50 text-sm">' +
+      '<td class="py-2 px-2">' + (i + 1) + '</td>' +
+      '<td class="py-2 px-2">图纸 #' + (i + 1) + '</td>' +
+      '<td class="py-2 px-2">' + (h.total_checks || 0) + '</td>' +
+      '<td class="py-2 px-2 text-red-600">' + (h.violations || 0) + '</td>' +
+      '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + passRate + '%"></div></div><span class="text-xs">' + passRate + '%</span></div></td></tr>';
+  });
+}
+
+// ── 初始化 ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  loadSpecs();
+
+  // 引擎状态
+  document.getElementById('engine-status').innerHTML =
+    '<div class="flex justify-between"><span>原子函数</span><span>19/30 已注册</span></div>' +
+    '<div class="flex justify-between"><span>规范库</span><span>20条 (10L1+10L2)</span></div>' +
+    '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
+    '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
 });
 </script>
 </body>
