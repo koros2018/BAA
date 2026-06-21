@@ -56,9 +56,18 @@ class AtomicFunction:
     operator: str
     threshold: float
     unit: str
+    target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
 
-    def execute(self, entity: Dict[str, Any]) -> FuncResult:
-        """执行判定"""
+    def matches(self, entity: Dict[str, Any]) -> bool:
+        """判断实体类型是否匹配此原子函数"""
+        if not self.target_entities:
+            return True  # 无限制，匹配所有
+        return entity.get("type", "") in self.target_entities
+
+    def execute(self, entity: Dict[str, Any]) -> Optional[FuncResult]:
+        """执行判定，实体类型不匹配时返回 None"""
+        if not self.matches(entity):
+            return None
         actual = self._extract_value(entity)
         delta = actual - self.threshold
 
@@ -172,44 +181,63 @@ class FuncRegistry:
     # 首批 10 个原子函数（L1级，与规范JSON库对齐）
     INITIAL_FUNCS = [
         AtomicFunction("DIM-001", "疏散楼梯净宽判定", FuncCategory.DIMENSION,
-                       "GB50016-5.5.18", "疏散楼梯净宽度不应小于1.2m", ">=", 1.2, "m"),
+                       "GB50016-5.5.18", "疏散楼梯净宽度不应小于1.2m", ">=", 1.2, "m",
+                       target_entities=["staircase", "stair"]),
         AtomicFunction("DIM-002", "防火分区面积判定", FuncCategory.DIMENSION,
-                       "GB50016-6.1.1", "防火分区面积不应大于2500㎡", "<=", 2500, "㎡"),
+                       "GB50016-6.1.1", "防火分区面积不应大于2500㎡", "<=", 2500, "㎡",
+                       target_entities=["fire_zone", "room", "floor"]),
         AtomicFunction("DIM-003", "消防车道宽度判定", FuncCategory.DIMENSION,
-                       "GB50016-7.1.1", "消防车道宽度不应小于4m", ">=", 4.0, "m"),
+                       "GB50016-7.1.1", "消防车道宽度不应小于4m", ">=", 4.0, "m",
+                       target_entities=["fire_lane", "road", "driveway"]),
         AtomicFunction("DIST-001", "疏散距离判定", FuncCategory.DISTANCE,
-                       "GB50016-5.5.17", "疏散距离不应大于30m", "<=", 30.0, "m"),
+                       "GB50016-5.5.17", "疏散距离不应大于30m", "<=", 30.0, "m",
+                       target_entities=["room", "floor", "space"]),
         AtomicFunction("COUNT-001", "安全出口数量判定", FuncCategory.COUNT,
-                       "GB50016-5.5.8", "安全出口不应少于2个", ">=", 2.0, "个"),
+                       "GB50016-5.5.8", "安全出口不应少于2个", ">=", 2.0, "个",
+                       target_entities=["floor", "fire_zone"]),
         AtomicFunction("ATTR-001", "防火门等级判定", FuncCategory.ATTR,
-                       "GB50016-6.5.1", "防火门等级应为甲级", "==", 1.0, "级"),
+                       "GB50016-6.5.1", "防火门等级应为甲级", "==", 1.0, "级",
+                       target_entities=["fire_door", "door"]),
         AtomicFunction("DIM-004", "疏散走道宽度判定", FuncCategory.DIMENSION,
-                       "GB50016-5.5.18", "疏散走道净宽度不应小于1.1m", ">=", 1.1, "m"),
+                       "GB50016-5.5.18", "疏散走道净宽度不应小于1.1m", ">=", 1.1, "m",
+                       target_entities=["corridor", "aisle", "passage"]),
         AtomicFunction("AREA-001", "避难层面积判定", FuncCategory.AREA,
-                       "GB50016-7.4.1", "避难层净面积不宜小于5㎡/人", ">=", 5.0, "㎡/人"),
+                       "GB50016-7.4.1", "避难层净面积不宜小于5㎡/人", ">=", 5.0, "㎡/人",
+                       target_entities=["refuge_floor", "refuge_area", "floor"]),
         AtomicFunction("EXIST-001", "楼梯间存在判定", FuncCategory.EXIST,
-                       "GB50016-5.5.12", "建筑应设置楼梯间", "==", 1.0, "有/无"),
+                       "GB50016-5.5.12", "建筑应设置楼梯间", "==", 1.0, "有/无",
+                       target_entities=["staircase", "stair"]),
         AtomicFunction("DIM-005", "窗净面积判定", FuncCategory.DIMENSION,
-                       "GB50016-7.2.4", "消防窗净面积不应小于1.0㎡", ">=", 1.0, "㎡"),
-        # L2 规范原子函数（5个）
+                       "GB50016-7.2.4", "消防窗净面积不应小于1.0㎡", ">=", 1.0, "㎡",
+                       target_entities=["fire_window", "window"]),
+        # L2 规范原子函数（9个）
         AtomicFunction("DIM-006", "疏散门净宽判定", FuncCategory.DIMENSION,
-                       "GB50016-5.5.19", "人员密集场所疏散门净宽不应小于1.4m", ">=", 1.4, "m"),
+                       "GB50016-5.5.19", "人员密集场所疏散门净宽不应小于1.4m", ">=", 1.4, "m",
+                       target_entities=["exit_door", "door"]),
         AtomicFunction("DIM-007", "防火卷帘宽度判定", FuncCategory.DIMENSION,
-                       "GB50016-6.5.3", "防火分隔防火卷帘宽度不应大于10m", "<=", 10.0, "m"),
+                       "GB50016-6.5.3", "防火分隔防火卷帘宽度不应大于10m", "<=", 10.0, "m",
+                       target_entities=["fire_curtain", "curtain"]),
         AtomicFunction("EXIST-002", "管道井封堵判定", FuncCategory.EXIST,
-                       "GB50016-6.6.1", "管道井应每层用不燃材料封堵", "==", 1.0, "有/无"),
+                       "GB50016-6.6.1", "管道井应每层用不燃材料封堵", "==", 1.0, "有/无",
+                       target_entities=["shaft", "pipe_shaft", "cable_shaft"]),
         AtomicFunction("EXIST-003", "剪刀楼梯分隔判定", FuncCategory.EXIST,
-                       "GB50016-5.5.24", "剪刀楼梯梯段间应设置防火隔墙", "==", 1.0, "有/无"),
+                       "GB50016-5.5.24", "剪刀楼梯梯段间应设置防火隔墙", "==", 1.0, "有/无",
+                       target_entities=["scissor_staircase", "staircase"]),
         AtomicFunction("EXIST-004", "疏散指示标志判定", FuncCategory.EXIST,
-                       "GB50016-10.3.1", "疏散走道和安全出口应设疏散指示标志", "==", 1.0, "有/无"),
+                       "GB50016-10.3.1", "疏散走道和安全出口应设疏散指示标志", "==", 1.0, "有/无",
+                       target_entities=["exit_sign", "sign", "corridor"]),
         AtomicFunction("EXIST-005", "自动灭火系统判定", FuncCategory.EXIST,
-                       "GB50016-8.3.1", "一类高层应设置自动灭火系统", "==", 1.0, "有/无"),
+                       "GB50016-8.3.1", "一类高层应设置自动灭火系统", "==", 1.0, "有/无",
+                       target_entities=["sprinkler_system", "sprinkler", "fire_system"]),
         AtomicFunction("EXIST-006", "火灾报警系统判定", FuncCategory.EXIST,
-                       "GB50016-8.4.1", "一类高层应设置火灾自动报警系统", "==", 1.0, "有/无"),
+                       "GB50016-8.4.1", "一类高层应设置火灾自动报警系统", "==", 1.0, "有/无",
+                       target_entities=["fire_alarm", "alarm_system", "fire_system"]),
         AtomicFunction("ATTR-002", "保温材料等级判定", FuncCategory.ATTR,
-                       "GB50016-6.7.1", "保温材料应选用A或B1级", ">=", 2.0, "级"),
+                       "GB50016-6.7.1", "保温材料应选用A或B1级", ">=", 2.0, "级",
+                       target_entities=["insulation", "wall_insulation", "roof_insulation"]),
         AtomicFunction("LIGHT-001", "应急照明照度判定", FuncCategory.DIMENSION,
-                       "GB50016-10.1.5", "疏散照明照度不应低于1.0lx", ">=", 1.0, "lx"),
+                       "GB50016-10.1.5", "疏散照明照度不应低于1.0lx", ">=", 1.0, "lx",
+                       target_entities=["evacuation_lighting", "light", "lighting"]),
     ]
 
     # 框架预留 20 个位置（V2.0扩展）

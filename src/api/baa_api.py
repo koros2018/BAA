@@ -298,7 +298,7 @@ async def deconstruct(
             func.unit = unit
             func.operator = op
             r = func.execute(e)
-            if r.result != "PASS":
+            if r is not None and r.result != "PASS":
                 clause = {
                     "standard": "GB50016",
                     "clause_id": func.clause_id,
@@ -414,6 +414,8 @@ async def review(
             func.unit = unit
             func.operator = op
             r = func.execute(e)
+            if r is None:
+                continue
             clause_results[func.clause_id] += 1
             if r.result != "PASS":
                 clause = {
