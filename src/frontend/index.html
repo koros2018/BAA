@@ -4,19 +4,126 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BAA - Blueprint AI Agent · 图纸合规智能体</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🔧</text></svg>">
 <style>
+  /* Tailwind v3 utility classes (inline, no CDN) */
+  *, ::before, ::after { box-sizing: border-box; }
+  .flex { display: flex; }
+  .flex-1 { flex: 1 1 0%; }
+  .flex-col { flex-direction: column; }
+  .flex-wrap { flex-wrap: wrap; }
+  .items-start { align-items: flex-start; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .gap-1 { gap: 0.25rem; }
+  .gap-2 { gap: 0.5rem; }
+  .gap-3 { gap: 0.75rem; }
+  .gap-4 { gap: 1rem; }
+  .grid { display: grid; }
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .w-20 { width: 5rem; }
+  .w-full { width: 100%; }
+  .h-2 { height: 0.5rem; }
+  .h-4 { height: 1rem; }
+  .h-full { height: 100%; }
+  .p-2 { padding: 0.5rem; }
+  .p-5 { padding: 1.25rem; }
+  .px-1\.5 { padding-left: 0.375rem; padding-right: 0.375rem; }
+  .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .py-0\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+  .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+  .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+  .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+  .pt-4 { padding-top: 1rem; }
+  .pb-2 { padding-bottom: 0.5rem; }
+  .mr-1 { margin-right: 0.25rem; }
+  .mr-2 { margin-right: 0.5rem; }
+  .mb-2 { margin-bottom: 0.5rem; }
+  .mb-3 { margin-bottom: 0.75rem; }
+  .mb-4 { margin-bottom: 1rem; }
+  .mb-6 { margin-bottom: 1.5rem; }
+  .mt-2 { margin-top: 0.5rem; }
+  .mt-3 { margin-top: 0.75rem; }
+  .mt-4 { margin-top: 1rem; }
+  .mt-6 { margin-top: 1.5rem; }
+  .rounded { border-radius: 0.25rem; }
+  .rounded-full { border-radius: 9999px; }
+  .rounded-lg { border-radius: 0.5rem; }
+  .rounded-xl { border-radius: 0.75rem; }
+  .border { border-width: 1px; }
+  .border-b { border-bottom-width: 1px; }
+  .border-gray-50 { border-color: #f9fafb; }
+  .border-gray-100 { border-color: #f3f4f6; }
+  .border-gray-200 { border-color: #e5e7eb; }
+  .bg-black\/5 { background-color: rgba(0,0,0,0.05); }
+  .bg-blue-50 { background-color: #eff6ff; }
+  .bg-blue-100 { background-color: #dbeafe; }
+  .bg-blue-500 { background-color: #3b82f6; }
+  .bg-blue-600 { background-color: #2563eb; }
+  .bg-gray-50 { background-color: #f9fafb; }
+  .bg-gray-100 { background-color: #f3f4f6; }
+  .bg-gray-200 { background-color: #e5e7eb; }
+  .bg-gray-300 { background-color: #d1d5db; }
+  .bg-gray-400 { background-color: #9ca3af; }
+  .bg-green-100 { background-color: #dcfce7; }
+  .bg-green-500 { background-color: #22c55e; }
+  .bg-red-50 { background-color: #fef2f2; }
+  .bg-red-100 { background-color: #fee2e2; }
+  .bg-red-500 { background-color: #ef4444; }
+  .bg-red-600 { background-color: #dc2626; }
+  .bg-white { background-color: #ffffff; }
+  .bg-yellow-100 { background-color: #fef9c3; }
+  .bg-yellow-500 { background-color: #eab308; }
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .text-right { text-align: right; }
+  .text-xs { font-size: 0.75rem; line-height: 1rem; }
+  .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+  .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+  .text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+  .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+  .font-medium { font-weight: 500; }
+  .font-bold { font-weight: 700; }
+  .font-mono { font-family: ui-monospace, monospace; }
+  .text-blue-600 { color: #2563eb; }
+  .text-blue-700 { color: #1d4ed8; }
+  .text-blue-800 { color: #1e40af; }
+  .text-gray-300 { color: #d1d5db; }
+  .text-gray-400 { color: #9ca3af; }
+  .text-gray-500 { color: #6b7280; }
+  .text-gray-600 { color: #4b5563; }
+  .text-gray-700 { color: #374151; }
+  .text-green-500 { color: #22c55e; }
+  .text-green-700 { color: #15803d; }
+  .text-green-800 { color: #166534; }
+  .text-red-400 { color: #f87171; }
+  .text-red-500 { color: #ef4444; }
+  .text-red-600 { color: #dc2626; }
+  .text-red-700 { color: #b91c1c; }
+  .text-red-800 { color: #991b1b; }
+  .text-white { color: #ffffff; }
+  .text-yellow-700 { color: #a16207; }
+  .overflow-x-auto { overflow-x: auto; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .whitespace-nowrap { white-space: nowrap; }
+  .hidden { display: none; }
+  .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+  .hover\:bg-gray-100:hover { background-color: #f3f4f6; }
+  .hover\:bg-gray-50:hover { background-color: #f9fafb; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  .sidebar-item { @apply flex items-center gap-3 px-4 py-2.5 text-sm rounded-lg cursor-pointer transition-colors; }
-  .sidebar-item:hover { @apply bg-gray-100; }
-  .sidebar-item.active { @apply bg-blue-50 text-blue-700 font-medium; }
+  .sidebar-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; font-size: 0.875rem; line-height: 1.25rem; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s; }
+  .sidebar-item:hover { background-color: #f3f4f6; }
+  .sidebar-item.active { background-color: #eff6ff; color: #1d4ed8; font-weight: 500; }
   .page { display: none; }
   .page.active { display: block; }
-  .card { @apply bg-white rounded-xl border border-gray-200 p-5; }
-  .stat-card { @apply card flex items-center gap-4; }
-  .heatmap-bar { @apply h-4 rounded-full transition-all; }
+  .card { background: #fff; border-radius: 0.75rem; border: 1px solid #e5e7eb; padding: 1.25rem; }
+  .stat-card { display: flex; align-items: center; gap: 1rem; background: #fff; border-radius: 0.75rem; border: 1px solid #e5e7eb; padding: 1.25rem; }
+  .heatmap-bar { height: 1rem; border-radius: 9999px; transition: all 0.15s; }
   .loading { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
@@ -32,12 +139,12 @@
     </div>
     <nav class="flex-1 p-3 space-y-1" id="sidebar">
       <div class="sidebar-item active" data-page="home"><i class="fa fa-home w-5"></i>系统概览</div>
-      <div class="sidebar-item" data-page="drawings"><i class="fa fa-file-image-o w-5"></i>图纸管理</div>
-      <div class="sidebar-item" data-page="specs"><i class="fa fa-book w-5"></i>规范库</div>
-      <div class="sidebar-item" data-page="review"><i class="fa fa-search w-5"></i>AI审图</div>
+      <div class="sidebar-item" data-page="drawings">📐图纸管理</div>
+      <div class="sidebar-item" data-page="specs">📖规范库</div>
+      <div class="sidebar-item" data-page="review">🔎AI审图</div>
       <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
-      <div class="sidebar-item" data-page="analysis"><i class="fa fa-bar-chart w-5"></i>结果分析</div>
-      <div class="sidebar-item" data-page="settings"><i class="fa fa-cog w-5"></i>系统设置</div>
+      <div class="sidebar-item" data-page="analysis">📊结果分析</div>
+      <div class="sidebar-item" data-page="settings">⚙️系统设置</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
@@ -50,14 +157,24 @@
     <div class="page active" id="page-home">
       <h2 class="text-xl font-bold mb-6">系统概览</h2>
       <div class="grid grid-cols-4 gap-4 mb-6" id="home-stats">
-        <div class="stat-card"><i class="fa fa-file text-2xl text-blue-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">已处理图纸</p></div></div>
-        <div class="stat-card"><i class="fa fa-book text-2xl text-green-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">规范库条目</p></div></div>
+        <div class="stat-card">📄<div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">已处理图纸</p></div></div>
+        <div class="stat-card">📕<div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">规范库条目</p></div></div>
         <div class="stat-card"><i class="fa fa-check-circle text-2xl text-teal-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">审查通过率</p></div></div>
         <div class="stat-card"><i class="fa fa-clock-o text-2xl text-orange-500"></i><div><p class="text-2xl font-bold">-</p><p class="text-xs text-gray-400">最近审查</p></div></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="card"><canvas id="chart-spec-freq" height="200"></canvas></div>
-        <div class="card"><canvas id="chart-violation-type" height="200"></canvas></div>
+        <div class="card">
+        <p class="font-medium mb-2">规范命中频率</p>
+        <div id="spec-freq-bars" class="text-xs space-y-1">
+          <div class="text-gray-400">加载数据后自动统计</div>
+        </div>
+      </div>
+      <div class="card">
+        <p class="font-medium mb-2">违规类型分布</p>
+        <div id="violation-type-bars" class="text-xs space-y-1">
+          <div class="text-gray-400">审查图纸后自动统计</div>
+        </div>
+      </div>
       </div>
       <div class="card"><h3 class="font-medium mb-3">服务状态</h3><pre id="health-status" class="text-sm text-gray-500">加载中...</pre></div>
     </div>
@@ -67,18 +184,24 @@
       <h2 class="text-xl font-bold mb-6">图纸管理</h2>
       <div class="card mb-6">
         <div class="flex items-center gap-4">
-          <input type="file" id="file-input" accept=".dxf,.dwg" class="text-sm" />
-          <select id="building-type" class="text-sm border rounded px-2 py-1">
+          <input type="file" id="file-input" accept=".dxf" class="text-sm" />
+          <select id="drawing-bt" class="text-sm border rounded px-2 py-1">
             <option value="civil">民用建筑</option>
             <option value="industrial">工业建筑</option>
           </select>
           <button onclick="uploadAndReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-            <i class="fa fa-upload mr-1"></i>上传并审查
+            📤 上传并解析
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-2">支持格式: .dxf / .dwg（最大50MB）</p>
+        <p class="text-xs text-gray-400 mt-2">支持格式: .dxf（最大50MB，暂不支持DWG直接上传）</p>
       </div>
-      <div id="upload-progress" class="hidden card mb-4 text-sm text-gray-500"><i class="fa fa-spinner loading mr-2"></i>处理中...</div>
+      <div id="upload-progress" class="hidden card mb-4 text-sm text-gray-500">⏳ 处理中...</div>
+      <div class="card overflow-x-auto">
+      </div>
+      <div id="drawing-preview" class="hidden card">
+        <h3 class="font-medium mb-2">解析预览</h3>
+        <pre id="parse-result-json" class="text-xs bg-gray-50 p-3 rounded overflow-x-auto max-h-60"></pre>
+      </div>
       <div class="card overflow-x-auto">
         <table class="w-full text-sm">
           <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">文件</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">实体</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">时间</th><th class="pb-2 px-2">状态</th></tr></thead>
@@ -103,31 +226,55 @@
       <h2 class="text-xl font-bold mb-6">AI审图与修正</h2>
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="card">
-          <h3 class="text-sm font-medium mb-3">上传图纸</h3>
-          <input type="file" id="review-file" accept=".dxf,.dwg" class="text-sm mb-3 w-full" />
-          <select id="review-building-type" class="text-sm border rounded px-2 py-1 mb-3 w-full">
-            <option value="civil">民用建筑</option>
-            <option value="industrial">工业建筑</option>
+          <h3 class="text-sm font-medium mb-3">选择已解析图纸</h3>
+          <select id="review-drawing-select" class="text-sm border rounded px-2 py-1 mb-3 w-full" onchange="onReviewDrawingSelect()">
+            <option value="">— 请先在图纸管理上传解析 —</option>
           </select>
-          <button onclick="runReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full">
-            <i class="fa fa-search mr-1"></i>开始审查
+          <div class="text-xs text-gray-400 mb-2" id="review-drawing-info"></div>
+          <button onclick="runReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" disabled id="review-start-btn">
+            🔍 开始审查
           </button>
-          <div id="review-loading" class="hidden mt-3 text-sm text-gray-500"><i class="fa fa-spinner loading mr-2"></i>正在审查...</div>
+          <div id="review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
         </div>
         <div class="card">
           <h3 class="text-sm font-medium mb-3">审查结果</h3>
-          <div id="review-summary" class="text-sm text-gray-400">上传图纸后开始审查</div>
+          <div id="review-summary" class="text-sm text-gray-400">选择图纸后开始审查</div>
           <div id="review-details" class="mt-3 space-y-2 text-sm"></div>
         </div>
       </div>
     </div>
 
-    <!-- ===== 对比演示 ===== -->
+    <!-- ===== 对比重构 ===== -->
     <div class="page" id="page-compare">
-      <h2 class="text-xl font-bold mb-6">图纸对比演示</h2>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="card"><h3 class="text-sm font-medium mb-3">原始图纸</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300 text-sm">上传图纸后自动对比</div></div>
-        <div class="card"><h3 class="text-sm font-medium mb-3">审查标注</h3><div class="bg-gray-100 rounded-lg h-60 flex items-center justify-center text-gray-300 text-sm">审查完成后显示标注</div></div>
+      <h2 class="text-xl font-bold mb-6">图纸对比重构</h2>
+      <div class="card mb-4">
+        <div class="flex items-center gap-3">
+          <span class="text-sm">选择已审查图纸:</span>
+          <select id="compare-drawing-select" class="text-sm border rounded px-2 py-1 flex-1" onchange="onCompareSelect()">
+            <option value="">— 请先在AI审图完成审查 —</option>
+          </select>
+        </div>
+      </div>
+      <div id="compare-empty" class="card text-center py-8 text-gray-300">
+        选择图纸后显示对比
+      </div>
+      <div id="compare-content" class="hidden">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="card">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span>原始图纸解析</h3>
+            <div class="bg-gray-50 rounded-lg p-3 max-h-80 overflow-y-auto">
+              <pre id="compare-original-json" class="text-xs font-mono whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500"></span>违规标注</h3>
+            <div id="compare-violations" class="space-y-2 max-h-80 overflow-y-auto"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span>修正建议 & 重构预览</h3>
+          <div id="compare-corrections" class="space-y-2"></div>
+        </div>
       </div>
     </div>
 
@@ -135,8 +282,18 @@
     <div class="page" id="page-analysis">
       <h2 class="text-xl font-bold mb-6">结果分析</h2>
       <div class="grid grid-cols-2 gap-4">
-        <div class="card"><canvas id="chart-trend" height="180"></canvas></div>
-        <div class="card"><canvas id="chart-violation-dist" height="180"></canvas></div>
+        <div class="card">
+          <p class="font-medium mb-2">历史审查趋势</p>
+          <div id="trend-bars" class="text-xs space-y-1">
+            <div class="text-gray-400">审查图纸后自动统计</div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="font-medium mb-2">违规分布</p>
+          <div id="violation-dist-bars" class="text-xs space-y-1">
+            <div class="text-gray-400">审查图纸后自动统计</div>
+          </div>
+        </div>
       </div>
       <div class="mt-4 card overflow-x-auto">
         <table class="w-full text-sm">
@@ -156,12 +313,28 @@
               <span class="w-24">API地址</span>
               <input id="api-base" value="http://localhost:8000" class="flex-1 border rounded px-2 py-1 text-xs font-mono" />
             </div>
-            <div class="flex items-center gap-3">
-              <span class="w-24">API密钥</span>
-              <input id="api-key" type="password" placeholder="可选" class="flex-1 border rounded px-2 py-1 text-xs font-mono" />
+            <div class="mb-2">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium">API密钥管理</span>
+                <div class="flex gap-2">
+                  <button onclick="generateApiKey()" class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">+ 生成密钥</button>
+                  <button onclick="addApiKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">+ 手动添加</button>
+                </div>
+              </div>
+              <div id="api-keys-container" class="space-y-1.5 max-h-48 overflow-y-auto">
+                <div class="text-xs text-gray-400">暂无密钥，请生成或添加</div>
+              </div>
             </div>
-            <button onclick="testConnection()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"><i class="fa fa-plug mr-1"></i>测试连接</button>
-            <span id="conn-status" class="text-xs"></span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">当前使用:</span>
+              <select id="active-key-select" class="text-xs border rounded px-2 py-1 flex-1 font-mono" onchange="switchApiKey(this.value)">
+                <option value="">无密钥</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="testConnection()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">🔌 测试连接</button>
+              <span id="conn-status" class="text-xs"></span>
+            </div>
           </div>
         </div>
         <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
@@ -174,10 +347,132 @@
 <script>
 // ── 全局状态 ──────────────────────────────────────────────
 const API_BASE = () => document.getElementById('api-base')?.value || 'http://localhost:8000';
-const API_KEY = () => document.getElementById('api-key')?.value || '';
-const HEADERS = () => API_KEY() ? {'Authorization': 'Bearer ' + API_KEY()} : {};
+const HEADERS = () => {
+  const key = getActiveKeyValue();
+  return key ? {'Authorization': 'Bearer ' + key} : {};
+};
 let reviewHistory = [];
 
+// ── API密钥管理 ──────────────────────────────────────
+let apiKeys = [];
+let activeKey = '';
+
+function loadApiKeys() {
+  try {
+    const stored = localStorage.getItem('baa_api_keys');
+    apiKeys = stored ? JSON.parse(stored) : [];
+    activeKey = localStorage.getItem('baa_active_key') || '';
+  } catch (e) {
+    apiKeys = [];
+    activeKey = '';
+  }
+}
+
+function saveApiKeys() {
+  localStorage.setItem('baa_api_keys', JSON.stringify(apiKeys));
+}
+
+function maskKey(key) {
+  if (key.length <= 8) return key;
+  return key.slice(0, 4) + '...' + key.slice(-4);
+}
+
+function getActiveKeyValue() {
+  const k = apiKeys.find(k => k.id === activeKey);
+  return k ? k.key : '';
+}
+
+function renderApiKeys() {
+  const container = document.getElementById('api-keys-container');
+  const select = document.getElementById('active-key-select');
+  if (!container || !select) return;
+  
+  if (apiKeys.length === 0) {
+    container.innerHTML = '<div class="text-xs text-gray-400">暂无密钥，请生成或添加</div>';
+    select.innerHTML = '<option value="">无密钥</option>';
+    return;
+  }
+  
+  container.innerHTML = '';
+  select.innerHTML = '<option value="">无密钥</option>';
+  
+  apiKeys.forEach(k => {
+    const isActive = k.id === activeKey;
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between p-1.5 rounded text-xs ' + (isActive ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50');
+    div.innerHTML = 
+      '<div class="flex-1 min-w-0">' +
+        '<div class="font-medium truncate">' + k.name + '</div>' +
+        '<div class="text-gray-400 font-mono">' + maskKey(k.key) + '</div>' +
+      '</div>' +
+      '<div class="flex gap-1 shrink-0">' +
+        '<button onclick="copyApiKey(\'' + k.id + '\')" class="px-1.5 py-0.5 bg-gray-200 rounded hover:bg-gray-300" title="复制">📋</button>' +
+        '<button onclick="deleteApiKey(\'' + k.id + '\')" class="px-1.5 py-0.5 bg-red-100 rounded hover:bg-red-200" title="删除">🗑️</button>' +
+      '</div>';
+    container.appendChild(div);
+    
+    const opt = document.createElement('option');
+    opt.value = k.id;
+    opt.textContent = k.name + ' (' + maskKey(k.key) + ')';
+    if (k.id === activeKey) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+function generateApiKey() {
+  const name = prompt('密钥名称（如：开发环境）');
+  if (!name) return;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+  let key = 'baa_';
+  for (let i = 0; i < 48; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  apiKeys.push({id: 'key_' + Date.now(), name, key, created: Date.now()});
+  saveApiKeys();
+  activeKey = apiKeys[apiKeys.length - 1].id;
+  localStorage.setItem('baa_active_key', activeKey);
+  renderApiKeys();
+  testConnection();
+}
+
+function addApiKey() {
+  const name = prompt('密钥名称（如：生产环境）');
+  if (!name) return;
+  const key = prompt('请输入密钥内容');
+  if (!key) return;
+  apiKeys.push({id: 'key_' + Date.now(), name, key, created: Date.now()});
+  saveApiKeys();
+  activeKey = apiKeys[apiKeys.length - 1].id;
+  localStorage.setItem('baa_active_key', activeKey);
+  renderApiKeys();
+}
+
+function deleteApiKey(id) {
+  if (!confirm('确认删除此密钥？')) return;
+  apiKeys = apiKeys.filter(k => k.id !== id);
+  if (activeKey === id) {
+    activeKey = apiKeys.length > 0 ? apiKeys[apiKeys.length - 1].id : '';
+    localStorage.setItem('baa_active_key', activeKey);
+  }
+  saveApiKeys();
+  renderApiKeys();
+}
+
+function copyApiKey(id) {
+  const k = apiKeys.find(k => k.id === id);
+  if (!k) return;
+  navigator.clipboard.writeText(k.key).then(() => {
+    alert('密钥已复制到剪贴板');
+  }).catch(() => {
+    alert('复制失败，请手动复制');
+  });
+}
+
+function switchApiKey(id) {
+  activeKey = id;
+  localStorage.setItem('baa_active_key', activeKey);
+  renderApiKeys();
+}
 // ── 页面切换 ──────────────────────────────────────────────
 document.querySelectorAll('.sidebar-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -262,53 +557,227 @@ async function loadSpecs() {
   }
 }
 
-// ── 图纸上传 + 审查 ──────────────────────────────────────
-async function uploadAndReview() {
+// ── 图纸管理：上传解析 ──────────────────────────────
+// 已解析图纸的全局存储
+let parsedDrawings = [];
+// 文件缓存（用于AI审图时重新上传）
+let fileCache = {};
+
+async function uploadDrawing() {
   const file = document.getElementById('file-input').files[0];
   if (!file) { alert('请先选择图纸文件'); return; }
-  const bt = document.getElementById('building-type').value;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+  const bt = document.getElementById('drawing-bt').value;
 
   const progress = document.getElementById('upload-progress');
   progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '<i class="fa fa-spinner loading mr-2"></i>正在处理 ' + file.name + '...';
+  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
 
   try {
-    const result = await apiPostFile('/review', file, {building_type: bt, full: 'false'});
+    // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt});
     progress.className = 'hidden';
 
-    const tbody = document.getElementById('drawing-list');
-    if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+    // 缓存文件（用于后续AI审图重新上传）
+    const fileId = result.file_id || 'drawing_' + Date.now();
+    fileCache[fileId] = file;
 
-    const row = tbody.insertRow(0);
-    row.className = 'border-b border-gray-50 text-sm';
-    row.innerHTML =
-      '<td class="py-2 px-2">' + file.name + '</td>' +
-      '<td class="py-2 px-2 text-xs">' + (bt === 'civil' ? '民用' : '工业') + '</td>' +
-      '<td class="py-2 px-2">' + (result.summary?.total_entities || '-') + '</td>' +
-      '<td class="py-2 px-2 text-red-600 font-medium">' + (result.summary?.violations || '-') + '</td>' +
-      '<td class="py-2 px-2 text-xs">' + new Date().toLocaleTimeString() + '</td>' +
-      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">✅ 完成</span></td>';
+    // 存储解析结果
+    const entry = {
+      id: fileId,
+      filename: file.name,
+      building_type: bt,
+      parsedAt: new Date().toISOString(),
+      elements: result.elements || [],
+      entities: result.entities || [],
+      findings_count: result.findings || 0,
+      total_checks: result.total_checks || 0,
+      file_id: fileId,
+      raw: result,
+    };
+    parsedDrawings.unshift(entry);
+    saveParsedDrawings();
 
-    reviewHistory.push(result.summary || {});
+    // 更新图纸列表
+    renderDrawingList();
+
+    // 显示解析预览
+    const preview = document.getElementById('drawing-preview');
+    preview.className = 'card';
+    document.getElementById('parse-result-json').textContent =
+      JSON.stringify(result, null, 2);
+
+    // 刷新AI审图的下拉
+    refreshReviewDrawingSelect();
     loadDashboard();
   } catch (e) {
-    progress.innerHTML = '❌ 处理失败: ' + e.message;
+    progress.innerHTML = '❌ 解析失败: ' + e.message;
     progress.className = 'card mb-4 text-sm text-red-500';
   }
 }
 
+function saveParsedDrawings() {
+  try {
+    localStorage.setItem('baa_parsed_drawings', JSON.stringify(parsedDrawings));
+  } catch (e) { /* ignore quota */ }
+}
+
+function loadParsedDrawings() {
+  try {
+    const stored = localStorage.getItem('baa_parsed_drawings');
+    if (stored) parsedDrawings = JSON.parse(stored);
+  } catch (e) { parsedDrawings = []; }
+}
+
+function renderDrawingList() {
+  const tbody = document.getElementById('drawing-list');
+  if (!tbody) return;
+  if (parsedDrawings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  parsedDrawings.forEach((d, i) => {
+    const row = tbody.insertRow(-1);
+    row.className = 'border-b border-gray-50 text-sm';
+    row.innerHTML =
+      '<td class="py-2 px-2 truncate max-w-32">' + d.filename + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + (d.building_type === 'civil' ? '民用' : '工业') + '</td>' +
+      '<td class="py-2 px-2">' + (d.elements?.length || 0) + '</td>' +
+      '<td class="py-2 px-2 text-xs max-w-40 truncate">' + (d.elements ? d.elements.map(e => e.type).join(', ') : '') + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + new Date(d.parsedAt).toLocaleTimeString() + '</td>' +
+      '<td class="py-2 px-2">' +
+      '<button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' +
+      '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td>';
+  });
+}
+
+async function uploadAndReview() {
+  // 先执行上传+解析
+  const file = document.getElementById('file-input').files[0];
+  if (!file) { alert('请先选择图纸文件'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+  const bt = document.getElementById('drawing-bt').value;
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
+  try {
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt});
+    progress.className = 'hidden';
+    const fileId = result.file_id || 'drawing_' + Date.now();
+    fileCache[fileId] = file;
+    const entry = {
+      id: fileId, filename: file.name, building_type: bt,
+      parsedAt: new Date().toISOString(),
+      elements: result.elements || [], entities: result.entities || [],
+      findings_count: result.findings || 0, total_checks: result.total_checks || 0,
+      file_id: fileId, raw: result,
+    };
+    parsedDrawings.unshift(entry);
+    saveParsedDrawings();
+    renderDrawingList();
+    refreshReviewDrawingSelect();
+    loadDashboard();
+    // 停留在图纸管理页面，显示解析预览
+    const preview = document.getElementById('drawing-preview');
+    if (preview) {
+      preview.className = 'card';
+      document.getElementById('parse-result-json').textContent =
+        JSON.stringify(result, null, 2);
+    }
+  } catch (e) {
+    progress.innerHTML = '❌ 解析失败: ' + e.message;
+    progress.className = 'card mb-4 text-sm text-red-500';
+  }
+}
+
+function deleteDrawing(idx) {
+  const d = parsedDrawings[idx];
+  if (!d) return;
+  if (!confirm('确定删除图纸「' + d.filename + '」的解析记录？')) return;
+  parsedDrawings.splice(idx, 1);
+  saveParsedDrawings();
+  renderDrawingList();
+}
+
+function sendToReview(idx) {
+  const d = parsedDrawings[idx];
+  if (!d) return;
+  // 切换到AI审图页面并选中此图纸
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  document.querySelector('[data-page="review"]').classList.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-review').classList.add('active');
+
+  const select = document.getElementById('review-drawing-select');
+  // 找到对应option并选中
+  for (let i = 0; i < select.options.length; i++) {
+    if (select.options[i].value === d.id) {
+      select.selectedIndex = i;
+      break;
+    }
+  }
+  onReviewDrawingSelect();
+}
+
+function refreshReviewDrawingSelect() {
+  const select = document.getElementById('review-drawing-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">— 选择已解析图纸 —</option>';
+  parsedDrawings.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.filename + ' (' + (d.building_type === 'civil' ? '民用' : '工业') + ')';   
+    select.appendChild(opt);
+  });
+}
+
+function onReviewDrawingSelect() {
+  const select = document.getElementById('review-drawing-select');
+  const btn = document.getElementById('review-start-btn');
+  const info = document.getElementById('review-drawing-info');
+  const id = select.value;
+  if (!id) {
+    btn.disabled = true;
+    info.textContent = '';
+    return;
+  }
+  const d = parsedDrawings.find(p => p.id === id);
+  if (!d) {
+    btn.disabled = true;
+    info.textContent = '';
+    return;
+  }
+  btn.disabled = false;
+  info.textContent = '实体: ' + (d.elements?.length || 0) + '个 · 已解析: ' + new Date(d.parsedAt).toLocaleString();
+}
+
 // ── AI审图 ──────────────────────────────────────────────
 async function runReview() {
-  const file = document.getElementById('review-file').files[0];
-  if (!file) { alert('请先选择图纸文件'); return; }
-  const bt = document.getElementById('review-building-type').value;
+  const select = document.getElementById('review-drawing-select');
+  const id = select.value;
+  if (!id) { alert('请选择已解析的图纸'); return; }
+  const drawing = parsedDrawings.find(d => d.id === id);
+  if (!drawing) { alert('图纸数据不存在'); return; }
+  const bt = drawing.building_type;
+
+  // 用缓存的数据直接提交审查，不需要重新上传文件
+  const entities = drawing.entities || drawing.raw?.entities || [];
+  if (entities.length === 0) { alert('该图纸没有解析出实体数据，请重新上传解析'); return; }
 
   const loading = document.getElementById('review-loading');
   loading.className = 'mt-3 text-sm text-gray-500';
-  loading.innerHTML = '<i class="fa fa-spinner loading mr-2"></i>正在审查...';
+  loading.innerHTML = '⏳ 正在审查...';
 
   try {
-    const result = await apiPostFile('/review', file, {building_type: bt, full: 'true'});
+    const url = API_BASE() + '/review-from-data';
+    const r = await fetch(url, {
+      method: 'POST', headers: {...HEADERS(), 'Content-Type': 'application/json'},
+      body: JSON.stringify({entities: entities, building_type: bt}),
+    });
+    const result = await r.json();
     loading.className = 'hidden';
 
     const summary = document.getElementById('review-summary');
@@ -331,9 +800,10 @@ async function runReview() {
 
       const details = document.getElementById('review-details');
       details.innerHTML = '';
-      if (result.findings && result.findings.length > 0) {
-        details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + result.findings.length + '项)</p>';
-        result.findings.slice(0, 20).forEach(f => {
+      const violations = result.details || result.findings || [];
+      if (violations.length > 0) {
+        details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + violations.length + '项)</p>';
+        violations.slice(0, 20).forEach(f => {
           details.innerHTML +=
             '<div class="p-2 bg-red-50 rounded text-xs mb-2">' +
             '<div class="flex justify-between items-start">' +
@@ -344,27 +814,118 @@ async function runReview() {
             '</div>';
         });
 
-        // 修正建议
-        if (result.corrections && result.corrections.length > 0) {
-          details.innerHTML += '<p class="font-medium mt-4 mb-2 text-blue-600">🔧 修正建议 (' + result.corrections.length + '项)</p>';
-          result.corrections.slice(0, 10).forEach(c => {
-            const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
-            details.innerHTML +=
-              '<div class="p-2 bg-blue-50 rounded text-xs mb-2">' +
-              '<div class="flex justify-between items-start">' +
-              '<div><span class="font-medium">' + c.clause_title + '</span></div>' +
-              '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + c.priority + '</span></div>' +
-              '<span class="text-gray-500">操作: ' + c.action + '</span><br/>' +
-              '<span class="text-gray-700">' + c.recommendation + '</span>' +
-              '</div>';
-          });
+        // 保存审查结果到全局，供对比重构消费
+        if (result.status === 'success') {
+          const reviewResult = {
+            id: 'review_' + Date.now(),
+            drawingName: drawing.filename,
+            buildingType: bt,
+            reviewedAt: new Date().toISOString(),
+            summary: result.summary || {},
+            details: result.details || result.findings || [],
+            corrections: result.corrections || [],
+            elements: result.elements || [],
+            rawResult: result,
+            drawingEntry: drawing,
+          };
+          reviewResults.unshift(reviewResult);
+          try { localStorage.setItem('baa_review_results', JSON.stringify(reviewResults.slice(0, 50))); } catch(e) {}
+          refreshCompareDrawingSelect();
         }
+      }
     } else {
       summary.innerHTML = '<span class="text-red-500">' + (result.message || '审查失败') + '</span>';
     }
   } catch (e) {
     loading.innerHTML = '❌ 审查失败: ' + e.message;
     loading.className = 'mt-3 text-sm text-red-500';
+  }
+}
+
+// ── 对比重构 ──────────────────────────────────────────────
+let reviewResults = [];
+
+function loadReviewResults() {
+  try {
+    const stored = localStorage.getItem('baa_review_results');
+    if (stored) reviewResults = JSON.parse(stored);
+  } catch(e) { reviewResults = []; }
+}
+
+function refreshCompareDrawingSelect() {
+  const select = document.getElementById('compare-drawing-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">— 选择已审查图纸 —</option>';
+  reviewResults.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.drawingName + ' (' + (r.buildingType === 'civil' ? '民用' : '工业') + ') - ' + (r.details?.length || 0) + '违规';
+    select.appendChild(opt);
+  });
+}
+
+function onCompareSelect() {
+  const select = document.getElementById('compare-drawing-select');
+  const id = select.value;
+  const empty = document.getElementById('compare-empty');
+  const content = document.getElementById('compare-content');
+  
+  if (!id) {
+    empty.className = 'card text-center py-8 text-gray-300';
+    content.className = 'hidden';
+    return;
+  }
+  
+  const r = reviewResults.find(x => x.id === id);
+  if (!r) return;
+  
+  empty.className = 'hidden';
+  content.className = '';
+  
+  // 原始图纸解析JSON
+  const originalJson = document.getElementById('compare-original-json');
+  if (r.drawingEntry?.raw) {
+    originalJson.textContent = JSON.stringify(r.drawingEntry.raw, null, 2);
+  } else {
+    originalJson.textContent = JSON.stringify(r.rawResult, null, 2);
+  }
+  
+  // 违规标注
+  const violationsDiv = document.getElementById('compare-violations');
+  violationsDiv.innerHTML = '';
+  const viols = r.details || [];
+  if (viols.length === 0) {
+    violationsDiv.innerHTML = '<div class="text-xs text-gray-400">无违规</div>';
+  } else {
+    viols.forEach(f => {
+      violationsDiv.innerHTML +=
+        '<div class="p-2 bg-red-50 rounded text-xs mb-1.5">' +
+        '<div class="flex justify-between">' +
+        '<span class="font-medium">' + (f.clause_title || '') + '</span>' +
+        '<span class="text-red-600 font-medium">' + f.result + '</span></div>' +
+        '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span>' +
+        '</div>';
+    });
+  }
+  
+  // 修正建议
+  const corrDiv = document.getElementById('compare-corrections');
+  corrDiv.innerHTML = '';
+  const corrs = r.corrections || [];
+  if (corrs.length === 0) {
+    corrDiv.innerHTML = '<div class="text-xs text-gray-400">无修正建议</div>';
+  } else {
+    corrs.slice(0, 10).forEach(c => {
+      const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
+      corrDiv.innerHTML +=
+        '<div class="p-2 bg-green-50 rounded text-xs mb-1.5">' +
+        '<div class="flex justify-between items-start">' +
+        '<div><span class="font-medium">' + (c.clause_title || '') + '</span></div>' +
+        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + (c.priority || '') + '</span></div>' +
+        '<div class="text-gray-500">操作: ' + (c.action || '') + '</div>' +
+        '<div class="text-gray-700 mt-1">' + (c.recommendation || '') + '</div>' +
+        '</div>';
+    });
   }
 }
 
@@ -389,6 +950,13 @@ function loadAnalysis() {
 
 // ── 初始化 ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  loadApiKeys();
+  renderApiKeys();
+  loadParsedDrawings();
+  renderDrawingList();
+  refreshReviewDrawingSelect();
+  loadReviewResults();
+  refreshCompareDrawingSelect();
   loadDashboard();
   loadSpecs();
 

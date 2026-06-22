@@ -73,7 +73,10 @@ INITIAL_CLAUSES = [
         func_id="DIM-003",
         category="fire_safety",
         params={"target_entity": "fire_lane", "property": "width",
-                "operator": ">=", "threshold": 4.0, "unit": "m"}
+                "operator": ">=", "threshold": 4.0, "unit": "m"},
+        # 消防车道宽度工业/民用无差异，但厂房占地面积>3000㎡时需环形消防车道
+        threshold=Threshold(value=4.0, unit="m", operator=">=",
+                            building_types={"civil": 4.0, "industrial": 4.0})
     ),
     Clause(
         clause_id="GB50016-5.5.17",
@@ -97,7 +100,10 @@ INITIAL_CLAUSES = [
         func_id="COUNT-001",
         category="evacuation",
         params={"target_entity": "floor", "property": "exit_count",
-                "operator": ">=", "threshold": 2.0, "unit": "个"}
+                "operator": ">=", "threshold": 2.0, "unit": "个"},
+        # 工业厂房每个防火分区也要求≥2个安全出口（GB50016 3.7.2）
+        threshold=Threshold(value=2.0, unit="个", operator=">=",
+                            building_types={"civil": 2.0, "industrial": 2.0})
     ),
     Clause(
         clause_id="GB50016-6.5.1",
@@ -108,7 +114,10 @@ INITIAL_CLAUSES = [
         func_id="ATTR-001",
         category="fire_safety",
         params={"target_entity": "fire_door", "property": "fire_rating",
-                "operator": "==", "threshold": 1.0, "unit": "级"}
+                "operator": "==", "threshold": 1.0, "unit": "级"},
+        # 工业/民用防火门等级要求一致（按GB50016 6.5.1/3.2.9）
+        threshold=Threshold(value=1.0, unit="级", operator=">=",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-5.5.18-2",
@@ -132,7 +141,10 @@ INITIAL_CLAUSES = [
         func_id="AREA-001",
         category="fire_safety",
         params={"target_entity": "refuge_floor", "property": "area_per_person",
-                "operator": ">=", "threshold": 5.0, "unit": "㎡/人"}
+                "operator": ">=", "threshold": 5.0, "unit": "㎡/人"},
+        # 避难层仅用于民用高层建筑，工业建筑通常无此要求
+        threshold=Threshold(value=5.0, unit="㎡/人", operator=">=",
+                            building_types={"civil": 5.0, "industrial": 0.0})
     ),
     Clause(
         clause_id="GB50016-5.5.12",
@@ -143,7 +155,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-001",
         category="evacuation",
         params={"target_entity": "staircase", "property": "exists",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房也需疏散楼梯（GB50016 3.7.6），高层厂房设封闭楼梯间
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-7.2.4",
@@ -154,7 +169,10 @@ INITIAL_CLAUSES = [
         func_id="DIM-005",
         category="fire_safety",
         params={"target_entity": "fire_window", "property": "net_area",
-                "operator": ">=", "threshold": 1.0, "unit": "㎡"}
+                "operator": ">=", "threshold": 1.0, "unit": "㎡"},
+        # 工业厂房也需设置消防救援窗（GB50016 7.2.4），要求一致
+        threshold=Threshold(value=1.0, unit="㎡", operator=">=",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
 
     # =============================================
@@ -169,7 +187,10 @@ INITIAL_CLAUSES = [
         func_id="DIM-006",
         category="evacuation",
         params={"target_entity": "exit_door", "property": "clear_width",
-                "operator": ">=", "threshold": 1.4, "unit": "m"}
+                "operator": ">=", "threshold": 1.4, "unit": "m"},
+        # 工业厂房疏散门也需≥1.2m（GB50016 3.7.5），人员密集时≥1.4m
+        threshold=Threshold(value=1.4, unit="m", operator=">=",
+                            building_types={"civil": 1.4, "industrial": 1.2})
     ),
     Clause(
         clause_id="GB50016-6.6.1",
@@ -180,7 +201,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-002",
         category="fire_safety",
         params={"target_entity": "shaft", "property": "sealed",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房管道井封堵要求一致
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-6.5.3",
@@ -191,7 +215,10 @@ INITIAL_CLAUSES = [
         func_id="DIM-007",
         category="fire_safety",
         params={"target_entity": "fire_curtain", "property": "width",
-                "operator": "<=", "threshold": 10.0, "unit": "m"}
+                "operator": "<=", "threshold": 10.0, "unit": "m"},
+        # 工业厂房防火卷帘要求一致（GB50016 6.5.3适用于所有建筑类型）
+        threshold=Threshold(value=10.0, unit="m", operator="<=",
+                            building_types={"civil": 10.0, "industrial": 10.0})
     ),
     Clause(
         clause_id="GB50016-5.5.24",
@@ -202,7 +229,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-003",
         category="evacuation",
         params={"target_entity": "scissor_staircase", "property": "fire_wall_exists",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 剪刀楼梯仅用于民用住宅，工业厂房不适用
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 0.0})
     ),
     Clause(
         clause_id="GB50016-10.1.5",
@@ -213,7 +243,10 @@ INITIAL_CLAUSES = [
         func_id="LIGHT-001",
         category="lighting",
         params={"target_entity": "evacuation_lighting", "property": "illuminance",
-                "operator": ">=", "threshold": 1.0, "unit": "lx"}
+                "operator": ">=", "threshold": 1.0, "unit": "lx"},
+        # 工业厂房应急照明要求一致（GB50016 10.1.5/10.3.1）
+        threshold=Threshold(value=1.0, unit="lx", operator=">=",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-10.3.1",
@@ -224,7 +257,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-004",
         category="evacuation",
         params={"target_entity": "exit_sign", "property": "exists",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房也需设置疏散指示标志（GB50016 10.3.1）
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-8.3.1",
@@ -235,7 +271,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-005",
         category="fire_safety",
         params={"target_entity": "sprinkler_system", "property": "exists",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房也需自动灭火系统（GB50016 8.3.1，高层厂房和仓库）
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-8.4.1",
@@ -246,7 +285,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-006",
         category="fire_safety",
         params={"target_entity": "fire_alarm", "property": "exists",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房也需火灾自动报警系统（GB50016 8.4.1，高层厂房和仓库）
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
     Clause(
         clause_id="GB50016-6.7.1",
@@ -257,7 +299,10 @@ INITIAL_CLAUSES = [
         func_id="ATTR-002",
         category="structure",
         params={"target_entity": "insulation", "property": "fire_rating",
-                "operator": ">=", "threshold": 2.0, "unit": "级"}  # A=3, B1=2
+                "operator": ">=", "threshold": 2.0, "unit": "级"},  # A=3, B1=2
+        # 工业厂房保温要求更严，通常要求A级（GB50016 6.7.5/6.7.6）
+        threshold=Threshold(value=2.0, unit="级", operator=">=",
+                            building_types={"civil": 2.0, "industrial": 3.0})
     ),
     Clause(
         clause_id="GB50016-6.2.4",
@@ -268,7 +313,10 @@ INITIAL_CLAUSES = [
         func_id="EXIST-002",
         category="fire_safety",
         params={"target_entity": "shaft", "property": "hole_sealed",
-                "operator": "==", "threshold": 1.0, "unit": "有/无"}
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        # 工业厂房封堵要求一致
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
     ),
 ]
 

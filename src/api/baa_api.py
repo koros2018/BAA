@@ -341,10 +341,15 @@ async def deconstruct(
 
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository
+    from collections import Counter as _Counter
     repo = SpecRepository()
     findings = []
     registry_funcs = _func_registry.list_all()
     total_checks = 0
+
+    # 收集已出现的实体类型
+    found_entity_types = set(e["type"] for e in entities)
+
     for e in entities:
         for func in registry_funcs:
             total_checks += 1
@@ -363,6 +368,26 @@ async def deconstruct(
                     "category": func.category.value,
                 }
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                findings.append(f.finding_id)
+
+    # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
+    for func in registry_funcs:
+        if func.category.value != "exist":
+            continue
+        # 检查是否至少有一个实体匹配此函数
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            total_checks += 1
+            r = func.execute(None)  # 触发缺失检查模式
+            if r is not None and r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
                 findings.append(f.finding_id)
 
     # 统计
@@ -471,6 +496,10 @@ async def review(
     clause_results = Counter()
     details = []
     registry_funcs = _func_registry.list_all()
+
+    # 收集已出现的实体类型
+    found_entity_types = set(e["type"] for e in entities)
+
     for e in entities:
         for func in registry_funcs:
             # 根据 building_type 获取实际阈值
@@ -500,6 +529,34 @@ async def review(
                     "extracted_value": f.extracted_params["extracted_value"],
                     "required_value": f.extracted_params.get("required_value", 1.2),
                     "difference": f.extracted_params.get("difference", 0),
+                    "explanation": f.explanation[:120],
+                })
+
+    # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
+    for func in registry_funcs:
+        if func.category.value != "exist":
+            continue
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            r = func.execute(None)  # 触发缺失检查模式
+            if r is not None and r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                details.append({
+                    "entity_id": "",
+                    "entity_type": "missing",
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": 0.0,
+                    "required_value": f.extracted_params.get("required_value", 1.0),
+                    "difference": -f.extracted_params.get("required_value", 1.0),
                     "explanation": f.explanation[:120],
                 })
 
@@ -549,6 +606,125 @@ async def review(
             {"id": e["id"], "type": e["type"], "bbox": e["bbox"]}
             for e in entities
         ]
+
+    return response_data
+
+
+@app.post("/review-from-data")
+async def review_from_data(
+    body: dict,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """从已解析的结构化数据执行规范审查（无需重新上传文件）"""
+    entities = body.get("entities", [])
+    building_type = body.get("building_type", "civil")
+
+    from src.baa_engine.spec_repository import SpecRepository
+    from collections import Counter
+    repo = SpecRepository()
+    clause_results = Counter()
+    details = []
+    registry_funcs = _func_registry.list_all()
+
+    start = time.time()
+
+    for e in entities:
+        for func in registry_funcs:
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
+            r = func.execute(e)
+            if r is None:
+                continue
+            clause_results[func.clause_id] += 1
+            if r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
+                    "entity_id": e["id"],
+                    "entity_type": e["type"],
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": f.extracted_params["extracted_value"],
+                    "required_value": f.extracted_params.get("required_value", 1.2),
+                    "difference": f.extracted_params.get("difference", 0),
+                    "explanation": f.explanation[:120],
+                })
+
+    # 缺失检查
+    for func in registry_funcs:
+        if func.category.value != "exist":
+            continue
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            r = func.execute(None)
+            if r is not None and r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                details.append({
+                    "entity_id": "",
+                    "entity_type": "missing",
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": 0.0,
+                    "required_value": f.extracted_params.get("required_value", 1.0),
+                    "difference": -f.extracted_params.get("required_value", 1.0),
+                    "explanation": f.explanation[:120],
+                })
+
+    elapsed = int((time.time() - start) * 1000)
+    entity_types = Counter(e["type"] for e in entities)
+    violation_count = Counter(d["clause_id"] for d in details)
+
+    response_data = {
+        "status": "success",
+        "summary": {
+            "total_entities": len(entities),
+            "entity_types": dict(entity_types),
+            "total_checks": len(entities) * len(registry_funcs),
+            "violations": len(details),
+            "violation_by_clause": dict(violation_count.most_common(10)),
+        },
+        "details": details[:100],
+        "building_type": building_type,
+        "processing_time_ms": elapsed,
+    }
+
+    # 修正建议
+    try:
+        from src.baa_engine.correction_engine import CorrectionEngine
+        ce = CorrectionEngine()
+        review_result_for_correction = {
+            "findings": [{
+                "entity_id": d["entity_id"],
+                "entity_type": d["entity_type"],
+                "clause_id": d["clause_id"],
+                "clause_title": d["clause_title"],
+                "extracted_value": d["extracted_value"],
+                "required_value": d["required_value"],
+                "difference": d["difference"],
+            } for d in details]
+        }
+        corrections = ce.generate_for_result(review_result_for_correction)
+        response_data["corrections"] = corrections
+    except Exception as e:
+        response_data["corrections"] = []
 
     return response_data
 
@@ -647,6 +823,11 @@ async def get_order(
 
 
 # ── 静态文件服务（模型下载） ─────────────────────────────
+
+SPECS_DIR = DATA_DIR / "specs"
+
+if SPECS_DIR.exists():
+    app.mount("/data/specs", StaticFiles(directory=str(SPECS_DIR)), name="specs")
 
 if MODELS_DIR.exists():
     app.mount("/models", StaticFiles(directory=str(MODELS_DIR)), name="models")

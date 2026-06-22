@@ -64,8 +64,34 @@ class AtomicFunction:
             return True  # 无限制，匹配所有
         return entity.get("type", "") in self.target_entities
 
-    def execute(self, entity: Dict[str, Any]) -> Optional[FuncResult]:
-        """执行判定，实体类型不匹配时返回 None"""
+    def execute(self, entity: Optional[Dict[str, Any]] = None) -> Optional[FuncResult]:
+        """
+        执行判定。
+        当 entity 为 None 时，视为"缺失检查"模式：
+        - EXIST-* 类函数 → 返回 FAIL（实体不存在）
+        - 其他函数 → 返回 None（无实体可判定）
+        """
+        if entity is None:
+            # 缺失检查模式
+            if self.category in (FuncCategory.EXIST,):
+                # EXIST 类：实体不存在即为违规
+                return FuncResult(
+                    func_id=self.func_id,
+                    func_name=self.name,
+                    clause_id=self.clause_id,
+                    operator=self.operator,
+                    threshold=self.threshold,
+                    actual=0.0,
+                    result="FAIL",
+                    delta=-self.threshold,
+                    severity=Severity.CRITICAL,
+                    entity_id="",
+                    entity_type="missing",
+                    params={"extracted_value": 0.0, "unit": self.unit,
+                            "note": "未检测到目标实体"},
+                )
+            return None
+
         if not self.matches(entity):
             return None
         actual = self._extract_value(entity)

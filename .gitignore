@@ -13,10 +13,16 @@ data/*.rar
 data/*.zip
 data/files/
 data/logs/baa-api.log
-
-# 模型训练输出
+data/coco/
+data/coco_v2/
+data/drawings/
+data/models/
+yolov8n.pt
 runs/
+memory/
 
 # IDE
 .vscode/
-.idea/
+.idea/data/logs/
+data/1*
+ROADMAP.md

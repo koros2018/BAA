@@ -111,8 +111,68 @@ class SemanticAnalyzer:
             "building_type": building_type,
         }
 
+    def _parse_meta_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
+        """
+        解析 META 图层的结构化实体元数据。
+        格式: ENTITY:<type>|x:<x>|y:<y>|w:<w>|h:<h>|key:value|...
+        用于合成图纸测试场景，跳过常规几何归并直接构建实体。
+        """
+        entities = []
+        for prim in primitives:
+            if prim.layer.upper() != "META":
+                continue
+            text = prim.properties.get("text", "")
+            if not text.startswith("ENTITY:"):
+                continue
+            parts = text.split("|")
+            if len(parts) < 5:
+                continue
+            # 解析类型
+            etype = parts[0].replace("ENTITY:", "").strip()
+            # 解析bbox和属性
+            props = {}
+            bbox = {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0}
+            for part in parts[1:]:
+                if ":" not in part:
+                    continue
+                k, v = part.split(":", 1)
+                k = k.strip()
+                v = v.strip()
+                if k == "x":
+                    bbox["x"] = float(v)
+                elif k == "y":
+                    bbox["y"] = float(v)
+                elif k == "w":
+                    bbox["width"] = float(v)
+                elif k == "h":
+                    bbox["height"] = float(v)
+                else:
+                    # 尝试转数字，失败保留字符串
+                    try:
+                        props[k] = float(v)
+                    except ValueError:
+                        props[k] = v
+
+            self._entity_counter += 1
+            entity = SemanticEntity(
+                entity_id=f"{etype.upper()}_{self._entity_counter:03d}",
+                entity_type=etype,
+                bbox=bbox,
+                layer="META",
+                confidence=1.0,
+                properties=props,
+            )
+            entities.append(entity)
+
+        return entities
+
     def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
         """图元分类归并"""
+        # 优先解析 META 图层（合成图纸结构化数据）
+        meta_entities = self._parse_meta_entities(primitives)
+        if meta_entities:
+            return meta_entities
+
         entities = []
 
         for prim in primitives:
