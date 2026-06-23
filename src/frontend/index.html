@@ -204,7 +204,18 @@
       </div>
       <div id="drawing-preview" class="hidden card">
         <h3 class="font-medium mb-2">解析预览</h3>
-        <pre id="parse-result-json" class="text-xs bg-gray-50 p-3 rounded overflow-x-auto max-h-60"></pre>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <pre id="parse-result-json" class="text-xs bg-gray-50 p-3 rounded overflow-x-auto max-h-80"></pre>
+          </div>
+          <div>
+            <div class="text-xs text-gray-400 mb-1">图纸渲染</div>
+            <div id="drawing-render-container" class="bg-white border rounded overflow-hidden" style="max-height:400px">
+              <div id="drawing-render-placeholder" class="flex items-center justify-center h-32 text-gray-400 text-xs">上传后自动渲染</div>
+              <img id="drawing-render-img" class="w-full hidden" alt="图纸渲染" />
+            </div>
+          </div>
+        </div>
       </div>
       <div class="card overflow-x-auto">
         <table class="w-full text-sm">
@@ -637,6 +648,13 @@ async function uploadDrawing() {
     preview.className = 'card';
     document.getElementById('parse-result-json').textContent =
       JSON.stringify(result, null, 2);
+
+    // 渲染图纸
+    const renderImg = document.getElementById('drawing-render-img');
+    const placeholder = document.getElementById('drawing-render-placeholder');
+    renderImg.className = 'w-full';
+    renderImg.src = API_BASE() + '/render/' + fileId;
+    placeholder.className = 'hidden';
 
     // 刷新AI审图的下拉
     refreshReviewDrawingSelect();
