@@ -358,6 +358,16 @@ async def deconstruct(
             # YOLO 失败不影响主流程
             pass
 
+    # Step 2.75: DIMENSION 尺寸标注注入（自动反推实体属性）
+    try:
+        from src.baa_engine.dimension_parser import DimensionParser
+        dp = DimensionParser()
+        dims = dp.extract_dimensions(str(file_path))
+        if dims:
+            entities = dp.inject_into_entities(dims, entities)
+    except Exception:
+        pass
+
     # Step 3: 规范判定（使用 building_type 确定阈值，含去重）
     from src.baa_engine.spec_repository import SpecRepository
     repo = SpecRepository()
