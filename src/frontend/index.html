@@ -815,12 +815,13 @@ async function runReview() {
 
     const summary = document.getElementById('review-summary');
     if (result.status === 'success') {
+      const vs = result.summary || {};
       summary.innerHTML =
-        '<div class="grid grid-cols-2 gap-2 mb-3">' +
-        '<div><span class="text-gray-400">实体:</span> <strong>' + (result.summary?.total_entities || 0) + '</strong></div>' +
-        '<div><span class="text-gray-400">总检查:</span> <strong>' + (result.summary?.total_checks || 0) + '</strong></div>' +
-        '<div><span class="text-gray-400">违规:</span> <strong class="text-red-600">' + (result.summary?.violations || 0) + '</strong></div>' +
-        '<div><span class="text-gray-400">建筑类型:</span> <strong>' + (result.building_type === 'civil' ? '民用' : '工业') + '</strong></div>' +
+        '<div class="grid grid-cols-4 gap-2 mb-3">' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (vs.total_violations || 0) + '</div><div class="text-xs text-gray-400">违规</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold ' + (vs.critical > 0 ? 'text-red-600' : 'text-green-600') + '">' + (vs.critical || 0) + '</div><div class="text-xs text-gray-400">严重</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-gray-600">' + (vs.total_checks || 0) + '</div><div class="text-xs text-gray-400">总检查</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-gray-600">' + (result.elements?.length || 0) + '</div><div class="text-xs text-gray-400">构件</div></div>' +
         '</div>';
 
       if (result.summary?.entity_types) {
@@ -833,16 +834,26 @@ async function runReview() {
 
       const details = document.getElementById('review-details');
       details.innerHTML = '';
-      const violations = result.details || result.findings || [];
+      // findings可能是数组或旧的ID列表
+      let violations = [];
+      if (Array.isArray(result.findings)) {
+        violations = result.findings.filter(f => f.result === 'FAIL' && !f.is_duplicate);
+      } else {
+        violations = result.details || [];
+      }
       if (violations.length > 0) {
         details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + violations.length + '项)</p>';
         violations.slice(0, 20).forEach(f => {
+          const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+          const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
           details.innerHTML +=
-            '<div class="p-2 bg-red-50 rounded text-xs mb-2">' +
+            '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-2">' +
             '<div class="flex justify-between items-start">' +
-            '<div><span class="font-medium">' + f.clause_title + '</span> (' + f.clause_id + ')</div>' +
-            '<span class="px-1.5 py-0.5 rounded text-xs font-medium ' + (f.result === 'FAIL' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800') + '">' + f.result + '</span></div>' +
-            '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
+            '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
+            '<div class="flex gap-1">' +
+            '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
+            '<span class="text-' + sevColor + '-600 font-medium">' + (f.result || '') + '</span></div></div>' +
+            '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
             '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
             '</div>';
         });

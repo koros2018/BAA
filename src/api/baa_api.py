@@ -358,27 +358,30 @@ async def deconstruct(
             # YOLO 失败不影响主流程
             pass
 
-    # Step 3: 规范判定（使用 building_type 确定阈值）
+    # Step 3: 规范判定（使用 building_type 确定阈值，含去重）
     from src.baa_engine.spec_repository import SpecRepository
-    from collections import Counter as _Counter
     repo = SpecRepository()
     findings = []
     registry_funcs = _func_registry.list_all()
     total_checks = 0
-
-    # 收集已出现的实体类型
-    found_entity_types = set(e["type"] for e in entities)
+    seen_violations = set()  # (clause_id, entity_type) 去重
 
     for e in entities:
         for func in registry_funcs:
             total_checks += 1
-            # 根据 building_type 获取实际阈值
             threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
             func.threshold = threshold_val
             func.unit = unit
             func.operator = op
             r = func.execute(e)
             if r is not None and r.result != "PASS":
+                # 去重：同一clause_id+同一entity_type只记一次FAIL
+                etype = e.get("type", "")
+                dedup_key = (func.clause_id, etype)
+                is_dup = dedup_key in seen_violations
+                if r.result == "FAIL":
+                    seen_violations.add(dedup_key)
+                
                 clause = {
                     "standard": "GB50016",
                     "clause_id": func.clause_id,
@@ -387,18 +390,36 @@ async def deconstruct(
                     "category": func.category.value,
                 }
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
-                findings.append(f.finding_id)
+                # 详细违规输出
+                finding_detail = {
+                    "finding_id": f.finding_id,
+                    "clause_id": func.clause_id,
+                    "clause_title": func.name,
+                    "description": func.description,
+                    "entity_type": etype,
+                    "result": r.result,
+                    "severity": getattr(r, 'severity', 'major'),
+                    "extracted_value": getattr(r, 'extracted_value', getattr(r, 'value', 0)),
+                    "required_value": threshold_val,
+                    "explanation": getattr(f, 'explanation', f.description[:100] if hasattr(f, 'description') else ''),
+                    "is_duplicate": is_dup,
+                }
+                findings.append(finding_detail)
 
     # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
     for func in registry_funcs:
         if func.category.value != "exist":
             continue
-        # 检查是否至少有一个实体匹配此函数
         has_match = any(func.matches(e) for e in entities)
         if not has_match:
             total_checks += 1
-            r = func.execute(None)  # 触发缺失检查模式
+            r = func.execute(None)
             if r is not None and r.result != "PASS":
+                dedup_key = (func.clause_id, "missing")
+                is_dup = dedup_key in seen_violations
+                if r.result == "FAIL":
+                    seen_violations.add(dedup_key)
+                
                 clause = {
                     "standard": "GB50016",
                     "clause_id": func.clause_id,
@@ -407,7 +428,20 @@ async def deconstruct(
                     "category": func.category.value,
                 }
                 f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
-                findings.append(f.finding_id)
+                finding_detail = {
+                    "finding_id": f.finding_id,
+                    "clause_id": func.clause_id,
+                    "clause_title": func.name,
+                    "description": func.description,
+                    "entity_type": "missing",
+                    "result": r.result,
+                    "severity": 'critical',
+                    "extracted_value": 0,
+                    "required_value": 1,
+                    "explanation": f"缺少{func.name}相关实体（{func.description}）",
+                    "is_duplicate": is_dup,
+                }
+                findings.append(finding_detail)
 
     # 统计
     type_stats = {}
@@ -434,12 +468,23 @@ async def deconstruct(
 
     elapsed = int((time.time() - start) * 1000)
 
+    # 统计违规严重度分布
+    fail_count = len([f for f in findings if f["result"] == "FAIL" and not f["is_duplicate"]])
+    warn_count = len([f for f in findings if f["result"] == "WARN" and not f["is_duplicate"]])
+    critical_count = len([f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]])
+
     result = {
         "status": "success",
         "elements": elements,
         "relations": len(relations),
-        "findings": len(findings),
+        "findings": findings,  # 完整违规详情（含去重标记）
         "total_checks": total_checks,
+        "summary": {
+            "total_violations": fail_count,
+            "warnings": warn_count,
+            "critical": critical_count,
+            "total_checks": total_checks,
+        },
         "confidence": 0.85 if len(entities) > 0 else 0,
         "file_id": file_id,
         "building_type": building_type,
@@ -682,6 +727,7 @@ async def review_from_data(
                     "extracted_value": f.extracted_params["extracted_value"],
                     "required_value": f.extracted_params.get("required_value", 1.2),
                     "difference": f.extracted_params.get("difference", 0),
+                    "severity": f.judgement.get("severity", "major"),
                     "explanation": f.explanation[:120],
                 })
 
@@ -707,6 +753,7 @@ async def review_from_data(
                     "clause_id": f.clause.get("clause_id", ""),
                     "clause_title": f.clause.get("title", ""),
                     "result": f.judgement["result"],
+                    "severity": "critical",
                     "extracted_value": 0.0,
                     "required_value": f.extracted_params.get("required_value", 1.0),
                     "difference": -f.extracted_params.get("required_value", 1.0),
