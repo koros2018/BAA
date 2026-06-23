@@ -278,6 +278,7 @@ async def health():
 async def deconstruct(
     file: UploadFile = File(...),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    use_yolo: bool = Query(False, description="是否使用 YOLO 图元检测增强"),
     request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
@@ -338,6 +339,24 @@ async def deconstruct(
     )
     entities = semantic["entities"]
     relations = semantic["relations"]
+
+    # Step 2.5: YOLO 图元检测增强（可选）
+    yolo_entities = []
+    if use_yolo:
+        try:
+            from src.baa_engine.yolo_integrator import YOLODetectionIntegrator
+            yolo = YOLODetectionIntegrator()
+            if yolo.load_model():
+                _, dets = yolo.render_and_predict(str(file_path))
+                yolo_entities = yolo.detections_to_entities(dets)
+                # 合并到实体列表（去重，优先保留规则解析结果）
+                existing_types = set(e.get("type", "") for e in entities)
+                for ye in yolo_entities:
+                    if ye["type"] not in existing_types:
+                        entities.append(ye)
+        except Exception as yolo_e:
+            # YOLO 失败不影响主流程
+            pass
 
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository
@@ -415,7 +434,7 @@ async def deconstruct(
 
     elapsed = int((time.time() - start) * 1000)
 
-    return {
+    result = {
         "status": "success",
         "elements": elements,
         "relations": len(relations),
@@ -426,6 +445,12 @@ async def deconstruct(
         "building_type": building_type,
         "processing_time_ms": elapsed,
     }
+
+    if use_yolo:
+        result["yolo_entities"] = len(yolo_entities)
+        result["yolo_enabled"] = True
+
+    return result
 
 
 @app.post("/review")

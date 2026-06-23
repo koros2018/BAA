@@ -183,17 +183,21 @@
     <div class="page" id="page-drawings">
       <h2 class="text-xl font-bold mb-6">图纸管理</h2>
       <div class="card mb-6">
-        <div class="flex items-center gap-4">
-          <input type="file" id="file-input" accept=".dxf" class="text-sm" />
+        <div class="flex items-center gap-4 flex-wrap">
+          <input type="file" id="file-input" accept=".dxf,.dwg" class="text-sm" />
           <select id="drawing-bt" class="text-sm border rounded px-2 py-1">
             <option value="civil">民用建筑</option>
             <option value="industrial">工业建筑</option>
           </select>
+          <label class="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+            <input type="checkbox" id="use-yolo-checkbox" class="rounded" />
+            <span>YOLO图元检测</span>
+          </label>
           <button onclick="uploadAndReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             📤 上传并解析
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-2">支持格式: .dxf（最大50MB，暂不支持DWG直接上传）</p>
+        <p class="text-xs text-gray-400 mt-2">支持格式: .dxf, .dwg（最大50MB）</p>
       </div>
       <div id="upload-progress" class="hidden card mb-4 text-sm text-gray-500">⏳ 处理中...</div>
       <div class="card overflow-x-auto">
@@ -600,7 +604,8 @@ async function uploadDrawing() {
 
   try {
     // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt});
+    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo});
     progress.className = 'hidden';
 
     // 缓存文件（用于后续AI审图重新上传）
@@ -619,6 +624,7 @@ async function uploadDrawing() {
       total_checks: result.total_checks || 0,
       file_id: fileId,
       raw: result,
+      use_yolo: useYolo,
     };
     parsedDrawings.unshift(entry);
     saveParsedDrawings();
@@ -658,15 +664,16 @@ function renderDrawingList() {
   const tbody = document.getElementById('drawing-list');
   if (!tbody) return;
   if (parsedDrawings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
     return;
   }
   tbody.innerHTML = '';
   parsedDrawings.forEach((d, i) => {
     const row = tbody.insertRow(-1);
     row.className = 'border-b border-gray-50 text-sm';
+    const yoloBadge = d.use_yolo ? '<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>' : '';
     row.innerHTML =
-      '<td class="py-2 px-2 truncate max-w-32">' + d.filename + '</td>' +
+      '<td class="py-2 px-2 truncate max-w-32">' + d.filename + yoloBadge + '</td>' +
       '<td class="py-2 px-2 text-xs">' + (d.building_type === 'civil' ? '民用' : '工业') + '</td>' +
       '<td class="py-2 px-2">' + (d.elements?.length || 0) + '</td>' +
       '<td class="py-2 px-2 text-xs max-w-40 truncate">' + (d.elements ? d.elements.map(e => e.type).join(', ') : '') + '</td>' +
@@ -688,7 +695,8 @@ async function uploadAndReview() {
   progress.className = 'card mb-4 text-sm text-gray-500';
   progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
   try {
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt});
+    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo});
     progress.className = 'hidden';
     const fileId = result.file_id || 'drawing_' + Date.now();
     fileCache[fileId] = file;
@@ -697,6 +705,7 @@ async function uploadAndReview() {
       parsedAt: new Date().toISOString(),
       elements: result.elements || [], entities: result.entities || [],
       findings_count: result.findings || 0, total_checks: result.total_checks || 0,
+      use_yolo: useYolo,
       file_id: fileId, raw: result,
     };
     parsedDrawings.unshift(entry);
