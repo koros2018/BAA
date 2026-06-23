@@ -227,6 +227,53 @@ class AtomicFunction:
         if func_id == "LIGHT-001":  # 照度
             return props.get("illuminance", props.get("lux", 0.0))
 
+        # L3 新增函数
+        if func_id in ("DIM-008", "DIM-010"):  # 排烟窗面积 / 消防救援窗面积
+            val = props.get("area", props.get("width", 0) * props.get("height", 0))
+            if unit == "mm2":
+                return val / 1000000.0
+            if unit == "m2":
+                return val
+            if val > 10000:
+                return val / 1000000.0
+            return val
+
+        if func_id == "DIM-009":  # 疏散出口宽度
+            val = props.get("width", props.get("clear_width", 0.0))
+            if unit == "mm":
+                return val / 1000.0
+            if unit == "m":
+                return val
+            if val > 100:
+                return val / 1000.0
+            return val
+
+        if func_id in ("DIST-002", "DIST-003"):  # 防火间距 / 袋形走道长度
+            val = props.get("distance", props.get("length", 0.0))
+            if unit == "mm":
+                return val / 1000.0
+            if unit == "m":
+                return val
+            if val > 100:
+                return val / 1000.0
+            return val
+
+        if func_id == "AREA-002":  # 消防电梯前室面积
+            val = props.get("area", 0.0)
+            if unit == "mm2":
+                return val / 1000000.0
+            if unit == "m2":
+                return val
+            if val > 10000:
+                return val / 1000000.0
+            return val
+
+        if func_id == "ATTR-003":  # 防火窗等级
+            return props.get("fire_rating", props.get("rating", 0.0))
+
+        if func_id in ("EXIST-007", "EXIST-008", "EXIST-009", "EXIST-010"):
+            return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+
         # 兜底：直接用value或0
         return props.get("value", 0.0)
 
@@ -300,12 +347,56 @@ class FuncRegistry:
 
     # 框架预留 20 个位置（V2.0扩展）
     RESERVED_FUNCS = [
-        # 预留位 1-20
+        # ===== L3 新增（11个，从19→30）=====
+        # 防火间距
+        AtomicFunction("DIST-002", "防火间距判定", FuncCategory.DISTANCE,
+                       "GB50016-3.4.1", "厂房之间防火间距不应小于表3.4.1规定", ">=", 12.0, "m",
+                       target_entities=["building", "factory", "warehouse"]),
+        # 排烟窗面积
+        AtomicFunction("DIM-008", "排烟窗面积判定", FuncCategory.DIMENSION,
+                       "GB50016-9.2.1", "排烟窗净面积不应小于房间面积2%", ">=", 0.02, "㎡",
+                       target_entities=["smoke_exhaust_window", "window", "room"]),
+        # 消防电梯
+        AtomicFunction("EXIST-007", "消防电梯判定", FuncCategory.EXIST,
+                       "GB50016-7.3.1", "一类高层公共建筑应设消防电梯", "==", 1.0, "有/无",
+                       target_entities=["fire_elevator", "elevator"]),
+        # 消防电梯前室面积
+        AtomicFunction("AREA-002", "消防电梯前室面积判定", FuncCategory.AREA,
+                       "GB50016-7.3.5", "消防电梯前室面积不应小于6㎡", ">=", 6.0, "㎡",
+                       target_entities=["elevator_lobby", "lobby", "room"]),
+        # 疏散走道长度
+        AtomicFunction("DIST-003", "袋形走道长度判定", FuncCategory.DISTANCE,
+                       "GB50016-5.5.17", "袋形走道长度不应大于20m", "<=", 20.0, "m",
+                       target_entities=["corridor", "aisle", "passage"]),
+        # 疏散出口宽度
+        AtomicFunction("DIM-009", "疏散出口宽度判定", FuncCategory.DIMENSION,
+                       "GB50016-5.5.18", "疏散出口净宽度不应小于0.9m", ">=", 0.9, "m",
+                       target_entities=["exit", "exit_door", "door"]),
+        # 防火窗耐火极限
+        AtomicFunction("ATTR-003", "防火窗等级判定", FuncCategory.ATTR,
+                       "GB50016-6.5.1", "防火窗耐火极限不应低于1.0h", ">=", 1.0, "h",
+                       target_entities=["fire_window", "window"]),
+        # 屋顶消防水箱
+        AtomicFunction("EXIST-008", "消防水箱判定", FuncCategory.EXIST,
+                       "GB50016-8.2.1", "一类高层应设消防水箱", "==", 1.0, "有/无",
+                       target_entities=["water_tank", "fire_system"]),
+        # 消防水池
+        AtomicFunction("EXIST-009", "消防水池判定", FuncCategory.EXIST,
+                       "GB50016-8.1.3", "市政供水不足时应设消防水池", "==", 1.0, "有/无",
+                       target_entities=["water_reservoir", "fire_system"]),
+        # 消防救援窗
+        AtomicFunction("DIM-010", "消防救援窗面积判定", FuncCategory.DIMENSION,
+                       "GB50016-7.2.4", "消防救援窗口净面积不应小于1.0㎡", ">=", 1.0, "㎡",
+                       target_entities=["rescue_window", "window"]),
+        # 应急广播
+        AtomicFunction("EXIST-010", "应急广播判定", FuncCategory.EXIST,
+                       "GB50016-8.5.1", "一类高层应设应急广播系统", "==", 1.0, "有/无",
+                       target_entities=["emergency_broadcast", "speaker", "fire_system"]),
     ]
 
     def __init__(self):
         self._funcs: Dict[str, AtomicFunction] = {}
-        for func in self.INITIAL_FUNCS:
+        for func in self.INITIAL_FUNCS + self.RESERVED_FUNCS:
             self.register(func)
 
     def register(self, func: AtomicFunction):

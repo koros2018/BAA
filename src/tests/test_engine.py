@@ -30,7 +30,7 @@ class TestFuncRegistry:
 
     def test_initial_count(self):
         registry = FuncRegistry()
-        assert registry.count == 19
+        assert registry.count == 30
         assert registry.capacity == 30
 
     def test_get_by_id(self):
@@ -43,7 +43,7 @@ class TestFuncRegistry:
     def test_list_all(self):
         registry = FuncRegistry()
         all_funcs = registry.list_all()
-        assert len(all_funcs) == 19
+        assert len(all_funcs) == 30
         categories = set(f.category for f in all_funcs)
         for cat in [FuncCategory.DIMENSION, FuncCategory.DISTANCE,
                      FuncCategory.COUNT, FuncCategory.ATTR,
