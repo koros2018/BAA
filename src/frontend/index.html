@@ -575,24 +575,41 @@ async function loadDashboard() {
 }
 
 // ── 规范库 ──────────────────────────────────────────────
+const SPEC_DATA = [
+  {clause_id:'GB50016-5.5.18', name:'疏散楼梯净宽判定', description:'疏散楼梯净宽度不应小于1.2m', category:'dim', target:['staircase','stair']},
+  {clause_id:'GB50016-6.1.1', name:'防火分区面积判定', description:'防火分区面积不应大于2500㎡', category:'dim', target:['fire_zone','room','floor']},
+  {clause_id:'GB50016-7.1.1', name:'消防车道宽度判定', description:'消防车道宽度不应小于4m', category:'dim', target:['fire_lane','road','driveway']},
+  {clause_id:'GB50016-5.5.17', name:'疏散距离判定', description:'疏散距离不应大于30m', category:'dist', target:['room','floor','space']},
+  {clause_id:'GB50016-5.5.8', name:'安全出口数量判定', description:'安全出口不应少于2个', category:'count', target:['floor','fire_zone']},
+  {clause_id:'GB50016-6.5.1', name:'防火门等级判定', description:'防火门等级应为甲级', category:'attr', target:['fire_door','door']},
+  {clause_id:'GB50016-5.5.18', name:'疏散走道宽度判定', description:'疏散走道净宽度不应小于1.1m', category:'dim', target:['corridor','aisle','passage']},
+  {clause_id:'GB50016-7.4.1', name:'避难层面积判定', description:'避难层净面积不宜小于5㎡/人', category:'area', target:['refuge_floor','refuge_area','floor']},
+  {clause_id:'GB50016-5.5.12', name:'楼梯间存在判定', description:'建筑应设置楼梯间', category:'exist', target:['staircase','stair']},
+  {clause_id:'GB50016-7.2.4', name:'窗净面积判定', description:'消防窗净面积不应小于1.0㎡', category:'dim', target:['fire_window','window']},
+  {clause_id:'GB50016-5.5.19', name:'疏散门净宽判定', description:'人员密集场所疏散门净宽不应小于1.4m', category:'dim', target:['exit_door','door']},
+  {clause_id:'GB50016-6.5.3', name:'防火卷帘宽度判定', description:'防火分隔防火卷帘宽度不应大于10m', category:'dim', target:['fire_curtain','curtain']},
+  {clause_id:'GB50016-6.6.1', name:'管道井封堵判定', description:'管道井应每层用不燃材料封堵', category:'exist', target:['shaft','pipe_shaft','cable_shaft']},
+  {clause_id:'GB50016-5.5.24', name:'剪刀楼梯分隔判定', description:'剪刀楼梯梯段间应设置防火隔墙', category:'exist', target:['scissor_staircase','staircase']},
+  {clause_id:'GB50016-10.3.1', name:'疏散指示标志判定', description:'疏散走道和安全出口应设疏散指示标志', category:'exist', target:['exit_sign','sign','corridor']},
+  {clause_id:'GB50016-8.3.1', name:'自动灭火系统判定', description:'一类高层应设置自动灭火系统', category:'exist', target:['sprinkler_system','sprinkler','fire_system']},
+  {clause_id:'GB50016-8.4.1', name:'火灾报警系统判定', description:'一类高层应设置火灾自动报警系统', category:'exist', target:['fire_alarm','alarm_system','fire_system']},
+  {clause_id:'GB50016-6.7.1', name:'保温材料等级判定', description:'保温材料应选用A或B1级', category:'attr', target:['insulation','wall_insulation','roof_insulation']},
+  {clause_id:'GB50016-10.1.5', name:'应急照明照度判定', description:'疏散照明照度不应低于1.0lx', category:'dim', target:['evacuation_lighting','light','lighting']},
+];
+
 async function loadSpecs() {
-  try {
-    const r = await fetch('/data/specs/baa_specs_v1.json?' + Date.now());
-    const specs = await r.json();
-    const tbody = document.getElementById('spec-list');
-    tbody.innerHTML = '';
-    specs.forEach((s, i) => {
-      tbody.innerHTML += '<tr class="border-b border-gray-50">' +
-        '<td class="py-2 px-2">' + (i + 1) + '</td>' +
-        '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
-        '<td class="py-2 px-2">' + s.title + '</td>' +
-        '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (s.level === 'L1' ? 'green' : 'yellow') + '-100 text-' + (s.level === 'L1' ? 'green' : 'yellow') + '-700 rounded text-xs">' + s.level + '</span></td>' +
-        '<td class="py-2 px-2 text-xs">' + s.category + '</td>' +
-        '<td class="py-2 px-2 font-mono text-xs">' + s.func_id + '</td></tr>';
-    });
-  } catch (e) {
-    document.getElementById('spec-list').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-400">加载失败: ' + e.message + '</td></tr>';
-  }
+  const tbody = document.getElementById('spec-list');
+  tbody.innerHTML = '';
+  SPEC_DATA.forEach((s, i) => {
+    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积'};
+    tbody.innerHTML += '<tr class="border-b border-gray-50">' +
+      '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
+      '<td class="py-2 px-2 text-sm">' + s.name + '<br/><span class="text-xs text-gray-400">' + s.description + '</span></td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">L1</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (catLabels[s.category] || s.category) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + s.target.join(', ') + '</td></tr>';
+  });
 }
 
 // ── 图纸管理：上传解析 ──────────────────────────────

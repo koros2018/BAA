@@ -805,8 +805,16 @@ async def review_from_data(
         }
         corrections = ce.generate_for_result(review_result_for_correction)
         response_data["corrections"] = corrections
+        # raw_result 供对比重构消费
+        response_data["raw_result"] = {
+            "elements": elements,
+            "details": details,
+            "corrections": corrections,
+            "summary": response_data.get("summary", {}),
+        }
     except Exception as e:
         response_data["corrections"] = []
+        response_data["raw_result"] = {"elements": elements, "details": details}
 
     return response_data
 
