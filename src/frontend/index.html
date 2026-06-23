@@ -218,9 +218,17 @@
         </div>
       </div>
       <div class="card overflow-x-auto">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm text-gray-400">共 <span id="drawing-count">0</span> 张图纸</span>
+          <div class="flex gap-2">
+            <button id="batch-review-btn" onclick="batchReview()" class="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden">批量送审 (<span id="batch-count">0</span>)</button>
+            <button onclick="selectAllDrawings()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">全选</button>
+            <button onclick="deselectAllDrawings()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">取消</button>
+          </div>
+        </div>
         <table class="w-full text-sm">
-          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">文件</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">实体</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">时间</th><th class="pb-2 px-2">状态</th></tr></thead>
-          <tbody id="drawing-list"><tr><td colspan="6" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr></tbody>
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2 w-8"></th><th class="pb-2 px-2">文件</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">实体</th><th class="pb-2 px-2">类型</th><th class="pb-2 px-2">时间</th><th class="pb-2 px-2">操作</th></tr></thead>
+          <tbody id="drawing-list"><tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -710,6 +718,9 @@ function loadParsedDrawings() {
 function renderDrawingList() {
   const tbody = document.getElementById('drawing-list');
   if (!tbody) return;
+  const countEl = document.getElementById('drawing-count');
+  if (countEl) countEl.textContent = parsedDrawings.length;
+  
   if (parsedDrawings.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
     return;
@@ -719,7 +730,9 @@ function renderDrawingList() {
     const row = tbody.insertRow(-1);
     row.className = 'border-b border-gray-50 text-sm';
     const yoloBadge = d.use_yolo ? '<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>' : '';
+    const checked = d._selected ? 'checked' : '';
     row.innerHTML =
+      '<td class="py-2 px-2"><input type="checkbox" class="drawing-select" data-idx="' + i + '" ' + checked + ' onchange="toggleDrawingSelect(' + i + ',this.checked)" /></td>' +
       '<td class="py-2 px-2 truncate max-w-32">' + d.filename + yoloBadge + '</td>' +
       '<td class="py-2 px-2 text-xs">' + (d.building_type === 'civil' ? '民用' : '工业') + '</td>' +
       '<td class="py-2 px-2">' + (d.elements?.length || 0) + '</td>' +
@@ -729,6 +742,79 @@ function renderDrawingList() {
       '<button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' +
       '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td>';
   });
+  updateBatchButton();
+}
+
+function toggleDrawingSelect(idx, checked) {
+  if (parsedDrawings[idx]) parsedDrawings[idx]._selected = checked;
+  updateBatchButton();
+}
+
+function selectAllDrawings() {
+  parsedDrawings.forEach(d => d._selected = true);
+  renderDrawingList();
+}
+
+function deselectAllDrawings() {
+  parsedDrawings.forEach(d => d._selected = false);
+  renderDrawingList();
+}
+
+function updateBatchButton() {
+  const count = parsedDrawings.filter(d => d._selected).length;
+  const btn = document.getElementById('batch-review-btn');
+  const badge = document.getElementById('batch-count');
+  if (btn) {
+    btn.className = count > 0
+      ? 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700'
+      : 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden';
+  }
+  if (badge) badge.textContent = count;
+}
+
+async function batchReview() {
+  const selected = parsedDrawings.filter(d => d._selected);
+  if (selected.length === 0) { alert('请先勾选要送审的图纸'); return; }
+  
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '⏳ 正在批量审查 ' + selected.length + ' 张图纸...';
+  
+  let totalViolations = 0;
+  let results = [];
+  
+  for (const d of selected) {
+    try {
+      const r = await apiPost('/review-from-data', {
+        entities: d.elements || [],
+        building_type: d.building_type,
+      });
+      if (r.status === 'completed' || r.status === 'success') {
+        const v = r.details?.length || 0;
+        totalViolations += v;
+        results.push({name: d.filename, violations: v, details: r.details});
+      }
+    } catch (e) {
+      results.push({name: d.filename, violations: -1, error: e.message});
+    }
+  }
+  
+  progress.className = 'card mb-4 text-sm';
+  let html = '✅ 批量审查完成 (' + selected.length + ' 张, 共 ' + totalViolations + ' 项违规)<br/><br/>';
+  results.forEach(r => {
+    if (r.error) {
+      html += '<div class="text-red-500 text-xs">❌ ' + r.name + ': ' + r.error + '</div>';
+    } else {
+      const c = r.violations > 0 ? 'text-red-500' : 'text-green-600';
+      html += '<div class="text-xs mb-1">' + r.name + ': <span class="' + c + '">' + r.violations + ' 项违规</span></div>';
+    }
+  });
+  progress.innerHTML = html;
+  
+  // 切换到审图页面，加载第一张
+  if (results.length > 0) {
+    switchPage('review');
+  }
 }
 
 async function uploadAndReview() {
@@ -1295,22 +1381,39 @@ function onCompareSelect() {
   if (corrs.length === 0) {
     corrDiv.innerHTML = '<div class="text-xs text-gray-400">无修正建议</div>';
   } else {
-    corrs.slice(0, 10).forEach(c => {
+    corrs.slice(0, 10).forEach((c, ci) => {
       const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
       const pLabel = c.priority === 'high' ? '高优先级' : c.priority === 'medium' ? '中优先级' : '低优先级';
+      const statusKey = 'corr_' + r.id + '_' + ci;
+      const savedStatus = localStorage.getItem(statusKey);
+      const accepted = savedStatus === 'accepted';
+      const rejected = savedStatus === 'rejected';
+      const statusBadge = accepted ? '<span class="text-green-600 text-xs">✅ 已确认</span>' : rejected ? '<span class="text-red-400 text-xs">❌ 已拒绝</span>' : '';
       corrDiv.innerHTML +=
-        '<div class="p-2 bg-green-50 rounded text-xs mb-1.5">' +
+        '<div class="p-2 bg-green-50 rounded text-xs mb-1.5 ' + (rejected ? 'opacity-50' : '') + '">' +
         '<div class="flex justify-between items-start">' +
-        '<div><span class="font-medium">' + (c.clause_title || '') + '</span></div>' +
+        '<div><span class="font-medium">' + (c.clause_title || '') + '</span> ' + statusBadge + '</div>' +
         '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + pLabel + '</span></div>' +
         '<div class="text-gray-500">操作: ' + (c.action || '') + '</div>' +
         '<div class="text-gray-700 mt-1">' + (c.recommendation || '') + '</div>' +
-        '</div>';
+        '<div class="flex gap-1 mt-1.5">' +
+        '<button onclick="confirmCorrection(\'' + r.id + '\',' + ci + ',true)" class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 ' + (accepted ? 'opacity-50' : '') + '" ' + (accepted ? 'disabled' : '') + '>✅ 确认</button>' +
+        '<button onclick="confirmCorrection(\'' + r.id + '\',' + ci + ',false)" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 ' + (rejected ? 'opacity-50' : '') + '" ' + (rejected ? 'disabled' : '') + '>❌ 拒绝</button>' +
+        '</div></div>';
     });
   }
 
   // 修正后预览
   renderAfterPreview(r);
+}
+
+// ── 修正建议交互 ──────────────────────────────────────────
+function confirmCorrection(reviewId, corrIdx, accepted) {
+  const key = 'corr_' + reviewId + '_' + corrIdx;
+  localStorage.setItem(key, accepted ? 'accepted' : 'rejected');
+  // 刷新对比页面的修正建议
+  const select = document.getElementById('compare-drawing-select');
+  if (select && select.value) onCompareSelect();
 }
 
 // ── 结果分析 ──────────────────────────────────────────────
