@@ -259,6 +259,9 @@
         选择图纸后显示对比
       </div>
       <div id="compare-content" class="hidden">
+        <!-- 概览摘要 -->
+        <div id="compare-summary" class="grid grid-cols-4 gap-3 mb-4"></div>
+
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div class="card">
             <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span>原始图纸解析</h3>
@@ -271,9 +274,29 @@
             <div id="compare-violations" class="space-y-2 max-h-80 overflow-y-auto"></div>
           </div>
         </div>
+
+        <!-- 违规可视化叠加（SVG Canvas） -->
+        <div class="card mb-4">
+          <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span>违规可视化叠加</h3>
+          <div id="compare-vis-canvas" class="bg-white rounded-lg border" style="min-height:200px;position:relative;overflow:hidden">
+            <canvas id="compare-overlay-canvas" width="600" height="400" class="w-full" style="background:#f8f9fa"></canvas>
+            <div id="compare-vis-empty" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">无位置数据，无法渲染可视化叠加</div>
+          </div>
+          <div class="flex gap-2 mt-2 text-xs text-gray-500">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>严重违规</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>主要违规</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>合规</span>
+          </div>
+        </div>
+
         <div class="card">
           <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span>修正建议 & 重构预览</h3>
           <div id="compare-corrections" class="space-y-2"></div>
+          <!-- 修正后预览 -->
+          <div class="mt-4 pt-4 border-t">
+            <h4 class="text-sm font-medium mb-2">🔧 修正后效果预览</h4>
+            <div id="compare-after-preview" class="bg-gray-50 rounded p-3 text-xs leading-relaxed"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -568,6 +591,7 @@ async function uploadDrawing() {
   if (!file) { alert('请先选择图纸文件'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+
   const bt = document.getElementById('drawing-bt').value;
 
   const progress = document.getElementById('upload-progress');
@@ -658,7 +682,7 @@ async function uploadAndReview() {
   const file = document.getElementById('file-input').files[0];
   if (!file) { alert('请先选择图纸文件'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+  if (ext !== 'dxf') { alert('仅支持 .dxf 和 .dwg 格式'); return; }
   const bt = document.getElementById('drawing-bt').value;
   const progress = document.getElementById('upload-progress');
   progress.className = 'card mb-4 text-sm text-gray-500';
@@ -859,9 +883,197 @@ function refreshCompareDrawingSelect() {
   reviewResults.forEach(r => {
     const opt = document.createElement('option');
     opt.value = r.id;
-    opt.textContent = r.drawingName + ' (' + (r.buildingType === 'civil' ? '民用' : '工业') + ') - ' + (r.details?.length || 0) + '违规';
+    opt.textContent = r.drawingName + ' (' + (r.buildingType === 'civil' ? '民用' : '工业') + ') - ' + (r.details?.length || 0) + '项违规';
     select.appendChild(opt);
   });
+}
+
+// 违规可视化渲染（SVG/Canvas叠加）
+function renderViolationOverlay(r) {
+  const canvas = document.getElementById('compare-overlay-canvas');
+  const visEmpty = document.getElementById('compare-vis-empty');
+  if (!canvas) return;
+
+  const viols = r.details || [];
+  const corrs = r.corrections || [];
+  const elements = r.elements || r.rawResult?.elements || [];
+  
+  // 没有位置数据时显示占位
+  const hasPosData = elements.length > 0 || viols.some(v => v.entity_type);
+  if (!hasPosData) {
+    visEmpty.className = 'absolute inset-0 flex items-center justify-center text-gray-400 text-sm';
+    canvas.style.display = 'none';
+    return;
+  }
+  visEmpty.className = 'hidden';
+  canvas.style.display = 'block';
+
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景
+  ctx.fillStyle = '#f8f9fa';
+  ctx.fillRect(0, 0, W, H);
+
+  // 收集违规实体类型及其严重度
+  const violTypes = {};
+  const violClauses = {};
+  viols.forEach(v => {
+    const et = v.entity_type || 'unknown';
+    const severity = v.severity || 'major';
+    if (!violTypes[et] || violTypes[et] === 'major') violTypes[et] = severity;
+    if (!violClauses[et]) violClauses[et] = [];
+    violClauses[et].push(v.clause_id + ': ' + (v.clause_title || ''));
+  });
+
+  // 实体类型 → 颜色/位置映射
+  const entityColors = {
+    'staircase': '#ef4444', 'stair': '#ef4444',
+    'corridor': '#f97316', 'aisle': '#f97316',
+    'fire_door': '#ef4444', 'door': '#f59e0b',
+    'fire_lane': '#ef4444', 'road': '#ef4444',
+    'fire_zone': '#f97316', 'room': '#22c55e',
+    'exit': '#ef4444', 'exit_door': '#ef4444',
+    'fire_window': '#f97316', 'window': '#3b82f6',
+    'refuge_floor': '#ef4444',
+    'exit_sign': '#f59e0b', 'sign': '#f59e0b',
+    'sprinkler_system': '#f97316',
+    'fire_alarm': '#f97316',
+    'shaft': '#f59e0b',
+    'insulation': '#f97316',
+    'evacuation_lighting': '#f59e0b',
+    'wall': '#6b7280',
+  };
+
+  // 布局：将实体类型分布在画布网格中
+  const allTypes = [...new Set([...viols.map(v => v.entity_type || 'unknown'), ...elements.map(e => e.type || e.entity_type || '')].filter(Boolean))];
+  
+  if (allTypes.length === 0) {
+    // 无类型信息，显示文本
+    ctx.fillStyle = '#999';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('无实体位置数据', W/2, H/2);
+    return;
+  }
+
+  // 网格分布可视化
+  const cols = Math.min(4, Math.ceil(Math.sqrt(allTypes.length)));
+  const rows = Math.ceil(allTypes.length / cols);
+  const cellW = (W - 60) / cols;
+  const cellH = (H - 60) / rows;
+
+  allTypes.forEach((t, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = 30 + col * cellW + cellW / 2;
+    const cy = 30 + row * cellH + cellH / 2;
+    const radius = Math.min(cellW, cellH) * 0.3;
+
+    const color = entityColors[t] || '#6b7280';
+    const severity = violTypes[t] || 'none';
+    const isViolated = violTypes[t] !== undefined;
+
+    // 绘制圆圈
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = isViolated ? (severity === 'critical' ? '#fecaca' : '#fed7aa') : '#dcfce7';
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = isViolated ? 3 : 1.5;
+    ctx.stroke();
+
+    // 实体图标
+    ctx.fillStyle = color;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = t.length > 12 ? t.slice(0,10) + '..' : t;
+    ctx.fillText(label, cx, cy);
+
+    // 违规标记
+    if (isViolated) {
+      ctx.fillStyle = color;
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('✗', cx + radius + 8, cy - radius);
+    }
+
+    // 详情提示
+    const hints = violClauses[t];
+    if (hints && hints.length > 0) {
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '7px sans-serif';
+      ctx.textAlign = 'center';
+      hints.slice(0, 2).forEach((h, hi) => {
+        ctx.fillText(h.length > 20 ? h.slice(0,18) + '..' : h, cx, cy + 12 + hi * 10);
+      });
+    }
+  });
+}
+
+// 渲染修正后预览文本
+function renderAfterPreview(r) {
+  const div = document.getElementById('compare-after-preview');
+  const corrs = r.corrections || [];
+  const viols = r.details || [];
+
+  if (corrs.length === 0 && viols.length === 0) {
+    div.innerHTML = '<div class="text-gray-400">图纸合规，无需修正</div>';
+    return;
+  }
+
+  // 按优先级分组
+  const high = corrs.filter(c => c.priority === 'high');
+  const medium = corrs.filter(c => c.priority === 'medium');
+  const low = corrs.filter(c => c.priority === 'low');
+
+  let html = '<div class="space-y-1.5">';
+  
+  html += '<div class="flex gap-3 text-xs mb-2">' +
+    '<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>高优先级: ' + high.length + '</span>' +
+    '<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>中优先级: ' + medium.length + '</span>' +
+    '<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>低优先级: ' + low.length + '</span>' +
+    '</div>';
+
+  if (high.length > 0) {
+    html += '<div class="font-medium text-red-700 text-xs mt-2">🔴 必须修复</div>';
+    high.forEach(c => {
+      html += '<div class="pl-3 border-l-2 border-red-400 mb-1">' +
+        '<span class="font-medium">' + (c.action || '') + '</span>: ' + (c.recommendation || '') +
+        (c.parameter ? ' <span class="text-gray-400">(参数: ' + c.parameter + ')</span>' : '') +
+        '</div>';
+    });
+  }
+
+  if (medium.length > 0) {
+    html += '<div class="font-medium text-yellow-700 text-xs mt-2">🟡 建议整改</div>';
+    medium.forEach(c => {
+      html += '<div class="pl-3 border-l-2 border-yellow-400 mb-1">' +
+        '<span class="font-medium">' + (c.action || '') + '</span>: ' + (c.recommendation || '') +
+        '</div>';
+    });
+  }
+
+  if (low.length > 0) {
+    html += '<div class="font-medium text-gray-600 text-xs mt-2">⚪ 可优化</div>';
+    low.forEach(c => {
+      html += '<div class="pl-3 border-l-2 border-gray-400 mb-1">' +
+        '<span class="font-medium">' + (c.action || '') + '</span>: ' + (c.recommendation || '') +
+        '</div>';
+    });
+  }
+
+  // 无修正建议但有违规 → 兜底描述
+  if (corrs.length === 0 && viols.length > 0) {
+    html += '<div class="text-yellow-700">' +
+      '发现 ' + viols.length + ' 项违规，修正引擎未生成具体建议。请参照规范要求手动调整。' +
+      '</div>';
+  }
+
+  html += '</div>';
+  div.innerHTML = html;
 }
 
 function onCompareSelect() {
@@ -882,10 +1094,40 @@ function onCompareSelect() {
   empty.className = 'hidden';
   content.className = '';
   
+  // 概览摘要
+  const summaryDiv = document.getElementById('compare-summary');
+  const viols = r.details || [];
+  const corrs = r.corrections || [];
+  const totalChecks = r.summary?.total_checks || viols.length + 10;
+  const passRate = totalChecks > 0 ? Math.round((1 - viols.length / totalChecks) * 100) : 0;
+  const criticalCount = viols.filter(v => v.severity === 'critical').length;
+  const majorCount = viols.filter(v => v.severity === 'major').length;
+  const entityCount = r.rawResult?.elements?.length || r.elements?.length || 0;
+  
+  summaryDiv.innerHTML = '' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold ' + (passRate > 80 ? 'text-green-600' : passRate > 50 ? 'text-yellow-600' : 'text-red-600') + '">' + passRate + '%</div>' +
+      '<div class="text-xs text-gray-400">合规率</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-red-600">' + viols.length + '</div>' +
+      '<div class="text-xs text-gray-400">违规项 (严重' + criticalCount + ')</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-blue-600">' + corrs.length + '</div>' +
+      '<div class="text-xs text-gray-400">修正建议</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-gray-600">' + entityCount + '</div>' +
+      '<div class="text-xs text-gray-400">检测实体</div>' +
+    '</div>';
+  
   // 原始图纸解析JSON
   const originalJson = document.getElementById('compare-original-json');
   if (r.drawingEntry?.raw) {
     originalJson.textContent = JSON.stringify(r.drawingEntry.raw, null, 2);
+  } else if (r.elements && r.elements.length > 0) {
+    originalJson.textContent = JSON.stringify(r.elements, null, 2);
   } else {
     originalJson.textContent = JSON.stringify(r.rawResult, null, 2);
   }
@@ -893,40 +1135,54 @@ function onCompareSelect() {
   // 违规标注
   const violationsDiv = document.getElementById('compare-violations');
   violationsDiv.innerHTML = '';
-  const viols = r.details || [];
   if (viols.length === 0) {
-    violationsDiv.innerHTML = '<div class="text-xs text-gray-400">无违规</div>';
+    violationsDiv.innerHTML = '<div class="text-xs text-green-600">✅ 图纸合规，无违规项</div>';
   } else {
-    viols.forEach(f => {
+    // 按严重度排序
+    const severityOrder = {'critical': 0, 'major': 1, 'minor': 2};
+    const sorted = [...viols].sort((a, b) => (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2));
+    
+    sorted.forEach(f => {
+      const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+      const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
       violationsDiv.innerHTML +=
-        '<div class="p-2 bg-red-50 rounded text-xs mb-1.5">' +
-        '<div class="flex justify-between">' +
-        '<span class="font-medium">' + (f.clause_title || '') + '</span>' +
-        '<span class="text-red-600 font-medium">' + f.result + '</span></div>' +
-        '<span class="text-gray-500">' + f.entity_type + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span>' +
+        '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5">' +
+        '<div class="flex justify-between items-start">' +
+        '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
+        '<div class="flex gap-1">' +
+        '<span class="px-1 py-0.5 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
+        '<span class="text-' + sevColor + '-600 font-medium">' + f.result + '</span></div></div>' +
+        '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
+        '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
         '</div>';
     });
   }
   
+  // 可视化叠加
+  renderViolationOverlay(r);
+  
   // 修正建议
   const corrDiv = document.getElementById('compare-corrections');
   corrDiv.innerHTML = '';
-  const corrs = r.corrections || [];
   if (corrs.length === 0) {
     corrDiv.innerHTML = '<div class="text-xs text-gray-400">无修正建议</div>';
   } else {
     corrs.slice(0, 10).forEach(c => {
       const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
+      const pLabel = c.priority === 'high' ? '高优先级' : c.priority === 'medium' ? '中优先级' : '低优先级';
       corrDiv.innerHTML +=
         '<div class="p-2 bg-green-50 rounded text-xs mb-1.5">' +
         '<div class="flex justify-between items-start">' +
         '<div><span class="font-medium">' + (c.clause_title || '') + '</span></div>' +
-        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + (c.priority || '') + '</span></div>' +
+        '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + pLabel + '</span></div>' +
         '<div class="text-gray-500">操作: ' + (c.action || '') + '</div>' +
         '<div class="text-gray-700 mt-1">' + (c.recommendation || '') + '</div>' +
         '</div>';
     });
   }
+
+  // 修正后预览
+  renderAfterPreview(r);
 }
 
 // ── 结果分析 ──────────────────────────────────────────────

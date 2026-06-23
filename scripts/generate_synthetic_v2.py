@@ -160,22 +160,22 @@ def generate_drawing(building_type, variant, dwg_id, violations):
         door_y = ry + room_h * 0.3
         door_w = 0.9
         add_door(msp, door_x, door_y, door_w, "DOOR")
-        db = {"x": door_x, "y": door_y, "width": 0.05, "height": door_w}
-        register_entity("door", door_x, door_y, 0.05, door_w, {"width": door_w}, bbox=db)
+        db = {"x": door_x, "y": door_y, "width": 0.5, "height": door_w}
+        register_entity("door", door_x, door_y, 0.5, door_w, {"width": door_w}, bbox=db)
 
         # 部分防火门
         if random.random() > 0.6:
             add_door(msp, door_x + 0.1, door_y + 1.0, 1.0, "FIRE_DOOR",
                      fire_rating=1, fire_rating_label="甲")
-            fdb = {"x": door_x + 0.1, "y": door_y + 1.0, "width": 0.05, "height": 1.0}
-            register_entity("fire_door", door_x + 0.1, door_y + 1.0, 0.05, 1.0,
+            fdb = {"x": door_x + 0.1, "y": door_y + 1.0, "width": 0.5, "height": 1.0}
+            register_entity("fire_door", door_x + 0.1, door_y + 1.0, 0.5, 1.0,
                             {"fire_rating": 1, "rating": 1, "width": 1.0}, bbox=fdb)
 
         # 窗
         win_w = room_width * 0.6
         add_window(msp, 0.5, ry + 0.1, win_w, "WINDOW")
-        wbbox = {"x": 0.5, "y": ry + 0.1, "width": win_w, "height": 0.05}
-        register_entity("window", 0.5, ry + 0.1, win_w, 0.05,
+        wbbox = {"x": 0.5, "y": ry + 0.1, "width": win_w, "height": 0.5}
+        register_entity("window", 0.5, ry + 0.1, win_w, 0.5,
                         {"width": win_w, "area": win_w * 0.05}, bbox=wbbox)
 
         # 右侧房间
@@ -209,9 +209,9 @@ def generate_drawing(building_type, variant, dwg_id, violations):
         add_door(msp, cx + corridor_w, h - stair_h_val - 0.5 + stair_h_val * 0.3,
                  1.0, "FIRE_DOOR", fire_rating=1, fire_rating_label="甲")
         fdb2 = {"x": cx + corridor_w, "y": h - stair_h_val - 0.5 + stair_h_val * 0.3,
-                "width": 0.05, "height": 1.0}
+                "width": 0.5, "height": 1.0}
         register_entity("fire_door", cx + corridor_w, h - stair_h_val - 0.5 + stair_h_val * 0.3,
-                        0.05, 1.0, {"fire_rating": 1, "rating": 1, "width": 1.0}, bbox=fdb2)
+                        0.5, 1.0, {"fire_rating": 1, "rating": 1, "width": 1.0}, bbox=fdb2)
 
     # 安全出口
     exit_count = 2
@@ -249,9 +249,9 @@ def generate_drawing(building_type, variant, dwg_id, violations):
     if violations.get("DIM-005", {}).get("fail"):
         fw_size = 0.5
     add_window(msp, w * 0.3, h - 0.3, fw_size, "FIRE_WINDOW")
-    register_entity("fire_window", w * 0.3, h - 0.3, fw_size, 0.05,
+    register_entity("fire_window", w * 0.3, h - 0.3, fw_size, 0.5,
                     {"width": fw_size, "net_area": fw_size * 0.3, "area": fw_size * 0.3},
-                    bbox={"x": w * 0.3, "y": h - 0.3, "width": fw_size, "height": 0.05})
+                    bbox={"x": w * 0.3, "y": h - 0.3, "width": fw_size, "height": 0.5})
 
     # 疏散指示
     if not violations.get("EXIST-004", {}).get("fail"):

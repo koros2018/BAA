@@ -57,14 +57,14 @@ def train_base():
     # 训练参数
     train_kwargs = dict(
         data=str(yaml_path),
-        epochs=50,
+        epochs=200,
         imgsz=640,
         batch=8 if device == "cpu" else 16,
         device=device,
         workers=4,
         patience=20,
         project=str(PROJECT_ROOT / "data" / "models"),
-        name="baa_yolov8n_v2",
+        name="baa_yolov8n_v3",
         exist_ok=True,
         verbose=True,
         # 数据增强（合成图纸需要更多增强泛化）

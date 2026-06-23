@@ -232,8 +232,8 @@ def entities_to_yolo_annotations(entities: list, img_width_px: int, img_height_p
         pw = eb["width"] * scale_x
         ph = eb["height"] * scale_y
 
-        # 过滤太小或无效的bbox
-        if pw < 3 or ph < 3:
+        # 过滤太小或无效的bbox（2px最低可见阈值）
+        if pw < 2 or ph < 2:
             continue
 
         # YOLO格式: class_id x_center y_center width height (归一化)

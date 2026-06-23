@@ -1,115 +1,33 @@
 # Changelog
 
-## v1.4.0 (2026-06-21) — 前端增强 + EMA2对接方案
-
-### 新增
-- **EMA2 × BAA 对接方案文档** (`docs/07-重大变更/工程可行性研究报告及设计（终稿）/EMA2×BAA对接方案.md`)
-  - 完整API对接清单（5端点）
-  - 异常处理对照表（8种错误码）
-  - 任务全生命周期（审查→付费→重构→异常重试）
-  - 环境配置指南
-- **EMA2侧 baa_client.py** (`ema2_baa_client.py`)
-  - 完整封装：health / deconstruct / review / reconstruct / check_order
-  - 异常映射：error_code → Python异常类
-  - 用户可见错误提示
-  - run_full_flow 一键编排
-  - 命令行模式
-
-### 前端增强
-- 概览页从 /health 获取实时状态
-- 图纸管理支持上传并调用 /review
-- AI审图页显示违规详情
-- 规范库动态加载20条含 building_type
-- 设置页可配置API地址/密钥
-- 结果分析页显示审查历史
-
-### API认证简化
-- security = HTTPBearer(auto_error=False)
-- 无API_KEY时不验证（开发模式）
-- sys.path在模块级设置，确保引擎导入
-
-## v1.7.0 (2026-06-21) — 自动图纸修正引擎（V2.0第一步）
-
-### 新增
-- **自动图纸修正引擎** (`src/baa_engine/correction_engine.py`)
-  - 19条修正模板覆盖全部原子函数
-  - 6种修正操作：resize / add / replace / relocate / seal / add_lighting
-  - 优先级分级：high / medium / low
-  - 每条建议含：实体信息、规范依据、具体操作步骤、参数
-- **API集成**：`/review` 端点返回 `corrections` 字段
-- **前端展示**：AI审图页新增修正建议区块（蓝色背景+优先级标签）
-
-### 修正模板示例
-| 原子函数 | 规范 | 操作 | 建议内容 |
-|---------|------|:----:|--------|
-| DIM-001 | 疏散楼梯净宽 | resize | 加宽梯段至1.2m |
-| DIM-002 | 防火分区面积 | resize | 增设防火隔墙划分 |
-| EXIST-001 | 楼梯间设置 | add | 增设防烟楼梯间 |
-| ATTR-001 | 防火门等级 | replace | 更换为甲级防火门 |
-| DIST-001 | 疏散距离 | relocate | 调整布局/增加出口 |
-| COUNT-001 | 安全出口数量 | add | 增设疏散门 |
-
-## v1.6.1 (2026-06-21) — 解析器增强 + DWG支持 + 测试归档
-
-### 新增
-- **MCP Server** (`src/mcp/baa_mcp_server.py`)
-  - 3个工具：baa_deconstruct, baa_reconstruct, baa_review
-  - 支持 stdio 和 streamable-http 两种传输模式
-  - 懒加载引擎模块，building_type 参数，auth_token 授权验证
-- **Skill 包** (`src/skill/`)
-  - SKILL.md 使用说明
-  - scripts/ 包含完整CLI工具（deconstruct/reconstruct/review）
-  - baa_client.py BAA API 客户端封装
-  - 支持环境变量和配置文件两种配置方式
-
-### 测试
-- MCP Server 初始化+工具列表+deconstruct调用全部通过
-- Skill 命令行工具用法提示正确
-- 真实图纸批量验证：东莞通建筑图 34748图元/962实体/4.58s
-
-## v1.2.0 (2026-06-21) — 智能判定过滤
-
-### 改进
-- AtomicFunction 新增 target_entities 字段
-- execute() 支持类型匹配，不匹配返回 None
-- 19个函数全部配置了目标实体类型
-- 过滤率 90.8%（76次检查→7次有效判定）
-- API层判定循环适配 execute 返回 None
-
-## v1.1.0 (2026-06-21) — 规范阈值按建筑类型区分 + L2扩展
-
-### 新增
-- Clause 支持 building_type 维度阈值（civil/industrial）
-- 规范从10条扩展至20条（10L1 + 10L2）
-- 原子函数从10个扩展至19个
-- SpecRepository.get_threshold() 方法
-- API端点 /deconstruct、/review 新增 building_type 参数
-- 语义分析器返回 building_type 元数据
-
-## v1.0.0 (2026-06-21) — V1.0 正式发布 🚀
-
-### 新增
-- BAA 核心引擎：10个原子函数 + 10条L1规范 + 语义识别 + 归因分析
-- 图纸解析管线：ezdxf 集成，支持 DXF/DWG 格式
-- YOLOv8n + LoRA 微调图元识别模型
-- API 服务层：/deconstruct, /review, /reconstruct, /order, /health
-- Web 前端：7页面单页应用（概览/图纸/规范/审图/对比/分析/设置）
-- 授权验证：auth_token（HMAC-SHA256）+ 多密钥宽限期
-- 规范JSON导出：data/specs/baa_specs_v1.json
+## v1.7.2 (2026-06-23) — 训练数据修复+前端增强+DWG解析三级兜底
 
 ### 修复
-- 授权 token 时间比较：兼容带/不带时区的时间字符串
-- 测试用例过期时间更新
-- API 测试变量名对齐（AUTH_SECRET → AUTH_SECRETS）
+- **YOLO训练数据标注修复**: door/window/fire_door/fire_window 的bbox厚度从0.05→0.5，过滤阈值3px→2px
+  - 标注总数从6,422→11,233，18个类别全部有标注
+- **`/review-from-data`端点**: 兼容deconstruct返回的elements结构（缺少id字段时使用type兜底）
 
-### 基础设施
-- 项目数据目录迁移至项目内 `data/`
-- 日志输出至 `data/logs/baa-api.log`
-- 5层测试体系全部通过（15项测试）
-- 端到端审查：9620次检查 / 2.5秒
-- 性能基线：1.8s < 10s 目标 ✅
+### 新增
+- **DWG解析三级兜底** (`drawing_parser.py`)
+  - Level 1: ezdwg.read() + export_dxf() 直转
+  - Level 2: ezdwg Entity.dxf字典手动逐元素重建
+  - Level 3: 文件头检测（AC10xx版本）+ 友好提示（建议用LibreCAD另存DXF）
+  - 成功解析: 通风(88021图元)、建筑图(37412)、泵房(5875)、配电房(3576)、室外电气(19485)等
+- **原子函数 `_extract_value` 单位转换优化**
+  - 新增 unit 字段优先判断（mm/m/mm2/m2）
+  - 面积转换阈值从粗糙的>=100改为>10000
+  - 所有单位转换逻辑统一化
+- **前端对比重构页面增强**
+  - 概览摘要（合规率/违规数/修正数/实体数）
+  - 违规可视化叠加（Canvas网格标注，按实体类型和严重度着色）
+  - 修正后效果预览（按优先级分组显示修正操作）
+- **前端DWG上传支持**: 解除.dxf格式限制，允许.dxf/.dwg双格式上传
 
-### 已知限制
-- DWG 转换后图层信息丢失，几何兜底是唯一有效分类方式
-- 训练数据仅1张真实图纸，LoRA 微调数据量不足
-- 规范阈值未按建筑类型区分（工业/民用）
+### 测试
+- 60/60单元测试全部通过
+- 合成图纸200张批量回归: 79.5%检出率（较v1.7.1的70%提升9.5个百分点）
+- 全链路测试（上传→解析→审查→修正）通过
+- civil/industrial分布验证通过
+
+### 进行中
+- YOLOv8n V3训练（200 epochs, CPU, 当前105/200）

@@ -521,7 +521,7 @@ async def review(
                 }
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
                 details.append({
-                    "entity_id": e["id"],
+                    "entity_id": e.get("id", e.get("type", "")),
                     "entity_type": e["type"],
                     "clause_id": f.clause.get("clause_id", ""),
                     "clause_title": f.clause.get("title", ""),
@@ -603,7 +603,7 @@ async def review(
 
     if full:
         response_data["all_entities"] = [
-            {"id": e["id"], "type": e["type"], "bbox": e["bbox"]}
+            {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}
             for e in entities
         ]
 
@@ -649,7 +649,7 @@ async def review_from_data(
                 }
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
                 details.append({
-                    "entity_id": e["id"],
+                    "entity_id": e.get("id", e.get("type", "")),
                     "entity_type": e["type"],
                     "clause_id": f.clause.get("clause_id", ""),
                     "clause_title": f.clause.get("title", ""),

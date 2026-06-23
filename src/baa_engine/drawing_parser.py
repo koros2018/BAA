@@ -82,25 +82,26 @@ class DrawingParser:
             )
 
         try:
-            # DWG 文件：先用 ezdwg 转 DXF 再读
             if ext == ".dwg":
-                try:
-                    import ezdwg
-                    dwg_doc = ezdwg.read(str(path))
-                    # 用 ezdwg 的 export_dxf 写临时文件
-                    import tempfile
-                    tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
-                    tmp_path = tmp.name
-                    tmp.close()
-                    dwg_doc.export_dxf(tmp_path)
-                    self._doc = ezdxf.readfile(tmp_path)
-                    Path(tmp_path).unlink(missing_ok=True)
-                except Exception as dwg_e:
+                dxf_doc = self._parse_dwg(path)
+                if dxf_doc is None:
+                    # 检查文件头，提供针对性建议
+                    version_hint = ""
+                    try:
+                        with open(path, "rb") as f:
+                            header = f.read(6)
+                        if header.startswith(b"AC10"):
+                            ver = header[:6].decode("ascii", errors="ignore")
+                            version_hint = f" (AutoCAD {ver} 格式，"
+                    except Exception:
+                        pass
                     return DrawingResult(
                         file_path=file_path,
                         file_id=file_id or f"baa-file-{path.stem}",
-                        error=f"DWG 读取失败: {dwg_e}"
+                        error=f"DWG 解析失败{version_hint}ezdwg 无法读取此文件)。"
+                               f"请用 LibreCAD (开源免费) 打开后另存为 DXF 格式再上传。"
                     )
+                self._doc = dxf_doc
             else:
                 self._doc = ezdxf.readfile(str(path))
         except Exception as e:
@@ -173,6 +174,97 @@ class DrawingParser:
                     continue
 
         return dimensions
+
+    # ── DWG 解析（三级兜底） ───────────────────────────
+
+    def _parse_dwg(self, path: Path):
+        """解析 DWG 文件，三级兜底策略
+
+        1. ezdwg.read() + export_dxf() 直转
+        2. ezdwg Entity.dxf 字典手动逐元素重建
+        3. 返回 None 让上层给友好提示
+        """
+        import tempfile
+
+        # ── 第一级：export_dxf 直转 ──
+        try:
+            import ezdwg
+            dwg_doc = ezdwg.read(str(path))
+            tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+            tmp_path = tmp.name
+            tmp.close()
+            dwg_doc.export_dxf(tmp_path)
+            dxf_doc = ezdxf.readfile(tmp_path)
+            Path(tmp_path).unlink(missing_ok=True)
+            return dxf_doc
+        except Exception:
+            pass
+
+        # ── 第二级：手动逐元素转换 ──
+        try:
+            import ezdwg
+            dwg_doc = ezdwg.read(str(path))
+            msp_src = dwg_doc.modelspace()
+            dxf_doc = ezdxf.new("R2010")
+            msp_dst = dxf_doc.modelspace()
+
+            total = 0
+            for dxf_type in ["LINE", "LWPOLYLINE", "CIRCLE", "ARC", "TEXT", "MTEXT"]:
+                try:
+                    entities = list(msp_src.query(types=dxf_type))
+                except Exception:
+                    continue
+
+                for ent in entities:
+                    try:
+                        d = ent.dxf
+                        color = d.get("resolved_color_index", 7) or 7
+
+                        if dxf_type == "LINE":
+                            msp_dst.add_line(
+                                d["start"][:2], d["end"][:2],
+                                dxfattribs={"color": color},
+                            )
+                            total += 1
+                        elif dxf_type == "LWPOLYLINE":
+                            pts = [(p[0], p[1]) for p in d["points"]]
+                            if len(pts) >= 2:
+                                msp_dst.add_lwpolyline(pts, dxfattribs={"color": color})
+                                total += 1
+                        elif dxf_type == "CIRCLE":
+                            msp_dst.add_circle(
+                                (d["center"][0], d["center"][1]), d["radius"],
+                                dxfattribs={"color": color},
+                            )
+                            total += 1
+                        elif dxf_type == "ARC":
+                            msp_dst.add_arc(
+                                (d["center"][0], d["center"][1]), d["radius"],
+                                d["start_angle"], d["end_angle"],
+                                dxfattribs={"color": color},
+                            )
+                            total += 1
+                        elif dxf_type in ("TEXT", "MTEXT"):
+                            ins = d.get("insert", (0, 0, 0))
+                            msp_dst.add_text(
+                                d.get("text", ""),
+                                dxfattribs={
+                                    "color": color,
+                                    "height": d.get("height", 2.5),
+                                    "insert": (ins[0], ins[1]),
+                                },
+                            )
+                            total += 1
+                    except Exception:
+                        pass
+
+            if total > 10:
+                return dxf_doc
+        except Exception:
+            pass
+
+        # ── 第三级：所有方案都失败 ──
+        return None
 
     def _compute_bbox(self, entity) -> Dict[str, float]:
         """计算图元边界框"""

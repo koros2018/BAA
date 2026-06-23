@@ -139,29 +139,53 @@ class AtomicFunction:
         )
 
     def _extract_value(self, entity: Dict[str, Any]) -> float:
-        """从实体中提取判定所需的值"""
+        """从实体中提取判定所需的值
+        
+        单位转换策略（V2优化）：
+        - 优先使用 entity 中明确的 unit 字段
+        - 无 unit 时基于数量级启发式判断：
+          - 宽度/长度: >100mm→m, 否则→m
+          - 面积: >10000→mm²转m², 否则→m²
+          - 距离: >100mm→m, 否则→m
+        """
         props = entity.get("properties", {})
         entity_type = entity.get("type", "")
         func_id = self.func_id
 
-        # 根据函数类型和实体类型智能提取
-        # 宽度类：优先用width/clear_width，根据实体类型自适应
-        if func_id in ("DIM-001", "DIM-003", "DIM-004"):  # 宽度判定
+        # 如果有明确unit字段，直接按unit判断
+        unit = props.get("unit", "")
+        
+        # 宽度类：优先用width/clear_width
+        if func_id in ("DIM-001", "DIM-003", "DIM-004"):
             val = props.get("width", props.get("clear_width", 0.0))
-            if val > 100:  # 100mm以上视为mm单位
-                val = val / 1000
+            if unit == "mm":
+                return val / 1000.0
+            if unit == "m":
+                return val
+            # 无unit启发式: >100视为mm
+            if val > 100:
+                return val / 1000.0
             return val
 
         if func_id == "DIM-002":  # 面积判定
             val = props.get("area", 0.0)
-            if val >= 100:  # mm²→m²
-                val = val / 1000000
+            if unit == "mm2":
+                return val / 1000000.0
+            if unit == "m2":
+                return val
+            # 无unit启发式: 阈值10000，>10000视为mm²
+            if val > 10000:
+                return val / 1000000.0
             return val
 
         if func_id == "DIST-001":  # 距离判定
             val = props.get("travel_distance", props.get("length", 0.0))
-            if val > 100:  # mm→m
-                val = val / 1000
+            if unit == "mm":
+                return val / 1000.0
+            if unit == "m":
+                return val
+            if val > 100:
+                return val / 1000.0
             return val
 
         if func_id == "COUNT-001":  # 数量判定
@@ -175,15 +199,23 @@ class AtomicFunction:
 
         if func_id in ("DIM-005", "AREA-001"):  # 面积判定（窗/避难层）
             val = props.get("area", props.get("width", 0) * props.get("height", 0))
-            if val >= 100:  # ≥100mm²即视为mm²→m²
-                val = val / 1000000
+            if unit == "mm2":
+                return val / 1000000.0
+            if unit == "m2":
+                return val
+            if val > 10000:
+                return val / 1000000.0
             return val
 
         # L2 新增函数
         if func_id in ("DIM-006", "DIM-007"):  # 疏散门净宽 / 防火卷帘宽度
             val = props.get("width", props.get("clear_width", 0.0))
-            if val > 100:  # mm→m
-                val = val / 1000
+            if unit == "mm":
+                return val / 1000.0
+            if unit == "m":
+                return val
+            if val > 100:
+                return val / 1000.0
             return val
 
         if func_id in ("EXIST-002", "EXIST-003", "EXIST-004", "EXIST-005", "EXIST-006"):  # 存在性判定
