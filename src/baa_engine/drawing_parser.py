@@ -158,18 +158,28 @@ class DrawingParser:
         msp = self._doc.modelspace()
 
         for entity in msp:
-            if entity.dxftype() in ('DIMENSION', 'ALIGNED_DIMENSION',
-                                     'ROTATED_DIMENSION', 'LINEAR_DIMENSION'):
+            dxftype = entity.dxftype()
+            if dxftype == 'DIMENSION':
                 try:
+                    # ezdxf DIMENSION 实体
+                    meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None
                     dim = {
-                        "handle": entity.dxf.handle,
-                        "layer": entity.dxf.layer,
-                        "measurement": entity.get_measurement(),
-                        "text": entity.get_measurement_text(),
-                        "position": {"x": entity.dxf.defpoint.x,
-                                      "y": entity.dxf.defpoint.y},
+                        "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',
+                        "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',
+                        "measurement": meas,
+                        "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),
+                        "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',
+                        "position": {
+                            "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,
+                            "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,
+                        },
+                        "text_midpoint": {
+                            "x": entity.dxf.text_midpoint.x if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'x') else 0,
+                            "y": entity.dxf.text_midpoint.y if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'y') else 0,
+                        },
                     }
-                    dimensions.append(dim)
+                    if meas is not None and meas > 0.1:
+                        dimensions.append(dim)
                 except Exception:
                     continue
 

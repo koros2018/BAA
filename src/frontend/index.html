@@ -859,22 +859,83 @@ async function runReview() {
       } else {
         violations = result.details || [];
       }
+
+      // 存储到全局供分页使用
+      window._reviewViolations = violations;
+      window._reviewPageSize = 15;
+      window._reviewPage = 1;
+      window._reviewFilter = 'all';
+      window._reviewSearch = '';
+
+      function renderViolationPage() {
+        const v = window._reviewViolations || [];
+        const pageSize = window._reviewPageSize || 15;
+        const page = window._reviewPage || 1;
+        const filter = window._reviewFilter || 'all';
+        const search = (window._reviewSearch || '').toLowerCase();
+
+        let filtered = v;
+        if (filter === 'critical') filtered = filtered.filter(f => f.severity === 'critical');
+        else if (filter === 'major') filtered = filtered.filter(f => f.severity === 'major');
+        else if (filter === 'minor') filtered = filtered.filter(f => f.severity !== 'critical' && f.severity !== 'major');
+        if (search) filtered = filtered.filter(f =>
+          (f.clause_title || '').toLowerCase().includes(search) ||
+          (f.clause_id || '').toLowerCase().includes(search) ||
+          (f.entity_type || '').toLowerCase().includes(search)
+        );
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const start = (page - 1) * pageSize;
+        const pageItems = filtered.slice(start, start + pageSize);
+
+        let html = '<div class="flex items-center justify-between mb-2">' +
+          '<p class="font-medium text-red-600">违规详情 (' + filtered.length + '/' + v.length + '项)</p>' +
+          '<div class="flex gap-1 text-xs">' +
+          '<select id="violation-filter" onchange="window._reviewFilter=this.value; window._reviewPage=1; renderViolationPage()" class="border rounded px-1 py-0.5 text-xs">' +
+          '<option value="all">全部</option>' +
+          '<option value="critical">严重</option>' +
+          '<option value="major">主要</option>' +
+          '<option value="minor">轻微</option>' +
+          '</select>' +
+          '<input id="violation-search" placeholder="搜索..." class="border rounded px-1 py-0.5 text-xs w-20" oninput="window._reviewSearch=this.value; window._reviewPage=1; renderViolationPage()" />' +
+          '</div></div>';
+
+        if (pageItems.length === 0) {
+          html += '<div class="text-xs text-gray-400 p-2">无匹配项</div>';
+        } else {
+          pageItems.forEach(f => {
+            const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+            const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
+            html +=
+              '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5">' +
+              '<div class="flex justify-between items-start">' +
+              '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
+              '<div class="flex gap-1">' +
+              '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
+              '<span class="text-' + sevColor + '-600 font-medium">' + (f.result || '') + '</span></div></div>' +
+              '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
+              '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
+              '</div>';
+          });
+        }
+
+        // 分页控件
+        if (totalPages > 1) {
+          html += '<div class="flex items-center justify-center gap-2 mt-3 text-xs">';
+          html += '<button onclick="window._reviewPage=Math.max(1,' + (page-1) + ');renderViolationPage()" class="px-2 py-1 border rounded hover:bg-gray-100" ' + (page<=1?'disabled':'') + '>‹</button>';
+          for (let p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); p++) {
+            html += '<button onclick="window._reviewPage=' + p + ';renderViolationPage()" class="px-2 py-1 border rounded ' + (p===page?'bg-blue-100 text-blue-700':'hover:bg-gray-100') + '">' + p + '</button>';
+          }
+          html += '<button onclick="window._reviewPage=Math.min(' + totalPages + ',' + (page+1) + ');renderViolationPage()" class="px-2 py-1 border rounded hover:bg-gray-100" ' + (page>=totalPages?'disabled':'') + '>›</button>';
+          html += '<span class="text-gray-400">' + page + '/' + totalPages + '</span>';
+          html += '</div>';
+        }
+
+        document.getElementById('review-details').innerHTML = html;
+      }
+
       if (violations.length > 0) {
-        details.innerHTML = '<p class="font-medium mb-2 text-red-600">违规详情 (' + violations.length + '项)</p>';
-        violations.slice(0, 20).forEach(f => {
-          const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
-          const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
-          details.innerHTML +=
-            '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-2">' +
-            '<div class="flex justify-between items-start">' +
-            '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
-            '<div class="flex gap-1">' +
-            '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
-            '<span class="text-' + sevColor + '-600 font-medium">' + (f.result || '') + '</span></div></div>' +
-            '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
-            '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
-            '</div>';
-        });
+        renderViolationPage();
 
         // 保存审查结果到全局，供对比重构消费
         if (result.status === 'success') {
