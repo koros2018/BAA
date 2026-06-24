@@ -457,6 +457,20 @@
           </div>
         </div>
       </div>
+
+      <!-- 导入服务端密钥 Modal -->
+      <div id="import-key-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+          <h3 class="text-lg font-bold mb-4">📥 从密钥管理导入</h3>
+          <p class="text-sm text-gray-500 mb-3">选择一个服务端已管理的密钥，然后输入密钥值。</p>
+          <div id="import-key-list" class="space-y-2 max-h-60 overflow-y-auto mb-4">
+            <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
+          </div>
+          <div class="flex justify-end gap-3">
+            <button onclick="closeImportKeyModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== 连接配置 ===== -->
@@ -486,7 +500,8 @@
           </div>
           <div class="text-xs text-gray-400" id="token-hint"></div>
           <div class="flex gap-2 mt-2">
-            <button onclick="addApiKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">+ 手动添加令牌</button>
+            <button onclick="importServerKey()" class="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">📥 从密钥管理导入</button>
+            <button onclick="addApiKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">+ 手动添加</button>
           </div>
         </div>
         <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
@@ -605,12 +620,80 @@ async function refreshTokenSelect() {
     if (data && data.data && data.data.length > 0) {
       const hint = document.getElementById('token-hint');
       if (hint) {
-        hint.textContent = '服务端有 ' + data.data.length + ' 个已管理密钥。复制需要的密钥值后点击下方「+ 手动添加」使用。';
+        hint.textContent = '服务端有 ' + data.data.length + ' 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。';
       }
     }
   } catch (e) {
     // 静默
   }
+}
+
+let _importingKeyId = null;
+
+async function importServerKey() {
+  // 弹窗列出服务端密钥
+  const list = document.getElementById('import-key-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">加载中...</div>';
+  document.getElementById('import-key-modal').classList.remove('hidden');
+  
+  try {
+    const data = await apiGet('/admin/keys');
+    if (!data || !data.data || data.data.length === 0) {
+      list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无可用密钥，请先在「密钥管理」页面创建。</div>';
+      return;
+    }
+    
+    list.innerHTML = '';
+    data.data.forEach(k => {
+      if (!k.enabled) return;
+      const div = document.createElement('div');
+      const label = k.label || k.key_id;
+      const expires = k.expires_at ? '过期: ' + formatDate(k.expires_at) : '永不过期';
+      div.className = 'flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer';
+      div.innerHTML =
+        '<div class="flex-1 min-w-0">' +
+          '<div class="font-medium text-sm">' + label + '</div>' +
+          '<div class="text-xs text-gray-400">权限: ' + k.permission + ' | ' + expires + '</div>' +
+        '</div>' +
+        '<button onclick="importSelectedKey(\'' + k.key_id + '\')" class="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 shrink-0">选择并填入</button>';
+      list.appendChild(div);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="text-center text-red-500 text-sm py-4">加载失败: ' + e.message + '</div>';
+  }
+}
+
+function importSelectedKey(keyId) {
+  _importingKeyId = keyId;
+  const keyValue = prompt('请输入此密钥的原始值（从密钥管理页创建时复制）：');
+  if (!keyValue) return;
+  
+  // 找到密钥信息
+  apiGet('/admin/keys').then(data => {
+    if (data && data.data) {
+      const k = data.data.find(x => x.key_id === keyId);
+      const label = (k ? k.label || k.key_id : keyId) + ' (imported)';
+      apiKeys.push({id: 'key_' + Date.now(), name: label, key: keyValue, created: Date.now()});
+      saveApiKeys();
+      activeKey = apiKeys[apiKeys.length - 1].id;
+      localStorage.setItem('baa_active_key', activeKey);
+      populateTokenSelect();
+      closeImportKeyModal();
+    }
+  }).catch(() => {
+    // 即使获取详情失败，也保存
+    apiKeys.push({id: 'key_' + Date.now(), name: keyId + ' (imported)', key: keyValue, created: Date.now()});
+    saveApiKeys();
+    activeKey = apiKeys[apiKeys.length - 1].id;
+    localStorage.setItem('baa_active_key', activeKey);
+    populateTokenSelect();
+    closeImportKeyModal();
+  });
+}
+
+function closeImportKeyModal() {
+  document.getElementById('import-key-modal').classList.add('hidden');
 }
 
 
@@ -1736,7 +1819,7 @@ function loadAnalysis() {
 // ── 初始化 ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadApiKeys();
-  renderApiKeys();
+  populateTokenSelect();
   loadParsedDrawings();
   renderDrawingList();
   refreshReviewDrawingSelect();
