@@ -102,6 +102,10 @@ def generate_drawing(building_type, variant, dwg_id, violations):
     sizes = BUILDING_SIZES[building_type][variant]
     w = round(random.uniform(*sizes["w"]), 1)
     h = round(random.uniform(*sizes["h"]), 1)
+    # DIM-002 防火分区面积违规：强制大尺寸确保 area > 2500
+    if violations.get("DIM-002", {}).get("fail"):
+        w = max(w, 55.0)
+        h = max(h, 50.0)
 
     doc = ezdxf.new("R2010")
     msp = doc.modelspace()
@@ -231,6 +235,16 @@ def generate_drawing(building_type, variant, dwg_id, violations):
                         {"count": 1, "exists": True, "exit_count": 1},
                         bbox={"x": w - 1.5, "y": 0.5, "width": 1.0, "height": 0.5})
 
+    # 防火卷帘
+    curtain_width = 8.0
+    if violations.get("DIM-007", {}).get("fail"):
+        curtain_width = 12.0
+    msp.add_text(f"防火卷帘宽度:{curtain_width}m", height=0.3, dxfattribs={
+        "layer": "FIRE_CURTAIN", "insert": (cx + corridor_w + 1, h - 1)})
+    register_entity("fire_curtain", cx + corridor_w + 1, h - 1, curtain_width, 0.5,
+                    {"width": curtain_width},
+                    bbox={"x": cx + corridor_w + 1, "y": h - 1, "width": curtain_width, "height": 0.5})
+
     # 消防车道
     add_fire_lane(msp, -2, -2, w + 4, "FIRE_LANE")
     fl_w = 4.5
@@ -275,12 +289,14 @@ def generate_drawing(building_type, variant, dwg_id, violations):
                         {"exists": True}, bbox={"x": w * 0.5, "y": h + 1.0, "width": 5, "height": 0.5})
 
     # 应急照明
-    if not violations.get("LIGHT-001", {}).get("fail"):
-        msp.add_text("应急照明1.5lx", height=0.3, dxfattribs={
-            "layer": "LIGHT", "insert": (cx, h * 0.3)})
-        register_entity("evacuation_lighting", cx, h * 0.3, 3, 0.5,
-                        {"illuminance": 1.5, "lux": 1.5},
-                        bbox={"x": cx, "y": h * 0.3, "width": 3, "height": 0.5})
+    light_lux = 1.5
+    if violations.get("LIGHT-001", {}).get("fail"):
+        light_lux = 0.5
+    msp.add_text(f"应急照明{light_lux}lx", height=0.3, dxfattribs={
+        "layer": "LIGHT", "insert": (cx, h * 0.3)})
+    register_entity("evacuation_lighting", cx, h * 0.3, 3, 0.5,
+                    {"illuminance": light_lux, "lux": light_lux},
+                    bbox={"x": cx, "y": h * 0.3, "width": 3, "height": 0.5})
 
     # 管道井封堵
     if not violations.get("EXIST-002", {}).get("fail"):
@@ -292,12 +308,14 @@ def generate_drawing(building_type, variant, dwg_id, violations):
                         bbox={"x": w * 0.8, "y": h * 0.2, "width": 1.0, "height": 1.0})
 
     # 保温材料
-    if not violations.get("ATTR-002", {}).get("fail"):
-        msp.add_text("保温材料:A级", height=0.3, dxfattribs={
-            "layer": "INSULATION", "insert": (0.5, h + 1.5)})
-        register_entity("insulation", 0.5, h + 1.5, 3, 0.5,
-                        {"fire_rating": 3, "rating": 3},
-                        bbox={"x": 0.5, "y": h + 1.5, "width": 3, "height": 0.5})
+    ins_rating = 3
+    if violations.get("ATTR-002", {}).get("fail"):
+        ins_rating = 1  # B2级，低于A/B1
+    msp.add_text(f"保温材料:等级{ins_rating}", height=0.3, dxfattribs={
+        "layer": "INSULATION", "insert": (0.5, h + 1.5)})
+    register_entity("insulation", 0.5, h + 1.5, 3, 0.5,
+                    {"fire_rating": ins_rating, "rating": ins_rating},
+                    bbox={"x": 0.5, "y": h + 1.5, "width": 3, "height": 0.5})
 
     # 疏散距离标注
     travel_dist = 20.0

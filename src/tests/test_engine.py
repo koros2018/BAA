@@ -417,6 +417,10 @@ def test_synthetic_drawing_batch():
     with open(manifest_path) as f:
         data = json.load(f)
 
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.atomic_functions import FuncRegistry, FuncCategory
+    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+
     parser = DrawingParser()
     registry = FuncRegistry()
     analyzer = SemanticAnalyzer()
@@ -448,7 +452,37 @@ def test_synthetic_drawing_batch():
 
     rate = sum(results) / len(results) if results else 0
     print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")
-    assert rate >= 0.5
+    assert rate >= 0.80, f"检出率 {rate:.1%} 低于 80% 阈值"
+
+    results = []
+    for entry in data["drawings"]:
+        result = parser.parse(f"data/drawings/synthetic_v2/{entry['filename']}", entry["file_id"])
+        sem = analyzer.analyze(result.primitives)
+        entities = sem["entities"]
+        expected_failed = {fid for fid, v in entry["violations"].items() if v["fail"]}
+        detected = set()
+
+        for entity in entities:
+            for func in registry.list_all():
+                fr = func.execute(entity)
+                if fr and fr.result == "FAIL":
+                    detected.add(fr.func_id)
+
+        for func in registry.list_all():
+            if func.category != FuncCategory.EXIST:
+                continue
+            if not any(func.matches(e) for e in entities):
+                fr = func.execute(None)
+                if fr and fr.result == "FAIL":
+                    detected.add(fr.func_id)
+
+        matched = len(expected_failed & detected)
+        results.append(matched / max(len(expected_failed), 1))
+
+    rate = sum(results) / len(results) if results else 0
+    print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")
+    # v1.8.5 合成数据生成器修复后，全量200张 100% 检出
+    assert rate >= 0.80, f"检出率 {rate:.1%} 低于 80% 阈值"
 
 
 @pytest.mark.slow
