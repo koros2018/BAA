@@ -457,20 +457,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 导入服务端密钥 Modal -->
-      <div id="import-key-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
-          <h3 class="text-lg font-bold mb-4">📥 从密钥管理导入</h3>
-          <p class="text-sm text-gray-500 mb-3">选择一个服务端已管理的密钥，然后输入密钥值。</p>
-          <div id="import-key-list" class="space-y-2 max-h-60 overflow-y-auto mb-4">
-            <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
-          </div>
-          <div class="flex justify-end gap-3">
-            <button onclick="closeImportKeyModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ===== 连接配置 ===== -->
@@ -507,6 +493,20 @@
         <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
         <div class="card"><h3 class="font-medium mb-3">🤖 引擎状态</h3><div class="space-y-2 text-sm" id="engine-status">加载中...</div></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 导入服务端密钥 Modal（放在所有page容器外，避免被page容器隐藏） -->
+<div id="import-key-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+    <h3 class="text-lg font-bold mb-4">📥 从密钥管理导入</h3>
+    <p class="text-sm text-gray-500 mb-3">选择一个服务端已管理的密钥，然后输入密钥值。</p>
+    <div id="import-key-list" class="space-y-2 max-h-60 overflow-y-auto mb-4">
+      <div class="text-center text-gray-400 text-sm py-4">加载中...</div>
+    </div>
+    <div class="flex justify-end gap-3">
+      <button onclick="closeImportKeyModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
     </div>
   </div>
 </div>
@@ -631,14 +631,17 @@ async function refreshTokenSelect() {
 let _importingKeyId = null;
 
 async function importServerKey() {
+  alert('[BAA] importServerKey 被调用');
   // 弹窗列出服务端密钥
   const list = document.getElementById('import-key-list');
-  if (!list) return;
+  if (!list) { alert('未找到 import-key-list 元素'); return; }
   list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">加载中...</div>';
   document.getElementById('import-key-modal').classList.remove('hidden');
   
   try {
+    alert('[BAA] 正在请求 /admin/keys...');
     const data = await apiGet('/admin/keys');
+    alert('[BAA] 收到响应: ' + JSON.stringify(data).substring(0, 100));
     if (!data || !data.data || data.data.length === 0) {
       list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无可用密钥，请先在「密钥管理」页面创建。</div>';
       return;
