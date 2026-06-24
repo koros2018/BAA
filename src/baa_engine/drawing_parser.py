@@ -277,30 +277,64 @@ class DrawingParser:
         return None
 
     def _compute_bbox(self, entity) -> Dict[str, float]:
-        """计算图元边界框"""
+        """计算图元边界框
+
+        多层兜底策略，支持 ezdwg 手动重建的图元（无标准 bbox 方法）
+        """
+        # 1. ezdxf 原生 bbox 方法
         try:
             if hasattr(entity, 'bbox'):
                 bbox = entity.bbox()
-                return {
-                    "x": bbox.extmin[0],
-                    "y": bbox.extmin[1],
-                    "width": bbox.extmax[0] - bbox.extmin[0],
-                    "height": bbox.extmax[1] - bbox.extmin[1],
-                }
+                if bbox and bbox.extmin is not None and bbox.extmax is not None:
+                    w = bbox.extmax[0] - bbox.extmin[0]
+                    h = bbox.extmax[1] - bbox.extmin[1]
+                    if w > 0 or h > 0:
+                        return {"x": bbox.extmin[0], "y": bbox.extmin[1], "width": w, "height": h}
         except Exception:
             pass
 
-        # 兜底：从顶点计算
+        # 2. 从 vertices() 计算（ezdxf 原生图元）
         try:
             points = list(entity.vertices())
             if points:
-                xs = [p.dxf.location.x for p in points]
-                ys = [p.dxf.location.y for p in points]
-                return {
-                    "x": min(xs), "y": min(ys),
-                    "width": max(xs) - min(xs),
-                    "height": max(ys) - min(ys),
-                }
+                xs, ys = [], []
+                for p in points:
+                    try:
+                        xs.append(p.dxf.location.x)
+                        ys.append(p.dxf.location.y)
+                    except Exception:
+                        try:
+                            xs.append(p[0])
+                            ys.append(p[1])
+                        except Exception:
+                            pass
+                if xs and ys:
+                    w, h = max(xs) - min(xs), max(ys) - min(ys)
+                    if w > 0 or h > 0:
+                        return {"x": min(xs), "y": min(ys), "width": w, "height": h}
+        except Exception:
+            pass
+
+        # 3. 从 dxf 字典 points 计算（ezdwg 手动重建的 LWPOLYLINE）
+        try:
+            pts = entity.dxf.get('points', [])
+            if pts:
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                return {"x": min(xs), "y": min(ys), "width": max(xs) - min(xs), "height": max(ys) - min(ys)}
+        except Exception:
+            pass
+
+        # 4. 从 start/end 端点计算（LINE / ezdwg 重建的 LINE）
+        try:
+            start = entity.dxf.start
+            end = entity.dxf.end
+            if start is not None and end is not None:
+                sx = start[0] if hasattr(start, '__getitem__') else start.x
+                sy = start[1] if hasattr(start, '__getitem__') else start.y
+                ex = end[0] if hasattr(end, '__getitem__') else end.x
+                ey = end[1] if hasattr(end, '__getitem__') else end.y
+                return {"x": min(sx, ex), "y": min(sy, ey), "width": abs(ex - sx), "height": abs(ey - sy)}
         except Exception:
             pass
 
@@ -326,6 +360,16 @@ class DrawingParser:
                     props["length"] = entity.length
                 if entity.closed:
                     props["area"] = self._compute_polygon_area(entity)
+                # 记录顶点数（ezdwg 重建的图元用 points）
+                try:
+                    pts = entity.dxf.get('points', [])
+                    props["point_count"] = len(pts)
+                except Exception:
+                    try:
+                        pts = list(entity.vertices())
+                        props["point_count"] = len(pts)
+                    except Exception:
+                        pass
 
             elif entity.dxftype() == 'TEXT':
                 props["text"] = entity.dxf.text

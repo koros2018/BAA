@@ -98,6 +98,9 @@ class SemanticAnalyzer:
         # Step 1: 图元分类归并
         entities = self._classify_entities(primitives)
 
+        # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
+        entities = self._infer_corridor_widths(entities, primitives)
+
         # Step 2: 空间关系构建
         relations = self._build_relations(entities)
 
@@ -211,10 +214,12 @@ class SemanticAnalyzer:
         return "unknown"
 
     def _classify_by_geometry(self, prim: RawPrimitive) -> str:
-        """几何特征兜底归类"""
+        """几何特征兜底归类（真实图纸适配版）"""
         dxf_type = prim.dxf_type
         bbox = prim.bbox
-        area = bbox.get("width", 0) * bbox.get("height", 0)
+        bw = bbox.get("width", 0)
+        bh = bbox.get("height", 0)
+        area = bw * bh
         props = prim.properties
 
         if dxf_type == "LINE":
@@ -224,6 +229,14 @@ class SemanticAnalyzer:
             return "corridor"
 
         if dxf_type in ("LWPOLYLINE", "POLYLINE"):
+            # 2 点 LWPOLYLINE（真实图纸常见）：视为 LINE 等价
+            pts_count = props.get("point_count", 0)
+            if pts_count == 2:
+                length = max(bw, bh)
+                if length > 1000:
+                    return "wall"
+                return "corridor"
+            # 闭合多边形 → room 或 wall
             if area > 50000:
                 return "wall"
             elif area > 5000:
@@ -243,6 +256,157 @@ class SemanticAnalyzer:
             return "text"
 
         return "unknown"
+
+    def _infer_corridor_widths(self, entities: List[SemanticEntity],
+                              primitives: List[RawPrimitive] = None) -> List[SemanticEntity]:
+        """从 bbox 短边和平行线聚类推断走廊/门的宽度（真实图纸适配）
+
+        两层策略：
+        1. 平行线聚类（primitives 可用时）：收集走廊图元，按方向分组，
+           找平行线间距作为走廊宽度
+        2. bbox 短边：对已有非零 bbox 的实体，短边*0.001 为宽度
+        """
+        import math
+        from collections import defaultdict
+
+        # ── 策略1：平行线聚类宽度推断 ──
+        if primitives:
+            # 收集可能的走廊原始图元（LINE + 2点LWPOLYLINE）
+            edge_candidates = []
+            for p in primitives:
+                bbox = p.bbox
+                cx = bbox.get("x", 0) + bbox.get("width", 0) / 2
+                cy = bbox.get("y", 0) + bbox.get("height", 0) / 2
+                # 排除坐标偏移的图元
+                if abs(cx) < 100 and abs(cy) < 100:
+                    continue
+                if abs(cx) > 1e7 or abs(cy) > 1e7:
+                    continue
+                bw = bbox.get("width", 0)
+                bh = bbox.get("height", 0)
+                span = max(bw, bh)
+                if span < 100 or span > 100000:  # 0.1m~100m 合理范围
+                    continue
+                if p.dxf_type == "LINE":
+                    angle = p.properties.get("angle", 0) % 180
+                    if angle > 90: angle = 180 - angle
+                    edge_candidates.append({
+                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,
+                        "span": span, "angle": angle,
+                    })
+                elif p.dxf_type == "LWPOLYLINE" and p.properties.get("point_count", 0) == 2:
+                    angle = 0 if bw > bh else 90
+                    edge_candidates.append({
+                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,
+                        "span": span, "angle": angle,
+                    })
+
+            if edge_candidates:
+                # 按方向分组
+                h_edges = [e for e in edge_candidates if e["angle"] < 30]
+                v_edges = [e for e in edge_candidates if e["angle"] > 60]
+
+                # 水平线：按cy排序，收集所有gap
+                h_sorted = sorted(h_edges, key=lambda e: e["cy"])
+                h_gaps = []
+                for i in range(min(300, len(h_sorted))):
+                    for j in range(i + 1, min(i + 100, len(h_sorted))):
+                        gap = abs(h_sorted[i]["cy"] - h_sorted[j]["cy"])
+                        if 500 < gap < 10000:
+                            h_gaps.append({"gap": gap, "y1": h_sorted[i]["cy"], "y2": h_sorted[j]["cy"]})
+
+                # 垂直线：按cx排序，收集所有gap
+                v_sorted = sorted(v_edges, key=lambda e: e["cx"])
+                v_gaps = []
+                for i in range(min(300, len(v_sorted))):
+                    for j in range(i + 1, min(i + 100, len(v_sorted))):
+                        gap = abs(v_sorted[i]["cx"] - v_sorted[j]["cx"])
+                        if 500 < gap < 10000:
+                            v_gaps.append({"gap": gap, "x1": v_sorted[i]["cx"], "x2": v_sorted[j]["cx"]})
+
+                # 空间分区聚类：按 y/x 坐标分桶，每个桶独立计算宽度
+                all_gaps = h_gaps + v_gaps
+                if all_gaps and len(all_gaps) > 10:
+                    from collections import Counter
+                    bucket_size = 100
+                    buckets = defaultdict(list)
+                    for g in all_gaps:
+                        w = g["gap"]
+                        bucket = round(w / bucket_size) * bucket_size
+                        buckets[bucket].append(w)
+                    sorted_buckets = sorted(buckets.items(), key=lambda x: -len(x[1]))
+                    reasonable_buckets = [(b, v) for b, v in sorted_buckets if 800 < b < 3000]
+                    
+                    if not reasonable_buckets:
+                        reasonable_buckets = [(b, v) for b, v in sorted_buckets if 600 < b < 3000]
+                    
+                    if reasonable_buckets:
+                        top_widths_mm = []
+                        for bucket, vals in reasonable_buckets[:3]:
+                            avg = sum(vals) / len(vals)
+                            top_widths_mm.append(avg)
+                        
+                        # 按空间位置为每个走廊选择最匹配的宽度
+                        for ent in entities:
+                            if ent.type == "corridor":
+                                existing = ent.properties.get("width", 0)
+                                if existing > 0.5:
+                                    continue
+                                bbox = ent.bbox
+                                bw = bbox.get("width", 0)
+                                bh = bbox.get("height", 0)
+                                if bw == 0 or bh == 0:
+                                    # 计算实体中心
+                                    ecx = bbox.get("x", 0) + bw / 2
+                                    ecy = bbox.get("y", 0) + bh / 2
+                                    # 找空间最近的gap
+                                    best_w = 0
+                                    best_dist = float("inf")
+                                    for w_mm in top_widths_mm:
+                                        w_m = w_mm * 0.001
+                                        if 0.5 < w_m < 3.5:
+                                            # 简单策略：取最宽的合适宽度（主走廊）
+                                            if w_m > best_w:
+                                                best_w = w_m
+                                    if best_w > 0:
+                                        ent.properties["width"] = best_w
+                                        ent.properties["clear_width"] = best_w
+
+        # ── 策略2：bbox 短边推断 ──
+        for ent in entities:
+            if ent.type not in ("corridor", "door", "window"):
+                continue
+            bbox = ent.bbox
+            bw = bbox.get("width", 0)
+            bh = bbox.get("height", 0)
+
+            if bw == 0 and bh == 0:
+                continue
+
+            # bbox 两边非零 → 短边为宽度（mm→m）
+            if bw > 0 and bh > 0:
+                w_mm = min(bw, bh)
+                w_m = w_mm * 0.001
+                if w_m > 0.05 and w_m < 10:
+                    if ent.properties.get("width", 0) < w_m:
+                        ent.properties["width"] = w_m
+                        ent.properties["clear_width"] = w_m
+                # 长边作为 length
+                l_mm = max(bw, bh)
+                if l_mm > 0:
+                    ent.properties["length"] = l_mm * 0.001
+                continue
+
+            # bbox 只有一边非零（LINE / 2 点 LWPOLYLINE）
+            span_mm = max(bw, bh)
+            if span_mm > 0:
+                span_m = span_mm * 0.001
+                if span_m > 0.1:
+                    ent.properties["length"] = span_m
+                    if "width" not in ent.properties:
+                        ent.properties["width"] = 0.0
+
+        return entities
 
     def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEntity]:
         """合并重叠/相邻的同类图元"""
