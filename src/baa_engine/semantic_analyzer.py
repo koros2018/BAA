@@ -202,13 +202,22 @@ class SemanticAnalyzer:
                 continue
 
             self._entity_counter += 1
+            # 过滤 NaN properties
+            cleaned_props = {}
+            for pk, pv in prim.properties.items():
+                if isinstance(pv, float):
+                    import math
+                    if not math.isnan(pv):
+                        cleaned_props[pk] = pv
+                else:
+                    cleaned_props[pk] = pv
             entity = SemanticEntity(
                 entity_id=f"{entity_type.upper()}_{self._entity_counter:03d}",
                 entity_type=entity_type,
                 bbox=prim.bbox,
                 layer=prim.layer,
                 confidence=0.9 if entity_type != "unknown" else 0.5,
-                properties=prim.properties,
+                properties=cleaned_props,
             )
             entities.append(entity)
 
@@ -314,6 +323,14 @@ class SemanticAnalyzer:
         import math
         from collections import defaultdict
 
+        # 防御性过滤：修复 NaN bbox
+        for ent in entities:
+            bbox = ent.bbox
+            for k in ('x', 'y', 'width', 'height'):
+                v = bbox.get(k, 0)
+                if isinstance(v, float) and math.isnan(v):
+                    bbox[k] = 0.0
+
         # ── 策略1：平行线聚类宽度推断 ──
         if primitives:
             # 收集可能的走廊原始图元（LINE + 2点LWPOLYLINE）
@@ -412,6 +429,30 @@ class SemanticAnalyzer:
                                     ent.properties["width"] = best_w
                                     ent.properties["clear_width"] = best_w
 
+        # ── 策略1.5：door/window 宽度推断 ──
+        for ent in entities:
+            if ent.type in ("door", "window"):
+                existing = ent.properties.get("width", 0)
+                if existing > 0.5:
+                    continue
+                # 从 ARC 半径推断门宽度（门弧半径 ≈ 门宽度）
+                radius = ent.properties.get("radius", 0)
+                if radius > 100 and radius < 2000:
+                    w_m = radius * 0.001  # mm → m
+                    if 0.3 < w_m < 2.0:  # 放宽到0.3m（最小门宽）
+                        ent.properties["width"] = w_m
+                        ent.properties["clear_width"] = w_m
+                # 从 bbox 短边推断
+                bbox = ent.bbox
+                bw = bbox.get("width", 0)
+                bh = bbox.get("height", 0)
+                if bw > 0 and bh > 0:
+                    w_mm = min(bw, bh)
+                    w_m = w_mm * 0.001
+                    if 0.5 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:
+                        ent.properties["width"] = w_m
+                        ent.properties["clear_width"] = w_m
+
         # ── 策略2：bbox 短边推断（覆盖所有类型） ──
         for ent in entities:
             if ent.type not in ("corridor", "door", "window", "room", "wall"):
@@ -427,8 +468,7 @@ class SemanticAnalyzer:
             if bw > 0 and bh > 0:
                 w_mm = min(bw, bh)
                 w_m = w_mm * 0.001
-                # 放宽阈值：>0.01m (10mm) 就接受
-                if w_m > 0.01 and w_m < 10:
+                if not math.isnan(w_m) and w_m > 0.01 and w_m < 10:
                     current_w = ent.properties.get("width", 0)
                     if current_w < w_m:
                         ent.properties["width"] = w_m
@@ -442,7 +482,7 @@ class SemanticAnalyzer:
             span_mm = max(bw, bh)
             if span_mm > 0:
                 span_m = span_mm * 0.001
-                if span_m > 0.05:
+                if not math.isnan(span_m) and span_m > 0.05:
                     ent.properties["length"] = span_m
                     if "width" not in ent.properties:
                         ent.properties["width"] = 0.0
