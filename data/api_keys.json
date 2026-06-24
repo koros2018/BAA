@@ -12,6 +12,19 @@
       "enabled": true,
       "last_used": null,
       "calls": 0
+    },
+    "key_f97708d130e62c5c": {
+      "key_id": "key_f97708d130e62c5c",
+      "hash": "f9beaf75af4aa04ed8695a1995ccffb46b6fae980e0698bd936b99f1f7401e3d",
+      "permission": "write",
+      "label": "无上咒",
+      "created_by": "anonymous",
+      "created_at": "2026-06-24T07:53:23.585824+00:00",
+      "expires_at": "2026-09-22T07:53:23.585824+00:00",
+      "ttl_days": 90,
+      "enabled": true,
+      "last_used": null,
+      "calls": 0
     }
   },
   "usage": {
@@ -19,7 +32,12 @@
       "calls": 0,
       "last_used": null,
       "per_minute": []
+    },
+    "key_f97708d130e62c5c": {
+      "calls": 0,
+      "last_used": null,
+      "per_minute": []
     }
   },
-  "updated_at": "2026-06-24T05:07:52.516947+00:00"
+  "updated_at": "2026-06-24T07:53:23.587194+00:00"
 }

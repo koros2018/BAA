@@ -145,7 +145,7 @@
       <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
       <div class="sidebar-item" data-page="analysis">📊结果分析</div>
       <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
-      <div class="sidebar-item" data-page="settings">⚙️系统设置</div>
+      <div class="sidebar-item" data-page="settings">🔌连接配置</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
@@ -459,38 +459,34 @@
       </div>
     </div>
 
-    <!-- ===== 系统设置 ===== -->
+    <!-- ===== 连接配置 ===== -->
     <div class="page" id="page-settings">
-      <h2 class="text-xl font-bold mb-6">系统设置</h2>
+      <h2 class="text-xl font-bold mb-6">🔌 连接配置</h2>
       <div class="space-y-4">
-        <div class="card"><h3 class="font-medium mb-3">⚙️ API配置</h3>
+        <div class="card"><h3 class="font-medium mb-3">⚙️ 后端服务</h3>
           <div class="space-y-3 text-sm">
             <div class="flex items-center gap-3">
               <span class="w-24">API地址</span>
               <input id="api-base" value="http://localhost:8000" class="flex-1 border rounded px-2 py-1 text-xs font-mono" />
             </div>
-            <div class="mb-2">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-medium">API密钥管理</span>
-                <div class="flex gap-2">
-                  <button onclick="generateApiKey()" class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">+ 生成密钥</button>
-                  <button onclick="addApiKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">+ 手动添加</button>
-                </div>
-              </div>
-              <div id="api-keys-container" class="space-y-1.5 max-h-48 overflow-y-auto">
-                <div class="text-xs text-gray-400">暂无密钥，请生成或添加</div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">当前使用:</span>
-              <select id="active-key-select" class="text-xs border rounded px-2 py-1 flex-1 font-mono" onchange="switchApiKey(this.value)">
-                <option value="">无密钥</option>
-              </select>
-            </div>
             <div class="flex items-center gap-3">
               <button onclick="testConnection()" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">🔌 测试连接</button>
               <span id="conn-status" class="text-xs"></span>
             </div>
+          </div>
+        </div>
+        <div class="card"><h3 class="font-medium mb-3">🔑 访问令牌</h3>
+          <p class="text-xs text-gray-500 mb-3">选择用于API请求的访问令牌。可在「密钥管理」页面创建和管理令牌。</p>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs text-gray-500">当前令牌:</span>
+            <select id="active-key-select" class="text-xs border rounded px-2 py-1 flex-1 font-mono" onchange="switchApiKey(this.value)">
+              <option value="">无令牌（开发模式）</option>
+            </select>
+            <button onclick="refreshTokenSelect()" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" title="从服务端刷新令牌列表">🔄</button>
+          </div>
+          <div class="text-xs text-gray-400" id="token-hint"></div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="addApiKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">+ 手动添加令牌</button>
           </div>
         </div>
         <div class="card"><h3 class="font-medium mb-3">🎨 显示设置</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span>显示注意力热力图</span><span class="text-green-600">✓ 已开启</span></div></div></div>
@@ -509,7 +505,7 @@ const HEADERS = () => {
 };
 let reviewHistory = [];
 
-// ── API密钥管理（localStorage版，用于设置页密钥选择） ──
+// ── 访问令牌管理（连接配置页用） ───────────────────
 let apiKeys = [];
 let activeKey = '';
 
@@ -522,6 +518,7 @@ function loadApiKeys() {
     apiKeys = [];
     activeKey = '';
   }
+  populateTokenSelect();
 }
 
 function saveApiKeys() {
@@ -538,96 +535,82 @@ function getActiveKeyValue() {
   return k ? k.key : '';
 }
 
-function renderApiKeys() {
-  const container = document.getElementById('api-keys-container');
+function switchApiKey(id) {
+  activeKey = id;
+  localStorage.setItem('baa_active_key', activeKey);
+  populateTokenSelect();
+}
+
+function populateTokenSelect() {
   const select = document.getElementById('active-key-select');
-  if (!container || !select) return;
+  const hint = document.getElementById('token-hint');
+  if (!select) return;
   
-  if (apiKeys.length === 0) {
-    container.innerHTML = '<div class="text-xs text-gray-400">暂无密钥，请生成或添加</div>';
-    select.innerHTML = '<option value="">无密钥</option>';
-    return;
-  }
-  
-  container.innerHTML = '';
-  select.innerHTML = '<option value="">无密钥</option>';
+  select.innerHTML = '<option value="">无令牌（开发模式）</option>';
   
   apiKeys.forEach(k => {
     const isActive = k.id === activeKey;
-    const div = document.createElement('div');
-    div.className = 'flex items-center justify-between p-1.5 rounded text-xs ' + (isActive ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50');
-    div.innerHTML = 
-      '<div class="flex-1 min-w-0">' +
-        '<div class="font-medium truncate">' + k.name + '</div>' +
-        '<div class="text-gray-400 font-mono">' + maskKey(k.key) + '</div>' +
-      '</div>' +
-      '<div class="flex gap-1 shrink-0">' +
-        '<button onclick="copyApiKey(\'' + k.id + '\')" class="px-1.5 py-0.5 bg-gray-200 rounded hover:bg-gray-300" title="复制">📋</button>' +
-        '<button onclick="deleteApiKey(\'' + k.id + '\')" class="px-1.5 py-0.5 bg-red-100 rounded hover:bg-red-200" title="删除">🗑️</button>' +
-      '</div>';
-    container.appendChild(div);
-    
     const opt = document.createElement('option');
     opt.value = k.id;
     opt.textContent = k.name + ' (' + maskKey(k.key) + ')';
-    if (k.id === activeKey) opt.selected = true;
+    if (isActive) opt.selected = true;
     select.appendChild(opt);
   });
-}
-
-function generateApiKey() {
-  const name = prompt('密钥名称（如：开发环境）');
-  if (!name) return;
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-  let key = 'baa_';
-  for (let i = 0; i < 48; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  
+  if (hint) {
+    hint.textContent = apiKeys.length > 0
+      ? '共 ' + apiKeys.length + ' 个本地令牌。外部项目的token可手动添加。'
+      : '暂无令牌。可在「密钥管理」页面创建后在此添加，或点击下方手动输入。';
   }
-  apiKeys.push({id: 'key_' + Date.now(), name, key, created: Date.now()});
-  saveApiKeys();
-  activeKey = apiKeys[apiKeys.length - 1].id;
-  localStorage.setItem('baa_active_key', activeKey);
-  renderApiKeys();
-  testConnection();
 }
 
+// 手动添加外部令牌（用于对接外部项目如EMA2的token）
 function addApiKey() {
-  const name = prompt('密钥名称（如：生产环境）');
+  const name = prompt('令牌名称（如：EMA2对接）');
   if (!name) return;
-  const key = prompt('请输入密钥内容');
+  const key = prompt('请输入令牌内容（从密钥管理页面复制）');
   if (!key) return;
   apiKeys.push({id: 'key_' + Date.now(), name, key, created: Date.now()});
   saveApiKeys();
   activeKey = apiKeys[apiKeys.length - 1].id;
   localStorage.setItem('baa_active_key', activeKey);
-  renderApiKeys();
+  populateTokenSelect();
 }
 
 function deleteApiKey(id) {
-  if (!confirm('确认删除此密钥？')) return;
+  if (!confirm('确认删除此本地令牌？')) return;
   apiKeys = apiKeys.filter(k => k.id !== id);
   if (activeKey === id) {
     activeKey = apiKeys.length > 0 ? apiKeys[apiKeys.length - 1].id : '';
     localStorage.setItem('baa_active_key', activeKey);
   }
   saveApiKeys();
-  renderApiKeys();
+  populateTokenSelect();
 }
 
 function copyApiKey(id) {
   const k = apiKeys.find(k => k.id === id);
   if (!k) return;
   navigator.clipboard.writeText(k.key).then(() => {
-    alert('密钥已复制到剪贴板');
+    alert('令牌已复制到剪贴板');
   }).catch(() => {
     alert('复制失败，请手动复制');
   });
 }
 
-function switchApiKey(id) {
-  activeKey = id;
-  localStorage.setItem('baa_active_key', activeKey);
-  renderApiKeys();
+async function refreshTokenSelect() {
+  // 从后端拉取密钥列表（仅提示，不直接填入选择器）
+  try {
+    const data = await apiGet('/admin/keys');
+    if (data && data.data && data.data.length > 0) {
+      const hint = document.getElementById('token-hint');
+      if (hint) {
+        hint.textContent = '服务端有 ' + data.data.length + ' 个已管理密钥。复制需要的密钥值后点击下方「+ 手动添加」使用。';
+      }
+    }
+  } catch (e) {
+    // 静默
+  }
 }
 
 
