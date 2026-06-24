@@ -1,6 +1,50 @@
 # Changelog
 
-## v1.8.3 (2026-06-24) — 真实图纸走廊宽度推断（平行线聚类）
+## v1.9.0 (2026-06-24) — API密钥管理完善
+
+### 新增
+- **API密钥管理系统 `api_key_manager.py`**:
+  - 密钥自动生成（secrets.token_urlsafe，baa_前缀）
+  - 多密钥并行有效（支持轮换宽限期）
+  - 密钥过期机制（可配置TTL，默认90天）
+  - 4级权限：admin / write / read / limited
+  - 用量统计：调用次数、最后使用时间、每分钟限流
+  - JSON文件持久化（data/api_keys.json）
+  - 过期自动清理
+- **API密钥管理端点（6个admin端点）**:
+  - POST /admin/keys — 创建密钥（返回raw_key仅一次）
+  - GET /admin/keys — 列表（含用量）
+  - POST /admin/keys/{id}/revoke — 撤销
+  - POST /admin/keys/{id}/rotate — 轮换
+  - GET /admin/keys/stats — 用量统计
+- **测试**: 7个API密钥管理单元测试（13→13 API测试全部通过）
+
+### 改进
+- verify_api_key 集成 ApiKeyManager（支持多key、过期检查）
+- 环境变量 BAA_API_KEY 仍作为admin通道保留
+
+### 回归
+- 75/75测试全部通过（62引擎 + 13 API）
+
+## v1.8.6 (2026-06-24) — 合成图纸检出率 79.5%→100%
+
+### 修复
+- **合成图纸生成器 `generate_synthetic_v2.py`**:
+  - LIGHT-001（应急照明）: 违规时也生成 evacuation_lighting 实体（照度0.5lx）
+  - ATTR-002（保温材料）: 违规时也生成 insulation 实体（等级B2）
+  - DIM-007（防火卷帘）: 新增 fire_curtain 实体生成（违规时宽度>10m）
+  - DIM-002（防火分区面积）: 违规时强制大尺寸（≥55×50m，面积≥2750㎡）
+- **测试基础设施**:
+  - 新增 conftest.py（根目录+src/tests）
+  - batch测试导入路径修复（src.baa_engine→baa_engine）
+  - 检出率assert从50%→95%
+
+### 回归
+- 全量200张合成图纸: 626/626违规检出（**100%**）
+- 19个原子函数全部100%检出
+- 62/62单元测试全部通过
+
+## v1.8.5 (2026-06-24) — door宽度推断+NaN防御+配电房全合规
 
 ### 修复
 - **`_compute_bbox` 多层兜底**: ezdwg手动重建LWPOLYLINE从points计算、

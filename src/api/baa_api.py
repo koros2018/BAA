@@ -65,6 +65,11 @@ import hashlib
 import base64
 
 
+# ── API密钥管理 ──────────────────────────────────────────
+
+from src.baa_engine.api_key_manager import get_key_manager, ApiKeyPermission
+
+
 def generate_auth_token(payload: dict, secret: str = None) -> str:
     """生成 auth_token（JWT格式，HMAC-SHA256）
     默认使用最新密钥
@@ -212,7 +217,7 @@ app.add_middleware(
 def get_api_key(authorization: str = Query("", description="Bearer API Key")):
     """获取 API Key（Query参数或Header）"""
 def verify_api_key(request: Request):
-    """验证 API Key（无 API Key 时不验证）"""
+    """验证 API Key（使用ApiKeyManager）"""
     if not API_KEYS:
         return "anonymous"
     auth_header = request.headers.get("authorization", "")
@@ -222,12 +227,19 @@ def verify_api_key(request: Request):
     else:
         return "anonymous"  # 开发模式：没传key也放行
     
+    # 使用ApiKeyManager验证
+    km = get_key_manager()
+    key_info = km.validate_key(token)
+    if key_info:
+        km.record_usage(token)
+        return token
+    
     if token in API_KEYS:
         return token
     raise HTTPException(
         status_code=401,
         detail={"status": "error", "error_code": "INVALID_API_KEY",
-                "message": "API Key 无效"}
+                "message": "API Key 无效或已过期"}
     )
 
 
@@ -1026,6 +1038,169 @@ if SPECS_DIR.exists():
 
 if MODELS_DIR.exists():
     app.mount("/models", StaticFiles(directory=str(MODELS_DIR)), name="models")
+
+
+# ── API密钥管理端点 ──────────────────────────────────
+
+
+@app.post("/admin/keys", tags=["admin"])
+async def create_api_key(
+    body: dict,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """创建新的API Key（需要admin权限）
+
+    请求体:
+        permission: str = "write" (admin/write/read/limited)
+        ttl_days: int = 90
+        label: str = "" (用途说明)
+    """
+    km = get_key_manager()
+    # 验证调用者权限
+    key_info = km.validate_key(api_key)
+    if not key_info or key_info.get("permission") not in ("admin",):
+        raise HTTPException(status_code=403, detail={
+            "status": "error", "error_code": "FORBIDDEN",
+            "message": "仅admin权限可创建密钥"
+        })
+
+    permission = body.get("permission", "write")
+    ttl_days = body.get("ttl_days", 90)
+    label = body.get("label", "")
+
+    try:
+        result = km.generate_key(
+            permission=permission,
+            ttl_days=ttl_days,
+            label=label,
+            created_by=key_info.get("key_id", "api")
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={
+            "status": "error", "error_code": "INVALID_PARAM",
+            "message": str(e)
+        })
+
+    return {
+        "status": "success",
+        "data": result,
+        "warning": "请立即保存 raw_key，创建后不再显示",
+    }
+
+
+@app.get("/admin/keys", tags=["admin"])
+async def list_api_keys(
+    include_disabled: bool = Query(False),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """列出所有API Key（需要admin权限）"""
+    km = get_key_manager()
+    key_info = km.validate_key(api_key)
+    if not key_info or key_info.get("permission") not in ("admin",):
+        raise HTTPException(status_code=403, detail={
+            "status": "error", "error_code": "FORBIDDEN",
+            "message": "仅admin权限可查看密钥列表"
+        })
+
+    keys = km.list_keys(include_disabled=include_disabled)
+    stats = km.get_usage_stats()
+
+    for k in keys:
+        k_id = k["key_id"]
+        if k_id in stats:
+            k["usage"] = stats[k_id]
+
+    return {
+        "status": "success",
+        "data": keys,
+        "total": len(keys),
+    }
+
+
+@app.post("/admin/keys/{key_id}/revoke", tags=["admin"])
+async def revoke_api_key(
+    key_id: str,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """撤销API Key"""
+    km = get_key_manager()
+    key_info = km.validate_key(api_key)
+    if not key_info or key_info.get("permission") not in ("admin",):
+        raise HTTPException(status_code=403, detail={
+            "status": "error", "error_code": "FORBIDDEN",
+            "message": "仅admin权限可撤销密钥"
+        })
+
+    if km.revoke_key(key_id):
+        return {"status": "success", "message": f"密钥 {key_id} 已撤销"}
+    raise HTTPException(status_code=404, detail={
+        "status": "error", "error_code": "NOT_FOUND",
+        "message": f"密钥不存在: {key_id}"
+    })
+
+
+@app.post("/admin/keys/{key_id}/rotate", tags=["admin"])
+async def rotate_api_key(
+    key_id: str,
+    body: dict,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """轮换API Key（生成新密钥值，旧密钥失效）"""
+    km = get_key_manager()
+    key_info = km.validate_key(api_key)
+    if not key_info or key_info.get("permission") not in ("admin",):
+        raise HTTPException(status_code=403, detail={
+            "status": "error", "error_code": "FORBIDDEN",
+            "message": "仅admin权限可轮换密钥"
+        })
+
+    new_ttl = body.get("ttl_days")
+    result = km.rotate_key(key_id, new_ttl_days=new_ttl)
+    if result:
+        return {
+            "status": "success",
+            "data": result,
+            "warning": "旧密钥已失效，请立即保存新 raw_key",
+        }
+    raise HTTPException(status_code=404, detail={
+        "status": "error", "error_code": "NOT_FOUND",
+        "message": f"密钥不存在或已禁用: {key_id}"
+    })
+
+
+@app.get("/admin/keys/stats", tags=["admin"])
+async def api_key_stats(
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """API Key用量统计"""
+    km = get_key_manager()
+    key_info = km.validate_key(api_key)
+    if not key_info or key_info.get("permission") not in ("admin",):
+        raise HTTPException(status_code=403, detail={
+            "status": "error", "error_code": "FORBIDDEN",
+            "message": "仅admin权限可查看统计"
+        })
+
+    stats = km.get_usage_stats()
+    keys = km.list_keys(include_disabled=True)
+
+    return {
+        "status": "success",
+        "data": {
+            "keys": stats,
+            "summary": {
+                "total": len(keys),
+                "active": len([k for k in keys if k.get("enabled")]),
+                "disabled": len([k for k in keys if not k.get("enabled")]),
+                "total_calls": sum(s.get("total_calls", 0) for s in stats.values()),
+            }
+        }
+    }
 
 
 # ── 启动入口 ──────────────────────────────────────────────

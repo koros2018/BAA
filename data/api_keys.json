@@ -1,0 +1,25 @@
+{
+  "keys": {
+    "key_env_admin": {
+      "key_id": "key_env_admin",
+      "hash": "4c806362b613f7496abf284146efd31da90e4b16169fe001841ca17290f427c4",
+      "permission": "admin",
+      "label": "env-key",
+      "created_by": "env",
+      "created_at": "2026-06-24T05:07:52.515655+00:00",
+      "expires_at": null,
+      "ttl_days": null,
+      "enabled": true,
+      "last_used": null,
+      "calls": 0
+    }
+  },
+  "usage": {
+    "key_env_admin": {
+      "calls": 0,
+      "last_used": null,
+      "per_minute": []
+    }
+  },
+  "updated_at": "2026-06-24T05:07:52.516947+00:00"
+}
