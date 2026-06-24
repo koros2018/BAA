@@ -144,6 +144,7 @@
       <div class="sidebar-item" data-page="review">🔎AI审图</div>
       <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
       <div class="sidebar-item" data-page="analysis">📊结果分析</div>
+      <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
       <div class="sidebar-item" data-page="settings">⚙️系统设置</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
@@ -349,6 +350,115 @@
       </div>
     </div>
 
+    <!-- ===== 密钥管理 ===== -->
+    <div class="page" id="page-apikeys">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold">🔑 API密钥管理</h1>
+          <p class="text-sm text-gray-500 mt-1">管理API访问密钥，支持权限分级、过期、轮换和用量统计</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openCreateKeyModal()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">+ 创建密钥</button>
+          <button onclick="loadAdminKeys()" class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm">🔄 刷新</button>
+        </div>
+      </div>
+
+      <!-- 密钥统计卡片 -->
+      <div class="grid grid-cols-4 gap-4 mb-6" id="key-stats">
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-blue-600" id="stat-total">-</div>
+          <div class="text-xs text-gray-500 mt-1">总计</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-green-600" id="stat-active">-</div>
+          <div class="text-xs text-gray-500 mt-1">活跃</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-orange-600" id="stat-disabled">-</div>
+          <div class="text-xs text-gray-500 mt-1">已禁用</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-purple-600" id="stat-calls">-</div>
+          <div class="text-xs text-gray-500 mt-1">总调用</div>
+        </div>
+      </div>
+
+      <!-- 密钥列表 -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium">密钥列表</h3>
+          <label class="text-xs text-gray-500 flex items-center gap-1">
+            <input type="checkbox" id="show-disabled" onchange="loadAdminKeys()">
+            显示已禁用
+          </label>
+        </div>
+        <div id="admin-keys-table">
+          <div class="text-center py-8 text-gray-400 text-sm">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 创建密钥 Modal -->
+      <div id="create-key-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+          <h3 class="text-lg font-bold mb-4">创建新API密钥</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">用途标签</label>
+              <input id="new-key-label" class="w-full border rounded px-3 py-2 text-sm" placeholder="如：生产环境-前端">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">权限等级</label>
+              <select id="new-key-permission" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="admin">admin - 完全控制</option>
+                <option value="write" selected>write - 可上传和审查</option>
+                <option value="read">read - 只读查询</option>
+                <option value="limited">limited - 只读+限流</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">有效期</label>
+              <select id="new-key-ttl" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="7">7天</option>
+                <option value="30">30天</option>
+                <option value="90" selected>90天（推荐）</option>
+                <option value="365">1年</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeCreateKeyModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">取消</button>
+            <button onclick="createAdminKey()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">创建</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 创建成功 Modal（显示 raw_key） -->
+      <div id="key-created-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+          <h3 class="text-lg font-bold mb-2 text-green-700">✅ 密钥创建成功</h3>
+          <p class="text-sm text-red-600 font-bold mb-3">⚠️ 这是唯一一次看到密钥原文，请立即保存！</p>
+          <div class="bg-gray-100 p-3 rounded font-mono text-sm break-all select-all" id="created-raw-key"></div>
+          <div class="mt-3 text-xs text-gray-500" id="created-key-info"></div>
+          <div class="flex justify-end gap-3 mt-4">
+            <button onclick="copyCreatedKey()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">📋 复制密钥</button>
+            <button onclick="closeKeyCreatedModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 密钥详情 Modal -->
+      <div id="key-detail-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
+          <h3 class="text-lg font-bold mb-4" id="detail-key-title">密钥详情</h3>
+          <div id="key-detail-content" class="space-y-3 text-sm"></div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button onclick="closeKeyDetailModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">关闭</button>
+            <button id="btn-revoke-key" onclick="revokeAdminKey()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 hidden">撤销此密钥</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== 系统设置 ===== -->
     <div class="page" id="page-settings">
       <h2 class="text-xl font-bold mb-6">系统设置</h2>
@@ -399,7 +509,7 @@ const HEADERS = () => {
 };
 let reviewHistory = [];
 
-// ── API密钥管理 ──────────────────────────────────────
+// ── API密钥管理（localStorage版，用于设置页密钥选择） ──
 let apiKeys = [];
 let activeKey = '';
 
@@ -519,6 +629,210 @@ function switchApiKey(id) {
   localStorage.setItem('baa_active_key', activeKey);
   renderApiKeys();
 }
+
+
+// ── 密钥管理（后端 /admin/keys 对接） ─────────────────
+
+let _selectedDetailKeyId = null;
+
+async function apiPostJSON(path, body) {
+  const r = await fetch(API_BASE() + path, {
+    method: 'POST',
+    headers: {...HEADERS(), 'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+function formatDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-CN', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+
+function permissionBadge(perm) {
+  const colors = {admin:'bg-red-100 text-red-800', write:'bg-blue-100 text-blue-800', read:'bg-green-100 text-green-800', limited:'bg-gray-100 text-gray-800'};
+  const c = colors[perm] || 'bg-gray-100';
+  return '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ' + c + '">' + perm + '</span>';
+}
+
+function enabledBadge(enabled) {
+  return enabled
+    ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✓ 启用</span>'
+    : '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">✗ 已禁用</span>';
+}
+
+async function loadAdminKeys() {
+  const table = document.getElementById('admin-keys-table');
+  if (!table) return;
+  table.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">加载中...</div>';
+
+  try {
+    const showDisabled = document.getElementById('show-disabled')?.checked;
+    const data = await apiGet('/admin/keys?include_disabled=' + (showDisabled ? 'true' : 'false'));
+    const statsData = await apiGet('/admin/keys/stats');
+
+    // 更新统计
+    if (statsData && statsData.data) {
+      document.getElementById('stat-total').textContent = statsData.data.summary.total;
+      document.getElementById('stat-active').textContent = statsData.data.summary.active;
+      document.getElementById('stat-disabled').textContent = statsData.data.summary.disabled;
+      document.getElementById('stat-calls').textContent = statsData.data.summary.total_calls;
+    }
+
+    if (!data || !data.data || data.data.length === 0) {
+      table.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">暂无密钥，点击「+ 创建密钥」开始</div>';
+      return;
+    }
+
+    let html = '<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b">' +
+      '<th class="pb-2 pr-3">标签</th>' +
+      '<th class="pb-2 pr-3">权限</th>' +
+      '<th class="pb-2 pr-3">状态</th>' +
+      '<th class="pb-2 pr-3">创建时间</th>' +
+      '<th class="pb-2 pr-3">过期时间</th>' +
+      '<th class="pb-2 pr-3">调用次数</th>' +
+      '<th class="pb-2">操作</th>' +
+      '</tr></thead><tbody>';
+
+    data.data.forEach(k => {
+      const usage = k.usage || {};
+      html += '<tr class="border-b hover:bg-gray-50">' +
+        '<td class="py-2 pr-3 font-medium">' + (k.label || '-') + '</td>' +
+        '<td class="py-2 pr-3">' + permissionBadge(k.permission) + '</td>' +
+        '<td class="py-2 pr-3">' + enabledBadge(k.enabled) + '</td>' +
+        '<td class="py-2 pr-3 text-gray-500">' + formatDate(k.created_at) + '</td>' +
+        '<td class="py-2 pr-3 text-gray-500">' + formatDate(k.expires_at) + '</td>' +
+        '<td class="py-2 pr-3 text-gray-500">' + (usage.total_calls || 0) + '</td>' +
+        '<td class="py-2">' +
+          '<button onclick="showKeyDetail(\'' + k.key_id + '\')" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300 mr-1">详情</button>' +
+          (k.enabled ? '<button onclick="confirmRevokeKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200">撤销</button>' : '') +
+        '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    table.innerHTML = html;
+  } catch (e) {
+    table.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">❌ 加载失败: ' + e.message + '</div>';
+  }
+}
+
+function openCreateKeyModal() {
+  document.getElementById('create-key-modal').classList.remove('hidden');
+  document.getElementById('new-key-label').value = '';
+  document.getElementById('new-key-permission').value = 'write';
+  document.getElementById('new-key-ttl').value = '90';
+}
+
+function closeCreateKeyModal() {
+  document.getElementById('create-key-modal').classList.add('hidden');
+}
+
+async function createAdminKey() {
+  const label = document.getElementById('new-key-label').value.trim() || 'unnamed';
+  const permission = document.getElementById('new-key-permission').value;
+  const ttl = parseInt(document.getElementById('new-key-ttl').value);
+
+  const btn = document.querySelector('#create-key-modal .bg-green-600');
+  btn.textContent = '创建中...';
+  btn.disabled = true;
+
+  try {
+    const data = await apiPostJSON('/admin/keys', {label, permission, ttl_days: ttl});
+    if (data.status === 'success' && data.data) {
+      closeCreateKeyModal();
+      // 显示创建成功modal
+      document.getElementById('created-raw-key').textContent = data.data.raw_key;
+      document.getElementById('created-key-info').innerHTML =
+        '密钥ID: ' + data.data.key_id + '<br>' +
+        '权限: ' + data.data.info.permission + '<br>' +
+        '过期: ' + formatDate(data.data.info.expires_at);
+      document.getElementById('key-created-modal').classList.remove('hidden');
+      loadAdminKeys();
+    } else {
+      alert('创建失败: ' + (data.detail?.message || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+  } finally {
+    btn.textContent = '创建';
+    btn.disabled = false;
+  }
+}
+
+let _createdRawKey = '';
+
+function copyCreatedKey() {
+  const txt = document.getElementById('created-raw-key').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    alert('已复制到剪贴板');
+  });
+}
+
+function closeKeyCreatedModal() {
+  document.getElementById('key-created-modal').classList.add('hidden');
+}
+
+async function showKeyDetail(keyId) {
+  _selectedDetailKeyId = keyId;
+  document.getElementById('detail-key-title').textContent = '密钥详情: ' + keyId;
+  document.getElementById('btn-revoke-key').classList.add('hidden');
+  document.getElementById('key-detail-content').innerHTML = '<div class="text-gray-400">加载中...</div>';
+  document.getElementById('key-detail-modal').classList.remove('hidden');
+
+  try {
+    const data = await apiGet('/admin/keys?include_disabled=true');
+    if (data && data.data) {
+      const k = data.data.find(x => x.key_id === keyId);
+      if (k) {
+        const usage = k.usage || {};
+        document.getElementById('key-detail-content').innerHTML =
+          '<div class="grid grid-cols-2 gap-3">' +
+            '<div><span class="text-gray-500">标签:</span> ' + (k.label || '-') + '</div>' +
+            '<div><span class="text-gray-500">权限:</span> ' + permissionBadge(k.permission) + '</div>' +
+            '<div><span class="text-gray-500">状态:</span> ' + enabledBadge(k.enabled) + '</div>' +
+            '<div><span class="text-gray-500">创建者:</span> ' + (k.created_by || '-') + '</div>' +
+            '<div><span class="text-gray-500">创建时间:</span> ' + formatDate(k.created_at) + '</div>' +
+            '<div><span class="text-gray-500">过期时间:</span> ' + formatDate(k.expires_at) + '</div>' +
+            '<div><span class="text-gray-500">总调用:</span> ' + (usage.total_calls || 0) + '</div>' +
+            '<div><span class="text-gray-500">最后使用:</span> ' + formatDate(usage.last_used) + '</div>' +
+          '</div>';
+        if (k.enabled) {
+          document.getElementById('btn-revoke-key').classList.remove('hidden');
+        }
+      }
+    }
+  } catch (e) {
+    document.getElementById('key-detail-content').innerHTML = '<div class="text-red-500">加载失败: ' + e.message + '</div>';
+  }
+}
+
+function closeKeyDetailModal() {
+  document.getElementById('key-detail-modal').classList.add('hidden');
+}
+
+async function confirmRevokeKey(keyId) {
+  if (!confirm('确认撤销此密钥？撤销后所有使用此密钥的请求将被拒绝。')) return;
+  try {
+    const data = await apiPostJSON('/admin/keys/' + keyId + '/revoke', {});
+    if (data.status === 'success') {
+      loadAdminKeys();
+      alert('密钥已撤销');
+    } else {
+      alert('撤销失败: ' + (data.detail?.message || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+  }
+}
+
+async function revokeAdminKey() {
+  if (_selectedDetailKeyId) {
+    await confirmRevokeKey(_selectedDetailKeyId);
+    closeKeyDetailModal();
+  }
+}
 // ── 页面切换 ──────────────────────────────────────────────
 document.querySelectorAll('.sidebar-item').forEach(item => {
   item.addEventListener('click', () => {
@@ -529,6 +843,7 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
     if (item.dataset.page === 'home') loadDashboard();
     if (item.dataset.page === 'specs') loadSpecs();
     if (item.dataset.page === 'analysis') loadAnalysis();
+    if (item.dataset.page === 'apikeys') loadAdminKeys();
   });
 });
 
