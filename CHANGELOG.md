@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.8.3 (2026-06-24) — 真实图纸走廊宽度推断（平行线聚类）
+
+### 修复
+- **`_compute_bbox` 多层兜底**: ezdwg手动重建LWPOLYLINE从points计算、
+  LINE从start/end端点计算、vertices()兼容多种坐标格式
+- **LWPOLYLINE `_extract_properties`**: 增加point_count属性
+- **`_classify_by_geometry`**: 2点LWPOLYLINE视为LINE等价（真实图纸适配）
+- **`_infer_corridor_widths` 平行线聚类算法**:
+  - 收集LINE/2点LWPOLYLINE，按方向分组（水平/垂直）
+  - 统计平行线间距众数作为走廊宽度
+  - 宽度单位mm→m转换
+  - 空间分区：取最宽合适宽度作为主走廊宽度
+
+### 基线提升（真实图纸）
+- 泵房: 合规92→168（+83%）
+- 配电房: 合规100→177（+77%）
+- 室外电气: 合规175→264（+51%）
+- 东莞通建筑: 合规217→411（+89%）
+- 62/62单元测试全部通过
+
 ## v1.7.2 (2026-06-23) — 训练数据修复+前端增强+DWG解析三级兜底
 
 ### 修复

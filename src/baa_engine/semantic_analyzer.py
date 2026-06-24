@@ -7,18 +7,32 @@ from .drawing_parser import RawPrimitive
 
 # ── 图层规则表 ────────────────────────────────────────────
 
+# 短关键字（单字母/2字母）使用全词匹配（前后是_或边界），防止误匹配
+# 例如 "D" 不匹配 "DIM"、"DIMENSION"、"DWG"、"DOOR"
 LAYER_RULES = {
-    "WALL": "wall", "墙体": "wall", "墙": "wall", "W": "wall",
-    "DOOR": "door", "门": "door", "M": "door", "D": "door",
-    "WINDOW": "window", "窗": "window", "C": "window", "WIND": "window",
-    "STAIR": "stair", "楼梯": "stair", "ST": "stair", "STAIRS": "stair",
+    "WALL": "wall", "墙体": "wall", "墙": "wall",
+    "DOOR": "door", "门": "door",
+    "WINDOW": "window", "窗": "window", "WIND": "window",
+    "STAIR": "stair", "楼梯": "stair", "STAIRS": "stair",
     "CORRIDOR": "corridor", "走道": "corridor", "走廊": "corridor",
-    "FIRE_ZONE": "fire_zone", "防火分区": "fire_zone", "FZ": "fire_zone",
+    "FIRE_ZONE": "fire_zone", "防火分区": "fire_zone",
     "DIM": "dimension", "标注": "dimension", "尺寸": "dimension",
     "DIMENSION": "dimension",
     "EXIT": "exit", "出口": "exit", "安全出口": "exit",
-    "FIRE_DOOR": "fire_door", "防火门": "fire_door", "FD": "fire_door",
-    "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator", "FE": "fire_elevator",
+    "FIRE_DOOR": "fire_door", "防火门": "fire_door",
+    "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",
+}
+
+# 短关键字（单字母/2字母）使用全词匹配
+SHORT_LAYER_RULES = {
+    "W": "wall",
+    "D": "door",
+    "M": "door",
+    "C": "window",
+    "ST": "stair",
+    "FZ": "fire_zone",
+    "FD": "fire_door",
+    "FE": "fire_elevator",
 }
 
 
@@ -204,13 +218,32 @@ class SemanticAnalyzer:
         return entities
 
     def _classify_by_layer(self, layer: str) -> str:
-        """图层规则归类"""
+        """图层规则归类
+
+        长关键字（≥3字符）：子串匹配
+        短关键字（1-2字符）：全词匹配（前后是_或边界），防止误匹配
+        """
         if not layer:
             return "unknown"
         layer_upper = layer.upper()
+
+        # 长关键字（≥3字符）：子串匹配
         for keyword, entity_type in LAYER_RULES.items():
             if keyword in layer_upper:
                 return entity_type
+
+        # 短关键字（1-2字符）：全词匹配
+        for keyword, entity_type in SHORT_LAYER_RULES.items():
+            if keyword in layer_upper:
+                # 检查全词边界
+                idx = layer_upper.find(keyword)
+                while idx >= 0:
+                    pre_ok = (idx == 0 or layer_upper[idx-1] == '_')
+                    post_ok = (idx + len(keyword) >= len(layer_upper) or layer_upper[idx+len(keyword)] == '_')
+                    if pre_ok and post_ok:
+                        return entity_type
+                    idx = layer_upper.find(keyword, idx + 1)
+
         return "unknown"
 
     def _classify_by_geometry(self, prim: RawPrimitive) -> str:
@@ -226,12 +259,17 @@ class SemanticAnalyzer:
             length = props.get("length", 0)
             if length > 1000:
                 return "wall"
+            # 短 LINE：可能是门/窗的边（宽度一般在 50~500mm 范围）
+            if 50 < length < 500:
+                # 宽度适中，可能是门的宽度
+                # 但仅靠长度无法区分，暂归 corridor
+                pass
             return "corridor"
 
         if dxf_type in ("LWPOLYLINE", "POLYLINE"):
-            # 2 点 LWPOLYLINE（真实图纸常见）：视为 LINE 等价
             pts_count = props.get("point_count", 0)
             if pts_count == 2:
+                # 2 点 LWPOLYLINE：视为 LINE 等价
                 length = max(bw, bh)
                 if length > 1000:
                     return "wall"
@@ -242,6 +280,13 @@ class SemanticAnalyzer:
             elif area > 5000:
                 return "room"
             return "corridor"
+
+        # ARC：可能表示门（门弧）或窗
+        if dxf_type == "ARC":
+            radius = props.get("radius", 0)
+            if 100 < radius < 2000:
+                # 门弧半径（典型 500~1000mm）
+                return "door"
 
         if dxf_type == "CIRCLE":
             radius = props.get("radius", 0)
@@ -350,31 +395,26 @@ class SemanticAnalyzer:
                         for ent in entities:
                             if ent.type == "corridor":
                                 existing = ent.properties.get("width", 0)
+                                # 已有合理宽度（>0.5m）或已有单边推断宽度（0.05~0.5m）跳过
                                 if existing > 0.5:
                                     continue
+                                # 对多边形走廊（bbox两边非零）：也用聚类宽度覆盖
                                 bbox = ent.bbox
                                 bw = bbox.get("width", 0)
                                 bh = bbox.get("height", 0)
-                                if bw == 0 or bh == 0:
-                                    # 计算实体中心
-                                    ecx = bbox.get("x", 0) + bw / 2
-                                    ecy = bbox.get("y", 0) + bh / 2
-                                    # 找空间最近的gap
-                                    best_w = 0
-                                    best_dist = float("inf")
-                                    for w_mm in top_widths_mm:
-                                        w_m = w_mm * 0.001
-                                        if 0.5 < w_m < 3.5:
-                                            # 简单策略：取最宽的合适宽度（主走廊）
-                                            if w_m > best_w:
-                                                best_w = w_m
-                                    if best_w > 0:
-                                        ent.properties["width"] = best_w
-                                        ent.properties["clear_width"] = best_w
+                                best_w = 0
+                                for w_mm in top_widths_mm:
+                                    w_m = w_mm * 0.001
+                                    if 0.5 < w_m < 3.5:
+                                        if w_m > best_w:
+                                            best_w = w_m
+                                if best_w > 0:
+                                    ent.properties["width"] = best_w
+                                    ent.properties["clear_width"] = best_w
 
-        # ── 策略2：bbox 短边推断 ──
+        # ── 策略2：bbox 短边推断（覆盖所有类型） ──
         for ent in entities:
-            if ent.type not in ("corridor", "door", "window"):
+            if ent.type not in ("corridor", "door", "window", "room", "wall"):
                 continue
             bbox = ent.bbox
             bw = bbox.get("width", 0)
@@ -383,15 +423,16 @@ class SemanticAnalyzer:
             if bw == 0 and bh == 0:
                 continue
 
-            # bbox 两边非零 → 短边为宽度（mm→m）
+            # bbox 两边非零 → 短边为宽度（mm→m），长边为 length
             if bw > 0 and bh > 0:
                 w_mm = min(bw, bh)
                 w_m = w_mm * 0.001
-                if w_m > 0.05 and w_m < 10:
-                    if ent.properties.get("width", 0) < w_m:
+                # 放宽阈值：>0.01m (10mm) 就接受
+                if w_m > 0.01 and w_m < 10:
+                    current_w = ent.properties.get("width", 0)
+                    if current_w < w_m:
                         ent.properties["width"] = w_m
                         ent.properties["clear_width"] = w_m
-                # 长边作为 length
                 l_mm = max(bw, bh)
                 if l_mm > 0:
                     ent.properties["length"] = l_mm * 0.001
@@ -401,7 +442,7 @@ class SemanticAnalyzer:
             span_mm = max(bw, bh)
             if span_mm > 0:
                 span_m = span_mm * 0.001
-                if span_m > 0.1:
+                if span_m > 0.05:
                     ent.properties["length"] = span_m
                     if "width" not in ent.properties:
                         ent.properties["width"] = 0.0

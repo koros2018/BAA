@@ -371,6 +371,11 @@ class DrawingParser:
                     except Exception:
                         pass
 
+            elif entity.dxftype() == 'ARC':
+                props["radius"] = entity.dxf.radius
+                props["start_angle"] = entity.dxf.start_angle
+                props["end_angle"] = entity.dxf.end_angle
+
             elif entity.dxftype() == 'TEXT':
                 props["text"] = entity.dxf.text
                 props["height"] = entity.dxf.height
