@@ -242,7 +242,9 @@ def verify_api_key(request: Request):
 
 
 def require_admin(request: Request, api_key: str = ""):
-    """验证admin权限（用于admin端点）"""
+    """验证admin权限（用于admin端点）
+    开发模式（API_KEYS 为空）时不校验，直接放行。
+    """
     if not API_KEYS:
         return "anonymous"
     km = get_key_manager()
