@@ -83,6 +83,10 @@ class ApiKeyManager:
         """从持久化存储加载密钥"""
         if self._loaded:
             return
+        self._reload()
+
+    def _reload(self):
+        """强制从文件重新加载（跳过 _loaded 短路）"""
         self._ensure_storage_dir()
         if os.path.exists(self._storage_path):
             try:
@@ -229,7 +233,7 @@ class ApiKeyManager:
 
     def revoke_key(self, key_id: str) -> bool:
         """撤销密钥"""
-        self.load()
+        self._reload()
         with self._lock:
             if key_id not in self._keys:
                 return False
@@ -275,7 +279,7 @@ class ApiKeyManager:
 
     def delete_key(self, key_id: str) -> bool:
         """删除密钥（不可恢复）"""
-        self.load()
+        self._reload()
         with self._lock:
             if key_id not in self._keys:
                 return False
