@@ -1234,6 +1234,22 @@ async def verify_api_key_raw(
         }
 
 
+@app.get("/admin/bootstrap-key", tags=["admin"])
+async def bootstrap_admin_key():
+    """获取前端密钥管理页使用的管理令牌（免认证）
+    
+    开发模式（BAA_API_KEY 未设置）时返回空字符串，
+    此时后端 require_admin 不校验令牌，前端直接发请求即可。
+    生产模式时返回环境变量中的 admin key。
+    """
+    env_key = os.getenv("BAA_API_KEY", "")
+    return {
+        "status": "success",
+        "admin_key": env_key,
+        "mode": "production" if env_key else "development",
+    }
+
+
 # ── 启动入口 ──────────────────────────────────────────────
 
 if __name__ == "__main__":

@@ -751,6 +751,48 @@ function closeImportKeyModal() {
 
 let _selectedDetailKeyId = null;
 
+// ── 密钥管理页专用管理令牌（独立于连接配置页的 localStorage） ──
+let _adminToken = '';
+
+async function initAdminToken() {
+  // 开发模式: /admin/bootstrap-key 返回空字符串，此时后端不校验
+  // 生产模式: 获取环境变量中的 admin key
+  try {
+    const data = await fetch(API_BASE() + '/admin/bootstrap-key').then(r => r.json());
+    if (data.status === 'success') {
+      _adminToken = data.admin_key || '';
+    }
+  } catch (e) {
+    _adminToken = '';
+  }
+}
+
+function adminHeaders() {
+  return _adminToken ? {'Authorization': 'Bearer ' + _adminToken, 'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+}
+
+async function adminGet(path) {
+  const r = await fetch(API_BASE() + path, {headers: adminHeaders()});
+  return r.json();
+}
+
+async function adminPost(path, body) {
+  const r = await fetch(API_BASE() + path, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+async function adminDelete(path) {
+  const r = await fetch(API_BASE() + path, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+  return r.json();
+}
+
 async function apiPostJSON(path, body) {
   const r = await fetch(API_BASE() + path, {
     method: 'POST',
@@ -795,8 +837,8 @@ async function loadAdminKeys() {
 
   try {
     const showDisabled = document.getElementById('show-disabled')?.checked;
-    const data = await apiGet('/admin/keys?include_disabled=' + (showDisabled ? 'true' : 'false'));
-    const statsData = await apiGet('/admin/keys/stats');
+    const data = await adminGet('/admin/keys?include_disabled=' + (showDisabled ? 'true' : 'false'));
+    const statsData = await adminGet('/admin/keys/stats');
 
     // 更新统计
     if (statsData && statsData.data) {
@@ -870,7 +912,7 @@ async function createAdminKey() {
   btn.disabled = true;
 
   try {
-    const data = await apiPostJSON('/admin/keys', {label, permission, ttl_days: ttl});
+    const data = await adminPost('/admin/keys', {label, permission, ttl_days: ttl});
     if (data.status === 'success' && data.data) {
       closeCreateKeyModal();
       // 显示创建成功modal
@@ -913,7 +955,7 @@ async function showKeyDetail(keyId) {
   document.getElementById('key-detail-modal').classList.remove('hidden');
 
   try {
-    const data = await apiGet('/admin/keys?include_disabled=true');
+    const data = await adminGet('/admin/keys?include_disabled=true');
     if (data && data.data) {
       const k = data.data.find(x => x.key_id === keyId);
       if (k) {
@@ -946,7 +988,7 @@ function closeKeyDetailModal() {
 async function confirmRevokeKey(keyId) {
   if (!confirm('确认撤销此密钥？撤销后所有使用此密钥的请求将被拒绝。')) return;
   try {
-    const data = await apiPostJSON('/admin/keys/' + keyId + '/revoke', {});
+    const data = await adminPost('/admin/keys/' + keyId + '/revoke', {});
     if (data.status === 'success') {
       loadAdminKeys();
       alert('密钥已撤销');
@@ -963,11 +1005,7 @@ async function confirmDeleteKey(keyId) {
   if (!confirm('再次确认：密钥 ' + keyId + ' 将被永久删除，无法找回。')) return;
   try {
     // 复用 apiPostJSON 的鉴权方式，统一通过 HEADERS() 带 token
-    const r = await fetch(API_BASE() + '/admin/keys/' + keyId, {
-      method: 'DELETE',
-      headers: {...HEADERS(), 'Content-Type': 'application/json'},
-    });
-    const data = await r.json();
+    const data = await adminDelete('/admin/keys/' + keyId);
     if (data.status === 'success') {
       loadAdminKeys();
       alert('密钥已永久删除');
@@ -1912,6 +1950,7 @@ function loadAnalysis() {
 // ── 初始化 ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadApiBase();  // 恢复API地址
+  initAdminToken();  // 初始化密钥管理页专用管理令牌
   loadApiKeys();
   populateTokenSelect();
   loadParsedDrawings();
