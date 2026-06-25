@@ -1157,6 +1157,23 @@ async def rotate_api_key(
     })
 
 
+@app.delete("/admin/keys/{key_id}", tags=["admin"])
+async def delete_api_key(
+    key_id: str,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
+    """物理删除API Key（不可恢复）"""
+    km = get_key_manager()
+    if km.delete_key(key_id):
+        return {"status": "success", "message": f"密钥 {key_id} 已永久删除"}
+    raise HTTPException(status_code=404, detail={
+        "status": "error", "error_code": "NOT_FOUND",
+        "message": f"密钥不存在: {key_id}"
+    })
+
+
 @app.get("/admin/keys/stats", tags=["admin"])
 async def api_key_stats(
     request: Request = None,

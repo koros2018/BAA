@@ -9,33 +9,20 @@
       "created_at": "2026-06-24T05:07:52.515655+00:00",
       "expires_at": null,
       "ttl_days": null,
-      "enabled": true,
+      "enabled": false,
       "last_used": null,
       "calls": 0
     },
-    "key_f97708d130e62c5c": {
-      "key_id": "key_f97708d130e62c5c",
-      "hash": "f9beaf75af4aa04ed8695a1995ccffb46b6fae980e0698bd936b99f1f7401e3d",
-      "permission": "write",
-      "label": "无上咒",
-      "created_by": "anonymous",
-      "created_at": "2026-06-24T07:53:23.585824+00:00",
-      "expires_at": "2026-09-22T07:53:23.585824+00:00",
-      "ttl_days": 90,
-      "enabled": true,
-      "last_used": null,
-      "calls": 0
-    },
-    "key_cbb8a56c9e8dbdce": {
-      "key_id": "key_cbb8a56c9e8dbdce",
-      "hash": "889ec8642f058673a6950237d7d3a89d546fbc7556ac3f45111765b164497b97",
-      "permission": "admin",
+    "key_3e9bb9bff97749df": {
+      "key_id": "key_3e9bb9bff97749df",
+      "hash": "a26f28b69f7e185da2f91926b18b740b1b70048cabc421e8302deace39df8818",
+      "permission": "read",
       "label": "如意",
       "created_by": "anonymous",
-      "created_at": "2026-06-24T08:39:17.585010+00:00",
-      "expires_at": "2026-09-22T08:39:17.585010+00:00",
+      "created_at": "2026-06-24T08:36:00.224652+00:00",
+      "expires_at": "2026-09-22T08:36:00.224652+00:00",
       "ttl_days": 90,
-      "enabled": true,
+      "enabled": false,
       "last_used": null,
       "calls": 0
     }
@@ -46,16 +33,11 @@
       "last_used": null,
       "per_minute": []
     },
-    "key_f97708d130e62c5c": {
-      "calls": 0,
-      "last_used": null,
-      "per_minute": []
-    },
-    "key_cbb8a56c9e8dbdce": {
+    "key_3e9bb9bff97749df": {
       "calls": 0,
       "last_used": null,
       "per_minute": []
     }
   },
-  "updated_at": "2026-06-24T08:39:17.587331+00:00"
+  "updated_at": "2026-06-25T11:45:40.806710+00:00"
 }

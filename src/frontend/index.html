@@ -483,7 +483,7 @@
               <option value="">无令牌（开发模式）</option>
             </select>
             <button onclick="refreshTokenSelect()" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" title="从服务端刷新令牌列表">🔄</button>
-            <button onclick="deleteCurrentApiKey()" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200" title="删除当前令牌">🗑️</button>
+            <button onclick="deleteCurrentApiKey()" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200" title="删除当前本地令牌">🗑️</button>
           </div>
           <div class="text-xs text-gray-400" id="token-hint"></div>
           <div class="flex gap-2 mt-2">
@@ -821,7 +821,8 @@ async function loadAdminKeys() {
         '<td class="py-2 pr-3 text-gray-500">' + (usage.total_calls || 0) + '</td>' +
         '<td class="py-2">' +
           '<button onclick="showKeyDetail(\'' + k.key_id + '\')" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300 mr-1">详情</button>' +
-          (k.enabled ? '<button onclick="confirmRevokeKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200">撤销</button>' : '') +
+          (k.enabled ? '<button onclick="confirmRevokeKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200 mr-1">撤销</button>' : '') +
+          '<button onclick="confirmDeleteKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-200 rounded text-xs hover:bg-red-300" title="永久删除（不可恢复）">🗑️</button>' +
         '</td>' +
         '</tr>';
     });
@@ -936,6 +937,26 @@ async function confirmRevokeKey(keyId) {
       alert('密钥已撤销');
     } else {
       alert('撤销失败: ' + (data.detail?.message || JSON.stringify(data)));
+    }
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+  }
+}
+
+async function confirmDeleteKey(keyId) {
+  if (!confirm('⚠️ 确认永久删除此密钥？此操作不可恢复，删除后数据将从服务端移除。')) return;
+  if (!confirm('再次确认：密钥 ' + keyId + ' 将被永久删除，无法找回。')) return;
+  try {
+    const r = await fetch(API_BASE() + '/admin/keys/' + keyId, {
+      method: 'DELETE',
+      headers: HEADERS(),
+    });
+    const data = await r.json();
+    if (data.status === 'success') {
+      loadAdminKeys();
+      alert('密钥已永久删除');
+    } else {
+      alert('删除失败: ' + (data.detail?.message || JSON.stringify(data)));
     }
   } catch (e) {
     alert('请求失败: ' + e.message);
