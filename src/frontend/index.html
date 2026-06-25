@@ -362,6 +362,7 @@
           <button onclick="loadAdminKeys()" class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm">🔄 刷新</button>
         </div>
       </div>
+      <div id="admin-key-auth-hint" class="mb-4 text-xs"></div>
 
       <!-- 密钥统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-6" id="key-stats">
@@ -779,8 +780,18 @@ function enabledBadge(enabled) {
 
 async function loadAdminKeys() {
   const table = document.getElementById('admin-keys-table');
+  const authHint = document.getElementById('admin-key-auth-hint');
   if (!table) return;
   table.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">加载中...</div>';
+  if (authHint) authHint.innerHTML = '';
+
+  // 检查当前令牌是否有效
+  const activeKeyVal = getActiveKeyValue();
+  if (!activeKeyVal) {
+    if (authHint) {
+      authHint.innerHTML = '<div class="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">⚠️ 当前未选择访问令牌，密钥管理操作需要admin权限。请先前往 <a href="#" onclick="document.querySelector(\'[data-page=settings]\').click();return false" class="text-blue-600 underline">🔌 连接配置</a> 选择一个admin令牌。</div>';
+    }
+  }
 
   try {
     const showDisabled = document.getElementById('show-disabled')?.checked;
@@ -830,6 +841,10 @@ async function loadAdminKeys() {
     html += '</tbody></table>';
     table.innerHTML = html;
   } catch (e) {
+    const isAuthError = e.message && (e.message.includes('403') || e.message.includes('FORBIDDEN') || e.message.includes('Unauthorized'));
+    if (authHint && isAuthError) {
+      authHint.innerHTML = '<div class="px-3 py-2 bg-red-50 border border-red-200 rounded text-red-700">❌ 权限不足：当前令牌无admin权限。请前往 <a href="#" onclick="document.querySelector(\'[data-page=settings]\').click();return false" class="text-blue-600 underline">🔌 连接配置</a> 选择一个admin令牌或使用环境变量key。</div>';
+    }
     table.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">❌ 加载失败: ' + e.message + '</div>';
   }
 }
@@ -947,16 +962,24 @@ async function confirmDeleteKey(keyId) {
   if (!confirm('⚠️ 确认永久删除此密钥？此操作不可恢复，删除后数据将从服务端移除。')) return;
   if (!confirm('再次确认：密钥 ' + keyId + ' 将被永久删除，无法找回。')) return;
   try {
+    // 复用 apiPostJSON 的鉴权方式，统一通过 HEADERS() 带 token
     const r = await fetch(API_BASE() + '/admin/keys/' + keyId, {
       method: 'DELETE',
-      headers: HEADERS(),
+      headers: {...HEADERS(), 'Content-Type': 'application/json'},
     });
     const data = await r.json();
     if (data.status === 'success') {
       loadAdminKeys();
       alert('密钥已永久删除');
     } else {
-      alert('删除失败: ' + (data.detail?.message || JSON.stringify(data)));
+      const msg = data.detail?.message || JSON.stringify(data);
+      if (r.status === 403) {
+        alert('❌ 权限不足：当前令牌无admin权限。\n请先在「连接配置」页选择一个admin令牌后再试。\n\n详情: ' + msg);
+      } else if (r.status === 404) {
+        alert('❌ 密钥不存在或已被删除: ' + msg);
+      } else {
+        alert('删除失败 (' + r.status + '): ' + msg);
+      }
     }
   } catch (e) {
     alert('请求失败: ' + e.message);
