@@ -1183,6 +1183,38 @@ async def api_key_stats(
     }
 
 
+@app.post("/admin/keys/verify", tags=["admin"])
+async def verify_api_key_raw(
+    body: dict,
+    request: Request = None,
+):
+    """验证原始API Key是否有效（无需admin权限，供前端导入时校验）"""
+    raw_key = body.get("raw_key", "")
+    if not raw_key:
+        return {"status": "error", "valid": False, "message": "请提供 raw_key"}
+
+    km = get_key_manager()
+    key_info = km.validate_key(raw_key)
+    if key_info and key_info.get("enabled", True):
+        return {
+            "status": "success",
+            "valid": True,
+            "key_info": {
+                "key_id": key_info.get("key_id"),
+                "label": key_info.get("label"),
+                "permission": key_info.get("permission"),
+                "expires_at": key_info.get("expires_at"),
+                "created_at": key_info.get("created_at"),
+            }
+        }
+    else:
+        return {
+            "status": "success",
+            "valid": False,
+            "message": "密钥无效或已过期/撤销"
+        }
+
+
 # ── 启动入口 ──────────────────────────────────────────────
 
 if __name__ == "__main__":

@@ -483,6 +483,7 @@
               <option value="">无令牌（开发模式）</option>
             </select>
             <button onclick="refreshTokenSelect()" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300" title="从服务端刷新令牌列表">🔄</button>
+            <button onclick="deleteCurrentApiKey()" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200" title="删除当前令牌">🗑️</button>
           </div>
           <div class="text-xs text-gray-400" id="token-hint"></div>
           <div class="flex gap-2 mt-2">
@@ -513,6 +514,18 @@
 
 <script>
 // ── 全局状态 ──────────────────────────────────────────────
+// 从 localStorage 恢复API地址
+function loadApiBase() {
+  const saved = localStorage.getItem('baa_api_base');
+  const input = document.getElementById('api-base');
+  if (saved && input) input.value = saved;
+}
+
+function saveApiBase() {
+  const input = document.getElementById('api-base');
+  if (input) localStorage.setItem('baa_api_base', input.value);
+}
+
 const API_BASE = () => document.getElementById('api-base')?.value || 'http://localhost:8000';
 const HEADERS = () => {
   const key = getActiveKeyValue();
@@ -554,6 +567,12 @@ function switchApiKey(id) {
   activeKey = id;
   localStorage.setItem('baa_active_key', activeKey);
   populateTokenSelect();
+}
+
+function deleteCurrentApiKey() {
+  if (!activeKey) { alert('当前没有选中任何令牌'); return; }
+  if (!confirm('确认删除当前令牌？')) return;
+  deleteApiKey(activeKey);
 }
 
 function populateTokenSelect() {
@@ -614,39 +633,55 @@ function copyApiKey(id) {
 }
 
 async function refreshTokenSelect() {
-  // 从后端拉取密钥列表（仅提示，不直接填入选择器）
+  const btn = document.querySelector('#active-key-select + button');
+  if (btn) btn.textContent = '⏳';
+  const hint = document.getElementById('token-hint');
+  if (hint) hint.textContent = '正在从服务端刷新密钥列表...';
   try {
     const data = await apiGet('/admin/keys');
     if (data && data.data && data.data.length > 0) {
-      const hint = document.getElementById('token-hint');
       if (hint) {
-        hint.textContent = '服务端有 ' + data.data.length + ' 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。';
+        hint.textContent = '✅ 服务端有 ' + data.data.length + ' 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。';
       }
+    } else {
+      if (hint) hint.textContent = '服务端暂无可用密钥，请先在「密钥管理」页面创建。';
     }
   } catch (e) {
-    // 静默
+    if (hint) hint.textContent = '❌ 刷新失败: ' + e.message + '（请确认当前令牌有admin权限）';
+  } finally {
+    if (btn) btn.textContent = '🔄';
   }
 }
 
 let _importingKeyId = null;
 
 async function importServerKey() {
-  alert('[BAA] importServerKey 被调用');
-  // 弹窗列出服务端密钥
+  // 先检查当前令牌是否有效
+  const activeKeyVal = getActiveKeyValue();
+  if (!activeKeyVal) {
+    if (!confirm('当前未选择任何令牌，后端 /admin/keys 需要admin权限。\n是否仍要尝试？（建议先在「密钥管理」创建admin密钥后选择）')) {
+      return;
+    }
+  }
+
   const list = document.getElementById('import-key-list');
-  if (!list) { alert('未找到 import-key-list 元素'); return; }
-  list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">加载中...</div>';
+  if (!list) { alert('页面元素异常'); return; }
+  list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">⏳ 加载中...</div>';
   document.getElementById('import-key-modal').classList.remove('hidden');
   
   try {
-    alert('[BAA] 正在请求 /admin/keys...');
     const data = await apiGet('/admin/keys');
-    alert('[BAA] 收到响应: ' + JSON.stringify(data).substring(0, 100));
     if (!data || !data.data || data.data.length === 0) {
       list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无可用密钥，请先在「密钥管理」页面创建。</div>';
       return;
     }
     
+    // 检查是否返回了403错误
+    if (data.detail && data.detail.error_code === 'FORBIDDEN') {
+      list.innerHTML = '<div class="text-center text-red-500 text-sm py-4">❌ 权限不足：当前令牌无admin权限。\n请先在「密钥管理」页面创建admin密钥，\n然后在连接配置页选择该令牌后再试。</div>';
+      return;
+    }
+
     list.innerHTML = '';
     data.data.forEach(k => {
       if (!k.enabled) return;
@@ -663,36 +698,47 @@ async function importServerKey() {
       list.appendChild(div);
     });
   } catch (e) {
-    list.innerHTML = '<div class="text-center text-red-500 text-sm py-4">加载失败: ' + e.message + '</div>';
+    list.innerHTML = '<div class="text-center text-red-500 text-sm py-4">❌ 加载失败: ' + e.message + '</div>';
   }
 }
 
-function importSelectedKey(keyId) {
+async function importSelectedKey(keyId) {
   _importingKeyId = keyId;
   const keyValue = prompt('请输入此密钥的原始值（从密钥管理页创建时复制）：');
   if (!keyValue) return;
-  
-  // 找到密钥信息
-  apiGet('/admin/keys').then(data => {
-    if (data && data.data) {
-      const k = data.data.find(x => x.key_id === keyId);
-      const label = (k ? k.label || k.key_id : keyId) + ' (imported)';
+
+  // 后端验证：确认密钥有效
+  const btn = event?.target || document.querySelector('#import-key-modal button');
+  if (btn) { btn.textContent = '验证中...'; btn.disabled = true; }
+
+  try {
+    const verifyResult = await apiPostJSON('/admin/keys/verify', { raw_key: keyValue });
+    if (verifyResult.status === 'success' && verifyResult.valid) {
+      const keyInfo = verifyResult.key_info || {};
+      const label = (keyInfo.label || keyInfo.key_id || keyId) + ' (imported)';
       apiKeys.push({id: 'key_' + Date.now(), name: label, key: keyValue, created: Date.now()});
       saveApiKeys();
       activeKey = apiKeys[apiKeys.length - 1].id;
       localStorage.setItem('baa_active_key', activeKey);
       populateTokenSelect();
       closeImportKeyModal();
+      alert('✅ 密钥验证通过，已添加到本地令牌列表');
+    } else {
+      alert('❌ 密钥验证失败：' + (verifyResult.message || '密钥无效或已过期'));
     }
-  }).catch(() => {
-    // 即使获取详情失败，也保存
-    apiKeys.push({id: 'key_' + Date.now(), name: keyId + ' (imported)', key: keyValue, created: Date.now()});
-    saveApiKeys();
-    activeKey = apiKeys[apiKeys.length - 1].id;
-    localStorage.setItem('baa_active_key', activeKey);
-    populateTokenSelect();
-    closeImportKeyModal();
-  });
+  } catch (e) {
+    // 后端验证不可用时，回退到直接保存
+    if (confirm('无法验证密钥有效性（' + e.message + '）。是否仍要保存到本地？')) {
+      apiKeys.push({id: 'key_' + Date.now(), name: keyId + ' (imported)', key: keyValue, created: Date.now()});
+      saveApiKeys();
+      activeKey = apiKeys[apiKeys.length - 1].id;
+      localStorage.setItem('baa_active_key', activeKey);
+      populateTokenSelect();
+      closeImportKeyModal();
+    }
+  } finally {
+    if (btn) { btn.textContent = '选择并填入'; btn.disabled = false; }
+  }
 }
 
 function closeImportKeyModal() {
@@ -1821,6 +1867,7 @@ function loadAnalysis() {
 
 // ── 初始化 ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  loadApiBase();  // 恢复API地址
   loadApiKeys();
   populateTokenSelect();
   loadParsedDrawings();
@@ -1830,6 +1877,9 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshCompareDrawingSelect();
   loadDashboard();
   loadSpecs();
+
+  // API地址变更时自动保存
+  document.getElementById('api-base')?.addEventListener('change', saveApiBase);
 
   // 引擎状态
   document.getElementById('engine-status').innerHTML =
