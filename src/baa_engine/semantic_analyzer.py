@@ -434,33 +434,6 @@ class SemanticAnalyzer:
                     if not reasonable_buckets:
                         reasonable_buckets = [(b, v) for b, v in sorted_buckets if 600 < b < 3000]
                     
-                    if reasonable_buckets:
-                        top_widths_mm = []
-                        for bucket, vals in reasonable_buckets[:3]:
-                            avg = sum(vals) / len(vals)
-                            top_widths_mm.append(avg)
-                        
-                        # 按空间位置为每个走廊选择最匹配的宽度
-                        for ent in entities:
-                            if ent.type == "corridor":
-                                existing = ent.properties.get("width", 0)
-                                # 已有合理宽度（>0.5m）或已有单边推断宽度（0.05~0.5m）跳过
-                                if existing > 0.5:
-                                    continue
-                                # 对多边形走廊（bbox两边非零）：也用聚类宽度覆盖
-                                bbox = ent.bbox
-                                bw = bbox.get("width", 0)
-                                bh = bbox.get("height", 0)
-                                best_w = 0
-                                for w_mm in top_widths_mm:
-                                    w_m = w_mm * 0.001
-                                    if 0.5 < w_m < 3.5:
-                                        if w_m > best_w:
-                                            best_w = w_m
-                                if best_w > 0:
-                                    ent.properties["width"] = best_w
-                                    ent.properties["clear_width"] = best_w
-
         # ── 策略1.5：door/window 宽度推断 ──
         for ent in entities:
             if ent.type in ("door", "window"):
@@ -516,8 +489,15 @@ class SemanticAnalyzer:
                 span_m = span_mm * 0.001
                 if not math.isnan(span_m) and span_m > 0.05:
                     ent.properties["length"] = span_m
-                    if "width" not in ent.properties:
-                        ent.properties["width"] = 0.0
+                    # 对 corridor/room：bbox短边≈宽度
+                    if ent.type in ("corridor", "room", "door", "fire_door", "exit_door"):
+                        short_mm = min(bw, bh) if bw > 0 and bh > 0 else 0
+                        if short_mm > 0:
+                            short_m = short_mm * 0.001
+                            current_w = ent.properties.get("width", 0)
+                            if current_w < 0.01 and 0.05 < short_m < 3.0:
+                                ent.properties["width"] = short_m
+                                ent.properties["clear_width"] = short_m
 
         return entities
 
