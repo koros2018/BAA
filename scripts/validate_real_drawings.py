@@ -25,22 +25,33 @@ from src.baa_engine.attribution_analyzer import AttributionAnalyzer
 # ── 图纸列表 ────────────────────────────────────────────
 # (文件名, 标签, 建筑类型推断)
 DRAWINGS = [
-    ("基础+2#,3#上部-202104.dwg", "基础+上部结构", "civil"),
-    ("E-00-01-01 室外电气总平面图.dwg", "室外电气总平面", "civil"),
-    ("20210409-3#泵房_t3.dwg", "3#泵房", "industrial"),
-    ("202109409-2#配电房_t3.dwg", "2#配电房", "industrial"),
-    ("A1IDC及通信机楼结构平面图20161227z.dwg", "IDC通信机楼结构", "industrial"),
-    ("A1云计算中心_水消防2017.03.31_t3.dwg", "云计算中心水消防", "industrial"),
-    ("A1云计算中心平面图0405_t3.dwg", "云计算中心平面", "industrial"),
-    ("ZY项目1#数据中心机房平立剖面图_t7_t3.dwg", "数据中心机房", "industrial"),
-    ("中原人工智能计算中心总图-0409_t3.dwg", "AI计算中心总图", "industrial"),
-    ("E-00-11-01电力配电箱系统图.dwg", "电力配电箱系统", "industrial"),
+    ("基础+2#,3#上部-202104", "基础+上部结构", "civil"),
+    ("E-00-01-01 室外电气总平面图", "室外电气总平面", "civil"),
+    ("20210409-3#泵房_t3", "3#泵房", "industrial"),
+    ("202109409-2#配电房_t3", "2#配电房", "industrial"),
+    ("A1IDC及通信机楼结构平面图20161227z", "IDC通信机楼结构", "industrial"),
+    ("A1云计算中心_水消防2017.03.31_t3", "云计算中心水消防", "industrial"),
+    ("A1云计算中心平面图0405_t3", "云计算中心平面", "industrial"),
+    ("ZY项目1#数据中心机房平立剖面图_t7_t3", "数据中心机房", "industrial"),
+    ("中原人工智能计算中心总图-0409_t3", "AI计算中心总图", "industrial"),
+    ("E-00-11-01电力配电箱系统图", "电力配电箱系统", "industrial"),
 ]
+
+
+def _resolve_filepath(data_dir: Path, name: str) -> Path:
+    """优先尝试 .dxf，不存在则用 .dwg"""
+    dxf_path = data_dir / f"{name}.dxf"
+    if dxf_path.exists():
+        return dxf_path
+    dwg_path = data_dir / f"{name}.dwg"
+    if dwg_path.exists():
+        return dwg_path
+    return dxf_path  # 返回 DXF 路径（方便上层报错）
 
 
 def validate_drawing(data_dir: Path, filename: str, label: str, btype: str) -> dict:
     """对单张真实图纸执行解析→审查全流程，返回结构化结果"""
-    filepath = data_dir / filename
+    filepath = _resolve_filepath(data_dir, filename)
     if not filepath.exists():
         return {"file": filename, "label": label, "building_type": btype,
                 "status": "error", "error": "文件不存在"}

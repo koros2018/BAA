@@ -207,6 +207,8 @@ class AtomicFunction:
 
         if func_id in ("DIM-005", "AREA-001"):  # 面积判定（窗/避难层）
             val = props.get("area", props.get("width", 0) * props.get("height", 0))
+            if val < 0.01:
+                return None  # 无面积数据，跳过判定
             if unit == "mm2":
                 return val / 1000000.0
             if unit == "m2":
@@ -240,6 +242,8 @@ class AtomicFunction:
         # L3 新增函数
         if func_id in ("DIM-008", "DIM-010"):  # 排烟窗面积 / 消防救援窗面积
             val = props.get("area", props.get("width", 0) * props.get("height", 0))
+            if val < 0.01:
+                return None  # 无面积数据，跳过判定
             if unit == "mm2":
                 return val / 1000000.0
             if unit == "m2":
@@ -281,7 +285,10 @@ class AtomicFunction:
             return val
 
         if func_id == "ATTR-003":  # 防火窗等级
-            return props.get("fire_rating", props.get("rating", 0.0))
+            val = props.get("fire_rating", props.get("rating", 0.0))
+            if val < 0.01:
+                return None  # 无防火等级数据，跳过判定
+            return val
 
         if func_id in ("EXIST-007", "EXIST-008", "EXIST-009", "EXIST-010"):
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
