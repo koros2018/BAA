@@ -143,6 +143,7 @@
       <div class="sidebar-item" data-page="specs">📖规范库</div>
       <div class="sidebar-item" data-page="review">🔎AI审图</div>
       <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
+      <div class="sidebar-item" data-page="history">📋审查记录</div>
       <div class="sidebar-item" data-page="analysis">📊结果分析</div>
       <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
       <div class="sidebar-item" data-page="settings">🔌连接配置</div>
@@ -178,6 +179,10 @@
       </div>
       </div>
       <div class="card"><h3 class="font-medium mb-3">服务状态</h3><pre id="health-status" class="text-sm text-gray-500">加载中...</pre></div>
+      <div class="card mt-4">
+        <h3 class="font-medium mb-2">最近审查</h3>
+        <div id="recent-reviews" class="text-xs text-gray-400">暂无审查记录</div>
+      </div>
     </div>
 
     <!-- ===== 图纸管理 ===== -->
@@ -210,10 +215,10 @@
             <pre id="parse-result-json" class="text-xs bg-gray-50 p-3 rounded overflow-x-auto max-h-80"></pre>
           </div>
           <div>
-            <div class="text-xs text-gray-400 mb-1">图纸渲染</div>
-            <div id="drawing-render-container" class="bg-white border rounded overflow-hidden" style="max-height:400px">
+            <div class="text-xs text-gray-400 mb-1">图纸渲染 <span class="text-gray-300">（点击放大）</span></div>
+            <div id="drawing-render-container" class="bg-white border rounded overflow-hidden" style="max-height:400px;cursor:zoom-in">
               <div id="drawing-render-placeholder" class="flex items-center justify-center h-32 text-gray-400 text-xs">上传后自动渲染</div>
-              <img id="drawing-render-img" class="w-full hidden" alt="图纸渲染" />
+              <img id="drawing-render-img" class="w-full hidden" alt="图纸渲染" onclick="zoomImage(this)" />
             </div>
           </div>
         </div>
@@ -336,17 +341,45 @@
           </div>
         </div>
         <div class="card">
-          <p class="font-medium mb-2">违规分布</p>
+          <p class="font-medium mb-2">违规分布（按严重度）</p>
           <div id="violation-dist-bars" class="text-xs space-y-1">
             <div class="text-gray-400">审查图纸后自动统计</div>
           </div>
         </div>
       </div>
       <div class="mt-4 card overflow-x-auto">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-medium">详细审查记录</p>
+          <div class="flex gap-2 text-xs">
+            <button onclick="renderAnalysisTable()" class="px-2 py-1 border rounded hover:bg-gray-100">🔄 刷新</button>
+          </div>
+        </div>
         <table class="w-full text-sm">
-          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th></tr></thead>
-          <tbody id="analysis-table"><tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th><th class="pb-2 px-2">审查时间</th></tr></thead>
+          <tbody id="analysis-table"><tr><td colspan="7" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ===== 审查记录 ===== -->
+    <div class="page" id="page-history">
+      <h2 class="text-xl font-bold mb-6">📋 审查历史记录</h2>
+      <div class="card mb-4">
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-sm font-medium">共 <span id="history-total-count">0</span> 条记录</span>
+          <input id="history-search" placeholder="搜索图纸名称/规范..." class="text-sm border rounded px-2 py-1 flex-1 min-w-32" oninput="renderHistoryList()" />
+          <select id="history-filter" class="text-sm border rounded px-2 py-1" onchange="renderHistoryList()">
+            <option value="all">全部</option>
+            <option value="civil">民用建筑</option>
+            <option value="industrial">工业建筑</option>
+            <option value="violations">有违规</option>
+            <option value="clean">全部合规</option>
+          </select>
+          <button onclick="clearReviewHistory()" class="px-3 py-1 text-xs border rounded hover:bg-red-50 text-red-500 hover:border-red-300">🗑️ 清空历史</button>
+        </div>
+      </div>
+      <div id="history-list" class="space-y-2">
+        <div class="text-center text-gray-400 py-8">暂无审查记录</div>
       </div>
     </div>
 
@@ -1080,18 +1113,73 @@ async function loadDashboard() {
     const health = await apiGet('/health');
     document.getElementById('version-info').textContent = health.version + ' · 引擎就绪';
     document.getElementById('health-status').textContent = JSON.stringify(health, null, 2);
-    document.getElementById('home-stats').querySelectorAll('.stat-card')[0].querySelector('.text-2xl').textContent = reviewHistory.length;
+    loadReviewResults();
+    const results = reviewResults;
+    document.getElementById('home-stats').querySelectorAll('.stat-card')[0].querySelector('.text-2xl').textContent = results.length;
     document.getElementById('home-stats').querySelectorAll('.stat-card')[1].querySelector('.text-2xl').textContent = '20';
-    if (reviewHistory.length > 0) {
-      const last = reviewHistory[reviewHistory.length - 1];
-      document.getElementById('home-stats').querySelectorAll('.stat-card')[2].querySelector('.text-2xl').textContent =
-        last.total_checks > 0 ? Math.round((1 - last.violations / last.total_checks) * 100) + '%' : '--';
-      document.getElementById('home-stats').querySelectorAll('.stat-card')[3].querySelector('.text-2xl').textContent = last.file_id.slice(0, 12);
+    if (results.length > 0) {
+      const totalV = results.reduce((s, r) => s + (r.details?.length || 0), 0);
+      const totalC = results.reduce((s, r) => s + (r.summary?.total_checks || 0), 0);
+      const passRate = totalC > 0 ? Math.round((1 - totalV / totalC) * 100) + '%' : '--';
+      document.getElementById('home-stats').querySelectorAll('.stat-card')[2].querySelector('.text-2xl').textContent = passRate;
+      document.getElementById('home-stats').querySelectorAll('.stat-card')[3].querySelector('.text-2xl').textContent = results[0].drawingName;
     }
+    renderRecentReviews();
+    renderSpecFreqBars();
+    renderViolationTypeBars();
   } catch (e) {
     document.getElementById('version-info').textContent = '⚠️ 服务未连接';
     document.getElementById('health-status').textContent = '连接失败: ' + e.message;
   }
+}
+
+function renderRecentReviews() {
+  const el = document.getElementById('recent-reviews');
+  if (!el) return;
+  const results = reviewResults;
+  if (results.length === 0) { el.innerHTML = '<div class="text-xs text-gray-400">暂无审查记录</div>'; return; }
+  const recent = results.slice(0, 5);
+  el.innerHTML = recent.map(r => {
+    const v = r.details?.length || 0;
+    const color = v === 0 ? 'green' : 'red';
+    return '<div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">' +
+      '<span class="font-medium">' + r.drawingName + '</span>' +
+      '<span class="text-' + color + '-600">' + v + ' 项违规</span></div>';
+  }).join('');
+}
+
+function renderSpecFreqBars() {
+  const el = document.getElementById('spec-freq-bars');
+  if (!el || reviewResults.length === 0) return;
+  const freq = {};
+  reviewResults.forEach(r => (r.details || []).forEach(v => {
+    const key = v.clause_id || '未知';
+    freq[key] = (freq[key] || 0) + 1;
+  }));
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxVal = Math.max(...sorted.map(s => s[1]), 1);
+  el.innerHTML = sorted.map(([k, v]) =>
+    '<div class="flex items-center gap-2"><span class="w-24 truncate">' + k + '</span>' +
+    '<div class="flex-1 bg-gray-100 rounded-full h-3"><div class="bg-blue-500 h-3 rounded-full" style="width:' + (v/maxVal*100) + '%"></div></div>' +
+    '<span class="w-6 text-right">' + v + '</span></div>'
+  ).join('');
+}
+
+function renderViolationTypeBars() {
+  const el = document.getElementById('violation-type-bars');
+  if (!el || reviewResults.length === 0) return;
+  const freq = {};
+  reviewResults.forEach(r => (r.details || []).forEach(v => {
+    const key = v.severity === 'critical' ? '严重' : v.severity === 'major' ? '主要' : '轻微';
+    freq[key] = (freq[key] || 0) + 1;
+  }));
+  const colors = {'严重': '#ef4444', '主要': '#f97316', '轻微': '#eab308'};
+  const total = Object.values(freq).reduce((a, b) => a + b, 0) || 1;
+  el.innerHTML = Object.entries(freq).map(([k, v]) =>
+    '<div class="flex items-center gap-2"><span class="w-10">' + k + '</span>' +
+    '<div class="flex-1 bg-gray-100 rounded-full h-3"><div class="h-3 rounded-full" style="width:' + (v/total*100) + '%;background:' + (colors[k] || '#6b7280') + '"></div></div>' +
+    '<span class="w-6 text-right">' + v + '</span></div>'
+  ).join('');
 }
 
 // ── 规范库 ──────────────────────────────────────────────
@@ -1929,25 +2017,162 @@ function confirmCorrection(reviewId, corrIdx, accepted) {
 }
 
 // ── 结果分析 ──────────────────────────────────────────────
-function loadAnalysis() {
+function renderAnalysisTable() {
   const tbody = document.getElementById('analysis-table');
-  if (reviewHistory.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
+  if (!tbody) return;
+  loadReviewResults();
+  if (reviewResults.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
     return;
   }
   tbody.innerHTML = '';
-  reviewHistory.forEach((h, i) => {
-    const passRate = h.total_checks > 0 ? Math.round((1 - h.violations / h.total_checks) * 100) : 0;
+  reviewResults.forEach((h, i) => {
+    const viols = h.details?.length || 0;
+    const checks = h.summary?.total_checks || 0;
+    const passRate = checks > 0 ? Math.round((1 - viols / checks) * 100) : 0;
+    const btLabel = h.buildingType === 'civil' ? '民用' : h.buildingType === 'industrial' ? '工业' : '--';
     tbody.innerHTML += '<tr class="border-b border-gray-50 text-sm">' +
       '<td class="py-2 px-2">' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2">图纸 #' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2">' + (h.total_checks || 0) + '</td>' +
-      '<td class="py-2 px-2 text-red-600">' + (h.violations || 0) + '</td>' +
-      '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + passRate + '%"></div></div><span class="text-xs">' + passRate + '%</span></div></td></tr>';
+      '<td class="py-2 px-2 truncate max-w-32" title="' + h.drawingName + '">' + h.drawingName + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + btLabel + '</td>' +
+      '<td class="py-2 px-2">' + checks + '</td>' +
+      '<td class="py-2 px-2 text-red-600">' + viols + '</td>' +
+      '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + passRate + '%"></div></div><span class="text-xs">' + passRate + '%</span></div></td>' +
+      '<td class="py-2 px-2 text-xs">' + new Date(h.reviewedAt).toLocaleString() + '</td></tr>';
   });
 }
 
+function loadAnalysis() {
+  renderTrendBars();
+  renderViolationDistBars();
+  renderAnalysisTable();
+}
+
+function renderTrendBars() {
+  const el = document.getElementById('trend-bars');
+  if (!el) return;
+  loadReviewResults();
+  if (reviewResults.length === 0) { el.innerHTML = '<div class="text-gray-400">审查图纸后自动统计</div>'; return; }
+  const recent = reviewResults.slice(0, 10).reverse();
+  const maxV = Math.max(...recent.map(r => r.details?.length || 0), 1);
+  el.innerHTML = recent.map(r => {
+    const v = r.details?.length || 0;
+    const pct = Math.round(v / maxV * 100);
+    const name = r.drawingName.length > 10 ? r.drawingName.slice(0, 10) + '…' : r.drawingName;
+    return '<div class="flex items-center gap-2"><span class="w-20 truncate text-xs" title="' + r.drawingName + '">' + name + '</span>' +
+      '<div class="flex-1 bg-gray-100 rounded-full h-4 relative"><div class="bg-' + (v > 0 ? 'red' : 'green') + '-500 h-4 rounded-full" style="width:' + pct + '%"></div></div>' +
+      '<span class="w-6 text-right text-xs">' + v + '</span></div>';
+  }).join('');
+}
+
+function renderViolationDistBars() {
+  const el = document.getElementById('violation-dist-bars');
+  if (!el) return;
+  loadReviewResults();
+  if (reviewResults.length === 0) { el.innerHTML = '<div class="text-gray-400">审查图纸后自动统计</div>'; return; }
+  const sev = {critical: 0, major: 0, minor: 0};
+  reviewResults.forEach(r => (r.details || []).forEach(v => {
+    if (v.severity === 'critical') sev.critical++;
+    else if (v.severity === 'major') sev.major++;
+    else sev.minor++;
+  }));
+  const total = sev.critical + sev.major + sev.minor || 1;
+  el.innerHTML = [
+    {label: '严重', key: 'critical', color: '#ef4444', count: sev.critical},
+    {label: '主要', key: 'major', color: '#f97316', count: sev.major},
+    {label: '轻微', key: 'minor', color: '#eab308', count: sev.minor},
+  ].map(s =>
+    '<div class="flex items-center gap-2"><span class="w-10 text-xs">' + s.label + '</span>' +
+    '<div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:' + (s.count/total*100) + '%;background:' + s.color + '"></div></div>' +
+    '<span class="w-6 text-right text-xs">' + s.count + '</span></div>'
+  ).join('');
+}
+
 // ── 初始化 ──────────────────────────────────────────────
+// ── 审查记录 ──────────────────────────────────────────────
+function renderHistoryList() {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  loadReviewResults();
+  const search = (document.getElementById('history-search')?.value || '').toLowerCase();
+  const filter = document.getElementById('history-filter')?.value || 'all';
+  let filtered = reviewResults;
+  if (filter === 'civil') filtered = filtered.filter(r => r.buildingType === 'civil');
+  else if (filter === 'industrial') filtered = filtered.filter(r => r.buildingType === 'industrial');
+  else if (filter === 'violations') filtered = filtered.filter(r => (r.details?.length || 0) > 0);
+  else if (filter === 'clean') filtered = filtered.filter(r => (r.details?.length || 0) === 0);
+  if (search) {
+    filtered = filtered.filter(r =>
+      r.drawingName.toLowerCase().includes(search) ||
+      (r.details || []).some(v => (v.clause_id || '').toLowerCase().includes(search) || (v.clause_title || '').toLowerCase().includes(search))
+    );
+  }
+  document.getElementById('history-total-count').textContent = filtered.length;
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="text-center text-gray-400 py-8">无匹配记录</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(r => {
+    const viols = r.details?.length || 0;
+    const btLabel = r.buildingType === 'civil' ? '民用' : r.buildingType === 'industrial' ? '工业' : '--';
+    const criticalCount = (r.details || []).filter(v => v.severity === 'critical').length;
+    const timeStr = new Date(r.reviewedAt).toLocaleString();
+    const color = viols === 0 ? 'green' : criticalCount > 0 ? 'red' : 'orange';
+    return '<div class="card p-3 cursor-pointer hover:shadow-md transition-shadow" onclick="viewHistoryDetail(\'' + r.id + '\')">' +
+      '<div class="flex items-center justify-between">' +
+      '<div class="flex items-center gap-3">' +
+      '<span class="text-' + color + '-500 text-lg">' + (viols === 0 ? '✅' : criticalCount > 0 ? '🔴' : '🟡') + '</span>' +
+      '<div><div class="font-medium text-sm">' + r.drawingName + '</div>' +
+      '<div class="text-xs text-gray-400">' + btLabel + ' · ' + timeStr + '</div></div></div>' +
+      '<div class="text-right"><div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项</div>' +
+      '<div class="text-xs text-gray-400">违规</div></div></div></div>';
+  }).join('');
+}
+function viewHistoryDetail(id) {
+  const r = reviewResults.find(x => x.id === id);
+  if (!r) return;
+  let modal = document.getElementById('history-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'history-detail-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center';
+    modal.onclick = function(e) { if (e.target === modal) closeHistoryModal(); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">' +
+    '<div class="flex items-center justify-between p-4 border-b">' +
+    '<h3 class="text-lg font-bold">审查详情: ' + r.drawingName + '</h3>' +
+    '<button onclick="closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>' +
+    '<div class="p-4 overflow-y-auto flex-1">' +
+    '<div class="grid grid-cols-4 gap-3 mb-4">' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (r.details?.length || 0) + '</div><div class="text-xs text-gray-400">违规</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + (r.details?.filter(v => v.severity === 'critical').length || 0) + '</div><div class="text-xs text-gray-400">严重</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + (r.details?.filter(v => v.severity === 'major').length || 0) + '</div><div class="text-xs text-gray-400">主要</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + (r.details?.filter(v => v.severity !== 'critical' && v.severity !== 'major').length || 0) + '</div><div class="text-xs text-gray-400">轻微</div></div>' +
+    '</div>' +
+    '<div class="text-xs text-gray-400 mb-2">建筑类型: ' + (r.buildingType === 'civil' ? '民用' : '工业') + ' · 审查时间: ' + new Date(r.reviewedAt).toLocaleString() + '</div>' +
+    '<div class="space-y-2">' +
+    (r.details || []).slice(0, 50).map(v => {
+      const sevColor = v.severity === 'critical' ? 'red' : v.severity === 'major' ? 'orange' : 'yellow';
+      const sevLabel = v.severity === 'critical' ? '严重' : v.severity === 'major' ? '主要' : '轻微';
+      return '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs">' +
+        '<div class="flex justify-between"><span class="font-medium">' + (v.clause_title || '') + '</span><span class="px-1.5 py-0.5 rounded bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span></div>' +
+        '<span class="text-gray-500">' + (v.clause_id || '') + ' · ' + (v.entity_type || '') + '</span><br/>' +
+        '<span class="text-gray-400">' + (v.explanation || '') + '</span></div>';
+    }).join('') + (r.details?.length > 50 ? '<div class="text-xs text-gray-400 text-center pt-2">... 仅显示前50项</div>' : '') +
+    '</div></div></div>';
+}
+function closeHistoryModal() {
+  const modal = document.getElementById('history-detail-modal');
+  if (modal) modal.remove();
+}
+function clearReviewHistory() {
+  if (!confirm('确定清空所有审查历史记录？此操作不可恢复。')) return;
+  localStorage.removeItem('baa_review_results');
+  reviewResults = [];
+  renderHistoryList();
+  loadDashboard();
+}
 document.addEventListener('DOMContentLoaded', () => {
   loadApiBase();  // 恢复API地址
   initAdminToken();  // 初始化密钥管理页专用管理令牌
@@ -1971,6 +2196,20 @@ document.addEventListener('DOMContentLoaded', () => {
     '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
     '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
 });
+
+// ── 预览缩放 ──────────────────────────────────────────────
+function zoomImage(img) {
+  if (!img || !img.src || img.style.display === 'none') return;
+  let modal = document.getElementById('zoom-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'zoom-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center cursor-zoom-out';
+    modal.onclick = function() { modal.remove(); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<img src="' + img.src + '" class="max-w-[95vw] max-h-[95vh] object-contain" />';
+}
 </script>
 </body>
 </html>
