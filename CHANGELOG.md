@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.11.0 (2026-06-26) — 部署准备（Docker/健康检查/DEPLOY.md）
+
+### 新增
+- **Dockerfile**: 多阶段构建，Python 3.12-slim 基础镜像，仅 150MB+
+  - 构建阶段安装编译依赖，运行阶段只留运行时包
+  - HEALTHCHECK 健康检查
+  - Gunicorn + Uvicorn Worker 生产启动
+- **docker-compose.yml**: 一键部署编排
+  - 持久化数据卷 baa_data
+  - 环境变量注入
+  - 日志轮转（10MB x 3）
+- **DEPLOY.md**: 部署指南（Docker 快速启动 / 配置说明 / 生产建议）
+- **.dockerignore**: 排除开发/测试/数据文件
+
+### 改进
+- **增强健康检查端点**: 返回子系统状态（engine/spec/parser/yolo）
+  - 支持 degraded 状态（部分子系统不可用时）
+  - 增加启动时间记录
+  - 返回数据目录信息
+- **.env.example 完善**: 增加密钥配置、Docker 部署说明
+
+### 测试
+- 75/75 全部通过 ✅
+
 ## v1.10.0 (2026-06-26) — 前端体验优化（历史记录/分析图表/预览缩放）
 
 ### 新增

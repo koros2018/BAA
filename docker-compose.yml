@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  baa:
+    build: .
+    container_name: baa-server
+    restart: unless-stopped
+    ports:
+      - "${BAA_PORT:-8000}:8000"
+    volumes:
+      # 持久化数据：上传文件、密钥、日志
+      - baa_data:/app/data
+      # 可选：挂载模型文件（YOLO 权重等）
+      # - ./data/models:/app/data/models
+      # 可选：挂载规范库
+      # - ./data/specs:/app/data/specs
+    environment:
+      - BAA_PORT=${BAA_PORT:-8000}
+      - BAA_WORKERS=${BAA_WORKERS:-4}
+      - BAA_DATA_DIR=/app/data
+      - BAA_API_KEY=${BAA_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health'); assert r.status == 200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  baa_data:
+    driver: local

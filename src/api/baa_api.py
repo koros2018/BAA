@@ -293,14 +293,40 @@ _spec_repo = None
 
 @app.get("/health")
 async def health():
+    """增强型健康检查（含子系统状态）"""
+    engine_ok = _func_registry is not None
+    spec_ok = _spec_repo is not None
+    parser_ok = _drawing_parser is not None
+    yolo_ok = False
+    yolo_info = "未加载"
+    try:
+        from src.baa_engine.yolo_integrator import get_yolo_model
+        yolo_model = get_yolo_model()
+        if yolo_model is not None:
+            yolo_ok = True
+            yolo_info = "就绪"
+    except Exception:
+        yolo_info = "不可用"
+    
+    all_ok = engine_ok and spec_ok and parser_ok
     return {
-        "status": "ok",
-        "version": "1.0.0",
-        "uptime_seconds": 0,
-        "engine_status": "ready",
+        "status": "ok" if all_ok else "degraded",
+        "version": "1.10.0",
+        "uptime_seconds": int(time.time() - _start_time) if hasattr(health, "_start_time") else 0,
+        "engine_status": "ready" if all_ok else "degraded",
         "supported_formats": list(SUPPORTED_FORMATS),
         "api_version": "v1",
+        "subsystems": {
+            "engine": {"status": "ok" if engine_ok else "down"},
+            "spec_repository": {"status": "ok" if spec_ok else "down"},
+            "drawing_parser": {"status": "ok" if parser_ok else "down"},
+            "yolo_integrator": {"status": "ok" if yolo_ok else "unavailable", "info": yolo_info},
+        },
+        "data_dir": str(DATA_DIR),
     }
+
+# 记录启动时间
+_start_time = time.time()
 
 
 @app.post("/deconstruct")
