@@ -249,6 +249,106 @@ class TestFuncExecute:
         r = registry.get("LIGHT-001").execute({"id": "EL2", "type": "evacuation_lighting", "properties": {"illuminance": 0.5}})
         assert r.result == "FAIL"
 
+    # ===== L3 原子函数测试（11个）=====
+    # DIST-002: 防火间距
+    def test_dist002_pass(self, registry):
+        r = registry.get("DIST-002").execute({"id": "B1", "type": "building", "properties": {"distance": 15.0}})
+        assert r.result == "PASS"
+
+    def test_dist002_fail(self, registry):
+        r = registry.get("DIST-002").execute({"id": "B2", "type": "factory", "properties": {"distance": 8.0}})
+        assert r.result == "FAIL"
+
+    # DIM-008: 排烟窗面积
+    def test_dim008_pass(self, registry):
+        r = registry.get("DIM-008").execute({"id": "SW1", "type": "smoke_exhaust_window", "properties": {"area": 0.05}})
+        assert r.result == "PASS"
+
+    def test_dim008_fail(self, registry):
+        r = registry.get("DIM-008").execute({"id": "SW2", "type": "smoke_exhaust_window", "properties": {"area": 0.01}})
+        assert r.result == "FAIL"
+
+    # EXIST-007: 消防电梯
+    def test_exist007_pass(self, registry):
+        r = registry.get("EXIST-007").execute({"id": "FE1", "type": "fire_elevator", "properties": {"exists": True}})
+        assert r.result == "PASS"
+
+    def test_exist007_missing(self, registry):
+        r = registry.get("EXIST-007").execute(None)
+        assert r is not None and r.result == "FAIL"
+
+    # AREA-002: 消防电梯前室面积
+    def test_area002_pass(self, registry):
+        r = registry.get("AREA-002").execute({"id": "EL1", "type": "elevator_lobby", "properties": {"area": 8.0}})
+        assert r.result == "PASS"
+
+    def test_area002_fail(self, registry):
+        r = registry.get("AREA-002").execute({"id": "EL2", "type": "lobby", "properties": {"area": 4.0}})
+        assert r.result == "FAIL"
+
+    # DIST-003: 袋形走道长度
+    def test_dist003_pass(self, registry):
+        r = registry.get("DIST-003").execute({"id": "C1", "type": "corridor", "properties": {"length": 15.0}})
+        assert r.result == "PASS"
+
+    def test_dist003_fail(self, registry):
+        r = registry.get("DIST-003").execute({"id": "C2", "type": "corridor", "properties": {"length": 25.0}})
+        assert r.result == "FAIL"
+
+    # DIM-009: 疏散出口宽度
+    def test_dim009_pass(self, registry):
+        r = registry.get("DIM-009").execute({"id": "E1", "type": "exit", "properties": {"width": 1.2}})
+        assert r.result == "PASS"
+
+    def test_dim009_fail(self, registry):
+        r = registry.get("DIM-009").execute({"id": "E2", "type": "exit_door", "properties": {"clear_width": 0.7}})
+        assert r.result == "FAIL"
+
+    # ATTR-003: 防火窗等级
+    def test_attr003_pass(self, registry):
+        r = registry.get("ATTR-003").execute({"id": "FW1", "type": "fire_window", "properties": {"fire_rating": 1.5}})
+        assert r.result == "PASS"
+
+    def test_attr003_fail(self, registry):
+        r = registry.get("ATTR-003").execute({"id": "FW2", "type": "fire_window", "properties": {"fire_rating": 0.5}})
+        assert r.result == "FAIL"
+
+    # EXIST-008: 消防水箱
+    def test_exist008_pass(self, registry):
+        r = registry.get("EXIST-008").execute({"id": "WT1", "type": "water_tank", "properties": {"exists": True}})
+        assert r.result == "PASS"
+
+    def test_exist008_missing(self, registry):
+        r = registry.get("EXIST-008").execute(None)
+        assert r is not None and r.result == "FAIL"
+
+    # EXIST-009: 消防水池
+    def test_exist009_pass(self, registry):
+        r = registry.get("EXIST-009").execute({"id": "WR1", "type": "water_reservoir", "properties": {"exists": True}})
+        assert r.result == "PASS"
+
+    def test_exist009_missing(self, registry):
+        r = registry.get("EXIST-009").execute(None)
+        assert r is not None and r.result == "FAIL"
+
+    # DIM-010: 消防救援窗面积
+    def test_dim010_pass(self, registry):
+        r = registry.get("DIM-010").execute({"id": "RW1", "type": "rescue_window", "properties": {"area": 1.5}})
+        assert r.result == "PASS"
+
+    def test_dim010_fail(self, registry):
+        r = registry.get("DIM-010").execute({"id": "RW2", "type": "rescue_window", "properties": {"area": 0.5}})
+        assert r.result == "FAIL"
+
+    # EXIST-010: 应急广播
+    def test_exist010_pass(self, registry):
+        r = registry.get("EXIST-010").execute({"id": "EB1", "type": "emergency_broadcast", "properties": {"exists": True}})
+        assert r.result == "PASS"
+
+    def test_exist010_missing(self, registry):
+        r = registry.get("EXIST-010").execute(None)
+        assert r is not None and r.result == "FAIL"
+
     # EXIST-001: 楼梯间存在
     def test_exist001_pass(self, registry):
         r = registry.get("EXIST-001").execute({"id": "S1", "type": "staircase", "properties": {"exists": True, "count": 2}})
@@ -288,7 +388,7 @@ class TestSpecRepository:
         return SpecRepository()
 
     def test_count(self, repo):
-        assert repo.count == 20
+        assert repo.count == 31
 
     def test_get(self, repo):
         c = repo.get("GB50016-5.5.18")
@@ -325,12 +425,13 @@ class TestSpecRepository:
 
     def test_to_json(self, repo):
         data = json.loads(repo.to_json())
-        assert len(data) == 20
+        assert len(data) == 31
 
-    def test_l1_l2_distribution(self, repo):
+    def test_l1_l2_l3_distribution(self, repo):
         levels = [c.level for c in repo.list_all()]
         assert levels.count("L1") == 10
         assert levels.count("L2") == 10
+        assert levels.count("L3") == 11
 
 
 # ═══════════════════════════════════════════════════════════

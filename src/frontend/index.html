@@ -1116,7 +1116,7 @@ async function loadDashboard() {
     loadReviewResults();
     const results = reviewResults;
     document.getElementById('home-stats').querySelectorAll('.stat-card')[0].querySelector('.text-2xl').textContent = results.length;
-    document.getElementById('home-stats').querySelectorAll('.stat-card')[1].querySelector('.text-2xl').textContent = '20';
+    document.getElementById('home-stats').querySelectorAll('.stat-card')[1].querySelector('.text-2xl').textContent = SPEC_DATA.length;
     if (results.length > 0) {
       const totalV = results.reduce((s, r) => s + (r.details?.length || 0), 0);
       const totalC = results.reduce((s, r) => s + (r.summary?.total_checks || 0), 0);
@@ -2190,11 +2190,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('api-base')?.addEventListener('change', saveApiBase);
 
   // 引擎状态
-  document.getElementById('engine-status').innerHTML =
-    '<div class="flex justify-between"><span>原子函数</span><span>19/30 已注册</span></div>' +
-    '<div class="flex justify-between"><span>规范库</span><span>20条 (10L1+10L2)</span></div>' +
-    '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
-    '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+  try {
+    const health = JSON.parse(document.getElementById('health-status').textContent || '{}');
+    const specCount = SPEC_DATA.length;
+    document.getElementById('engine-status').innerHTML =
+      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>' + specCount + '条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
+      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+  } catch(e) {
+    document.getElementById('engine-status').innerHTML =
+      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>30条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
+      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+  }
 });
 
 // ── 预览缩放 ──────────────────────────────────────────────

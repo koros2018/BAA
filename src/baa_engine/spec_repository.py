@@ -318,6 +318,152 @@ INITIAL_CLAUSES = [
         threshold=Threshold(value=1.0, unit="有/无", operator="==",
                             building_types={"civil": 1.0, "industrial": 1.0})
     ),
+
+    # ===== L3 新增规范（11条，对应 RESERVED_FUNCS） =====
+    Clause(
+        clause_id="GB50016-3.4.1",
+        standard="GB 50016-2014",
+        title="防火间距判定",
+        text="厂房之间及与乙、丙、丁、戊类仓库等的防火间距不应小于表3.4.1的规定。",
+        level="L3",
+        func_id="DIST-002",
+        category="fire_safety",
+        params={"target_entity": "building", "property": "distance",
+                "operator": ">=", "threshold": 12.0, "unit": "m"},
+        # 工业厂房防火间距要求更严
+        threshold=Threshold(value=12.0, unit="m", operator=">=",
+                            building_types={"civil": 10.0, "industrial": 12.0})
+    ),
+    Clause(
+        clause_id="GB50016-9.2.1",
+        standard="GB 50016-2014",
+        title="排烟窗面积判定",
+        text="排烟窗净面积不应小于房间面积的2%。",
+        level="L3",
+        func_id="DIM-008",
+        category="hvac",
+        params={"target_entity": "smoke_exhaust_window", "property": "area",
+                "operator": ">=", "threshold": 0.02, "unit": "㎡"},
+        threshold=Threshold(value=0.02, unit="㎡", operator=">=",
+                            building_types={"civil": 0.02, "industrial": 0.02})
+    ),
+    Clause(
+        clause_id="GB50016-7.3.1",
+        standard="GB 50016-2014",
+        title="消防电梯判定",
+        text="一类高层公共建筑和建筑高度大于32m的二类高层公共建筑应设置消防电梯。",
+        level="L3",
+        func_id="EXIST-007",
+        category="fire_safety",
+        params={"target_entity": "fire_elevator", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    Clause(
+        clause_id="GB50016-7.3.5",
+        standard="GB 50016-2014",
+        title="消防电梯前室面积判定",
+        text="消防电梯前室的使用面积不应小于6㎡。",
+        level="L3",
+        func_id="AREA-002",
+        category="fire_safety",
+        params={"target_entity": "elevator_lobby", "property": "area",
+                "operator": ">=", "threshold": 6.0, "unit": "㎡"},
+        threshold=Threshold(value=6.0, unit="㎡", operator=">=",
+                            building_types={"civil": 6.0, "industrial": 6.0})
+    ),
+    Clause(
+        clause_id="GB50016-5.5.17-2",
+        standard="GB 50016-2014",
+        title="袋形走道长度判定",
+        text="袋形走道长度不应大于20m。",
+        level="L3",
+        func_id="DIST-003",
+        category="evacuation",
+        params={"target_entity": "corridor", "property": "length",
+                "operator": "<=", "threshold": 20.0, "unit": "m"},
+        threshold=Threshold(value=20.0, unit="m", operator="<=",
+                            building_types={"civil": 20.0, "industrial": 15.0})
+    ),
+    Clause(
+        clause_id="GB50016-5.5.18-3",
+        standard="GB 50016-2014",
+        title="疏散出口宽度判定",
+        text="疏散出口净宽度不应小于0.9m。",
+        level="L3",
+        func_id="DIM-009",
+        category="evacuation",
+        params={"target_entity": "exit", "property": "clear_width",
+                "operator": ">=", "threshold": 0.9, "unit": "m"},
+        threshold=Threshold(value=0.9, unit="m", operator=">=",
+                            building_types={"civil": 0.9, "industrial": 0.9})
+    ),
+    Clause(
+        clause_id="GB50016-6.5.1-2",
+        standard="GB 50016-2014",
+        title="防火窗等级判定",
+        text="防火窗耐火极限不应低于1.0h。",
+        level="L3",
+        func_id="ATTR-003",
+        category="fire_safety",
+        params={"target_entity": "fire_window", "property": "fire_rating",
+                "operator": ">=", "threshold": 1.0, "unit": "h"},
+        threshold=Threshold(value=1.0, unit="h", operator=">=",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    Clause(
+        clause_id="GB50016-8.2.1",
+        standard="GB 50016-2014",
+        title="消防水箱判定",
+        text="一类高层公共建筑应设置屋顶消防水箱。",
+        level="L3",
+        func_id="EXIST-008",
+        category="fire_safety",
+        params={"target_entity": "water_tank", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    Clause(
+        clause_id="GB50016-8.1.3",
+        standard="GB 50016-2014",
+        title="消防水池判定",
+        text="市政供水不足时应设置消防水池。",
+        level="L3",
+        func_id="EXIST-009",
+        category="fire_safety",
+        params={"target_entity": "water_reservoir", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    Clause(
+        clause_id="GB50016-7.2.4-2",
+        standard="GB 50016-2014",
+        title="消防救援窗面积判定",
+        text="消防救援窗口净面积不应小于1.0㎡。",
+        level="L3",
+        func_id="DIM-010",
+        category="fire_safety",
+        params={"target_entity": "rescue_window", "property": "area",
+                "operator": ">=", "threshold": 1.0, "unit": "㎡"},
+        threshold=Threshold(value=1.0, unit="㎡", operator=">=",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    Clause(
+        clause_id="GB50016-8.5.1",
+        standard="GB 50016-2014",
+        title="应急广播判定",
+        text="一类高层公共建筑应设置应急广播系统。",
+        level="L3",
+        func_id="EXIST-010",
+        category="evacuation",
+        params={"target_entity": "emergency_broadcast", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
 ]
 
 
