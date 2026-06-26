@@ -95,6 +95,8 @@ class AtomicFunction:
         if not self.matches(entity):
             return None
         actual = self._extract_value(entity)
+        if actual is None:
+            return None  # 属性缺失，无法判定
         delta = actual - self.threshold
 
         # 执行比较
@@ -192,7 +194,11 @@ class AtomicFunction:
             return props.get("count", props.get("exit_count", 1.0))
 
         if func_id == "ATTR-001":  # 防火门等级
-            return props.get("fire_rating", props.get("rating", 0.0))
+            val = props.get("fire_rating", props.get("rating", 0.0))
+            if val < 0.5 and entity_type in ("door", "exit_door"):
+                # 非 fire_door：不判定防火等级
+                return None
+            return val
 
         if func_id == "EXIST-001":  # 存在性判定
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
@@ -210,6 +216,8 @@ class AtomicFunction:
         # L2 新增函数
         if func_id in ("DIM-006", "DIM-007"):  # 疏散门净宽 / 防火卷帘宽度
             val = props.get("width", props.get("clear_width", 0.0))
+            if val < 0.01:
+                return None  # 无宽度数据，跳过判定
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
@@ -240,6 +248,8 @@ class AtomicFunction:
 
         if func_id == "DIM-009":  # 疏散出口宽度
             val = props.get("width", props.get("clear_width", 0.0))
+            if val < 0.01:
+                return None  # 无宽度数据，跳过判定
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":

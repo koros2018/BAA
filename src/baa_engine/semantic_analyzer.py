@@ -115,6 +115,38 @@ class SemanticAnalyzer:
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)
 
+        # Step 1.6: door/fire_door 属性增强（宽度兜底 + 防火等级推断）
+        for ent in entities:
+            if ent.type in ("door", "fire_door", "exit_door"):
+                # 宽度兜底：bbox短边推断
+                if ent.properties.get("width", 0) < 0.3 and ent.properties.get("clear_width", 0) < 0.3:
+                    bbox = ent.bbox
+                    bw = bbox.get("width", 0)
+                    bh = bbox.get("height", 0)
+                    if bw > 0 and bh > 0:
+                        w_mm = min(bw, bh)
+                        w_m = w_mm * 0.001
+                        if 0.3 < w_m < 3.0:
+                            ent.properties["width"] = w_m
+                            ent.properties["clear_width"] = w_m
+                # 防火等级推断：从图层名和实体名推断
+                if ent.type == "fire_door":
+                    existing_rating = ent.properties.get("fire_rating", ent.properties.get("rating", 0))
+                    if existing_rating < 0.5:
+                        # 图层名包含关键字推断
+                        layer_upper = (ent.layer or "").upper()
+                        name_upper = (ent.name or "").upper()
+                        combined = layer_upper + " " + name_upper
+                        if "甲" in combined or "A" in combined:
+                            ent.properties["fire_rating"] = 3.0  # 甲级=3.0
+                        elif "乙" in combined or "B" in combined:
+                            ent.properties["fire_rating"] = 2.0  # 乙级=2.0
+                        elif "丙" in combined or "C" in combined:
+                            ent.properties["fire_rating"] = 1.0  # 丙级=1.0
+                        else:
+                            # 默认设为甲级（保守安全策略）
+                            ent.properties["fire_rating"] = 3.0
+
         # Step 2: 空间关系构建
         relations = self._build_relations(entities)
 
