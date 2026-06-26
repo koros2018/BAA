@@ -160,6 +160,8 @@ class AtomicFunction:
         # 宽度类：优先用width/clear_width
         if func_id in ("DIM-001", "DIM-003", "DIM-004"):
             val = props.get("width", props.get("clear_width", 0.0))
+            if val < 0.01:
+                return None  # 无宽度数据，跳过判定
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":

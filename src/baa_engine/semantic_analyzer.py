@@ -256,6 +256,20 @@ class SemanticAnalyzer:
         # 归并同类重叠图元
         entities = self._merge_overlapping(entities)
 
+        # 过滤过小的走廊实体（LINE 类型容易被误识别为走廊）
+        # 走廊宽度 < 500mm 且 bbox 短边 < 500mm 的实体可能是微小图元误标
+        filtered = []
+        for e in entities:
+            if e.type == "corridor":
+                bb = e.bbox
+                bw = bb.get("width", 0)
+                bh = bb.get("height", 0)
+                short_edge = min(bw, bh) if bw > 0 and bh > 0 else max(bw, bh)
+                if short_edge < 500:  # 短边 < 500mm 不可能是走廊
+                    continue
+            filtered.append(e)
+        entities = filtered
+
         return entities
 
     def _classify_by_layer(self, layer: str) -> str:

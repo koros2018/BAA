@@ -273,7 +273,76 @@ class DrawingParser:
         except Exception:
             pass
 
-        # ── 第三级：所有方案都失败 ──
+        # ── 第四级：ezdwg raw 逐个类型解码（跳过格式错误的类型）
+        try:
+            import ezdwg
+            from ezdwg import raw
+            dwg_doc = ezdwg.read(str(path))
+            dxf_doc = ezdxf.new("R2010")
+            msp_dst = dxf_doc.modelspace()
+            total = 0
+            
+            # 逐个类型解码，跳过格式错误的
+            decode_map = {
+                "LINE": lambda: raw.decode_line_entities(str(path)),
+                "LWPOLYLINE": lambda: raw.decode_lwpolyline_entities(str(path)),
+                "CIRCLE": lambda: raw.decode_circle_entities(str(path)),
+                "ARC": lambda: raw.decode_arc_entities(str(path)),
+                "TEXT": lambda: raw.decode_text_entities(str(path)),
+            }
+            for dxf_type, decode_func in decode_map.items():
+                try:
+                    for row in decode_func():
+                        try:
+                            if dxf_type == "LINE":
+                                msp_dst.add_line(
+                                    (row.get("start_x", 0), row.get("start_y", 0)),
+                                    (row.get("end_x", 0), row.get("end_y", 0)),
+                                    dxfattribs={"color": row.get("color_index", 7)},
+                                )
+                                total += 1
+                            elif dxf_type == "LWPOLYLINE":
+                                pts = row.get("points", [])
+                                if len(pts) >= 2:
+                                    msp_dst.add_lwpolyline(pts, dxfattribs={"color": row.get("color_index", 7)})
+                                    total += 1
+                            elif dxf_type == "CIRCLE":
+                                msp_dst.add_circle(
+                                    (row.get("center_x", 0), row.get("center_y", 0)),
+                                    row.get("radius", 1),
+                                    dxfattribs={"color": row.get("color_index", 7)},
+                                )
+                                total += 1
+                            elif dxf_type == "ARC":
+                                msp_dst.add_arc(
+                                    (row.get("center_x", 0), row.get("center_y", 0)),
+                                    row.get("radius", 1),
+                                    row.get("start_angle", 0),
+                                    row.get("end_angle", 360),
+                                    dxfattribs={"color": row.get("color_index", 7)},
+                                )
+                                total += 1
+                            elif dxf_type == "TEXT":
+                                msp_dst.add_text(
+                                    row.get("text", ""),
+                                    dxfattribs={
+                                        "color": row.get("color_index", 7),
+                                        "height": row.get("height", 2.5),
+                                        "insert": (row.get("insert_x", 0), row.get("insert_y", 0)),
+                                    },
+                                )
+                                total += 1
+                        except Exception:
+                            pass
+                except Exception:
+                    continue  # 这种类型格式错误，跳过
+            
+            if total > 10:
+                return dxf_doc
+        except Exception:
+            pass
+
+        # ── 第五级：所有方案都失败 ──
         return None
 
     def _compute_bbox(self, entity) -> Dict[str, float]:
