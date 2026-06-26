@@ -330,7 +330,7 @@ class FuncRegistry:
                        target_entities=["scissor_staircase", "staircase"]),
         AtomicFunction("EXIST-004", "疏散指示标志判定", FuncCategory.EXIST,
                        "GB50016-10.3.1", "疏散走道和安全出口应设疏散指示标志", "==", 1.0, "有/无",
-                       target_entities=["exit_sign", "sign", "corridor"]),
+                       target_entities=["exit_sign", "sign"]),
         AtomicFunction("EXIST-005", "自动灭火系统判定", FuncCategory.EXIST,
                        "GB50016-8.3.1", "一类高层应设置自动灭火系统", "==", 1.0, "有/无",
                        target_entities=["sprinkler_system", "sprinkler", "fire_system"]),
