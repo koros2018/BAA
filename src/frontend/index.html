@@ -359,6 +359,12 @@
           <tbody id="analysis-table"><tr><td colspan="7" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
         </table>
       </div>
+      <div class="mt-4 card">
+        <p class="font-medium mb-2">违规分类统计（疏散路径/走廊宽度/死胡同）</p>
+        <div id="category-analysis" class="text-xs space-y-1">
+          <div class="text-gray-400">审查图纸后自动统计</div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== 审查记录 ===== -->
@@ -1742,6 +1748,66 @@ async function runReview() {
         document.getElementById('review-details').innerHTML = html;
       }
 
+      // ── EVAC + 走廊宽度汇总表 ──
+      function renderEvacCorridorSummary(violations) {
+        const evacViols = violations.filter(f =>
+          f.func_id && f.func_id.startsWith('EVAC-')
+        );
+        const dim4Viols = violations.filter(f =>
+          f.func_id === 'DIM-004'
+        );
+        const deadEnds = violations.filter(f =>
+          f.explanation && f.explanation.toLowerCase().includes('死胡同')
+        );
+        
+        if (evacViols.length === 0 && dim4Viols.length === 0) return '';
+        
+        let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">';
+        
+        if (evacViols.length > 0) {
+          html += '<div class="card p-2 text-xs">';
+          html += '<p class="font-medium text-sm mb-1 text-red-600">🚪 疏散路径违规 (' + evacViols.length + '项)</p>';
+          html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+            '<th class="pb-1 pr-1">类型</th><th class="pb-1 pr-1">实体</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1">判定</th></tr></thead><tbody>';
+          evacViols.slice(0, 10).forEach(f => {
+            const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+            html += '<tr class="border-b border-gray-50">' +
+              '<td class="py-1 pr-1">' + (f.func_id || '') + '</td>' +
+              '<td class="py-1 pr-1 truncate max-w-16" title="' + (f.entity_id || '') + '">' + (f.entity_type || '') + '</td>' +
+              '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + '</td>' +
+              '<td class="py-1 pr-1">' + (f.required_value != null ? f.required_value : '-') + '</td>' +
+              '<td class="py-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + (f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微') + '</span></td></tr>';
+          });
+          if (evacViols.length > 10) html += '<tr><td colspan="5" class="pt-1 text-gray-400 text-center">… 还有 ' + (evacViols.length - 10) + ' 项</td></tr>';
+          html += '</tbody></table></div>';
+        }
+        
+        if (dim4Viols.length > 0) {
+          html += '<div class="card p-2 text-xs">';
+          html += '<p class="font-medium text-sm mb-1 text-orange-600">📏 走廊宽度违规 (' + dim4Viols.length + '项)</p>';
+          html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+            '<th class="pb-1 pr-1">走廊</th><th class="pb-1 pr-1">实测宽度</th><th class="pb-1 pr-1">要求</th><th class="pb-1">判定</th></tr></thead><tbody>';
+          dim4Viols.slice(0, 10).forEach(f => {
+            html += '<tr class="border-b border-gray-50">' +
+              '<td class="py-1 pr-1 truncate max-w-16" title="' + (f.entity_id || '') + '">' + (f.entity_id || '').replace('CORRIDOR_', 'C') + '</td>' +
+              '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(3) + 'm' : '-') + '</td>' +
+              '<td class="py-1 pr-1">≥' + (f.required_value || 1.1) + 'm</td>' +
+              '<td class="py-1"><span class="px-1 rounded text-xs bg-orange-100 text-orange-700">违规</span></td></tr>';
+          });
+          if (dim4Viols.length > 10) html += '<tr><td colspan="4" class="pt-1 text-gray-400 text-center">… 还有 ' + (dim4Viols.length - 10) + ' 项</td></tr>';
+          html += '</tbody></table></div>';
+        }
+        
+        html += '</div>';
+        return html;
+      }
+
+      // 在渲染违规列表前插入汇总表
+      const summaryHtml = renderEvacCorridorSummary(violations);
+      if (summaryHtml) {
+        document.getElementById('review-details').insertAdjacentHTML('beforebegin', summaryHtml);
+      }
+
       if (violations.length > 0) {
         renderViolationPage();
 
@@ -2135,10 +2201,64 @@ function renderAnalysisTable() {
   });
 }
 
+// ── EVAC/走廊宽度分类统计（结果分析页）──
+function renderCategoryAnalysis() {
+  const el = document.getElementById('category-analysis');
+  if (!el) return;
+  loadReviewResults();
+  
+  // 按图纸统计各类违规
+  const catStats = {};  // {drawingName: {evac: N, corridor: N, dead_end: N, other: N}}
+  reviewResults.forEach(h => {
+    const name = h.drawingName;
+    if (!catStats[name]) catStats[name] = {evac:0, corridor:0, dead_end:0, other:0};
+    (h.details || []).forEach(v => {
+      const fid = v.func_id || '';
+      if (fid.startsWith('EVAC-')) catStats[name].evac++;
+      else if (fid === 'DIM-004') catStats[name].corridor++;
+      else if (v.explanation && v.explanation.toLowerCase().includes('死胡同')) catStats[name].dead_end++;
+      else catStats[name].other++;
+    });
+  });
+  
+  const names = Object.keys(catStats);
+  if (names.length === 0) {
+    el.innerHTML = '<div class="text-gray-400 text-xs">审查图纸后自动统计</div>';
+    return;
+  }
+  
+  const totalEvac = names.reduce((s, n) => s + catStats[n].evac, 0);
+  const totalCorridor = names.reduce((s, n) => s + catStats[n].corridor, 0);
+  const totalDeadEnd = names.reduce((s, n) => s + catStats[n].dead_end, 0);
+  
+  let html = '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+    '<th class="pb-1 pr-2">图纸</th><th class="pb-1 pr-2">🚪疏散路径</th><th class="pb-1 pr-2">📏走廊宽度</th><th class="pb-1 pr-2">🔒死胡同</th><th class="pb-1">其他</th></tr></thead><tbody>';
+  
+  names.forEach(name => {
+    const s = catStats[name];
+    html += '<tr class="border-b border-gray-50">' +
+      '<td class="py-1 pr-2 truncate max-w-28" title="' + name + '">' + name + '</td>' +
+      '<td class="py-1 pr-2"><span class="' + (s.evac > 0 ? 'text-red-600 font-medium' : 'text-green-500') + '">' + s.evac + '</span></td>' +
+      '<td class="py-1 pr-2"><span class="' + (s.corridor > 0 ? 'text-orange-600 font-medium' : 'text-green-500') + '">' + s.corridor + '</span></td>' +
+      '<td class="py-1 pr-2"><span class="' + (s.dead_end > 0 ? 'text-yellow-600 font-medium' : 'text-green-500') + '">' + s.dead_end + '</span></td>' +
+      '<td class="py-1">' + s.other + '</td></tr>';
+  });
+  
+  html += '<tr class="font-medium bg-gray-50"><td class="py-1 pr-2">合计</td>' +
+    '<td class="py-1 pr-2">' + totalEvac + '</td>' +
+    '<td class="py-1 pr-2">' + totalCorridor + '</td>' +
+    '<td class="py-1 pr-2">' + totalDeadEnd + '</td>' +
+    '<td class="py-1">' + names.reduce((s, n) => s + catStats[n].other, 0) + '</td></tr>';
+  
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
 function loadAnalysis() {
   renderTrendBars();
   renderViolationDistBars();
   renderAnalysisTable();
+  renderCategoryAnalysis();
 }
 
 function renderTrendBars() {
