@@ -1,19 +1,5 @@
 {
   "keys": {
-    "key_51e57aecff54a612": {
-      "key_id": "key_51e57aecff54a612",
-      "hash": "9be2d24f041cfc2a05f863476034d2cfa63868fc4f3fe894d3c9fc487c50ee0a",
-      "encrypted_raw": "I0rMfFgS2jZl3EnT80VzsbDWtlQgLfBOZBpJaacMBE5Js7mGtJQvIscgkrRrXec/kaAVKMk+y5ApVKzlal35Xbsui/04aYh2jAmo",
-      "permission": "write",
-      "label": "test",
-      "created_by": "anonymous",
-      "created_at": "2026-06-27T02:07:15.095410+00:00",
-      "expires_at": "2026-07-04T02:07:15.095410+00:00",
-      "ttl_days": 7,
-      "enabled": true,
-      "last_used": null,
-      "calls": 0
-    },
     "key_env_admin": {
       "key_id": "key_env_admin",
       "hash": "4c806362b613f7496abf284146efd31da90e4b16169fe001841ca17290f427c4",
@@ -28,15 +14,29 @@
       "last_used": null,
       "calls": 0
     },
-    "key_f900f8e7600db890": {
-      "key_id": "key_f900f8e7600db890",
-      "hash": "895e1f81caad6ca6de46644c89cf45a6554ce4bdc4bc215b98064b6ae3319be8",
-      "encrypted_raw": "KbLFoWffhvZ829Gb9w57tPF+JX3a+kZqS6Lb/KLOxOvvasQ1Q8t4cuZUjcZjP9JZhx2sxJjxTfJp0anJeYaGFIHwrNwBLEhPDF/f",
-      "permission": "write",
-      "label": "test",
+    "key_1c9c62b67001213e": {
+      "key_id": "key_1c9c62b67001213e",
+      "hash": "5e37f8e577098c80826683a31925ce809ae5adde7d47e26870f505a46d0a580e",
+      "encrypted_raw": "RqWw7zrgL0Hy6UPh4hsn7f0RTCYQvNijwBrMVQrTQrKGXq5WRsn6TD6POIprFJDsrYijktdPC1nJr0qaMdor5Ik3VUSBM2evQUfq",
+      "permission": "admin",
+      "label": "无上咒",
       "created_by": "anonymous",
-      "created_at": "2026-06-27T03:08:30.420952+00:00",
-      "expires_at": "2026-09-25T03:08:30.420952+00:00",
+      "created_at": "2026-06-27T03:21:24.277028+00:00",
+      "expires_at": "2026-09-25T03:21:24.277028+00:00",
+      "ttl_days": 90,
+      "enabled": true,
+      "last_used": null,
+      "calls": 0
+    },
+    "key_1dcae7efb0be514e": {
+      "key_id": "key_1dcae7efb0be514e",
+      "hash": "7bb8d4c46f4ac89d18992e14c3901a925d5176514399be5c0c150a0ddc7b92f6",
+      "encrypted_raw": "2pnlUDo7ZuVMfFEMX0xdM++AoSXjc6ufMTa1FAYE3B9ckvTaJZ831d9dEHP32IF9y3fTVJXsh0PNoqV8AkuIz1fMsL3fAhGGoxaU",
+      "permission": "admin",
+      "label": "如意",
+      "created_by": "anonymous",
+      "created_at": "2026-06-27T03:22:06.896905+00:00",
+      "expires_at": "2026-09-25T03:22:06.896905+00:00",
       "ttl_days": 90,
       "enabled": true,
       "last_used": null,
@@ -44,21 +44,21 @@
     }
   },
   "usage": {
-    "key_51e57aecff54a612": {
-      "calls": 0,
-      "last_used": null,
-      "per_minute": []
-    },
     "key_env_admin": {
       "calls": 0,
       "last_used": null,
       "per_minute": []
     },
-    "key_f900f8e7600db890": {
+    "key_1c9c62b67001213e": {
+      "calls": 0,
+      "last_used": null,
+      "per_minute": []
+    },
+    "key_1dcae7efb0be514e": {
       "calls": 0,
       "last_used": null,
       "per_minute": []
     }
   },
-  "updated_at": "2026-06-27T03:08:30.429622+00:00"
+  "updated_at": "2026-06-27T03:23:03.636941+00:00"
 }
