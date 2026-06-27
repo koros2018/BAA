@@ -745,6 +745,207 @@ async def review(
     return response_data
 
 
+@app.post("/batch-review")
+async def batch_review(
+    files: List[UploadFile] = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    api_key: str = Depends(verify_api_key),
+):
+    """多文件批量审查
+    
+    同时审查多个图纸文件，返回汇总报告和交叉分析。
+    """
+    if len(files) < 1:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "请至少上传一个文件"})
+    if len(files) > 20:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "单次最多审查20个文件"})
+
+    start = time.time()
+    loop = asyncio.get_event_loop()
+    from src.baa_engine.spec_repository import SpecRepository
+    from collections import Counter
+    repo = SpecRepository()
+    registry_funcs = _func_registry.list_all()
+
+    results = []
+    all_details = []
+    all_entities = []
+    total_violations = 0
+    total_checks = 0
+
+    for file in files:
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if ext not in SUPPORTED_FORMATS:
+            results.append({
+                "filename": file.filename,
+                "status": "error",
+                "error_code": "UNSUPPORTED_FORMAT",
+                "message": f"不支持的文件格式: {ext}",
+            })
+            continue
+
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            results.append({
+                "filename": file.filename,
+                "status": "error",
+                "error_code": "FILE_TOO_LARGE",
+                "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",
+            })
+            continue
+
+        file_id = generate_file_id()
+        file_path = store_file(content, file_id, ext)
+
+        # 解析
+        result = await loop.run_in_executor(
+            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id
+        )
+        if not result.success:
+            results.append({
+                "filename": file.filename,
+                "status": "error",
+                "error_code": "PARSE_FAILED",
+                "message": f"图纸解析失败: {result.error}",
+            })
+            continue
+
+        # 语义分析
+        semantic = await loop.run_in_executor(
+            ENGINE_THREAD_POOL,
+            lambda: _semantic_analyzer.analyze(
+                result.primitives, result.dimensions,
+                building_type=building_type
+            )
+        )
+        entities = semantic["entities"]
+
+        # 规范判定
+        details = []
+        found_entity_types = set(e["type"] for e in entities)
+
+        for e in entities:
+            for func in registry_funcs:
+                threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+                func.threshold = threshold_val
+                func.unit = unit
+                func.operator = op
+                r = func.execute(e)
+                if r is None:
+                    continue
+                if r.result != "PASS":
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                    details.append({
+                        "entity_id": e.get("id", e.get("type", "")),
+                        "entity_type": e["type"],
+                        "clause_id": f.clause.get("clause_id", ""),
+                        "clause_title": f.clause.get("title", ""),
+                        "result": f.judgement["result"],
+                        "extracted_value": f.extracted_params["extracted_value"],
+                        "required_value": f.extracted_params.get("required_value", 1.2),
+                        "difference": f.extracted_params.get("difference", 0),
+                        "explanation": f.explanation[:120],
+                    })
+
+        # 缺失检查
+        for func in registry_funcs:
+            if func.category.value != "exist":
+                continue
+            has_match = any(func.matches(e) for e in entities)
+            if not has_match:
+                r = func.execute(None)
+                if r is not None and r.result != "PASS":
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": "missing",
+                        "clause_id": f.clause.get("clause_id", ""),
+                        "clause_title": f.clause.get("title", ""),
+                        "result": f.judgement["result"],
+                        "extracted_value": 0.0,
+                        "required_value": f.extracted_params.get("required_value", 1.0),
+                        "difference": -f.extracted_params.get("required_value", 1.0),
+                        "explanation": f.explanation[:120],
+                    })
+
+        # 统计
+        entity_types = Counter(e["type"] for e in entities)
+        violation_count = Counter(d["clause_id"] for d in details)
+
+        file_result = {
+            "filename": file.filename,
+            "file_id": file_id,
+            "status": "success",
+            "summary": {
+                "total_entities": len(entities),
+                "entity_types": dict(entity_types),
+                "violations": len(details),
+                "violation_by_clause": dict(violation_count.most_common(10)),
+            },
+            "details": details[:100],
+            "entities": [
+                {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}
+                for e in entities
+            ],
+        }
+
+        all_details.extend(details)
+        all_entities.extend(entities)
+        total_violations += len(details)
+        total_checks += len(entities) * len(registry_funcs)
+        results.append(file_result)
+
+    # 交叉分析：跨图纸找出同一违规类别
+    cross_clause = Counter(d["clause_id"] for d in all_details)
+    cross_analysis = []
+    for clause_id, count in cross_clause.most_common(10):
+        involved_files = set()
+        for r in results:
+            if r["status"] != "success":
+                continue
+            for d in r["details"]:
+                if d["clause_id"] == clause_id:
+                    involved_files.add(r["filename"])
+                    break
+        cross_analysis.append({
+            "clause_id": clause_id,
+            "violations": count,
+            "files": len(involved_files),
+            "file_names": list(involved_files)[:5],
+        })
+
+    elapsed = int((time.time() - start) * 1000)
+
+    return {
+        "status": "success",
+        "batch_summary": {
+            "total_files": len(files),
+            "success_files": sum(1 for r in results if r["status"] == "success"),
+            "failed_files": sum(1 for r in results if r["status"] != "success"),
+            "total_violations": total_violations,
+            "total_checks": total_checks,
+            "total_entities": len(all_entities),
+            "processing_time_ms": elapsed,
+        },
+        "cross_analysis": cross_analysis,
+        "results": results,
+    }
+
+
 @app.post("/review-from-data")
 async def review_from_data(
     body: dict,

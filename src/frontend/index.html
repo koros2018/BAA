@@ -253,6 +253,11 @@
     <!-- ===== AI审图 ===== -->
     <div class="page" id="page-review">
       <h2 class="text-xl font-bold mb-6">AI审图与修正</h2>
+      <div class="mb-3 flex gap-2">
+        <button id="review-tab-single" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700" onclick="switchReviewTab('single')">📄 单图审查</button>
+        <button id="review-tab-batch" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('batch')">📚 批量审查</button>
+      </div>
+      <div id="review-panel-single">
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="card">
           <h3 class="text-sm font-medium mb-3">选择已解析图纸</h3>
@@ -270,6 +275,25 @@
           <div id="review-summary" class="text-sm text-gray-400">选择图纸后开始审查</div>
           <div id="review-details" class="mt-3 space-y-2 text-sm"></div>
         </div>
+      </div>
+      </div>
+      <div id="review-panel-batch" class="hidden">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">选择多个图纸文件</h3>
+          <input id="batch-file-input" type="file" multiple accept=".dxf,.dwg,.pdf" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
+          <div id="batch-file-list" class="text-xs text-gray-400 mb-2"></div>
+          <button onclick="runBatchReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" id="batch-review-start-btn">
+            📚 批量审查
+          </button>
+          <div id="batch-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">批量审查结果</h3>
+          <div id="batch-review-summary" class="text-sm text-gray-400">选择文件后开始批量审查</div>
+          <div id="batch-review-details" class="mt-3 space-y-2 text-sm"></div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -1836,6 +1860,131 @@ async function runReview() {
   } catch (e) {
     loading.innerHTML = '❌ 审查失败: ' + e.message;
     loading.className = 'mt-3 text-sm text-red-500';
+  }
+}
+
+// ── 批量审查 ──────────────────────────────────────────────
+function switchReviewTab(tab) {
+  document.getElementById('review-tab-single').className = tab === 'single'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
+  document.getElementById('review-tab-batch').className = tab === 'batch'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
+  document.getElementById('review-panel-single').className = tab === 'single' ? '' : 'hidden';
+  document.getElementById('review-panel-batch').className = tab === 'batch' ? '' : 'hidden';
+}
+
+let batchFiles = [];
+
+function onBatchFilesSelected(e) {
+  const files = Array.from(e.target.files);
+  batchFiles = files;
+  const list = document.getElementById('batch-file-list');
+  if (files.length === 0) {
+    list.textContent = '';
+    return;
+  }
+  list.innerHTML = files.map(f => `<div>📄 ${f.name} (${(f.size/1024/1024).toFixed(2)}MB)</div>`).join('');
+}
+
+document.getElementById('batch-file-input').addEventListener('change', onBatchFilesSelected);
+
+async function runBatchReview() {
+  if (batchFiles.length === 0) {
+    alert('请先选择至少一个图纸文件');
+    return;
+  }
+
+  const btn = document.getElementById('batch-review-start-btn');
+  const loading = document.getElementById('batch-review-loading');
+  const summary = document.getElementById('batch-review-summary');
+  const details = document.getElementById('batch-review-details');
+
+  btn.disabled = true;
+  loading.classList.remove('hidden');
+  loading.textContent = '⏳ 正在批量审查...';
+  summary.innerHTML = '';
+  details.innerHTML = '';
+
+  const formData = new FormData();
+  batchFiles.forEach(f => formData.append('files', f));
+
+  try {
+    const resp = await apiFetch('/batch-review', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail?.message || '审查失败');
+    }
+
+    const data = await resp.json();
+    if (data.status !== 'success') throw new Error(data.message || '审查失败');
+
+    const bs = data.batch_summary;
+    summary.innerHTML = `
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <div class="card p-2 text-xs">
+          <p class="font-medium">📁 文件统计</p>
+          <p>总数: ${bs.total_files} | ✅成功: ${bs.success_files} | ❌失败: ${bs.failed_files}</p>
+        </div>
+        <div class="card p-2 text-xs">
+          <p class="font-medium">📊 审查统计</p>
+          <p>实体: ${bs.total_entities} | 检查: ${bs.total_checks.toLocaleString()} | 违规: ${bs.total_violations}</p>
+          <p>耗时: ${(bs.processing_time_ms/1000).toFixed(1)}s</p>
+        </div>
+      </div>
+    `;
+
+    // 跨文件交叉分析
+    if (data.cross_analysis && data.cross_analysis.length > 0) {
+      let crossHtml = '<div class="card p-2 text-xs mb-2">';
+      crossHtml += '<p class="font-medium text-sm mb-1">🔗 跨文件违规交叉分析</p>';
+      crossHtml += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+        '<th class="pb-1 pr-1">规范条款</th><th class="pb-1 pr-1">违规数</th><th class="pb-1 pr-1">涉及图纸</th></tr></thead><tbody>';
+      data.cross_analysis.slice(0, 8).forEach(c => {
+        crossHtml += '<tr class="border-b border-gray-50">' +
+          '<td class="py-1 pr-1">' + c.clause_id + '</td>' +
+          '<td class="py-1 pr-1">' + c.violations + '</td>' +
+          '<td class="py-1 pr-1">' + c.files + ' 张</td>' +
+          '<td class="py-1 text-gray-400 truncate max-w-20">' + c.file_names.join(', ') + '</td>' +
+          '</tr>';
+      });
+      crossHtml += '</tbody></table></div>';
+      details.innerHTML = crossHtml + details.innerHTML;
+    }
+
+    // 各文件违规详情
+    let fileHtml = '<div class="card p-2 text-xs">';
+    fileHtml += '<p class="font-medium text-sm mb-1">📋 各文件违规详情</p>';
+    data.results.forEach(r => {
+      if (r.status === 'error') {
+        fileHtml += `<div class="p-2 rounded bg-red-50 text-red-600 mb-1">❌ ${r.filename}: ${r.message}</div>`;
+        return;
+      }
+      const s = r.summary;
+      const sevColor = s.violations > 0 ? 'red' : 'green';
+      fileHtml += `<div class="p-2 rounded bg-${sevColor}-50 mb-1">`;
+      fileHtml += `<p class="font-medium">${r.filename} (${s.total_entities} 实体)</p>`;
+      fileHtml += `<p class="text-xs">违规: <span class="text-${sevColor}-600 font-medium">${s.violations}</span> 项`;
+      if (s.violation_by_clause) {
+        const top = Object.entries(s.violation_by_clause).slice(0, 3);
+        fileHtml += ' | 主要: ' + top.map(([k,v]) => `${k}(${v})`).join(', ');
+      }
+      fileHtml += '</p></div>';
+    });
+    fileHtml += '</div>';
+    details.innerHTML += fileHtml;
+
+    loading.classList.add('hidden');
+  } catch (err) {
+    loading.textContent = '❌ ' + err.message;
+    loading.className = 'mt-3 text-sm text-red-500';
+  } finally {
+    btn.disabled = false;
   }
 }
 
