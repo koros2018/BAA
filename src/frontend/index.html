@@ -811,12 +811,29 @@ async function initAdminToken() {
   }
 }
 
-function adminHeaders() {
-  return _adminToken ? {'Authorization': 'Bearer ' + _adminToken, 'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+function adminHeaders(method) {
+  const h = {};
+  if (_adminToken) {
+    h['Authorization'] = 'Bearer ' + _adminToken;
+  }
+  // 只有 POST/PUT 才加 Content-Type（GET 加 Content-Type 会触发不必要的 OPTIONS preflight）
+  if (method && method !== 'GET') {
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
 }
 
 async function adminGet(path) {
-  const r = await fetch(API_BASE() + path, {headers: adminHeaders()});
+  const r = await fetch(API_BASE() + path, {method: 'GET', headers: adminHeaders('GET')});
+  return r.json();
+}
+
+async function adminPost(path, body) {
+  const r = await fetch(API_BASE() + path, {
+    method: 'POST',
+    headers: adminHeaders('POST'),
+    body: JSON.stringify(body)
+  });
   return r.json();
 }
 
@@ -832,7 +849,7 @@ async function adminPost(path, body) {
 async function adminDelete(path) {
   const r = await fetch(API_BASE() + path, {
     method: 'DELETE',
-    headers: adminHeaders(),
+    headers: adminHeaders('DELETE'),
   });
   return r.json();
 }
@@ -1146,8 +1163,13 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
 });
 
 // ── API 调用 ──────────────────────────────────────────────
+function getHeaders() {
+  const key = getActiveKeyValue();
+  return key ? {'Authorization': 'Bearer ' + key} : {};
+}
+
 async function apiGet(path) {
-  const r = await fetch(API_BASE() + path, {headers: HEADERS()});
+  const r = await fetch(API_BASE() + path, {method: 'GET', headers: getHeaders()});
   return r.json();
 }
 
