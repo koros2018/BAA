@@ -31,6 +31,13 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 FILES_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
+# ── 异步任务存储（内存） ───────────────────────────────────
+from collections import Counter
+
+# EMA2 对接用：异步审查任务 + Webhook 回调
+_tasks = {}  # task_id -> {status, result, created_at, webhook_url, ...}
+_webhooks = {}  # webhook_id -> {url, events, active, ...}
+
 SUPPORTED_FORMATS = {"dxf", "dwg"}
 MAX_FILE_SIZE_MB = 50
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -1497,6 +1504,294 @@ async def bootstrap_admin_key():
         "admin_key": env_key,
         "mode": "production" if env_key else "development",
     }
+
+
+# ── EMA2 第三方对接 API ───────────────────────────────────
+
+async def _fire_webhook(webhook_url: str, payload: dict) -> bool:
+    """发送 Webhook 回调通知（异步，不阻塞主流程）"""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(webhook_url, json=payload)
+            return resp.status_code == 200
+    except Exception:
+        return False
+
+
+async def _run_review_task(task_id: str, file_path: str, building_type: str, webhook_url: str = None):
+    """后台执行审查任务"""
+    _tasks[task_id]["status"] = "running"
+    _tasks[task_id]["updated_at"] = datetime.now().isoformat()
+    
+    try:
+        start = time.time()
+        loop = asyncio.get_event_loop()
+        
+        # 解析
+        result = await loop.run_in_executor(
+            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), task_id
+        )
+        if not result.success:
+            _tasks[task_id]["status"] = "failed"
+            _tasks[task_id]["error"] = f"解析失败: {result.error}"
+            _tasks[task_id]["updated_at"] = datetime.now().isoformat()
+            if webhook_url:
+                await _fire_webhook(webhook_url, {
+                    "task_id": task_id, "status": "failed", "error": _tasks[task_id]["error"]
+                })
+            return
+        
+        # 语义分析
+        semantic = await loop.run_in_executor(
+            ENGINE_THREAD_POOL,
+            lambda: _semantic_analyzer.analyze(
+                result.primitives, result.dimensions, building_type=building_type
+            )
+        )
+        entities = semantic["entities"]
+        
+        # 规范判定
+        details = []
+        for e in entities:
+            for func in _func_registry.list_all():
+                threshold_val, unit, op = _spec_repo.get_threshold(func.clause_id, building_type)
+                func.threshold = threshold_val
+                func.unit = unit
+                func.operator = op
+                r = func.execute(e)
+                if r is None or r.result == "PASS":
+                    continue
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
+                    "entity_id": e.get("id", e.get("type", "")),
+                    "entity_type": e["type"],
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": f.extracted_params["extracted_value"],
+                    "required_value": f.extracted_params.get("required_value", 1.2),
+                    "difference": f.extracted_params.get("difference", 0),
+                    "explanation": f.explanation[:120],
+                    "severity": f.judgement.get("severity", "major"),
+                })
+        
+        # 缺失检查
+        for func in _func_registry.list_all():
+            if func.category.value != "exist":
+                continue
+            if not any(func.matches(e) for e in entities):
+                r = func.execute(None)
+                if r is not None and r.result != "PASS":
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": "missing",
+                        "clause_id": f.clause.get("clause_id", ""),
+                        "clause_title": f.clause.get("title", ""),
+                        "result": f.judgement["result"],
+                        "extracted_value": 0.0,
+                        "required_value": f.extracted_params.get("required_value", 1.0),
+                        "difference": -f.extracted_params.get("required_value", 1.0),
+                        "explanation": f.explanation[:120],
+                        "severity": f.judgement.get("severity", "major"),
+                    })
+        
+        elapsed = int((time.time() - start) * 1000)
+        
+        # 存储结果
+        _tasks[task_id]["status"] = "completed"
+        _tasks[task_id]["result"] = {
+            "summary": {
+                "total_entities": len(entities),
+                "violations": len(details),
+                "entity_types": dict(Counter(e["type"] for e in entities)),
+            },
+            "details": details,
+            "processing_time_ms": elapsed,
+        }
+        _tasks[task_id]["updated_at"] = datetime.now().isoformat()
+        
+        # Webhook 回调
+        if webhook_url:
+            await _fire_webhook(webhook_url, {
+                "task_id": task_id, "status": "completed",
+                "violations": len(details), "entities": len(entities),
+                "processing_time_ms": elapsed,
+            })
+    
+    except Exception as e:
+        _tasks[task_id]["status"] = "failed"
+        _tasks[task_id]["error"] = str(e)
+        _tasks[task_id]["updated_at"] = datetime.now().isoformat()
+        if webhook_url:
+            await _fire_webhook(webhook_url, {
+                "task_id": task_id, "status": "failed", "error": str(e)
+            })
+
+
+@app.post("/api/v1/tasks", tags=["EMA2"])
+async def create_review_task(
+    file: UploadFile = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil/industrial"),
+    webhook_url: str = Query("", description="回调通知 URL（可选）"),
+    api_key: str = Depends(verify_api_key),
+):
+    """创建异步审查任务（EMA2 对接）
+    
+    上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。
+    """
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in SUPPORTED_FORMATS:
+        raise HTTPException(status_code=400, detail={
+            "status": "error", "error_code": "UNSUPPORTED_FORMAT",
+            "message": f"不支持的文件格式: {ext}",
+        })
+    
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail={
+            "status": "error", "error_code": "FILE_TOO_LARGE",
+            "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",
+        })
+    
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
+    
+    # 创建任务
+    task_id = str(uuid.uuid4())[:8]
+    _tasks[task_id] = {
+        "task_id": task_id,
+        "status": "pending",
+        "file_id": file_id,
+        "file_path": str(file_path),
+        "filename": filename,
+        "building_type": building_type,
+        "webhook_url": webhook_url or None,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+        "result": None,
+        "error": None,
+    }
+    
+    # 启动后台任务
+    asyncio.create_task(_run_review_task(task_id, str(file_path), building_type, webhook_url))
+    
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "status_url": f"/api/v1/tasks/{task_id}",
+        "result_url": f"/api/v1/tasks/{task_id}/result",
+    }
+
+
+@app.get("/api/v1/tasks/{task_id}", tags=["EMA2"])
+async def get_task_status(task_id: str, api_key: str = Depends(verify_api_key)):
+    """查询任务状态（EMA2 对接）"""
+    task = _tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "TASK_NOT_FOUND",
+            "message": f"任务不存在: {task_id}",
+        })
+    
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "state": task["status"],
+        "filename": task.get("filename"),
+        "created_at": task.get("created_at"),
+        "updated_at": task.get("updated_at"),
+        "error": task.get("error"),
+    }
+
+
+@app.get("/api/v1/tasks/{task_id}/result", tags=["EMA2"])
+async def get_task_result(task_id: str, api_key: str = Depends(verify_api_key)):
+    """获取审查结果（EMA2 对接）"""
+    task = _tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "TASK_NOT_FOUND",
+            "message": f"任务不存在: {task_id}",
+        })
+    
+    if task["status"] == "pending":
+        raise HTTPException(status_code=409, detail={
+            "status": "pending",
+            "message": "任务仍在处理中，请稍后查询",
+        })
+    
+    if task["status"] == "failed":
+        raise HTTPException(status_code=500, detail={
+            "status": "error", "error_code": "TASK_FAILED",
+            "message": task.get("error", "任务执行失败"),
+        })
+    
+    return {
+        "status": "success",
+        "task_id": task_id,
+        "result": task.get("result"),
+    }
+
+
+@app.post("/api/v1/webhooks", tags=["EMA2"])
+async def register_webhook(
+    url: str = Query(..., description="回调 URL"),
+    events: str = Query("completed", description="触发事件: completed,failed,all"),
+    api_key: str = Depends(verify_api_key),
+):
+    """注册 Webhook 回调（EMA2 对接）"""
+    webhook_id = str(uuid.uuid4())[:8]
+    _webhooks[webhook_id] = {
+        "webhook_id": webhook_id,
+        "url": url,
+        "events": events,
+        "active": True,
+        "created_at": datetime.now().isoformat(),
+    }
+    return {
+        "status": "success",
+        "webhook_id": webhook_id,
+        "url": url,
+        "events": events,
+    }
+
+
+@app.get("/api/v1/webhooks", tags=["EMA2"])
+async def list_webhooks(api_key: str = Depends(verify_api_key)):
+    """查询 Webhook 列表（EMA2 对接）"""
+    return {
+        "status": "success",
+        "webhooks": list(_webhooks.values()),
+    }
+
+
+@app.delete("/api/v1/webhooks/{webhook_id}", tags=["EMA2"])
+async def delete_webhook(webhook_id: str, api_key: str = Depends(verify_api_key)):
+    """删除 Webhook（EMA2 对接）"""
+    if webhook_id not in _webhooks:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "WEBHOOK_NOT_FOUND",
+            "message": f"Webhook 不存在: {webhook_id}",
+        })
+    del _webhooks[webhook_id]
+    return {"status": "success", "message": "Webhook 已删除"}
 
 
 # ── 启动入口 ──────────────────────────────────────────────
