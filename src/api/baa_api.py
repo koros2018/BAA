@@ -75,6 +75,7 @@ import base64
 # ── API密钥管理 ──────────────────────────────────────────
 
 from src.baa_engine.api_key_manager import get_key_manager, ApiKeyPermission
+from src.baa_engine.feedback_engine import FeedbackManager, LearningEngine
 
 
 def generate_auth_token(payload: dict, secret: str = None) -> str:
@@ -158,13 +159,16 @@ def _load_engine():
     from src.baa_engine.atomic_functions import FuncRegistry
     from src.baa_engine.attribution_analyzer import AttributionAnalyzer
     from src.baa_engine.spec_repository import SpecRepository
-    global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo
+    global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine
     _drawing_parser = DrawingParser()
     _semantic_analyzer = SemanticAnalyzer()
     _func_registry = FuncRegistry()
     _attribution_analyzer = AttributionAnalyzer()
     _spec_repo = SpecRepository()
+    _feedback_manager = FeedbackManager(DATA_DIR)
+    _learning_engine = LearningEngine(_feedback_manager)
     print(f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范")
+    print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")
 
 
 from contextlib import asynccontextmanager
@@ -296,6 +300,10 @@ _semantic_analyzer = None
 _func_registry = None
 _attribution_analyzer = None
 _spec_repo = None
+
+# ── 反馈闭环引擎（P10） ────────────────────────────────────
+_feedback_manager: Optional[FeedbackManager] = None
+_learning_engine: Optional[LearningEngine] = None
 
 
 @app.get("/health")
@@ -1792,6 +1800,113 @@ async def delete_webhook(webhook_id: str, api_key: str = Depends(verify_api_key)
         })
     del _webhooks[webhook_id]
     return {"status": "success", "message": "Webhook 已删除"}
+
+
+# ── P10 反馈闭环 API ───────────────────────────────────────
+
+@app.post("/api/v1/feedbacks", tags=["Feedback"])
+async def submit_feedback(body: dict):
+    """提交违规申诉（P10 反馈闭环）
+    
+    Body: {task_id, clause_id, entity_id, entity_type, reason, description?, original_value?, severity?}
+    """
+    record = _feedback_manager.submit(
+        task_id=body.get("task_id", ""),
+        clause_id=body.get("clause_id", ""),
+        entity_id=body.get("entity_id", ""),
+        entity_type=body.get("entity_type", ""),
+        reason=body.get("reason", ""),
+        description=body.get("description", ""),
+        original_value=body.get("original_value"),
+        severity=body.get("severity", ""),
+    )
+    return {"status": "success", "feedback": record}
+
+
+@app.get("/api/v1/feedbacks", tags=["Feedback"])
+async def list_feedbacks(
+    status: str = Query("", description="筛选状态: pending/accepted/rejected"),
+    clause_id: str = Query("", description="筛选规范条款"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """查询申诉列表"""
+    items, total = _feedback_manager.list_all(
+        status=status, clause_id=clause_id, limit=limit, offset=offset
+    )
+    return {"status": "success", "feedbacks": items, "total": total}
+
+
+@app.get("/api/v1/feedbacks/stats", tags=["Feedback"])
+async def feedback_stats():
+    """申诉统计"""
+    return {"status": "success", "stats": _feedback_manager.stats()}
+
+
+@app.get("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])
+async def get_feedback(feedback_id: str):
+    """查询单条申诉"""
+    record = _feedback_manager.get(feedback_id)
+    if not record:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "FEEDBACK_NOT_FOUND",
+            "message": f"申诉不存在: {feedback_id}",
+        })
+    return {"status": "success", "feedback": record}
+
+
+@app.patch("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])
+async def review_feedback(
+    feedback_id: str,
+    body: dict,
+):
+    """审核申诉（P10 反馈闭环）
+    
+    Body: {status: accepted/rejected, reviewed_by, review_comment?}
+    """
+    record = _feedback_manager.review(
+        feedback_id, body.get("status", ""), body.get("reviewed_by", ""),
+        body.get("review_comment", "")
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "FEEDBACK_NOT_FOUND",
+            "message": f"申诉不存在: {feedback_id}",
+        })
+    return {"status": "success", "feedback": record}
+
+
+
+@app.post("/api/v1/feedbacks/{feedback_id}/adjust", tags=["Feedback"])
+async def adjust_threshold(
+    feedback_id: str,
+    body: dict,
+):
+    """基于申诉数据计算/应用阈值调整
+    
+    Body: {clause_id, apply?}
+    """
+    clause_id = body.get("clause_id", "")
+    apply = body.get("apply", False)
+    
+    try:
+        current, unit, op = _spec_repo.get_threshold(clause_id, "civil")
+    except ValueError:
+        raise HTTPException(status_code=404, detail={
+            "status": "error", "error_code": "CLAUSE_NOT_FOUND",
+            "message": f"规范不存在: {clause_id}",
+        })
+
+    adjustment = _learning_engine.compute_adjustment(clause_id, current)
+
+    if apply and adjustment.get("adjustable"):
+        success = _learning_engine.apply_adjustment(
+            clause_id, adjustment["suggested_threshold"], _spec_repo,
+            reason=f"基于申诉 {feedback_id} 的自动微调"
+        )
+        adjustment["applied"] = success
+
+    return {"status": "success", "adjustment": adjustment}
 
 
 # ── 启动入口 ──────────────────────────────────────────────

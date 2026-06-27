@@ -534,6 +534,18 @@ class SpecRepository:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(self.to_json())
 
+    def set_threshold(self, clause_id: str, building_type: str, value: float):
+        """设置指定建筑类型的阈值（用于反馈闭环微调）"""
+        clause = self.get(clause_id)
+        if not clause:
+            raise ValueError(f"规范 {clause_id} 不存在")
+
+        if not clause.threshold:
+            clause.threshold = ClauseThreshold()
+        if not clause.threshold.building_types:
+            clause.threshold.building_types = {}
+        clause.threshold.building_types[building_type] = value
+
     @property
     def count(self) -> int:
         return len(self._clauses)

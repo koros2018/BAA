@@ -1,0 +1,50 @@
+[
+  {
+    "feedback_id": "59a7a0af",
+    "task_id": "test001",
+    "clause_id": "GB50016-5.5.19",
+    "entity_id": "door_001",
+    "entity_type": "door",
+    "status": "pending",
+    "reason": "门宽0.85m实际测量为0.9m",
+    "description": "现场复核后确认门宽合规",
+    "created_at": "2026-06-27T15:49:03.092076",
+    "updated_at": "2026-06-27T15:49:03.092094",
+    "reviewed_by": "",
+    "review_comment": "",
+    "severity": "major",
+    "original_value": 0.9
+  },
+  {
+    "feedback_id": "b04f4375",
+    "task_id": "test001",
+    "clause_id": "GB50016-5.5.19",
+    "entity_id": "door_001",
+    "entity_type": "door",
+    "status": "accepted",
+    "reason": "门宽0.85m实际测量为0.9m",
+    "description": "现场复核后确认门宽合规",
+    "created_at": "2026-06-27T15:52:36.980225",
+    "updated_at": "2026-06-27T15:52:43.013127",
+    "reviewed_by": "admin",
+    "review_comment": "经复核确认门宽合规",
+    "severity": "major",
+    "original_value": 0.9
+  },
+  {
+    "feedback_id": "5d459a68",
+    "task_id": "test001",
+    "clause_id": "GB50016-5.5.19",
+    "entity_id": "door_001",
+    "entity_type": "door",
+    "status": "pending",
+    "reason": "门宽0.85m实际测量为0.9m",
+    "description": "现场复核后确认门宽合规",
+    "created_at": "2026-06-27T15:55:23.250576",
+    "updated_at": "2026-06-27T15:55:23.250592",
+    "reviewed_by": "",
+    "review_comment": "",
+    "severity": "major",
+    "original_value": 0.9
+  }
+]
