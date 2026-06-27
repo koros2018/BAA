@@ -18,10 +18,91 @@ import hmac
 import json
 import time
 import os
+import base64
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Dict, List, Set
+
+
+# ── AES-GCM 加密（密钥可恢复，用于前端展示） ──────────────
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+
+# 用于加密 raw_key 的主密钥（从环境变量派生，或自动生成一个持久化的）
+_ENCRYPTION_MASTER_KEY = None
+_ENCRYPTION_KEY_LOCK = threading.Lock()
+
+
+def _get_encryption_key() -> bytes:
+    """获取/初始化 AES-256 主密钥（32 bytes）
+    
+    优先级：
+    1. 环境变量 BAA_KEY_ENCRYPTION_KEY（32字节 hex）
+    2. 持久化存储的密钥文件 data/.key_encryption.key
+    3. 自动生成并保存
+    """
+    global _ENCRYPTION_MASTER_KEY
+    if _ENCRYPTION_MASTER_KEY is not None:
+        return _ENCRYPTION_MASTER_KEY
+    
+    with _ENCRYPTION_KEY_LOCK:
+        if _ENCRYPTION_MASTER_KEY is not None:
+            return _ENCRYPTION_MASTER_KEY
+        
+        # 1. 环境变量
+        env_key = os.getenv("BAA_KEY_ENCRYPTION_KEY", "")
+        if env_key:
+            try:
+                _ENCRYPTION_MASTER_KEY = bytes.fromhex(env_key)
+                if len(_ENCRYPTION_MASTER_KEY) == 32:
+                    return _ENCRYPTION_MASTER_KEY
+            except ValueError:
+                pass
+        
+        # 2. 持久化密钥文件
+        storage_dir = Path(__file__).resolve().parent.parent.parent / "data"
+        key_file = storage_dir / ".key_encryption.key"
+        if key_file.exists():
+            raw = key_file.read_bytes().strip()
+            if len(raw) == 32:
+                _ENCRYPTION_MASTER_KEY = raw
+                return _ENCRYPTION_MASTER_KEY
+        
+        # 3. 自动生成
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        new_key = AESGCM.generate_key(bit_length=256)
+        key_file.write_bytes(new_key)
+        os.chmod(str(key_file), 0o600)  # 仅 owner 可读写
+        _ENCRYPTION_MASTER_KEY = new_key
+        return _ENCRYPTION_MASTER_KEY
+
+
+def encrypt_raw_key(raw_key: str) -> str:
+    """AES-GCM 加密 raw_key，返回 base64 编码密文"""
+    key = _get_encryption_key()
+    aesgcm = AESGCM(key)
+    nonce = os.urandom(12)  # GCM 推荐 96-bit nonce
+    ciphertext = aesgcm.encrypt(nonce, raw_key.encode("utf-8"), None)
+    # 格式: base64(nonce + ciphertext)
+    return base64.b64encode(nonce + ciphertext).decode("ascii")
+
+
+def decrypt_raw_key(encrypted: str) -> Optional[str]:
+    """解密 raw_key，失败返回 None"""
+    try:
+        key = _get_encryption_key()
+        data = base64.b64decode(encrypted)
+        nonce = data[:12]
+        ciphertext = data[12:]
+        aesgcm = AESGCM(key)
+        plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+        return plaintext.decode("utf-8")
+    except Exception:
+        return None
 
 
 # ── 权限等级 ──────────────────────────────────────────────
@@ -146,9 +227,13 @@ class ApiKeyManager:
         now = datetime.now(timezone.utc)
         expires_at = now.timestamp() + ttl * 86400
 
+        # AES-GCM 加密存储 raw_key（前端可恢复查看/复制）
+        encrypted_raw = encrypt_raw_key(raw_key)
+
         key_info = {
             "key_id": key_id,
             "hash": key_hash,
+            "encrypted_raw": encrypted_raw,  # AES-GCM 密文，可解密为原始密钥
             "permission": permission,
             "label": label,
             "created_by": created_by,
@@ -166,11 +251,11 @@ class ApiKeyManager:
 
         self.save()
 
-        # 返回时不包含hash
-        return_info = {k: v for k, v in key_info.items() if k != "hash"}
+        # 返回时不包含hash和encrypted_raw
+        return_info = {k: v for k, v in key_info.items() if k not in ("hash", "encrypted_raw")}
         return {
             "key_id": key_id,
-            "raw_key": raw_key,   # 仅创建时返回一次！
+            "raw_key": raw_key,   # 创建时返回，后续可通过 decrypt 恢复
             "info": return_info,
         }
 
@@ -216,8 +301,13 @@ class ApiKeyManager:
 
     # ── 密钥管理 ──────────────────────────────────────────
 
-    def list_keys(self, include_disabled: bool = False) -> List[dict]:
-        """列出所有密钥（不含hash）"""
+    def list_keys(self, include_disabled: bool = False, include_raw: bool = False) -> List[dict]:
+        """列出所有密钥
+
+        Args:
+            include_disabled: 是否包含已禁用的
+            include_raw: 是否解密并返回 raw_key（前端密钥详情页使用）
+        """
         self.load()
         result = []
         for key_id, info in self._keys.items():
@@ -228,6 +318,14 @@ class ApiKeyManager:
             usage = self._usage.get(key_id, {})
             entry["calls"] = usage.get("calls", 0)
             entry["last_used"] = usage.get("last_used")
+            # 解密 raw_key（前端可用）
+            encrypted = info.get("encrypted_raw", "")
+            if include_raw and encrypted:
+                raw = decrypt_raw_key(encrypted)
+                entry["raw_key"] = raw if raw else None
+                entry["has_raw_key"] = raw is not None
+            else:
+                entry["has_raw_key"] = bool(encrypted)
             result.append(entry)
         return sorted(result, key=lambda x: x.get("created_at", ""), reverse=True)
 
@@ -263,7 +361,9 @@ class ApiKeyManager:
             ttl = new_ttl_days or old_info.get("ttl_days", DEFAULT_KEY_TTL_DAYS)
             expires_at = now.timestamp() + ttl * 86400
 
+            encrypted_raw = encrypt_raw_key(raw_key)
             self._keys[key_id]["hash"] = new_hash
+            self._keys[key_id]["encrypted_raw"] = encrypted_raw
             self._keys[key_id]["ttl_days"] = ttl
             self._keys[key_id]["expires_at"] = datetime.fromtimestamp(
                 expires_at, tz=timezone.utc
@@ -274,7 +374,7 @@ class ApiKeyManager:
         return {
             "key_id": key_id,
             "raw_key": raw_key,
-            "info": {k: v for k, v in self._keys[key_id].items() if k != "hash"},
+            "info": {k: v for k, v in self._keys[key_id].items() if k not in ("hash", "encrypted_raw")},
         }
 
     def delete_key(self, key_id: str) -> bool:
@@ -408,6 +508,7 @@ class ApiKeyManager:
         key_info = {
             "key_id": key_id,
             "hash": key_hash,
+            "encrypted_raw": encrypt_raw_key(raw_key),
             "permission": "admin",
             "label": "env-key",
             "created_by": "env",

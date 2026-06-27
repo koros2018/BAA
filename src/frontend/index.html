@@ -481,12 +481,23 @@
       </div>
 
       <!-- 密钥详情 Modal -->
+      <!-- 密钥详情 Modal（V2：支持显示/复制 raw_key） -->
       <div id="key-detail-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4">
           <h3 class="text-lg font-bold mb-4" id="detail-key-title">密钥详情</h3>
           <div id="key-detail-content" class="space-y-3 text-sm"></div>
+          <!-- raw_key 展示区（初始隐藏） -->
+          <div id="detail-raw-key-section" class="hidden mt-4 p-3 bg-gray-50 rounded border">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-medium text-gray-600">密钥原文（仅您可见）</span>
+              <button onclick="copyDetailRawKey()" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">📋 复制</button>
+            </div>
+            <div id="detail-raw-key-value" class="font-mono text-xs break-all select-all bg-white p-2 rounded border"></div>
+            <p class="text-xs text-red-500 mt-2">⚠️ 请妥善保管，不要分享给他人</p>
+          </div>
           <div class="flex justify-end gap-3 mt-6">
             <button onclick="closeKeyDetailModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">关闭</button>
+            <button id="btn-show-raw-key" onclick="showDetailRawKey()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 hidden">👁️ 显示密钥</button>
             <button id="btn-revoke-key" onclick="revokeAdminKey()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 hidden">撤销此密钥</button>
           </div>
         </div>
@@ -907,6 +918,7 @@ async function loadAdminKeys() {
         '<td class="py-2 pr-3 text-gray-500">' + (usage.total_calls || 0) + '</td>' +
         '<td class="py-2">' +
           '<button onclick="showKeyDetail(\'' + k.key_id + '\')" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300 mr-1">详情</button>' +
+          (k.has_raw_key ? '<button onclick="copyKeyFromDetail(\'' + k.key_id + '\')" class="px-2 py-1 bg-blue-100 rounded text-xs hover:bg-blue-200 mr-1">📋复制密钥</button>' : '') +
           (k.enabled ? '<button onclick="confirmRevokeKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200 mr-1">撤销</button>' : '') +
           '<button onclick="confirmDeleteKey(\'' + k.key_id + '\')" class="px-2 py-1 bg-red-200 rounded text-xs hover:bg-red-300" title="永久删除（不可恢复）">🗑️</button>' +
         '</td>' +
@@ -980,33 +992,45 @@ function closeKeyCreatedModal() {
   document.getElementById('key-created-modal').classList.add('hidden');
 }
 
+let _detailRawKey = '';  // 缓存解密后的 raw_key
+
 async function showKeyDetail(keyId) {
   _selectedDetailKeyId = keyId;
+  _detailRawKey = '';
   document.getElementById('detail-key-title').textContent = '密钥详情: ' + keyId;
   document.getElementById('btn-revoke-key').classList.add('hidden');
+  document.getElementById('btn-show-raw-key').classList.add('hidden');
+  document.getElementById('detail-raw-key-section').classList.add('hidden');
   document.getElementById('key-detail-content').innerHTML = '<div class="text-gray-400">加载中...</div>';
   document.getElementById('key-detail-modal').classList.remove('hidden');
 
   try {
-    const data = await adminGet('/admin/keys?include_disabled=true');
+    // 调用单密钥详情 API（含解密 raw_key）
+    const data = await adminGet('/admin/keys/' + keyId);
     if (data && data.data) {
-      const k = data.data.find(x => x.key_id === keyId);
-      if (k) {
-        const usage = k.usage || {};
-        document.getElementById('key-detail-content').innerHTML =
-          '<div class="grid grid-cols-2 gap-3">' +
-            '<div><span class="text-gray-500">标签:</span> ' + (k.label || '-') + '</div>' +
-            '<div><span class="text-gray-500">权限:</span> ' + permissionBadge(k.permission) + '</div>' +
-            '<div><span class="text-gray-500">状态:</span> ' + enabledBadge(k.enabled) + '</div>' +
-            '<div><span class="text-gray-500">创建者:</span> ' + (k.created_by || '-') + '</div>' +
-            '<div><span class="text-gray-500">创建时间:</span> ' + formatDate(k.created_at) + '</div>' +
-            '<div><span class="text-gray-500">过期时间:</span> ' + formatDate(k.expires_at) + '</div>' +
-            '<div><span class="text-gray-500">总调用:</span> ' + (usage.total_calls || 0) + '</div>' +
-            '<div><span class="text-gray-500">最后使用:</span> ' + formatDate(usage.last_used) + '</div>' +
-          '</div>';
-        if (k.enabled) {
-          document.getElementById('btn-revoke-key').classList.remove('hidden');
-        }
+      const k = data.data;
+      const usage = k.usage || {};
+      
+      document.getElementById('key-detail-content').innerHTML =
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<div><span class="text-gray-500">标签:</span> ' + (k.label || '-') + '</div>' +
+          '<div><span class="text-gray-500">权限:</span> ' + permissionBadge(k.permission) + '</div>' +
+          '<div><span class="text-gray-500">状态:</span> ' + enabledBadge(k.enabled) + '</div>' +
+          '<div><span class="text-gray-500">创建者:</span> ' + (k.created_by || '-') + '</div>' +
+          '<div><span class="text-gray-500">创建时间:</span> ' + formatDate(k.created_at) + '</div>' +
+          '<div><span class="text-gray-500">过期时间:</span> ' + formatDate(k.expires_at) + '</div>' +
+          '<div><span class="text-gray-500">总调用:</span> ' + (usage.total_calls || 0) + '</div>' +
+          '<div><span class="text-gray-500">最后使用:</span> ' + formatDate(usage.last_used) + '</div>' +
+        '</div>';
+      
+      // raw_key 可用性
+      if (k.raw_key) {
+        _detailRawKey = k.raw_key;
+        document.getElementById('btn-show-raw-key').classList.remove('hidden');
+      }
+      
+      if (k.enabled) {
+        document.getElementById('btn-revoke-key').classList.remove('hidden');
       }
     }
   } catch (e) {
@@ -1014,8 +1038,52 @@ async function showKeyDetail(keyId) {
   }
 }
 
+function showDetailRawKey() {
+  if (!_detailRawKey) {
+    alert('密钥原文不可用（可能是旧版创建的密钥，仅初创时可见）');
+    return;
+  }
+  const section = document.getElementById('detail-raw-key-section');
+  document.getElementById('detail-raw-key-value').textContent = _detailRawKey;
+  section.classList.remove('hidden');
+  document.getElementById('btn-show-raw-key').classList.add('hidden');
+}
+
+function copyDetailRawKey() {
+  if (!_detailRawKey) return;
+  navigator.clipboard.writeText(_detailRawKey).then(() => {
+    alert('✅ 密钥已复制到剪贴板');
+  }).catch(() => {
+    // 降级：选中文本让用户手动复制
+    const el = document.getElementById('detail-raw-key-value');
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    alert('自动复制失败，请手动 Ctrl+C 复制选中的密钥');
+  });
+}
+
+// 从列表直接复制密钥（调用详情接口获取 raw_key）
+async function copyKeyFromDetail(keyId) {
+  try {
+    const data = await adminGet('/admin/keys/' + keyId);
+    if (data && data.data && data.data.raw_key) {
+      await navigator.clipboard.writeText(data.data.raw_key);
+      alert('✅ 密钥已复制到剪贴板');
+    } else {
+      alert('❌ 密钥原文不可用（旧版创建的密钥仅初创时可见）');
+    }
+  } catch (e) {
+    alert('❌ 获取密钥失败: ' + e.message);
+  }
+}
+
 function closeKeyDetailModal() {
   document.getElementById('key-detail-modal').classList.add('hidden');
+  document.getElementById('detail-raw-key-section').classList.add('hidden');
+  _detailRawKey = '';
 }
 
 async function confirmRevokeKey(keyId) {

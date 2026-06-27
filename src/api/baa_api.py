@@ -1123,13 +1123,14 @@ async def create_api_key(
 @app.get("/admin/keys", tags=["admin"])
 async def list_api_keys(
     include_disabled: bool = Query(False),
+    include_raw: bool = Query(False, description="是否返回解密后的 raw_key（密钥详情时使用）"),
     request: Request = None,
     api_key: str = Depends(verify_api_key),
     _admin: str = Depends(require_admin),
 ):
     """列出所有API Key"""
     km = get_key_manager()
-    keys = km.list_keys(include_disabled=include_disabled)
+    keys = km.list_keys(include_disabled=include_disabled, include_raw=include_raw)
     stats = km.get_usage_stats()
 
     for k in keys:
@@ -1142,6 +1143,27 @@ async def list_api_keys(
         "data": keys,
         "total": len(keys),
     }
+
+
+@app.get("/admin/keys/{key_id}", tags=["admin"])
+async def get_api_key_detail(
+    key_id: str,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
+    """获取单个API Key详情（含解密后的 raw_key）"""
+    km = get_key_manager()
+    keys = km.list_keys(include_disabled=True, include_raw=True)
+    for k in keys:
+        if k["key_id"] == key_id:
+            stats = km.get_usage_stats(key_id)
+            k["usage"] = stats
+            return {"status": "success", "data": k}
+    raise HTTPException(status_code=404, detail={
+        "status": "error", "error_code": "NOT_FOUND",
+        "message": f"密钥不存在: {key_id}"
+    })
 
 
 @app.post("/admin/keys/{key_id}/revoke", tags=["admin"])
