@@ -1257,6 +1257,23 @@ async function apiGet(path) {
   return r.json();
 }
 
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE() + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders() },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+async function apiFetch(path, options = {}) {
+  const r = await fetch(API_BASE() + path, {
+    headers: { 'Content-Type': 'application/json', ...getHeaders(), ...options.headers },
+    ...options,
+  });
+  return r.json();
+}
+
 async function apiPostFile(path, file, extraParams = {}) {
   const form = new FormData();
   form.append('file', file);
@@ -2083,20 +2100,21 @@ async function runBatchReview() {
   batchFiles.forEach(f => formData.append('files', f));
 
   try {
-    const resp = await apiFetch('/batch-review', {
+    const r = await fetch(API_BASE() + '/batch-review', {
       method: 'POST',
+      headers: getHeaders(),
       body: formData,
     });
+    const resp = await r.json();
 
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.detail?.message || '审查失败');
+    if (!r.ok) {
+      const err = resp.detail || resp;
+      throw new Error(err.message || '审查失败');
     }
 
-    const data = await resp.json();
-    if (data.status !== 'success') throw new Error(data.message || '审查失败');
+    if (resp.status !== 'success') throw new Error(resp.message || '审查失败');
 
-    const bs = data.batch_summary;
+    const bs = resp.batch_summary;
     summary.innerHTML = `
       <div class="grid grid-cols-2 gap-2 mb-2">
         <div class="card p-2 text-xs">
@@ -2112,12 +2130,12 @@ async function runBatchReview() {
     `;
 
     // 跨文件交叉分析
-    if (data.cross_analysis && data.cross_analysis.length > 0) {
+    if (resp.cross_analysis && resp.cross_analysis.length > 0) {
       let crossHtml = '<div class="card p-2 text-xs mb-2">';
       crossHtml += '<p class="font-medium text-sm mb-1">🔗 跨文件违规交叉分析</p>';
       crossHtml += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
         '<th class="pb-1 pr-1">规范条款</th><th class="pb-1 pr-1">违规数</th><th class="pb-1 pr-1">涉及图纸</th></tr></thead><tbody>';
-      data.cross_analysis.slice(0, 8).forEach(c => {
+      resp.cross_analysis.slice(0, 8).forEach(c => {
         crossHtml += '<tr class="border-b border-gray-50">' +
           '<td class="py-1 pr-1">' + c.clause_id + '</td>' +
           '<td class="py-1 pr-1">' + c.violations + '</td>' +
@@ -2132,7 +2150,7 @@ async function runBatchReview() {
     // 各文件违规详情
     let fileHtml = '<div class="card p-2 text-xs">';
     fileHtml += '<p class="font-medium text-sm mb-1">📋 各文件违规详情</p>';
-    data.results.forEach(r => {
+    resp.results.forEach(r => {
       if (r.status === 'error') {
         fileHtml += `<div class="p-2 rounded bg-red-50 text-red-600 mb-1">❌ ${r.filename}: ${r.message}</div>`;
         return;
