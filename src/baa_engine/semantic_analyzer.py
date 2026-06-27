@@ -21,6 +21,7 @@ LAYER_RULES = {
     "EXIT": "exit", "出口": "exit", "安全出口": "exit",
     "FIRE_DOOR": "fire_door", "防火门": "fire_door",
     "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",
+    "SB": "door",  # 水消防设备层门标记
 }
 
 # 短关键字（单字母/2字母）使用全词匹配
@@ -169,6 +170,11 @@ class SemanticAnalyzer:
                 if r.get("path_length") is not None:
                     ent.properties["evacuation_path_length"] = r["path_length"]
                 ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)
+            # 对未找到路径的实体（如走廊兜底），标记为无路径
+            elif ent.type in ("room", "corridor"):
+                if "has_evacuation_route" not in ent.properties:
+                    ent.properties["has_evacuation_route"] = False
+                    ent.properties["evacuation_too_far"] = True
 
         return {
             "entities": [e.to_dict() for e in entities],
@@ -340,11 +346,14 @@ class SemanticAnalyzer:
         short_edge = min(bw, bh) if bw > 0 and bh > 0 else length
 
         if dxf_type == "LINE":
-            if length > 1000:
+            if length > 2000:
                 return "wall"
-            # 短 LINE（50~500mm）可能是门的宽度线
-            if 50 < length < 500 and short_edge < 5:
-                # 非常细长的短 line → door 宽度指示
+            # 中等长度 LINE（700~2000mm）：典型门宽范围 → door
+            if 700 < length < 2000 and short_edge < 50:
+                # 细长 LINE，宽度在典型门宽范围内
+                return "door"
+            # 短 LINE（50~700mm）可能是门的宽度线或小构件
+            if 50 < length < 700 and short_edge < 5:
                 return "door"
             return "corridor"
 
@@ -352,9 +361,11 @@ class SemanticAnalyzer:
             pts_count = props.get("point_count", 0)
             if pts_count == 2:
                 # 2 点 LWPOLYLINE：视为 LINE 等价
-                if length > 1000:
+                if length > 2000:
                     return "wall"
-                if 50 < length < 500 and short_edge < 5:
+                if 700 < length < 2000 and short_edge < 50:
+                    return "door"
+                if 50 < length < 700 and short_edge < 5:
                     return "door"
                 return "corridor"
             
@@ -1054,11 +1065,17 @@ class SemanticAnalyzer:
         if not exits:
             return []
 
-        # 如果没有 exit 类型但有 door/fire_door，将这些门作为出口候选
+        # 如果没有 room 但有 corridor，用 corridor 作为起点分析连通性
+        if not rooms:
+            corridors = [e for e in entities if e.type == "corridor"]
+            if corridors:
+                rooms = corridors  # 兜底：用走廊代替房间作为起点
+            else:
+                return []
+        
         # 优先用 type=exit 的，兜底用 door/fire_door
         has_exit_type = any(e.type == "exit" for e in exits)
         if not has_exit_type:
-            # 没有显式 exit 类型，从 door 中选最靠外的作为出口
             pass
 
         routes = []
