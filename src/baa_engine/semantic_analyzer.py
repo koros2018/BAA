@@ -163,7 +163,10 @@ class SemanticAnalyzer:
         route_by_room = {}
         for route in evacuation_routes:
             route_by_room[route["room_id"]] = route
+        dead_end_ids = set(d["id"] for d in corridor_topology.get("dead_ends", []))
         for ent in entities:
+            if ent.id in dead_end_ids:
+                ent.properties["is_dead_end"] = True
             if ent.id in route_by_room:
                 r = route_by_room[ent.id]
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)
@@ -1102,7 +1105,11 @@ class SemanticAnalyzer:
                 "has_route": found_route is not None,
                 "path_length": round(found_route[1], 2) if found_route else None,
                 "path": found_route[0] if found_route else [],
-                "exceeds_max_distance": found_route is not None and found_route[1] > 30.0,
+                "is_dead_end_room": room.properties.get("is_dead_end", False),
+                # 死胡同走廊（袋形走道）：疏散距离 ≤ 20m（GB50016-5.5.17注1）
+                # 其他走廊/房间：≤ 30m
+                "evac_distance_limit": 20.0 if room.properties.get("is_dead_end", False) else 30.0,
+                "exceeds_max_distance": found_route is not None and found_route[1] > (20.0 if room.properties.get("is_dead_end", False) else 30.0),
             }
             routes.append(route_info)
 
