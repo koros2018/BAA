@@ -1,14 +1,28 @@
 {
   "keys": {
-    "key_5fe9f47ad7eff4b9": {
-      "key_id": "key_5fe9f47ad7eff4b9",
-      "hash": "874c767d5eab6cb27f50ff9eb6f303848170906cd8ecf3755c9da51278d54609",
+    "key_7273c11e96590f81": {
+      "key_id": "key_7273c11e96590f81",
+      "hash": "6752895ec03f7d3fa8b752b4531fce1e62b3edcff7304a0f71df2e077e149ba4",
       "permission": "admin",
       "label": "如意",
       "created_by": "anonymous",
-      "created_at": "2026-06-25T13:39:38.529538+00:00",
-      "expires_at": "2026-09-23T13:39:38.529538+00:00",
+      "created_at": "2026-06-27T02:03:33.358313+00:00",
+      "expires_at": "2026-09-25T02:03:33.358313+00:00",
       "ttl_days": 90,
+      "enabled": true,
+      "last_used": null,
+      "calls": 0
+    },
+    "key_51e57aecff54a612": {
+      "key_id": "key_51e57aecff54a612",
+      "hash": "9be2d24f041cfc2a05f863476034d2cfa63868fc4f3fe894d3c9fc487c50ee0a",
+      "encrypted_raw": "I0rMfFgS2jZl3EnT80VzsbDWtlQgLfBOZBpJaacMBE5Js7mGtJQvIscgkrRrXec/kaAVKMk+y5ApVKzlal35Xbsui/04aYh2jAmo",
+      "permission": "write",
+      "label": "test",
+      "created_by": "anonymous",
+      "created_at": "2026-06-27T02:07:15.095410+00:00",
+      "expires_at": "2026-07-04T02:07:15.095410+00:00",
+      "ttl_days": 7,
       "enabled": true,
       "last_used": null,
       "calls": 0
@@ -16,32 +30,25 @@
     "key_env_admin": {
       "key_id": "key_env_admin",
       "hash": "4c806362b613f7496abf284146efd31da90e4b16169fe001841ca17290f427c4",
+      "encrypted_raw": "T1HOm5/6V9vmlRR/zd0zcMOd5i+P6r/Rc6B5uCUr4ZyccIicr18IAw==",
       "permission": "admin",
       "label": "env-key",
       "created_by": "env",
-      "created_at": "2026-06-25T13:47:38.311131+00:00",
+      "created_at": "2026-06-27T02:07:22.220273+00:00",
       "expires_at": null,
       "ttl_days": null,
-      "enabled": true,
-      "last_used": null,
-      "calls": 0
-    },
-    "key_a169971b1b89cf33": {
-      "key_id": "key_a169971b1b89cf33",
-      "hash": "bfc64fd607eee210e280c2fce7783939464a8f8cf6f7bf0afc8b7a4296b59e2d",
-      "permission": "admin",
-      "label": "env-produce",
-      "created_by": "anonymous",
-      "created_at": "2026-06-25T13:57:28.562908+00:00",
-      "expires_at": "2027-06-25T13:57:28.562908+00:00",
-      "ttl_days": 365,
       "enabled": true,
       "last_used": null,
       "calls": 0
     }
   },
   "usage": {
-    "key_5fe9f47ad7eff4b9": {
+    "key_7273c11e96590f81": {
+      "calls": 0,
+      "last_used": null,
+      "per_minute": []
+    },
+    "key_51e57aecff54a612": {
       "calls": 0,
       "last_used": null,
       "per_minute": []
@@ -50,12 +57,7 @@
       "calls": 0,
       "last_used": null,
       "per_minute": []
-    },
-    "key_a169971b1b89cf33": {
-      "calls": 0,
-      "last_used": null,
-      "per_minute": []
     }
   },
-  "updated_at": "2026-06-27T02:01:15.883471+00:00"
+  "updated_at": "2026-06-27T02:07:22.221990+00:00"
 }

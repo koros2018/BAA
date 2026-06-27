@@ -1145,6 +1145,32 @@ async def list_api_keys(
     }
 
 
+@app.get("/admin/keys/stats", tags=["admin"])
+async def api_key_stats(
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
+    """API Key用量统计"""
+    km = get_key_manager()
+
+    stats = km.get_usage_stats()
+    keys = km.list_keys(include_disabled=True)
+
+    return {
+        "status": "success",
+        "data": {
+            "keys": stats,
+            "summary": {
+                "total": len(keys),
+                "active": len([k for k in keys if k.get("enabled")]),
+                "disabled": len([k for k in keys if not k.get("enabled")]),
+                "total_calls": sum(s.get("total_calls", 0) for s in stats.values()),
+            }
+        }
+    }
+
+
 @app.get("/admin/keys/{key_id}", tags=["admin"])
 async def get_api_key_detail(
     key_id: str,
@@ -1222,32 +1248,6 @@ async def delete_api_key(
         "status": "error", "error_code": "NOT_FOUND",
         "message": f"密钥不存在: {key_id}"
     })
-
-
-@app.get("/admin/keys/stats", tags=["admin"])
-async def api_key_stats(
-    request: Request = None,
-    api_key: str = Depends(verify_api_key),
-    _admin: str = Depends(require_admin),
-):
-    """API Key用量统计"""
-    km = get_key_manager()
-
-    stats = km.get_usage_stats()
-    keys = km.list_keys(include_disabled=True)
-
-    return {
-        "status": "success",
-        "data": {
-            "keys": stats,
-            "summary": {
-                "total": len(keys),
-                "active": len([k for k in keys if k.get("enabled")]),
-                "disabled": len([k for k in keys if not k.get("enabled")]),
-                "total_calls": sum(s.get("total_calls", 0) for s in stats.values()),
-            }
-        }
-    }
 
 
 @app.post("/admin/keys/verify", tags=["admin"])
