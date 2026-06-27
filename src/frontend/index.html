@@ -1122,19 +1122,22 @@ async function confirmDeleteKey(keyId) {
   if (!confirm('⚠️ 确认永久删除此密钥？此操作不可恢复，删除后数据将从服务端移除。')) return;
   if (!confirm('再次确认：密钥 ' + keyId + ' 将被永久删除，无法找回。')) return;
   try {
-    // 复用 apiPostJSON 的鉴权方式，统一通过 HEADERS() 带 token
-    const data = await adminDelete('/admin/keys/' + keyId);
-    if (data.status === 'success') {
+    const resp = await fetch(API_BASE() + '/admin/keys/' + keyId, {
+      method: 'DELETE',
+      headers: adminHeaders('DELETE'),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.status === 'success') {
       loadAdminKeys();
       alert('密钥已永久删除');
     } else {
       const msg = data.detail?.message || JSON.stringify(data);
-      if (r.status === 403) {
+      if (resp.status === 403) {
         alert('❌ 权限不足：当前令牌无admin权限。\n请先在「连接配置」页选择一个admin令牌后再试。\n\n详情: ' + msg);
-      } else if (r.status === 404) {
+      } else if (resp.status === 404) {
         alert('❌ 密钥不存在或已被删除: ' + msg);
       } else {
-        alert('删除失败 (' + r.status + '): ' + msg);
+        alert('删除失败 (' + resp.status + '): ' + msg);
       }
     }
   } catch (e) {
