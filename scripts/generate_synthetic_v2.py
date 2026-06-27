@@ -169,11 +169,13 @@ def generate_drawing(building_type, variant, dwg_id, violations):
 
         # 部分防火门
         if random.random() > 0.6:
+            fd_rating = 0 if violations.get("ATTR-001", {}).get("fail") else 1
+            fd_label = "丙" if fd_rating == 0 else "甲"
             add_door(msp, door_x + 0.1, door_y + 1.0, 1.0, "FIRE_DOOR",
-                     fire_rating=1, fire_rating_label="甲")
+                     fire_rating=fd_rating, fire_rating_label=fd_label)
             fdb = {"x": door_x + 0.1, "y": door_y + 1.0, "width": 0.5, "height": 1.0}
             register_entity("fire_door", door_x + 0.1, door_y + 1.0, 0.5, 1.0,
-                            {"fire_rating": 1, "rating": 1, "width": 1.0}, bbox=fdb)
+                            {"fire_rating": fd_rating, "rating": fd_rating, "width": 1.0}, bbox=fdb)
 
         # 窗
         win_w = room_width * 0.6
@@ -197,12 +199,15 @@ def generate_drawing(building_type, variant, dwg_id, violations):
     if violations.get("DIM-001", {}).get("fail"):
         stair_clear_w = 0.9
 
-    add_staircase(msp, 0.5, h - stair_h_val - 0.5, stair_w, stair_h_val, "STAIR")
+    stair_exists = not violations.get("EXIST-001", {}).get("fail")
+    if stair_exists:
+        add_staircase(msp, 0.5, h - stair_h_val - 0.5, stair_w, stair_h_val, "STAIR")
     sbbox = {"x": 0.5, "y": h - stair_h_val - 0.5, "width": stair_w, "height": stair_h_val}
     register_entity("staircase", 0.5, h - stair_h_val - 0.5, stair_w, stair_h_val,
-                    {"clear_width": stair_clear_w, "width": stair_clear_w}, bbox=sbbox)
+                    {"clear_width": stair_clear_w, "width": stair_clear_w,
+                     "exists": stair_exists}, bbox=sbbox)
 
-    if not violations.get("EXIST-001", {}).get("fail"):
+    if stair_exists and not violations.get("EXIST-001", {}).get("fail"):
         add_staircase(msp, w - stair_w - 0.5, h - stair_h_val - 0.5,
                       stair_w, stair_h_val, "STAIR")
         sbbox2 = {"x": w - stair_w - 0.5, "y": h - stair_h_val - 0.5,
@@ -210,12 +215,14 @@ def generate_drawing(building_type, variant, dwg_id, violations):
         register_entity("staircase", w - stair_w - 0.5, h - stair_h_val - 0.5,
                         stair_w, stair_h_val,
                         {"clear_width": 1.5, "width": 1.5, "exists": True}, bbox=sbbox2)
+        fd_rating2 = 0 if violations.get("ATTR-001", {}).get("fail") else 1
+        fd_label2 = "丙" if fd_rating2 == 0 else "甲"
         add_door(msp, cx + corridor_w, h - stair_h_val - 0.5 + stair_h_val * 0.3,
-                 1.0, "FIRE_DOOR", fire_rating=1, fire_rating_label="甲")
+                 1.0, "FIRE_DOOR", fire_rating=fd_rating2, fire_rating_label=fd_label2)
         fdb2 = {"x": cx + corridor_w, "y": h - stair_h_val - 0.5 + stair_h_val * 0.3,
                 "width": 0.5, "height": 1.0}
         register_entity("fire_door", cx + corridor_w, h - stair_h_val - 0.5 + stair_h_val * 0.3,
-                        0.5, 1.0, {"fire_rating": 1, "rating": 1, "width": 1.0}, bbox=fdb2)
+                        0.5, 1.0, {"fire_rating": fd_rating2, "rating": fd_rating2, "width": 1.0}, bbox=fdb2)
 
     # 安全出口
     exit_count = 2

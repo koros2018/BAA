@@ -163,6 +163,9 @@ class DrawingParser:
                 try:
                     # ezdxf DIMENSION 实体
                     meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None
+                    defp2 = entity.dxf.defpoint2 if hasattr(entity.dxf, 'defpoint2') else None
+                    defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None
+                    tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None
                     dim = {
                         "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',
                         "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',
@@ -173,9 +176,17 @@ class DrawingParser:
                             "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,
                             "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,
                         },
+                        "defpoint2": {
+                            "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,
+                            "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,
+                        },
+                        "defpoint3": {
+                            "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,
+                            "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,
+                        },
                         "text_midpoint": {
-                            "x": entity.dxf.text_midpoint.x if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'x') else 0,
-                            "y": entity.dxf.text_midpoint.y if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'y') else 0,
+                            "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,
+                            "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,
                         },
                     }
                     if meas is not None and meas > 0.1:
@@ -448,6 +459,18 @@ class DrawingParser:
             elif entity.dxftype() == 'TEXT':
                 props["text"] = entity.dxf.text
                 props["height"] = entity.dxf.height
+
+            elif entity.dxftype() == 'INSERT':
+                # 提取块名和插入点
+                try:
+                    block_name = entity.dxf.name if hasattr(entity.dxf, 'name') else ''
+                    props["block_name"] = block_name or ''
+                    ins = entity.dxf.insert if hasattr(entity.dxf, 'insert') else None
+                    if ins:
+                        props["insert_x"] = ins[0] if hasattr(ins, '__getitem__') else ins.x
+                        props["insert_y"] = ins[1] if hasattr(ins, '__getitem__') else ins.y
+                except Exception:
+                    pass
 
         except Exception:
             pass

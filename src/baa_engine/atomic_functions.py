@@ -94,6 +94,40 @@ class AtomicFunction:
 
         if not self.matches(entity):
             return None
+        
+        # EXIST 类特殊处理：检查实体的 exists/count 属性
+        # 合成图纸 META 实体：可能显式设置 exists=False 表示故意缺失
+        # 真实图纸实体：实体存在即 PASS（无 exists 属性视为存在）
+        if self.category in (FuncCategory.EXIST,):
+            props = entity.get("properties", {})
+            exists = props.get("exists", None)
+            count = props.get("count", 0)
+            if exists is not None:
+                actual = 1.0 if exists else 0.0
+            elif count > 0:
+                actual = 1.0
+            elif len(props) > 0:
+                # 真实图纸：实体有任何属性 → 存在
+                actual = 1.0
+            else:
+                # 兼容：使用原 _extract_value 逻辑（检查 META 图层无属性实体的存在性）
+                actual = 1.0 if (props.get("exists", False) or props.get("count", 0) > 0) else 0.0
+            passed = actual >= self.threshold
+            return FuncResult(
+                func_id=self.func_id,
+                func_name=self.name,
+                clause_id=self.clause_id,
+                operator=self.operator,
+                threshold=self.threshold,
+                actual=actual,
+                result="PASS" if passed else "FAIL",
+                delta=actual - self.threshold,
+                severity=Severity.PASS if passed else Severity.CRITICAL,
+                entity_id=entity.get("id", ""),
+                entity_type=entity.get("type", ""),
+                params={"extracted_value": actual, "unit": self.unit},
+            )
+        
         actual = self._extract_value(entity)
         if actual is None:
             return None  # 属性缺失，无法判定

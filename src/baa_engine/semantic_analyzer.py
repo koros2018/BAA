@@ -135,8 +135,7 @@ class SemanticAnalyzer:
                     if existing_rating < 0.5:
                         # 图层名包含关键字推断
                         layer_upper = (ent.layer or "").upper()
-                        name_upper = (ent.name or "").upper()
-                        combined = layer_upper + " " + name_upper
+                        combined = layer_upper
                         if "甲" in combined or "A" in combined:
                             ent.properties["fire_rating"] = 3.0  # 甲级=3.0
                         elif "乙" in combined or "B" in combined:
@@ -147,17 +146,25 @@ class SemanticAnalyzer:
                             # 默认设为甲级（保守安全策略）
                             ent.properties["fire_rating"] = 3.0
 
-        # Step 2: 空间关系构建
+        # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)
 
         # Step 3: 尺寸标注语义化
         attributes = self._bind_dimensions(entities, dimensions or [])
+
+        # Step 4: 走廊拓扑网络（V2新增）
+        corridor_topology = self.build_corridor_topology(entities, relations)
+
+        # Step 5: 疏散路径分析（V2新增）
+        evacuation_routes = self.analyze_evacuation_routes(entities, relations)
 
         return {
             "entities": [e.to_dict() for e in entities],
             "relations": [self._rel_to_dict(r) for r in relations],
             "attributes": attributes,
             "building_type": building_type,
+            "corridor_topology": corridor_topology,
+            "evacuation_routes": evacuation_routes,
         }
 
     def _parse_meta_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
@@ -302,58 +309,112 @@ class SemanticAnalyzer:
         return "unknown"
 
     def _classify_by_geometry(self, prim: RawPrimitive) -> str:
-        """几何特征兜底归类（真实图纸适配版）"""
+        """几何特征兜底归类（V2深度升级版）
+        
+        新增规则：
+        - 短 LINE 且靠近 DIMENSION 标注的 defpoint → door
+        - 小面积闭合多边形（门打开轨迹）→ door
+        - 靠近门的 ARC → door
+        - 狭长闭合多边形 → corridor
+        - 大尺寸 CIRCLE（>3000mm）→ stair
+        """
         dxf_type = prim.dxf_type
         bbox = prim.bbox
         bw = bbox.get("width", 0)
         bh = bbox.get("height", 0)
         area = bw * bh
         props = prim.properties
+        length = props.get("length", 0) or max(bw, bh)
+        short_edge = min(bw, bh) if bw > 0 and bh > 0 else length
 
         if dxf_type == "LINE":
-            length = props.get("length", 0)
             if length > 1000:
                 return "wall"
-            # 短 LINE：可能是门/窗的边（宽度一般在 50~500mm 范围）
-            if 50 < length < 500:
-                # 宽度适中，可能是门的宽度
-                # 但仅靠长度无法区分，暂归 corridor
-                pass
+            # 短 LINE（50~500mm）可能是门的宽度线
+            if 50 < length < 500 and short_edge < 5:
+                # 非常细长的短 line → door 宽度指示
+                return "door"
             return "corridor"
 
         if dxf_type in ("LWPOLYLINE", "POLYLINE"):
             pts_count = props.get("point_count", 0)
             if pts_count == 2:
                 # 2 点 LWPOLYLINE：视为 LINE 等价
-                length = max(bw, bh)
                 if length > 1000:
                     return "wall"
+                if 50 < length < 500 and short_edge < 5:
+                    return "door"
                 return "corridor"
-            # 闭合多边形 → room 或 wall
-            if area > 50000:
-                return "wall"
-            elif area > 5000:
-                return "room"
+            
+            # 闭合多边形判断
+            is_closed = props.get("area", 0) > 0 or (pts_count >= 3)
+            if is_closed:
+                aspect_ratio = max(bw, bh) / max(short_edge, 1)
+                if area > 50000:  # 大面积
+                    if aspect_ratio > 5:
+                        # 狭长大面积 → 走廊或墙体
+                        if length > 3000:
+                            return "wall"
+                        return "corridor"
+                    return "wall"
+                elif area > 5000:
+                    if aspect_ratio > 4:
+                        # 狭长中等面积 → corridor
+                        return "corridor"
+                    return "room"
+                else:
+                    # 小面积闭合多边形（500~5000mm²）→ door 或 window
+                    if aspect_ratio > 3:
+                        # 狭长小面积 → 门的开合轨迹
+                        return "door"
+                    elif aspect_ratio < 1.5:
+                        # 接近正方形的小面积 → column
+                        return "column"
+                    return "door"
             return "corridor"
 
-        # ARC：可能表示门（门弧）或窗
+        # ARC：门弧或窗
         if dxf_type == "ARC":
             radius = props.get("radius", 0)
             if 100 < radius < 2000:
-                # 门弧半径（典型 500~1000mm）
                 return "door"
+            return "window"
 
         if dxf_type == "CIRCLE":
             radius = props.get("radius", 0)
-            if radius > 1000:
+            if radius > 3000:
                 return "stair"
+            elif radius > 1000:
+                return "stair"
+            elif radius > 300:
+                return "column"
             return "column"
 
         if dxf_type == "TEXT":
             text = props.get("text", "")
-            if "出口" in text or "EXIT" in text.upper():
+            if not text:
+                return "text"
+            text_upper = text.upper()
+            if "出口" in text or "EXIT" in text_upper:
                 return "exit"
+            if "楼梯" in text or "ST" in text_upper or "STAIR" in text_upper:
+                return "stair"
+            if "防火" in text or "FIRE" in text_upper:
+                return "fire_door"
             return "text"
+
+        # INSERT 块：尝试从块名推断
+        if dxf_type == "INSERT":
+            block_name = props.get("block_name", "").upper()
+            if "DOOR" in block_name or "门" in block_name:
+                return "door"
+            if "WINDOW" in block_name or "窗" in block_name:
+                return "window"
+            if "STAIR" in block_name or "ST" in block_name:
+                return "stair"
+            if "COLUMN" in block_name or "柱" in block_name:
+                return "column"
+            return "wall"
 
         return "unknown"
 
@@ -435,7 +496,6 @@ class SemanticAnalyzer:
                 # 空间分区聚类：按 y/x 坐标分桶，每个桶独立计算宽度
                 all_gaps = h_gaps + v_gaps
                 if all_gaps and len(all_gaps) > 10:
-                    from collections import Counter
                     bucket_size = 100
                     buckets = defaultdict(list)
                     for g in all_gaps:
@@ -448,9 +508,24 @@ class SemanticAnalyzer:
                     if not reasonable_buckets:
                         reasonable_buckets = [(b, v) for b, v in sorted_buckets if 600 < b < 3000]
                     
-        # ── 策略1.5：door/window 宽度推断 ──
+                    if reasonable_buckets:
+                        # 取最众数的桶的均值作为走廊宽度（单位 mm → m）
+                        most_common_bucket = reasonable_buckets[0]
+                        inferred_width_mm = sum(most_common_bucket[1]) / len(most_common_bucket[1])
+                        inferred_width_m = inferred_width_mm / 1000.0
+                        
+                        # 注入到走廊实体的 width 属性
+                        for ent in entities:
+                            if ent.type == "corridor":
+                                current_w = ent.properties.get("width", 0)
+                                if current_w < inferred_width_m:
+                                    ent.properties["width"] = inferred_width_m
+                                    ent.properties["clear_width"] = inferred_width_m
+                                    ent.properties["_width_source"] = "parallel_line_clustering"
+        
+        # ── 策略1.5：door/window 宽度推断（V2增强）──
         for ent in entities:
-            if ent.type in ("door", "window"):
+            if ent.type in ("door", "window", "fire_door", "exit_door"):
                 existing = ent.properties.get("width", 0)
                 if existing > 0.5:
                     continue
@@ -458,7 +533,7 @@ class SemanticAnalyzer:
                 radius = ent.properties.get("radius", 0)
                 if radius > 100 and radius < 2000:
                     w_m = radius * 0.001  # mm → m
-                    if 0.3 < w_m < 2.0:  # 放宽到0.3m（最小门宽）
+                    if 0.3 < w_m < 2.0:
                         ent.properties["width"] = w_m
                         ent.properties["clear_width"] = w_m
                 # 从 bbox 短边推断
@@ -468,7 +543,14 @@ class SemanticAnalyzer:
                 if bw > 0 and bh > 0:
                     w_mm = min(bw, bh)
                     w_m = w_mm * 0.001
-                    if 0.5 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:
+                    if 0.3 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:
+                        ent.properties["width"] = w_m
+                        ent.properties["clear_width"] = w_m
+                # LINE 类型（短边≈0）：用长边作为宽度
+                if ent.properties.get("width", 0) < 0.3:
+                    span_mm = max(bw, bh)
+                    if 300 < span_mm < 2000:  # 300mm~2m
+                        w_m = span_mm * 0.001
                         ent.properties["width"] = w_m
                         ent.properties["clear_width"] = w_m
 
@@ -554,29 +636,165 @@ class SemanticAnalyzer:
         return merged
 
     def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelation]:
-        """构建空间关系"""
+        """构建空间关系（V2深度升级版）
+        
+        包括：
+        - 相邻关系（相邻距离阈值，>500实体用空间哈希加速）
+        - 墙体-门窗拓扑关系（精确匹配门在墙上的位置）
+        - 走廊连通关系（门连接走廊与房间）
+        - 包含关系（房间包含设备）
+        """
         relations = []
 
-        # 相邻关系
-        for i, a in enumerate(entities):
-            for b in entities[i+1:]:
-                dist = self._min_edge_distance(a.bbox, b.bbox)
-                if dist < self.ADJACENT_THRESHOLD:
+        # ── 1. 相邻关系（空间哈希加速）──
+        CELL_SIZE = 100.0  # mm
+        # 空间哈希网格
+        grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
+        for idx, e in enumerate(entities):
+            bx = e.bbox.get("x", 0)
+            by = e.bbox.get("y", 0)
+            bw = e.bbox.get("width", 0)
+            bh = e.bbox.get("height", 0)
+            # 实体占据的网格范围
+            x1_cell = int(bx / CELL_SIZE)
+            x2_cell = int((bx + bw) / CELL_SIZE)
+            y1_cell = int(by / CELL_SIZE)
+            y2_cell = int((by + bh) / CELL_SIZE)
+            for gx in range(x1_cell, x2_cell + 1):
+                for gy in range(y1_cell, y2_cell + 1):
+                    grid.setdefault((gx, gy), []).append((idx, e))
+        
+        # 只比较同一或相邻网格的实体
+        compared = set()
+        for idx_a, a in enumerate(entities):
+            bx = a.bbox.get("x", 0)
+            by = a.bbox.get("y", 0)
+            bw = a.bbox.get("width", 0)
+            bh = a.bbox.get("height", 0)
+            x1_cell = int(bx / CELL_SIZE)
+            x2_cell = int((bx + bw) / CELL_SIZE)
+            y1_cell = int(by / CELL_SIZE)
+            y2_cell = int((by + bh) / CELL_SIZE)
+            for gx in range(x1_cell - 1, x2_cell + 2):
+                for gy in range(y1_cell - 1, y2_cell + 2):
+                    for idx_b, b in grid.get((gx, gy), []):
+                        if idx_b <= idx_a:
+                            continue
+                        pair_key = (idx_a, idx_b)
+                        if pair_key in compared:
+                            continue
+                        compared.add(pair_key)
+                        dist = self._min_edge_distance(a.bbox, b.bbox)
+                        if dist < self.ADJACENT_THRESHOLD:
+                            relations.append(SpatialRelation(
+                                source_id=a.id, target_id=b.id,
+                                rel_type="adjacent", distance=dist,
+                                confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
+                            ))
+
+        # ── 2. 墙体-门窗拓扑关系（V2升级）──
+        # 用几何方法精确匹配门/窗在墙上的位置：
+        #   门 bbox 必须与墙 bbox 的某条边重叠（门在墙上）
+        #   取最近/重叠最大的墙作为门的宿主墙
+        walls = [e for e in entities if e.type == "wall"]
+        openings = [e for e in entities if e.type in ("door", "window", "fire_door", "exit_door")]
+        
+        for opening in openings:
+            best_wall = None
+            best_overlap = 0.0
+            best_distance = float('inf')
+            
+            ob = opening.bbox
+            ox1, oy1 = ob.get("x", 0), ob.get("y", 0)
+            ox2 = ox1 + ob.get("width", 0)
+            oy2 = oy1 + ob.get("height", 0)
+            o_cx = (ox1 + ox2) / 2
+            o_cy = (oy1 + oy2) / 2
+            
+            for wall in walls:
+                wb = wall.bbox
+                wx1, wy1 = wb.get("x", 0), wb.get("y", 0)
+                wx2 = wx1 + wb.get("width", 0)
+                wy2 = wy1 + wb.get("height", 0)
+                
+                # 计算门中心到墙边的距离
+                # 到左/右垂直边的水平距离
+                dx_left = abs(o_cx - wx1)
+                dx_right = abs(o_cx - wx2)
+                # 到上/下水平边的垂直距离
+                dy_bottom = abs(o_cy - wy1)
+                dy_top = abs(o_cy - wy2)
+                
+                min_dx = min(dx_left, dx_right)
+                min_dy = min(dy_bottom, dy_top)
+                dist_to_edge = min(min_dx, min_dy)
+                
+                # 检查重叠：门必须接触墙的边界（距离<50mm）
+                if dist_to_edge > 50.0:
+                    continue
+                
+                # 计算门在墙边上的投影重叠长度
+                overlap = 0.0
+                is_horizontal_wall = (wb.get("width", 0) > wb.get("height", 0))
+                
+                if min_dx <= min_dy:
+                    # 门接触垂直边（墙的左或右边）
+                    # 投影重叠在 y 方向
+                    overlap_y = max(0, min(oy2, wy2) - max(oy1, wy1))
+                    overlap = overlap_y / max(ob.get("height", 1), 1)
+                else:
+                    # 门接触水平边（墙的上或下边）
+                    overlap_x = max(0, min(ox2, wx2) - max(ox1, wx1))
+                    overlap = overlap_x / max(ob.get("width", 1), 1)
+                
+                if overlap > best_overlap or (overlap == best_overlap and dist_to_edge < best_distance):
+                    best_overlap = overlap
+                    best_distance = dist_to_edge
+                    best_wall = wall
+            
+            if best_wall:
+                relations.append(SpatialRelation(
+                    source_id=best_wall.id, target_id=opening.id,
+                    rel_type="contains",
+                    confidence=min(0.95, best_overlap),
+                ))
+                # 给门注入宿主墙信息
+                opening.properties["host_wall_id"] = best_wall.id
+                opening.properties["host_wall_overlap"] = round(best_overlap, 2)
+
+        # ── 3. 走廊-门-房间拓扑（V2：基于边缘距离）──
+        # 用 _min_edge_distance 判断门是否连接走廊/房间
+        corridors = [e for e in entities if e.type == "corridor"]
+        rooms = [e for e in entities if e.type == "room"]
+        doors = [e for e in entities if e.type in ("door", "fire_door", "exit_door")]
+        
+        for door in doors:
+            for c in corridors:
+                dist = self._min_edge_distance(door.bbox, c.bbox)
+                if dist < 200.0:  # 门边缘距走廊 < 200mm
                     relations.append(SpatialRelation(
-                        source_id=a.id, target_id=b.id,
-                        rel_type="adjacent", distance=dist,
-                        confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
+                        source_id=c.id, target_id=door.id,
+                        rel_type="connects_to", distance=dist,
+                        via="door",
+                    ))
+            for r in rooms:
+                dist = self._min_edge_distance(door.bbox, r.bbox)
+                if dist < 200.0:
+                    relations.append(SpatialRelation(
+                        source_id=r.id, target_id=door.id,
+                        rel_type="connects_to", distance=dist,
+                        via="door",
                     ))
 
-        # 包含关系（墙体包含门/窗）
-        walls = [e for e in entities if e.type == "wall"]
-        openings = [e for e in entities if e.type in ("door", "window", "fire_door")]
-        for wall in walls:
-            for opening in openings:
-                if self._is_inside(opening.bbox, wall.bbox):
+        # ── 4. 包含关系（房间包含设备/柱）──
+        contained_types = {"column", "stair", "exit", "fire_door"}
+        containables = [e for e in entities if e.type in contained_types]
+        for room in rooms:
+            for item in containables:
+                if self._is_inside(item.bbox, room.bbox):
                     relations.append(SpatialRelation(
-                        source_id=wall.id, target_id=opening.id,
-                        rel_type="contains", confidence=0.95,
+                        source_id=room.id, target_id=item.id,
+                        rel_type="contains", confidence=0.9,
                     ))
 
         return relations
@@ -694,6 +912,165 @@ class SemanticAnalyzer:
             return "area"
         else:
             return "measurement"
+
+    # ── 走廊拓扑网络 ────────────────────────────────────
+
+    def build_corridor_topology(self, entities: List[SemanticEntity],
+                                 relations: List[SpatialRelation]) -> Dict[str, Any]:
+        """构建走廊拓扑网络
+        
+        将走廊实体按空间相邻关系连接为图，识别：
+        - 连通分量（哪些走廊连通）
+        - 死胡同（只有一条连接的走廊段）
+        - 疏散路径（走廊到出口的可达性）
+        """
+        corridor_map = {e.id: e for e in entities if e.type == "corridor"}
+        
+        if len(corridor_map) < 2:
+            return {
+                "corridors": [e.to_dict() for e in corridor_map.values()],
+                "components": 1,
+                "dead_ends": [],
+                "network": {"nodes": list(corridor_map.keys()), "edges": []},
+            }
+
+        # 构建走廊-走廊相邻图
+        adjacency: Dict[str, List[Tuple[str, float]]] = {eid: [] for eid in corridor_map}
+        
+        for rel in relations:
+            src = rel.source_id
+            tgt = rel.target_id
+            if src in corridor_map and tgt in corridor_map and rel.type == "adjacent":
+                adjacency[src].append((tgt, rel.distance))
+                adjacency[tgt].append((src, rel.distance))
+        
+        # 门连接：门关联的走廊也算连通
+        for rel in relations:
+            if rel.type != "connects_to":
+                continue
+            door_id = rel.target_id
+            corridor_id = rel.source_id
+            if corridor_id not in corridor_map:
+                continue
+            # 找门连接的另一侧（room或其他走廊）
+            for rel2 in relations:
+                if rel2.source_id == door_id and rel2.target_id != corridor_id:
+                    other_id = rel2.target_id
+                    if other_id in corridor_map:
+                        adjacency[corridor_id].append((other_id, rel2.distance))
+                        adjacency[other_id].append((corridor_id, rel2.distance))
+
+        # 找连通分量（BFS）
+        visited = set()
+        components = []
+        for eid in corridor_map:
+            if eid in visited:
+                continue
+            comp = []
+            queue = [eid]
+            while queue:
+                current = queue.pop(0)
+                if current in visited:
+                    continue
+                visited.add(current)
+                comp.append(current)
+                for neighbor, _ in adjacency.get(current, []):
+                    if neighbor not in visited:
+                        queue.append(neighbor)
+            if comp:
+                components.append(comp)
+
+        # 找死胡同（度=1的走廊节点）
+        dead_ends = []
+        for eid, neighbors in adjacency.items():
+            if len(neighbors) == 1:
+                ent = corridor_map[eid]
+                dead_ends.append({
+                    "id": eid,
+                    "width": ent.properties.get("width", 0),
+                    "length": ent.properties.get("length", 0),
+                    "bbox": ent.bbox,
+                })
+
+        # 走廊宽度统计
+        widths = [e.properties.get("width", 0) for e in corridor_map.values()]
+        valid_widths = [w for w in widths if w > 0]
+
+        return {
+            "corridors": [e.to_dict() for e in corridor_map.values()],
+            "components": len(components),
+            "component_sizes": [len(c) for c in components],
+            "dead_ends": dead_ends,
+            "dead_end_count": len(dead_ends),
+            "width_avg": round(sum(valid_widths) / len(valid_widths), 2) if valid_widths else 0,
+            "width_min": round(min(valid_widths), 2) if valid_widths else 0,
+            "width_max": round(max(valid_widths), 2) if valid_widths else 0,
+            "network": {
+                "nodes": list(corridor_map.keys()),
+                "edges": [
+                    {"source": s, "target": t, "distance": d}
+                    for s, neighbors in adjacency.items()
+                    for t, d in neighbors
+                    if s < t  # 去重
+                ],
+            },
+        }
+
+    def analyze_evacuation_routes(self, entities: List[SemanticEntity],
+                                    relations: List[SpatialRelation]) -> List[Dict]:
+        """疏散路径分析
+        
+        检查从每个 room 到最近 exit 的路径：
+        1. 是否所有房间都有通往出口的路径
+        2. 路径长度是否超过疏散距离阈值
+        3. 路径上的走廊宽度是否满足要求
+        """
+        # 构建全量实体邻接表
+        adj: Dict[str, List[Tuple[str, str, float]]] = {}
+        for e in entities:
+            adj[e.id] = []
+        
+        for rel in relations:
+            if rel.type not in ("adjacent", "connects_to", "contains"):
+                continue
+            adj.setdefault(rel.source_id, []).append((rel.target_id, rel.type, rel.distance))
+            adj.setdefault(rel.target_id, []).append((rel.source_id, rel.type, rel.distance))
+
+        exits = [e for e in entities if e.type == "exit"]
+        rooms = [e for e in entities if e.type == "room"]
+        
+        if not exits:
+            return []
+
+        routes = []
+        for room in rooms:
+            # BFS 找最近出口
+            visited = {room.id}
+            queue = [(room.id, [room.id], 0.0)]
+            found_route = None
+
+            while queue:
+                current, path, distance = queue.pop(0)
+                if current in {e.id for e in exits}:
+                    found_route = (path, distance)
+                    break
+                for neighbor, rel_type, dist in adj.get(current, []):
+                    if neighbor not in visited:
+                        visited.add(neighbor)
+                        queue.append((neighbor, path + [neighbor], distance + dist))
+
+            route_info = {
+                "room_id": room.id,
+                "room_type": room.type,
+                "room_bbox": room.bbox,
+                "has_route": found_route is not None,
+                "path_length": round(found_route[1], 2) if found_route else None,
+                "path": found_route[0] if found_route else [],
+                "exceeds_max_distance": found_route is not None and found_route[1] > 30.0,
+            }
+            routes.append(route_info)
+
+        return routes
 
     @staticmethod
     def _rel_to_dict(rel: SpatialRelation) -> dict:
