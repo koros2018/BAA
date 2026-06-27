@@ -22,6 +22,13 @@ LAYER_RULES = {
     "FIRE_DOOR": "fire_door", "防火门": "fire_door",
     "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",
     "SB": "door",  # 水消防设备层门标记
+    "HATCH": "other",  # 填充图案（非建筑实体）
+    "BEAM": "other",  # 结构梁（非建筑实体）
+    "BAR": "other",  # 钢筋标记
+    "REIN": "other",  # 钢筋
+    "AXIS": "other",  # 轴线标记
+    "BASE": "other",  # 基础结构
+    "钢筋": "other",  # 钢筋（中文图层名）
 }
 
 # 短关键字（单字母/2字母）使用全词匹配
