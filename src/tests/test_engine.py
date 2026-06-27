@@ -29,9 +29,10 @@ from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 class TestFuncRegistry:
 
     def test_initial_count(self):
+        """注册表初始数量：30 INITIAL + 3 EVAC"""
         registry = FuncRegistry()
-        assert registry.count == 30
-        assert registry.capacity == 30
+        assert registry.count == 33
+        assert registry.capacity == 33
 
     def test_get_by_id(self):
         registry = FuncRegistry()
@@ -41,13 +42,15 @@ class TestFuncRegistry:
             assert func is not None, f"函数{fid}不存在"
 
     def test_list_all(self):
+        """列表包含所有已注册函数"""
         registry = FuncRegistry()
         all_funcs = registry.list_all()
-        assert len(all_funcs) == 30
+        assert len(all_funcs) == 33
         categories = set(f.category for f in all_funcs)
         for cat in [FuncCategory.DIMENSION, FuncCategory.DISTANCE,
                      FuncCategory.COUNT, FuncCategory.ATTR,
-                     FuncCategory.AREA, FuncCategory.EXIST]:
+                     FuncCategory.AREA, FuncCategory.EXIST,
+                     FuncCategory.EVAC]:
             assert cat in categories
 
     def test_get_nonexistent(self):

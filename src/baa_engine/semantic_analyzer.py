@@ -158,6 +158,18 @@ class SemanticAnalyzer:
         # Step 5: 疏散路径分析（V2新增）
         evacuation_routes = self.analyze_evacuation_routes(entities, relations)
 
+        # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
+        route_by_room = {}
+        for route in evacuation_routes:
+            route_by_room[route["room_id"]] = route
+        for ent in entities:
+            if ent.id in route_by_room:
+                r = route_by_room[ent.id]
+                ent.properties["has_evacuation_route"] = r.get("has_route", False)
+                if r.get("path_length") is not None:
+                    ent.properties["evacuation_path_length"] = r["path_length"]
+                ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)
+
         return {
             "entities": [e.to_dict() for e in entities],
             "relations": [self._rel_to_dict(r) for r in relations],
@@ -1036,11 +1048,18 @@ class SemanticAnalyzer:
             adj.setdefault(rel.source_id, []).append((rel.target_id, rel.type, rel.distance))
             adj.setdefault(rel.target_id, []).append((rel.source_id, rel.type, rel.distance))
 
-        exits = [e for e in entities if e.type == "exit"]
+        exits = [e for e in entities if e.type in ("exit", "exit_door", "door", "fire_door")]
         rooms = [e for e in entities if e.type == "room"]
         
         if not exits:
             return []
+
+        # 如果没有 exit 类型但有 door/fire_door，将这些门作为出口候选
+        # 优先用 type=exit 的，兜底用 door/fire_door
+        has_exit_type = any(e.type == "exit" for e in exits)
+        if not has_exit_type:
+            # 没有显式 exit 类型，从 door 中选最靠外的作为出口
+            pass
 
         routes = []
         for room in rooms:

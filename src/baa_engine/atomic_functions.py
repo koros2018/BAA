@@ -17,6 +17,7 @@ class FuncCategory(Enum):
     ATTR = "attr"         # 属性判定
     EXIST = "exist"       # 存在性判定
     AREA = "area"         # 面积判定
+    EVAC = "evac"         # 疏散路径判定（V2新增）
 
 
 class Severity(Enum):
@@ -327,6 +328,14 @@ class AtomicFunction:
         if func_id in ("EXIST-007", "EXIST-008", "EXIST-009", "EXIST-010"):
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
 
+        # EVAC 类：疏散路径判定
+        if func_id == "EVAC-001":  # 疏散路径是否存在
+            return 1.0 if props.get("has_evacuation_route", False) else 0.0
+        if func_id == "EVAC-002":  # 疏散路径长度
+            return props.get("evacuation_path_length", props.get("travel_distance", 0.0))
+        if func_id == "EVAC-003":  # 疏散路径是否超距
+            return 0.0 if props.get("evacuation_too_far", False) else 1.0
+
         # 兜底：直接用value或0
         return props.get("value", 0.0)
 
@@ -445,6 +454,16 @@ class FuncRegistry:
         AtomicFunction("EXIST-010", "应急广播判定", FuncCategory.EXIST,
                        "GB50016-8.5.1", "一类高层应设应急广播系统", "==", 1.0, "有/无",
                        target_entities=["emergency_broadcast", "speaker", "fire_system"]),
+        # ===== EVAC 疏散路径判定（V2新增，3个）=====
+        AtomicFunction("EVAC-001", "疏散路径连通性判定", FuncCategory.EVAC,
+                       "GB50016-5.5.17", "每个房间应有通往安全出口的疏散路径", "==", 1.0, "有/无",
+                       target_entities=["room", "space", "floor"]),
+        AtomicFunction("EVAC-002", "疏散路径长度判定", FuncCategory.EVAC,
+                       "GB50016-5.5.17", "房间到最近安全出口的疏散距离不应大于30m", "<=", 30.0, "m",
+                       target_entities=["room", "space", "floor"]),
+        AtomicFunction("EVAC-003", "疏散路径合规性判定", FuncCategory.EVAC,
+                       "GB50016-5.5.17", "房间到安全出口的疏散路径应满足规范要求", "==", 1.0, "合规/违规",
+                       target_entities=["room", "space", "floor"]),
     ]
 
     def __init__(self):
@@ -470,4 +489,4 @@ class FuncRegistry:
 
     @property
     def capacity(self) -> int:
-        return 30  # 框架总容量
+        return 33  # 框架总容量：30 INITIAL + 3 EVAC
