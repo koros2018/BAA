@@ -296,3 +296,69 @@
 
 ### 进行中
 - YOLOv8n V3训练（200 epochs, CPU, 当前105/200）
+## v1.24.1 (2026-06-27) — P10 反馈闭环前端界面
+
+### 前端
+- 审图页新增"反馈申诉" tab
+- 申诉提交表单（任务ID/条款/理由/原始值/严重程度）
+- 申诉统计面板（总数/待审核/已接受/已拒绝/接受率/高频条款）
+- 申诉列表展示（状态标签/审核人/审核意见）
+
+### 修复
+- 路由优先级: `/api/v1/feedbacks/stats` 在 `{feedback_id}` 之前定义
+
+## v1.24.0 (2026-06-27) — P10 反馈闭环
+
+### 反馈引擎
+- `FeedbackManager`: 申诉提交/审核/查询/持久化
+- `LearningEngine`: 基于申诉数据计算阈值调整建议
+- 数据持久化: `data/feedbacks.json`
+
+### API 端点
+- POST `/api/v1/feedbacks` — 提交申诉
+- GET `/api/v1/feedbacks` — 查询申诉列表
+- GET `/api/v1/feedbacks/{id}` — 查询单条申诉
+- PATCH `/api/v1/feedbacks/{id}` — 审核申诉
+- GET `/api/v1/feedbacks/stats` — 申诉统计
+- POST `/api/v1/feedbacks/{id}/adjust` — 阈值调整建议
+
+### 规范仓库
+- 新增 `set_threshold` 方法，支持动态调整规范阈值
+
+## v1.23.0 (2026-06-27) — P9 EMA2 第三方对接 API
+
+### 异步审查任务
+- POST `/api/v1/tasks` — 创建异步审查任务
+- GET `/api/v1/tasks/{task_id}` — 查询任务状态
+- GET `/api/v1/tasks/{task_id}/result` — 获取审查结果
+
+### Webhook 回调
+- POST `/api/v1/webhooks` — 注册 Webhook
+- GET `/api/v1/webhooks` — 查询 Webhook 列表
+- DELETE `/api/v1/webhooks/{webhook_id}` — 删除 Webhook
+
+### 修复
+- severity 属性访问: `f.judgement.get("severity", "major")` 替代 `f.severity`
+
+## v1.22.1 (2026-06-27) — 实体分类误检修复
+
+### 图层规则
+- 新增: HATCH/BEAM/BAR/REIN/AXIS/BASE/钢筋 → other
+- 云计算中心平面图: door 218→4 (PUB_HATCH误标过滤)
+- 基础梁图: corridor 92→28 (BEAM误标过滤)
+
+### 测试
+- 97/97 单元测试全部通过
+
+## v1.22.0 (2026-06-27) — P8 多文件批量审查
+
+### 后端
+- POST `/batch-review` — 多文件并行审查（最多20个）
+- 跨文件交叉分析（违规条款分布/实体类型统计/文件对比）
+
+### 前端
+- 审图页新增"批量审查" tab
+- 批量审查结果展示（文件统计+违规交叉分析+各文件详情）
+
+### 测试
+- 2文件1.15s审查完成，46项违规
