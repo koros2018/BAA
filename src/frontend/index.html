@@ -840,7 +840,7 @@ async function adminPost(path, body) {
 async function adminPost(path, body) {
   const r = await fetch(API_BASE() + path, {
     method: 'POST',
-    headers: adminHeaders(),
+    headers: adminHeaders('POST'),
     body: JSON.stringify(body)
   });
   return r.json();
