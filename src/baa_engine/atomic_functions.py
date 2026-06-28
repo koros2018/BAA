@@ -257,6 +257,9 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))
             if val < 0.01:
                 return None  # 无宽度数据，跳过判定
+            # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
+            if func_id == "DIM-006" and val < 0.8:
+                return None
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
@@ -291,6 +294,9 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))
             if val < 0.01:
                 return None  # 无宽度数据，跳过判定
+            # 小门（<0.8m）不适用疏散出口宽度判定
+            if val < 0.8:
+                return None
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
@@ -363,8 +369,8 @@ class FuncRegistry:
                        "GB50016-5.5.8", "安全出口不应少于2个", ">=", 2.0, "个",
                        target_entities=["floor", "fire_zone"]),
         AtomicFunction("ATTR-001", "防火门等级判定", FuncCategory.ATTR,
-                       "GB50016-6.5.1", "防火门等级应为甲级", "==", 1.0, "级",
-                       target_entities=["fire_door", "door"]),
+                       "GB50016-6.5.1", "防火门等级不应低于丙级", ">=", 1.0, "级",
+                       target_entities=["fire_door"]),
         AtomicFunction("DIM-004", "疏散走道宽度判定", FuncCategory.DIMENSION,
                        "GB50016-5.5.18", "疏散走道净宽度不应小于1.1m", ">=", 1.1, "m",
                        target_entities=["corridor", "aisle", "passage"]),

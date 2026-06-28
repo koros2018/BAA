@@ -430,10 +430,13 @@ class SemanticAnalyzer:
             text_upper = text.upper()
             if "出口" in text or "EXIT" in text_upper:
                 return "exit"
-            if "楼梯" in text or "ST" in text_upper or "STAIR" in text_upper:
+            if "楼梯" in text or "STAIR" in text_upper:
                 return "stair"
-            if "防火" in text or "FIRE" in text_upper:
+            # "防火" 关键词需配合 "门" 或 "窗" 才能归类，避免文本描述被误标
+            if "防火门" in text or ("FIRE" in text_upper and "DOOR" in text_upper):
                 return "fire_door"
+            if "防火窗" in text or ("FIRE" in text_upper and "WINDOW" in text_upper):
+                return "fire_window"
             return "text"
 
         # INSERT 块：尝试从块名推断
@@ -558,34 +561,43 @@ class SemanticAnalyzer:
         
         # ── 策略1.5：door/window 宽度推断（V2增强）──
         for ent in entities:
-            if ent.type in ("door", "window", "fire_door", "exit_door"):
-                existing = ent.properties.get("width", 0)
-                if existing > 0.5:
+            if ent.type not in ("door", "window", "fire_door", "exit_door"):
+                continue
+            existing = ent.properties.get("width", 0)
+            if existing > 0.5:
+                continue
+            # 从 ARC 半径推断门宽度（门弧半径 ≈ 门宽度）
+            radius = ent.properties.get("radius", 0)
+            if radius > 100 and radius < 2000:
+                w_m = radius * 0.001  # mm → m
+                if 0.3 < w_m < 2.0:
+                    ent.properties["width"] = w_m
+                    ent.properties["clear_width"] = w_m
                     continue
-                # 从 ARC 半径推断门宽度（门弧半径 ≈ 门宽度）
-                radius = ent.properties.get("radius", 0)
-                if radius > 100 and radius < 2000:
-                    w_m = radius * 0.001  # mm → m
-                    if 0.3 < w_m < 2.0:
-                        ent.properties["width"] = w_m
-                        ent.properties["clear_width"] = w_m
-                # 从 bbox 短边推断
-                bbox = ent.bbox
-                bw = bbox.get("width", 0)
-                bh = bbox.get("height", 0)
-                if bw > 0 and bh > 0:
-                    w_mm = min(bw, bh)
-                    w_m = w_mm * 0.001
-                    if 0.3 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:
-                        ent.properties["width"] = w_m
-                        ent.properties["clear_width"] = w_m
-                # LINE 类型（短边≈0）：用长边作为宽度
-                if ent.properties.get("width", 0) < 0.3:
-                    span_mm = max(bw, bh)
-                    if 300 < span_mm < 2000:  # 300mm~2m
-                        w_m = span_mm * 0.001
-                        ent.properties["width"] = w_m
-                        ent.properties["clear_width"] = w_m
+            # bbox 推断
+            bbox = ent.bbox
+            bw = bbox.get("width", 0)
+            bh = bbox.get("height", 0)
+            if bw > 0 and bh > 0:
+                w_mm = min(bw, bh)
+                w_m = w_mm * 0.001
+                if 0.3 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:
+                    ent.properties["width"] = w_m
+                    ent.properties["clear_width"] = w_m
+            # LINE 类型（短边≈0）：用长边作为宽度
+            if ent.properties.get("width", 0) < 0.3:
+                span_mm = max(bw, bh)
+                if 300 < span_mm < 2000:  # 300mm~2m
+                    w_m = span_mm * 0.001
+                    ent.properties["width"] = w_m
+                    ent.properties["clear_width"] = w_m
+            # Polygon 类 door（闭合多边形）：短边可能是门扇厚度，用长边推断宽度
+            if ent.properties.get("width", 0) < 0.3:
+                long_edge_mm = max(bw, bh)
+                if 300 < long_edge_mm < 2000:
+                    w_m = long_edge_mm * 0.001
+                    ent.properties["width"] = w_m
+                    ent.properties["clear_width"] = w_m
 
         # ── 策略2：bbox 短边推断（覆盖所有类型） ──
         for ent in entities:
