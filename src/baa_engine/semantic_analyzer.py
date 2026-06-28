@@ -893,6 +893,29 @@ class SemanticAnalyzer:
                         rel_type="contains", confidence=0.9,
                     ))
 
+        # ── 5. 房间-门间接连接（通过墙传递）──
+        # 如果房间与墙相邻，且门被墙包含，则建立房间-门的连接
+        # 这样 BFS 才能从房间走到门再到出口
+        room_wall_adj = {}
+        wall_door_contains = {}
+        for rel in relations:
+            if rel.type == "adjacent":
+                if rel.source_id in {r.id for r in rooms} and rel.target_id in {w.id for w in walls}:
+                    room_wall_adj.setdefault(rel.source_id, set()).add(rel.target_id)
+                if rel.target_id in {r.id for r in rooms} and rel.source_id in {w.id for w in walls}:
+                    room_wall_adj.setdefault(rel.target_id, set()).add(rel.source_id)
+            if rel.type == "contains":
+                if rel.source_id in {w.id for w in walls} and rel.target_id in {d.id for d in doors}:
+                    wall_door_contains.setdefault(rel.source_id, set()).add(rel.target_id)
+        for room_id, wall_ids in room_wall_adj.items():
+            for wall_id in wall_ids:
+                for door_id in wall_door_contains.get(wall_id, set()):
+                    relations.append(SpatialRelation(
+                        source_id=room_id, target_id=door_id,
+                        rel_type="connects_to", distance=0.0,
+                        via="door",
+                    ))
+
         return relations
 
     def _bind_dimensions(self, entities: List[SemanticEntity],
