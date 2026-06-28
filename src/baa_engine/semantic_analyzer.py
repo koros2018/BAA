@@ -360,12 +360,13 @@ class SemanticAnalyzer:
                 return "wall"
             # 中等长度 LINE（700~2000mm）：典型门宽范围 → door
             if 700 < length < 2000 and short_edge < 50:
-                # 细长 LINE，宽度在典型门宽范围内
                 return "door"
             # 短 LINE（50~700mm）可能是门的宽度线或小构件
             if 50 < length < 700 and short_edge < 5:
                 return "door"
-            return "corridor"
+            # LINE 类型 bbox 短边≈0（纯线无宽度），不可能是走廊
+            # 只有长度 > 2000mm 的 LINE 才可能归类为 wall（已处理）
+            return "other"
 
         if dxf_type in ("LWPOLYLINE", "POLYLINE"):
             pts_count = props.get("point_count", 0)
@@ -377,15 +378,28 @@ class SemanticAnalyzer:
                     return "door"
                 if 50 < length < 700 and short_edge < 5:
                     return "door"
-                return "corridor"
+                return "other"
             
             # 闭合多边形判断
             is_closed = props.get("area", 0) > 0 or (pts_count >= 3)
             if is_closed:
                 aspect_ratio = max(bw, bh) / max(short_edge, 1)
-                if area > 50000:  # 大面积
+                # 图层排除：非建筑图层上的闭合多边形不可能是房间
+                non_room_layers = ["COLU", "视口", "洞口", "板边", "梁边", "轴", "BASE", "梁", "吊筋", "板层", "文字", "钢筋", "标注", "DIM", "立面看线", "立面", "看线", "园林", "井", "电-", "系统", "设备", "电缆", "Defpoints"]
+                if any(kw in prim.layer.upper() for kw in non_room_layers):
+                    if aspect_ratio > 3:
+                        return "other"
+                    return "wall"
+                # room 最小面积 1m²（1,000,000mm²），过滤小框/文字标注
+                if area > 1000000:  # > 1m²
                     if aspect_ratio > 5:
-                        # 狭长大面积 → 走廊或墙体
+                        # 狭长 → 走廊
+                        if length > 3000:
+                            return "wall"
+                        return "corridor"
+                    return "room"
+                elif area > 50000:  # 大面积但 < 1m²
+                    if aspect_ratio > 5:
                         if length > 3000:
                             return "wall"
                         return "corridor"
@@ -474,7 +488,7 @@ class SemanticAnalyzer:
                 if isinstance(v, float) and math.isnan(v):
                     bbox[k] = 0.0
 
-        # ── 策略1：平行线聚类宽度推断 ──
+        # ── 策略1：平行线聚类宽度推断（按空间分区）──
         if primitives:
             # 收集可能的走廊原始图元（LINE + 2点LWPOLYLINE）
             edge_candidates = []
@@ -518,7 +532,8 @@ class SemanticAnalyzer:
                     for j in range(i + 1, min(i + 100, len(h_sorted))):
                         gap = abs(h_sorted[i]["cy"] - h_sorted[j]["cy"])
                         if 500 < gap < 10000:
-                            h_gaps.append({"gap": gap, "y1": h_sorted[i]["cy"], "y2": h_sorted[j]["cy"]})
+                            h_gaps.append({"gap": gap, "y1": h_sorted[i]["cy"], "y2": h_sorted[j]["cy"],
+                                          "cx1": h_sorted[i]["cx"], "cx2": h_sorted[j]["cx"]})
 
                 # 垂直线：按cx排序，收集所有gap
                 v_sorted = sorted(v_edges, key=lambda e: e["cx"])
@@ -527,37 +542,67 @@ class SemanticAnalyzer:
                     for j in range(i + 1, min(i + 100, len(v_sorted))):
                         gap = abs(v_sorted[i]["cx"] - v_sorted[j]["cx"])
                         if 500 < gap < 10000:
-                            v_gaps.append({"gap": gap, "x1": v_sorted[i]["cx"], "x2": v_sorted[j]["cx"]})
+                            v_gaps.append({"gap": gap, "x1": v_sorted[i]["cx"], "x2": v_sorted[j]["cx"],
+                                          "cy1": v_sorted[i]["cy"], "cy2": v_sorted[j]["cy"]})
 
-                # 空间分区聚类：按 y/x 坐标分桶，每个桶独立计算宽度
                 all_gaps = h_gaps + v_gaps
                 if all_gaps and len(all_gaps) > 10:
-                    bucket_size = 100
-                    buckets = defaultdict(list)
-                    for g in all_gaps:
-                        w = g["gap"]
-                        bucket = round(w / bucket_size) * bucket_size
-                        buckets[bucket].append(w)
-                    sorted_buckets = sorted(buckets.items(), key=lambda x: -len(x[1]))
-                    reasonable_buckets = [(b, v) for b, v in sorted_buckets if 800 < b < 3000]
-                    
-                    if not reasonable_buckets:
-                        reasonable_buckets = [(b, v) for b, v in sorted_buckets if 600 < b < 3000]
-                    
-                    if reasonable_buckets:
-                        # 取最众数的桶的均值作为走廊宽度（单位 mm → m）
-                        most_common_bucket = reasonable_buckets[0]
-                        inferred_width_mm = sum(most_common_bucket[1]) / len(most_common_bucket[1])
-                        inferred_width_m = inferred_width_mm / 1000.0
-                        
-                        # 注入到走廊实体的 width 属性
-                        for ent in entities:
-                            if ent.type == "corridor":
-                                current_w = ent.properties.get("width", 0)
-                                if current_w < inferred_width_m:
-                                    ent.properties["width"] = inferred_width_m
-                                    ent.properties["clear_width"] = inferred_width_m
-                                    ent.properties["_width_source"] = "parallel_line_clustering"
+                    # 空间分区聚类：每条走廊取离它最近的 gap 作为宽度
+                    # 1) 对每个 gap，按位置分到最近的走廊
+                    # 2) 每个走廊取其区域内 gap 众数
+                    corridor_entities = [e for e in entities if e.type == "corridor"]
+                    if corridor_entities:
+                        for ent in corridor_entities:
+                            cx = ent.bbox.get("x", 0) + ent.bbox.get("width", 0) / 2
+                            cy = ent.bbox.get("y", 0) + ent.bbox.get("height", 0) / 2
+                            bw = ent.bbox.get("width", 0)
+                            bh = ent.bbox.get("height", 0)
+                            # 先用 bbox 短边推断宽度（LINE 类型用长边）
+                            if bw > 0 and bh > 0:
+                                w_mm = min(bw, bh)
+                                w_m = w_mm * 0.001
+                                if 0.3 < w_m < 3.0 and ent.properties.get("width", 0) < w_m:
+                                    ent.properties["width"] = w_m
+                                    ent.properties["clear_width"] = w_m
+                                    ent.properties["_width_source"] = "bbox_short_edge"
+                                    continue
+                            
+                            # bbox 短边≈0（LINE类型）：找附近gap
+                            if ent.properties.get("width", 0) < 0.3:
+                                # 找附近 gap
+                                nearby_gaps = []
+                                for g in all_gaps:
+                                    if "y1" in g:  # 水平gap
+                                        mid_y = (g["y1"] + g["y2"]) / 2
+                                        mid_x = (g["cx1"] + g["cx2"]) / 2
+                                        if abs(cy - mid_y) < 3000 and abs(cx - mid_x) < 3000:
+                                            nearby_gaps.append(g["gap"])
+                                    else:  # 垂直gap
+                                        mid_x = (g["x1"] + g["x2"]) / 2
+                                        mid_y = (g["cy1"] + g["cy2"]) / 2
+                                        if abs(cx - mid_x) < 3000 and abs(cy - mid_y) < 3000:
+                                            nearby_gaps.append(g["gap"])
+                                
+                                if nearby_gaps:
+                                    # 取附近gap的众数作为此走廊宽度
+                                    gap_buckets = defaultdict(list)
+                                    for g in nearby_gaps:
+                                        bucket = round(g / 100) * 100
+                                        gap_buckets[bucket].append(g)
+                                    best_bucket = max(gap_buckets.items(), key=lambda x: len(x[1]))
+                                    w_m = (sum(best_bucket[1]) / len(best_bucket[1])) / 1000.0
+                                    if 0.3 < w_m < 3.0:
+                                        ent.properties["width"] = w_m
+                                        ent.properties["clear_width"] = w_m
+                                        ent.properties["_width_source"] = "nearby_gap"
+                                else:
+                                    # 无附近gap：用bbox长边
+                                    span_mm = max(bw, bh)
+                                    w_m = span_mm * 0.001
+                                    if 0.3 < w_m < 3.0:
+                                        ent.properties["width"] = w_m
+                                        ent.properties["clear_width"] = w_m
+                                        ent.properties["_width_source"] = "bbox_long_edge"
         
         # ── 策略1.5：door/window 宽度推断（V2增强）──
         for ent in entities:
