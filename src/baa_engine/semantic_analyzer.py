@@ -1126,11 +1126,19 @@ class SemanticAnalyzer:
             adj.setdefault(rel.source_id, []).append((rel.target_id, rel.type, rel.distance))
             adj.setdefault(rel.target_id, []).append((rel.source_id, rel.type, rel.distance))
 
-        exits = [e for e in entities if e.type in ("exit", "exit_door", "door", "fire_door")]
+                # 出口识别：优先用明确的 exit/exit_door
+        strict_exits = [e for e in entities if e.type in ("exit", "exit_door")]
+        fallback_exits = [e for e in entities if e.type in ("door", "fire_door")]
+        # 有明确出口就用明确出口，否则用 door/fire_door 兜底
+        exits = strict_exits if strict_exits else fallback_exits
+        
         rooms = [e for e in entities if e.type == "room"]
         
         if not exits:
             return []
+
+        # 无明确 exit 时，room 面积 < 10m² 跳过 EVAC 判定（非疏散空间）
+        skip_small_rooms = not strict_exits and bool(fallback_exits)
 
         # 如果没有 room 但有 corridor，用 corridor 作为起点分析连通性
         if not rooms:
@@ -1147,6 +1155,23 @@ class SemanticAnalyzer:
 
         routes = []
         for room in rooms:
+            # 兜底模式（无明确exit）且 room 面积 < 10m²：跳过 EVAC 判定
+            if skip_small_rooms:
+                bw = room.bbox.get("width", 0)
+                bh = room.bbox.get("height", 0)
+                area = bw * bh / 1e6
+                if area < 10:
+                    route_info = {
+                        "room_id": room.id,
+                        "room_type": room.type,
+                        "room_bbox": room.bbox,
+                        "has_route": True,
+                        "path_length": None,
+                        "exit_id": None,
+                    }
+                    routes.append(route_info)
+                    continue
+
             # BFS 找最近出口
             visited = {room.id}
             queue = [(room.id, [room.id], 0.0)]
