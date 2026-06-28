@@ -331,6 +331,12 @@ class AtomicFunction:
 
         if func_id == "AREA-002":  # 消防电梯前室面积
             val = props.get("area", 0.0)
+            if val < 0.01:
+                # 从 bbox 宽高计算面积（mm²）
+                bw = entity.get("bbox", {}).get("width", 0)
+                bh = entity.get("bbox", {}).get("height", 0)
+                if bw > 0 and bh > 0:
+                    val = bw * bh
             if unit == "mm2":
                 return val / 1000000.0
             if unit == "m2":
