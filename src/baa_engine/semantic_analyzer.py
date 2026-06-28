@@ -391,6 +391,9 @@ class SemanticAnalyzer:
                         return "other"
                     return "wall"
                 # room 最小面积 1m²（1,000,000mm²），过滤小框/文字标注
+                # room 最大面积 500m²（500,000,000mm²），过滤图纸边界框/标题栏框
+                if area > 500000000:  # > 500m² → 图纸边界/标题栏，不是房间
+                    return "other"
                 if area > 1000000:  # > 1m²
                     if aspect_ratio > 5:
                         # 狭长 → 走廊
@@ -404,11 +407,14 @@ class SemanticAnalyzer:
                             return "wall"
                         return "corridor"
                     return "wall"
-                elif area > 5000:
+                elif area > 50000:
+                    # 中等面积（0.05~1m²）：可能是小房间或设备间
                     if aspect_ratio > 4:
-                        # 狭长中等面积 → corridor
                         return "corridor"
                     return "room"
+                elif area > 5000:
+                    # 小面积（0.005~0.05m²）：通常是文字框/图例框/标注框，不是房间
+                    return "other"
                 else:
                     # 小面积闭合多边形（500~5000mm²）→ door 或 window
                     if aspect_ratio > 3:
