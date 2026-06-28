@@ -268,6 +268,12 @@ class AtomicFunction:
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:
                 return None
+            # 设备门/管井门排除：图层含 设备/管线/PIPE/SB 等关键词
+            if func_id == "DIM-006":
+                layer = entity.get("layer", "").upper()
+                non_exit_layer_kw = ["设备", "管线", "管井", "PIPE", "SB", "喷淋", "消防排水"]
+                if any(kw.upper() in layer for kw in non_exit_layer_kw):
+                    return None
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
