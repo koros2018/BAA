@@ -304,7 +304,7 @@ class TestFuncExecute:
         assert r.result == "PASS"
 
     def test_dim009_fail(self, registry):
-        r = registry.get("DIM-009").execute({"id": "E2", "type": "exit_door", "properties": {"clear_width": 0.7}})
+        r = registry.get("DIM-009").execute({"id": "E2", "type": "exit_door", "properties": {"clear_width": 0.85}})
         assert r.result == "FAIL"
 
     # ATTR-003: 防火窗等级

@@ -103,6 +103,14 @@ class AtomicFunction:
             props = entity.get("properties", {})
             exists = props.get("exists", None)
             count = props.get("count", 0)
+            # 兼容：字符串 'False'/'true' 转为布尔
+            if isinstance(exists, str):
+                exists = exists.lower() in ("true", "1", "yes")
+            if isinstance(count, str):
+                try:
+                    count = float(count)
+                except ValueError:
+                    count = 0
             if exists is not None:
                 actual = 1.0 if exists else 0.0
             elif count > 0:
@@ -370,7 +378,7 @@ class FuncRegistry:
                        target_entities=["floor", "fire_zone"]),
         AtomicFunction("ATTR-001", "防火门等级判定", FuncCategory.ATTR,
                        "GB50016-6.5.1", "防火门等级不应低于丙级", ">=", 1.0, "级",
-                       target_entities=["fire_door"]),
+                       target_entities=["fire_door", "door"]),
         AtomicFunction("DIM-004", "疏散走道宽度判定", FuncCategory.DIMENSION,
                        "GB50016-5.5.18", "疏散走道净宽度不应小于1.1m", ">=", 1.1, "m",
                        target_entities=["corridor", "aisle", "passage"]),
