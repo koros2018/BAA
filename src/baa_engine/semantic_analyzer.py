@@ -1009,7 +1009,7 @@ class SemanticAnalyzer:
     @staticmethod
     def _point_distance(p1: Dict, p2: Dict) -> float:
         return ((p1.get("x", 0) - p2.get("x", 0))**2  # 返回
-                + (p1.get("y", 0) - p2.get("y", 0))**2) ** 0.5
+                + (p1.get("y", 0) - p2.get("y", 0))**2) ** 0.5  # 欧氏距离计算
 
     @staticmethod
     def _infer_attribute_name(dim: Dict, entity: SemanticEntity) -> str:

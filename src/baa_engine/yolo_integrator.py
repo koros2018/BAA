@@ -198,7 +198,7 @@ class YOLODetectionIntegrator:
                 "count": 1,  # 字段
                 "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},  # 字段
                 "properties": {  # 字段
-                    **det["properties"],
+                    **det["properties"],  # 展开 YOLO 检测属性
                     "detection_source": "yolo",  # 字段
                 },  # 闭合
             }  # 闭合

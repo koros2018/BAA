@@ -261,7 +261,7 @@ async def root():
             "/deconstruct": "图纸解析与违规范判定",  # 字段
             "/review": "图纸合规审查（详细报告）",  # 字段
             "/reconstruct": "图纸重构",  # 字段
-            "/order/{order_id}": "查询订单/任务状态",
+            "/order/{order_id}": "查询订单/任务状态",  # 字段
         },  # 闭合
         "note": "前端 UI 文件未找到，请检查 src/frontend/index.html"  # 字段
     }  # 闭合
@@ -1268,7 +1268,7 @@ async def reconstruct(
     order_id = f"baa-order-{uuid.uuid4().hex[:8]}"  # 赋值
     model_path = MODELS_DIR / order_id  # 赋值
     model_path.mkdir(parents=True, exist_ok=True)  # 赋值
-    (model_path / "model.ifc").write_text(
+    (model_path / "model.ifc").write_text(  # 写入模型文件
         f"# Mock IFC file for order {order_id}\n"
         f"# Generated from file: {file_id}\n"
     )  # 闭合
@@ -2099,7 +2099,7 @@ if __name__ == "__main__":  # 条件判断
     print(f"[BAA] Worker 数: {workers}", flush=True)  # 调用
 
     uvicorn.run(  # 调用
-        "src.api.baa_api:app",
+        "src.api.baa_api:app",  # 应用模块路径
         host="0.0.0.0",  # 赋值
         port=port,  # 赋值
         workers=workers,  # 赋值

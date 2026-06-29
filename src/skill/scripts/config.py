@@ -4,10 +4,10 @@
 import os
 
 # BAA 服务地址（默认本地）
-BAA_API_BASE = os.getenv("BAA_API_BASE", "http://localhost:8000")
+BAA_API_BASE = os.getenv("BAA_API_BASE", "http://localhost:8000")  # 赋值
 
 # BAA API 密钥
-BAA_API_KEY = os.getenv("BAA_API_KEY", "")
+BAA_API_KEY = os.getenv("BAA_API_KEY", "")  # 赋值
 
 # 默认建筑类型
-BAA_DEFAULT_BUILDING_TYPE = os.getenv("BAA_DEFAULT_BUILDING_TYPE", "civil")
+BAA_DEFAULT_BUILDING_TYPE = os.getenv("BAA_DEFAULT_BUILDING_TYPE", "civil")  # 赋值

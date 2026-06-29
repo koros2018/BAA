@@ -37,7 +37,7 @@ class TestFuncRegistry:
     def test_get_by_id(self):
         registry = FuncRegistry()  # 赋值
         for fid in ["DIM-001", "DIM-002", "DIM-003", "DIST-001", "COUNT-001",  # 遍历
-                     "ATTR-001", "DIM-004", "AREA-001", "EXIST-001", "DIM-005"]:
+                     "ATTR-001", "DIM-004", "AREA-001", "EXIST-001", "DIM-005"]:  # 首批10个函数ID
             func = registry.get(fid)  # 赋值
             assert func is not None, f"函数{fid}不存在"  # 断言
 

@@ -22,9 +22,9 @@ from collections import Counter
 class FeedbackRecord:
     """单条申诉记录"""
     __slots__ = (  # 赋值
-        "feedback_id", "task_id", "clause_id", "entity_id", "entity_type",
-        "status", "reason", "description", "created_at", "updated_at",
-        "reviewed_by", "review_comment", "severity", "original_value",
+        "feedback_id", "task_id", "clause_id", "entity_id", "entity_type",  # 申诉数据字段
+        "status", "reason", "description", "created_at", "updated_at",  # 申诉数据字段
+        "reviewed_by", "review_comment", "severity", "original_value",  # 申诉数据字段
     )  # 闭合
 
     def __init__(self, data: dict):

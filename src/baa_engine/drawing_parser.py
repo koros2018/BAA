@@ -254,13 +254,13 @@ class DrawingParser:
                                 total += 1  # 赋值
                         elif dxf_type == "CIRCLE":  # 分支
                             msp_dst.add_circle(  # 调用
-                                (d["center"][0], d["center"][1]), d["radius"],
+                                (d["center"][0], d["center"][1]), d["radius"],  # 圆心和半径
                                 dxfattribs={"color": color},  # 赋值
                             )  # 闭合
                             total += 1  # 赋值
                         elif dxf_type == "ARC":  # 分支
                             msp_dst.add_arc(  # 调用
-                                (d["center"][0], d["center"][1]), d["radius"],
+                                (d["center"][0], d["center"][1]), d["radius"],  # 圆心和半径
                                 d["start_angle"], d["end_angle"],  # 操作
                                 dxfattribs={"color": color},  # 赋值
                             )  # 闭合
@@ -307,8 +307,8 @@ class DrawingParser:
                         try:  # 尝试
                             if dxf_type == "LINE":  # 条件判断
                                 msp_dst.add_line(  # 调用
-                                    (row.get("start_x", 0), row.get("start_y", 0)),
-                                    (row.get("end_x", 0), row.get("end_y", 0)),
+                                    (row.get("start_x", 0), row.get("start_y", 0)),  # 起点
+                                    (row.get("end_x", 0), row.get("end_y", 0)),  # 终点
                                     dxfattribs={"color": row.get("color_index", 7)},  # 赋值
                                 )  # 闭合
                                 total += 1  # 赋值
@@ -319,14 +319,14 @@ class DrawingParser:
                                     total += 1  # 赋值
                             elif dxf_type == "CIRCLE":  # 分支
                                 msp_dst.add_circle(  # 调用
-                                    (row.get("center_x", 0), row.get("center_y", 0)),
+                                    (row.get("center_x", 0), row.get("center_y", 0)),  # 圆心
                                     row.get("radius", 1),  # 调用
                                     dxfattribs={"color": row.get("color_index", 7)},  # 赋值
                                 )  # 闭合
                                 total += 1  # 赋值
                             elif dxf_type == "ARC":  # 分支
                                 msp_dst.add_arc(  # 调用
-                                    (row.get("center_x", 0), row.get("center_y", 0)),
+                                    (row.get("center_x", 0), row.get("center_y", 0)),  # 圆心
                                     row.get("radius", 1),  # 调用
                                     row.get("start_angle", 0),  # 调用
                                     row.get("end_angle", 360),  # 调用

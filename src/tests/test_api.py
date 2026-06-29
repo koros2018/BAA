@@ -46,7 +46,7 @@ def test_deconstruct_unauthorized():
 def test_deconstruct_unsupported_format():
     """测试不支持的文件格式"""
     response = client.post(  # 赋值
-        "/deconstruct",
+        "/deconstruct",  # 解构端点
         files={"file": ("test.pdf", b"fake pdf content", "application/pdf")},  # 赋值
         headers={"Authorization": "Bearer test-api-key"},  # 赋值
     )  # 闭合

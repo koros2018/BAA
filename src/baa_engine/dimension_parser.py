@@ -25,8 +25,8 @@ class DimensionParser:
 
     # 哪些实体类型需要从 DIMENSION 获取实际尺寸
     DIMENSIONABLE_TYPES = {"door", "window", "fire_door", "fire_window",  # 赋值
-                           "corridor", "staircase", "fire_lane", "room",
-                           "wall", "exit"}
+                           "corridor", "staircase", "fire_lane", "room",  # 目标实体类型
+                           "wall", "exit"}  # 目标实体类型
 
     # 尺寸值单位的猜测（mm 还是 m）
     # 真实 DXF 中 DIMENSION 通常是 mm 单位
