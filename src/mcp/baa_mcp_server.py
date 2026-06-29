@@ -38,11 +38,11 @@ class BAAMCPServer:
 
     def __init__(self):
         # 懒加载引擎
-        self._drawing_parser: Optional[DrawingParser] = None
+        self._drawing_parser: Optional[DrawingParser] = None  # 操作
         self._semantic_analyzer: Optional[SemanticAnalyzer] = None  # 赋值
-        self._func_registry: Optional[FuncRegistry] = None
+        self._func_registry: Optional[FuncRegistry] = None  # 操作
         self._attribution_analyzer: Optional[AttributionAnalyzer] = None  # 赋值
-        self._spec_repo: Optional[SpecRepository] = None
+        self._spec_repo: Optional[SpecRepository] = None  # 操作
 
         self.server = Server("baa-blueprint")  # 赋值
 
@@ -53,72 +53,72 @@ class BAAMCPServer:
                     name="baa_deconstruct",  # 赋值
                     description="解构工程图纸，识别墙、柱、梁、板、门、窗、楼梯、电梯等构件，返回结构化数据。此工具免费使用。",  # 赋值
                     inputSchema={  # 赋值
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "图纸文件路径（支持 dxf/dwg，推荐 dxf）"
-                            },
-                            "building_type": {
-                                "type": "string",
-                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",
-                                "default": "civil"
-                            }
-                        },
-                        "required": ["file_path"]
-                    }
-                ),
+                        "type": "object",  # 字段
+                        "properties": {  # 字段
+                            "file_path": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "图纸文件路径（支持 dxf/dwg，推荐 dxf）"  # 字段
+                            },  # 闭合
+                            "building_type": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",  # 字段
+                                "default": "civil"  # 字段
+                            }  # 闭合
+                        },  # 闭合
+                        "required": ["file_path"]  # 字段
+                    }  # 闭合
+                ),  # 闭合
                 Tool(  # 调用
                     name="baa_reconstruct",  # 赋值
                     description="基于解构结果生成 BIM 模型。此工具需要有效的授权令牌（auth_token）。",  # 赋值
                     inputSchema={  # 赋值
-                        "type": "object",
-                        "properties": {
-                            "file_id": {
-                                "type": "string",
-                                "description": "解构接口返回的 file_id"
-                            },
-                            "auth_token": {
-                                "type": "string",
-                                "description": "授权代收代付点生成的支付授权令牌（JWT格式）"
-                            },
-                            "elements": {
-                                "type": "array",
-                                "description": "构件列表（可选，不传则使用 file_id 关联数据）",
-                                "items": {"type": "object"}
-                            },
-                            "options": {
-                                "type": "object",
-                                "description": "重构参数（可选）",
-                                "properties": {
-                                    "lod": {"type": "integer", "description": "LOD等级: 100/200/300"},
-                                    "format": {"type": "string", "description": "输出格式: ifc/obj/fbx"},
-                                    "include_reinforcement": {"type": "boolean"}
-                                }
-                            }
-                        },
-                        "required": ["file_id", "auth_token"]
-                    }
-                ),
+                        "type": "object",  # 字段
+                        "properties": {  # 字段
+                            "file_id": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "解构接口返回的 file_id"  # 字段
+                            },  # 闭合
+                            "auth_token": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "授权代收代付点生成的支付授权令牌（JWT格式）"  # 字段
+                            },  # 闭合
+                            "elements": {  # 字段
+                                "type": "array",  # 字段
+                                "description": "构件列表（可选，不传则使用 file_id 关联数据）",  # 字段
+                                "items": {"type": "object"}  # 字段
+                            },  # 闭合
+                            "options": {  # 字段
+                                "type": "object",  # 字段
+                                "description": "重构参数（可选）",  # 字段
+                                "properties": {  # 字段
+                                    "lod": {"type": "integer", "description": "LOD等级: 100/200/300"},  # 字段
+                                    "format": {"type": "string", "description": "输出格式: ifc/obj/fbx"},  # 字段
+                                    "include_reinforcement": {"type": "boolean"}  # 字段
+                                }  # 闭合
+                            }  # 闭合
+                        },  # 闭合
+                        "required": ["file_id", "auth_token"]  # 字段
+                    }  # 闭合
+                ),  # 闭合
                 Tool(  # 调用
                     name="baa_review",  # 赋值
                     description="图纸合规审查，基于GB50016规范检查图纸违规项。此工具免费使用。",  # 赋值
                     inputSchema={  # 赋值
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "图纸文件路径（支持 dxf/dwg）"
-                            },
-                            "building_type": {
-                                "type": "string",
-                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil"
-                            }
-                        },
-                        "required": ["file_path"]
-                    }
-                )
-            ]
+                        "type": "object",  # 字段
+                        "properties": {  # 字段
+                            "file_path": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "图纸文件路径（支持 dxf/dwg）"  # 字段
+                            },  # 闭合
+                            "building_type": {  # 字段
+                                "type": "string",  # 字段
+                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil"  # 字段
+                            }  # 闭合
+                        },  # 闭合
+                        "required": ["file_path"]  # 字段
+                    }  # 闭合
+                )  # 闭合
+            ]  # 闭合
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[TextContent]:
@@ -130,21 +130,21 @@ class BAAMCPServer:
                 elif name == "baa_review":  # 分支
                     result = await self._handle_review(arguments)  # 赋值
                 else:  # 否则
-                    raise ValueError(f"未知工具: {name}")
+                    raise ValueError(f"未知工具: {name}")  # 抛出
 
                 return [TextContent(  # 返回
                     type="text",  # 赋值
                     text=json.dumps(result, ensure_ascii=False, indent=2)  # 赋值
-                )]
+                )]  # 闭合
             except Exception as e:  # 捕获异常
                 return [TextContent(  # 返回
                     type="text",  # 赋值
                     text=json.dumps({  # 赋值
-                        "status": "error",
-                        "error_code": type(e).__name__,
-                        "message": str(e)
+                        "status": "error",  # 字段
+                        "error_code": type(e).__name__,  # 字段
+                        "message": str(e)  # 字段
                     }, ensure_ascii=False)  # 赋值
-                )]
+                )]  # 闭合
 
     def _ensure_engine(self):
         """懒加载引擎模块"""
@@ -165,19 +165,19 @@ class BAAMCPServer:
         # 检查文件存在
         if not os.path.exists(file_path):  # 条件判断
             return {"status": "error", "error_code": "FILE_NOT_FOUND",  # 返回
-                    "message": f"文件不存在: {file_path}"}
+                    "message": f"文件不存在: {file_path}"}  # 字段
 
         # Step 1: 图纸解析
         file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # 赋值
         result = self._drawing_parser.parse(file_path, file_id=file_id)  # 赋值
         if not result.success:  # 条件判断
             return {"status": "error", "error_code": "PARSE_FAILED",  # 返回
-                    "message": f"图纸解析失败: {result.error}"}
+                    "message": f"图纸解析失败: {result.error}"}  # 字段
 
         # Step 2: 语义分析
         semantic = self._semantic_analyzer.analyze(  # 赋值
             result.primitives, result.dimensions, building_type=building_type  # 解包
-        )
+        )  # 闭合
         entities = semantic["entities"]  # 赋值
 
         # 统计构件
@@ -185,12 +185,12 @@ class BAAMCPServer:
         for e in entities:  # 循环
             t = e["type"]  # 赋值
             if t not in type_stats:  # 条件判断
-                type_stats[t] = {"count": 0, "bbox_areas": []}
-            type_stats[t]["count"] += 1
+                type_stats[t] = {"count": 0, "bbox_areas": []}  # 操作
+            type_stats[t]["count"] += 1  # 操作
             bbox = e["bbox"]  # 赋值
-            type_stats[t]["bbox_areas"].append(
-                bbox.get("width", 0) * bbox.get("height", 0)
-            )
+            type_stats[t]["bbox_areas"].append(  # 操作
+                bbox.get("width", 0) * bbox.get("height", 0)  # 调用
+            )  # 闭合
 
         elements = []  # 赋值
         for t, stats in sorted(type_stats.items()):  # 循环
@@ -198,22 +198,22 @@ class BAAMCPServer:
             elem = {"type": t, "count": stats["count"]}  # 赋值
             total_area = sum(areas) if areas else 0  # 赋值
             if t in ("wall", "corridor", "stair"):  # 条件判断
-                elem["total_length_m"] = round(total_area ** 0.5, 1)
+                elem["total_length_m"] = round(total_area ** 0.5, 1)  # 操作
             elif t in ("door", "fire_door", "window"):  # 分支
-                elem["total_count"] = stats["count"]
+                elem["total_count"] = stats["count"]  # 操作
             elif t == "fire_zone":  # 分支
-                elem["total_area_sqm"] = round(total_area, 1)
+                elem["total_area_sqm"] = round(total_area, 1)  # 操作
             elements.append(elem)  # 调用
 
         return {  # 返回
-            "status": "success",
-            "elements": elements,
-            "entity_count": len(entities),
-            "relations": len(semantic["relations"]),
-            "confidence": 0.85 if len(entities) > 0 else 0,
-            "file_id": file_id,
-            "building_type": building_type,
-        }
+            "status": "success",  # 字段
+            "elements": elements,  # 字段
+            "entity_count": len(entities),  # 字段
+            "relations": len(semantic["relations"]),  # 字段
+            "confidence": 0.85 if len(entities) > 0 else 0,  # 字段
+            "file_id": file_id,  # 字段
+            "building_type": building_type,  # 字段
+        }  # 闭合
 
     async def _handle_reconstruct(self, args: dict) -> dict:
         """BIM 重构"""
@@ -225,7 +225,7 @@ class BAAMCPServer:
         auth_payload = verify_auth_token(auth_token)  # 赋值
         if auth_payload is None:  # 条件判断
             return {"status": "error", "error_code": "AUTH_FAILED",  # 返回
-                    "message": "支付授权验证失败，请确认订单已支付"}
+                    "message": "支付授权验证失败，请确认订单已支付"}  # 字段
 
         # 生成 mock IFC 输出
         order_id = f"baa-order-mcp-{file_id[-8:]}"  # 赋值
@@ -234,18 +234,18 @@ class BAAMCPServer:
         fmt = options.get("format", "ifc") if isinstance(options, dict) else "ifc"  # 赋值
 
         return {  # 返回
-            "status": "success",
-            "order_id": order_id,
-            "model_file": f"{order_id}.{fmt}",
-            "lod": lod,
-            "format": fmt,
-            "elements_count": len(args.get("elements", [])),
-            "auth_info": {
-                "client_id": auth_payload.get("client_id", "unknown"),
-                "service": auth_payload.get("service", "reconstruct"),
-                "expires_at": auth_payload.get("expires_at", "unknown"),
-            }
-        }
+            "status": "success",  # 字段
+            "order_id": order_id,  # 字段
+            "model_file": f"{order_id}.{fmt}",  # 字段
+            "lod": lod,  # 字段
+            "format": fmt,  # 字段
+            "elements_count": len(args.get("elements", [])),  # 字段
+            "auth_info": {  # 字段
+                "client_id": auth_payload.get("client_id", "unknown"),  # 字段
+                "service": auth_payload.get("service", "reconstruct"),  # 字段
+                "expires_at": auth_payload.get("expires_at", "unknown"),  # 字段
+            }  # 闭合
+        }  # 闭合
 
     async def _handle_review(self, args: dict) -> dict:
         """图纸合规审查"""
@@ -255,17 +255,17 @@ class BAAMCPServer:
 
         if not os.path.exists(file_path):  # 条件判断
             return {"status": "error", "error_code": "FILE_NOT_FOUND",  # 返回
-                    "message": f"文件不存在: {file_path}"}
+                    "message": f"文件不存在: {file_path}"}  # 字段
 
         file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # 赋值
         result = self._drawing_parser.parse(file_path, file_id=file_id)  # 赋值
         if not result.success:  # 条件判断
             return {"status": "error", "error_code": "PARSE_FAILED",  # 返回
-                    "message": f"图纸解析失败: {result.error}"}
+                    "message": f"图纸解析失败: {result.error}"}  # 字段
 
         semantic = self._semantic_analyzer.analyze(  # 赋值
             result.primitives, result.dimensions, building_type=building_type  # 解包
-        )
+        )  # 闭合
         entities = semantic["entities"]  # 赋值
 
         # 规范判定
@@ -280,7 +280,7 @@ class BAAMCPServer:
                 total_checks += 1  # 赋值
                 threshold_val, unit, op = self._spec_repo.get_threshold(  # 赋值
                     func.clause_id, building_type  # 解包
-                )
+                )  # 闭合
                 func.threshold = threshold_val  # 赋值
                 func.unit = unit  # 赋值
                 func.operator = op  # 赋值
@@ -290,49 +290,49 @@ class BAAMCPServer:
                 clause_results[func.clause_id] += 1  # 赋值
                 if r.result != "PASS":  # 条件判断
                     clause = {  # 赋值
-                        "standard": "GB50016",
-                        "clause_id": func.clause_id,
-                        "title": func.name,
-                        "text": func.description,
-                        "category": func.category.value,
-                    }
+                        "standard": "GB50016",  # 字段
+                        "clause_id": func.clause_id,  # 字段
+                        "title": func.name,  # 字段
+                        "text": func.description,  # 字段
+                        "category": func.category.value,  # 字段
+                    }  # 闭合
                     f = self._attribution_analyzer.build_finding(  # 赋值
-                        r, clause, e, entities[:5]
-                    )
+                        r, clause, e, entities[:5]  # 操作
+                    )  # 闭合
                     findings.append({  # 调用
-                        "entity_id": e["id"],
-                        "entity_type": e["type"],
-                        "clause_id": f.clause.get("clause_id", ""),
-                        "clause_title": f.clause.get("title", ""),
-                        "result": f.judgement["result"],
-                        "extracted_value": r.actual,
-                        "required_value": r.threshold,
-                        "difference": abs(r.delta),
-                        "explanation": f.explanation[:200] if f.explanation else "",
-                    })
+                        "entity_id": e["id"],  # 字段
+                        "entity_type": e["type"],  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "extracted_value": r.actual,  # 字段
+                        "required_value": r.threshold,  # 字段
+                        "difference": abs(r.delta),  # 字段
+                        "explanation": f.explanation[:200] if f.explanation else "",  # 字段
+                    })  # 闭合
 
         entity_types = Counter(e["type"] for e in entities)  # 赋值
         violation_count = Counter(f["clause_id"] for f in findings)  # 赋值
 
         return {  # 返回
-            "status": "success",
-            "summary": {
-                "total_entities": len(entities),
-                "entity_types": dict(entity_types),
-                "total_checks": total_checks,
-                "violations": len(findings),
-                "violation_by_clause": dict(violation_count.most_common(10)),
-            },
-            "findings": findings[:50],
-            "file_id": file_id,
-            "building_type": building_type,
-        }
+            "status": "success",  # 字段
+            "summary": {  # 字段
+                "total_entities": len(entities),  # 字段
+                "entity_types": dict(entity_types),  # 字段
+                "total_checks": total_checks,  # 字段
+                "violations": len(findings),  # 字段
+                "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
+            },  # 闭合
+            "findings": findings[:50],  # 字段
+            "file_id": file_id,  # 字段
+            "building_type": building_type,  # 字段
+        }  # 闭合
 
     async def run_stdio(self):
         """通过 stdio 运行 MCP Server"""
         from mcp.server.stdio import stdio_server
-        async with stdio_server() as (read_stream, write_stream):
-            await self.server.run(
+        async with stdio_server() as (read_stream, write_stream):  # 操作
+            await self.server.run(  # 操作
                 read_stream,  # 解包
                 write_stream,  # 解包
                 InitializationOptions(  # 调用
@@ -341,9 +341,9 @@ class BAAMCPServer:
                     capabilities=self.server.get_capabilities(  # 赋值
                         notification_options=NotificationOptions(),  # 赋值
                         experimental_capabilities={},  # 赋值
-                    ),
-                ),
-            )
+                    ),  # 闭合
+                ),  # 闭合
+            )  # 闭合
 
     async def run_http(self, host: str = "0.0.0.0", port: int = 8080):
         """通过 Streamable HTTP 运行 MCP Server"""

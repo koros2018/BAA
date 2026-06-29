@@ -61,15 +61,15 @@ class DimensionParser:
                         defp3 = d.get("defpoint3", (0, 0, 0))  # 赋值
                         text_mid = d.get("text_midpoint", (0, 0, 0))  # 赋值
                         dimensions.append({  # 调用
-                            "handle": d.get("handle", ""),
-                            "layer": d.get("layer", "0"),
-                            "measurement": float(meas),
-                            "text": d.get("text", ""),
-                            "dimtype": d.get("dimtype", 0),
-                            "defpoint2": {"x": defp2[0], "y": defp2[1]},
-                            "defpoint3": {"x": defp3[0], "y": defp3[1]},
-                            "text_midpoint": {"x": text_mid[0], "y": text_mid[1]},
-                        })
+                            "handle": d.get("handle", ""),  # 字段
+                            "layer": d.get("layer", "0"),  # 字段
+                            "measurement": float(meas),  # 字段
+                            "text": d.get("text", ""),  # 字段
+                            "dimtype": d.get("dimtype", 0),  # 字段
+                            "defpoint2": {"x": defp2[0], "y": defp2[1]},  # 字段
+                            "defpoint3": {"x": defp3[0], "y": defp3[1]},  # 字段
+                            "text_midpoint": {"x": text_mid[0], "y": text_mid[1]},  # 字段
+                        })  # 闭合
                     except Exception:  # 捕获异常
                         continue  # 继续循环
             except Exception as e:  # 捕获异常
@@ -88,18 +88,18 @@ class DimensionParser:
                         if meas is None or meas <= 0.1:  # 条件判断
                             continue  # 继续循环
                         dimensions.append({  # 调用
-                            "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',
-                            "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',
-                            "measurement": float(meas),
-                            "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),
-                            "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',
-                            "defpoint2": {"x": entity.dxf.defpoint2.x if hasattr(entity.dxf.defpoint2, 'x') else 0,
-                                          "y": entity.dxf.defpoint2.y if hasattr(entity.dxf.defpoint2, 'y') else 0},
-                            "defpoint3": {"x": entity.dxf.defpoint3.x if hasattr(entity.dxf.defpoint3, 'x') else 0,
-                                          "y": entity.dxf.defpoint3.y if hasattr(entity.dxf.defpoint3, 'y') else 0},
-                            "text_midpoint": {"x": entity.dxf.text_midpoint.x if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'x') else 0,
-                                              "y": entity.dxf.text_midpoint.y if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'y') else 0},
-                        })
+                            "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',  # 字段
+                            "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',  # 字段
+                            "measurement": float(meas),  # 字段
+                            "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),  # 字段
+                            "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',  # 字段
+                            "defpoint2": {"x": entity.dxf.defpoint2.x if hasattr(entity.dxf.defpoint2, 'x') else 0,  # 字段
+                                          "y": entity.dxf.defpoint2.y if hasattr(entity.dxf.defpoint2, 'y') else 0},  # 字段
+                            "defpoint3": {"x": entity.dxf.defpoint3.x if hasattr(entity.dxf.defpoint3, 'x') else 0,  # 字段
+                                          "y": entity.dxf.defpoint3.y if hasattr(entity.dxf.defpoint3, 'y') else 0},  # 字段
+                            "text_midpoint": {"x": entity.dxf.text_midpoint.x if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'x') else 0,  # 字段
+                                              "y": entity.dxf.text_midpoint.y if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'y') else 0},  # 字段
+                        })  # 闭合
                     except Exception:  # 捕获异常
                         continue  # 继续循环
             except Exception:  # 捕获异常
@@ -127,16 +127,16 @@ class DimensionParser:
 
             # 水平 → width/长度，垂直 → height
             if dx > dy * 2:  # 条件判断
-                classified["width"].append(dim)
+                classified["width"].append(dim)  # 操作
             elif dy > dx * 2:  # 条件分支
-                classified["height"].append(dim)
+                classified["height"].append(dim)  # 操作
             else:  # 否则
-                classified["length"].append(dim)
+                classified["length"].append(dim)  # 操作
 
         return classified  # 返回
 
     def match_to_entities(self, dimensions: List[Dict],
-                          entities: List[Dict],
+                          entities: List[Dict],  # 操作
                           max_distance: float = 5.0) -> List[Dict]:  # 赋值
         """将 DIMENSION 匹配到附近的实体（V2增强版）
 
@@ -167,18 +167,18 @@ class DimensionParser:
             x2 = x1 + bbox.get("width", 0)  # 赋值
             y2 = y1 + bbox.get("height", 0)  # 赋值
             entity_info.append({  # 调用
-                "idx": i,
-                "cx": cx, "cy": cy,
-                "x1": x1, "y1": y1,
-                "x2": x2, "y2": y2,
-            })
+                "idx": i,  # 字段
+                "cx": cx, "cy": cy,  # 字段
+                "x1": x1, "y1": y1,  # 字段
+                "x2": x2, "y2": y2,  # 字段
+            })  # 闭合
 
         matched_dims = set()  # 赋值
         
         # 对每个 DIMENSION，先用距离找候选，再用方向+投影约束筛选
         for dim in dimensions:  # 循环
             tmid = dim.get("text_midpoint", {})  # 赋值
-            dmx, dmy = tmid.get("x", 0), tmid.get("y", 0)
+            dmx, dmy = tmid.get("x", 0), tmid.get("y", 0)  # 操作
             dp2 = dim.get("defpoint2", {})  # 赋值
             dp3 = dim.get("defpoint3", {})  # 赋值
             
@@ -189,8 +189,8 @@ class DimensionParser:
             is_vertical = dy_vec > dx_vec * 2  # 赋值
             
             # 标注的两个端点坐标
-            d2x, d2y = dp2.get("x", 0), dp2.get("y", 0)
-            d3x, d3y = dp3.get("x", 0), dp3.get("y", 0)
+            d2x, d2y = dp2.get("x", 0), dp2.get("y", 0)  # 操作
+            d3x, d3y = dp3.get("x", 0), dp3.get("y", 0)  # 操作
             # defpoint 最小/最大
             dp_xmin, dp_xmax = min(d2x, d3x), max(d2x, d3x)  # 解包
             dp_ymin, dp_ymax = min(d2y, d3y), max(d2y, d3y)  # 解包
@@ -242,7 +242,7 @@ class DimensionParser:
                 meas = dim.get("measurement", 0)  # 赋值
 
                 if "properties" not in entities[best_idx]:  # 条件判断
-                    entities[best_idx]["properties"] = {}
+                    entities[best_idx]["properties"] = {}  # 操作
 
                 props = entities[best_idx]["properties"]  # 赋值
 
@@ -259,26 +259,26 @@ class DimensionParser:
                 # 根据方向注入
                 if is_horizontal:  # 条件判断
                     if "width" not in props or props.get("detection_source") != "yolo":  # 条件判断
-                        props["width"] = meas_m
-                        props["clear_width"] = meas_m
-                        props["_dimension_source"] = "dimension"
-                        props["_dimension_raw"] = meas
+                        props["width"] = meas_m  # 操作
+                        props["clear_width"] = meas_m  # 操作
+                        props["_dimension_source"] = "dimension"  # 操作
+                        props["_dimension_raw"] = meas  # 操作
                 elif is_vertical:  # 条件分支
                     if "height" not in props:  # 条件判断
-                        props["height"] = meas_m
-                        props["_dimension_source"] = "dimension"
-                        props["_dimension_raw"] = meas
+                        props["height"] = meas_m  # 操作
+                        props["_dimension_source"] = "dimension"  # 操作
+                        props["_dimension_raw"] = meas  # 操作
                 else:  # 否则
-                    props["length"] = meas_m
-                    props["_dimension_source"] = "dimension"
-                    props["_dimension_raw"] = meas
+                    props["length"] = meas_m  # 操作
+                    props["_dimension_source"] = "dimension"  # 操作
+                    props["_dimension_raw"] = meas  # 操作
 
                 matched_dims.add(id(dim))  # 调用
 
         return entities  # 返回
 
     def inject_into_entities(self, dimensions: List[Dict],
-                              entities: List[Dict]) -> List[Dict]:
+                              entities: List[Dict]) -> List[Dict]:  # 操作
         """提取 + 分类 + 匹配 + 注入 一键完成"""
         classified = self.classify_dimensions(dimensions)  # 赋值
         all_dims = classified["width"] + classified["height"] + classified["length"]  # 赋值

@@ -25,7 +25,7 @@ class FeedbackRecord:
         "feedback_id", "task_id", "clause_id", "entity_id", "entity_type",
         "status", "reason", "description", "created_at", "updated_at",
         "reviewed_by", "review_comment", "severity", "original_value",
-    )
+    )  # 闭合
 
     def __init__(self, data: dict):
         self.feedback_id = data.get("feedback_id", str(uuid.uuid4())[:8])  # 赋值
@@ -45,21 +45,21 @@ class FeedbackRecord:
 
     def to_dict(self) -> dict:
         return {  # 返回
-            "feedback_id": self.feedback_id,
-            "task_id": self.task_id,
-            "clause_id": self.clause_id,
-            "entity_id": self.entity_id,
-            "entity_type": self.entity_type,
-            "status": self.status,
-            "reason": self.reason,
-            "description": self.description,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
-            "reviewed_by": self.reviewed_by,
-            "review_comment": self.review_comment,
-            "severity": self.severity,
-            "original_value": self.original_value,
-        }
+            "feedback_id": self.feedback_id,  # 字段
+            "task_id": self.task_id,  # 字段
+            "clause_id": self.clause_id,  # 字段
+            "entity_id": self.entity_id,  # 字段
+            "entity_type": self.entity_type,  # 字段
+            "status": self.status,  # 字段
+            "reason": self.reason,  # 字段
+            "description": self.description,  # 字段
+            "created_at": self.created_at,  # 字段
+            "updated_at": self.updated_at,  # 字段
+            "reviewed_by": self.reviewed_by,  # 字段
+            "review_comment": self.review_comment,  # 字段
+            "severity": self.severity,  # 字段
+            "original_value": self.original_value,  # 字段
+        }  # 闭合
 
 
 # ── 反馈管理器 ────────────────────────────────────────────
@@ -90,26 +90,26 @@ class FeedbackManager:
 
     def submit(
         self,  # 解包
-        task_id: str,
-        clause_id: str,
-        entity_id: str,
-        entity_type: str,
-        reason: str,
+        task_id: str,  # 操作
+        clause_id: str,  # 操作
+        entity_id: str,  # 操作
+        entity_type: str,  # 操作
+        reason: str,  # 操作
         description: str = "",  # 赋值
         original_value: Any = None,  # 赋值
         severity: str = "",  # 赋值
-    ) -> dict:
+    ) -> dict:  # 闭合
         """提交申诉"""
         record = FeedbackRecord({  # 赋值
-            "task_id": task_id,
-            "clause_id": clause_id,
-            "entity_id": entity_id,
-            "entity_type": entity_type,
-            "reason": reason,
-            "description": description,
-            "original_value": original_value,
-            "severity": severity,
-        })
+            "task_id": task_id,  # 字段
+            "clause_id": clause_id,  # 字段
+            "entity_id": entity_id,  # 字段
+            "entity_type": entity_type,  # 字段
+            "reason": reason,  # 字段
+            "description": description,  # 字段
+            "original_value": original_value,  # 字段
+            "severity": severity,  # 字段
+        })  # 闭合
         self._feedbacks[record.feedback_id] = record.to_dict()  # 操作
         self._save()  # 调用
         return record.to_dict()  # 返回
@@ -119,10 +119,10 @@ class FeedbackManager:
         record = self._feedbacks.get(feedback_id)  # 赋值
         if not record:  # 条件判断
             return None  # 返回
-        record["status"] = status
-        record["reviewed_by"] = reviewed_by
-        record["review_comment"] = review_comment
-        record["updated_at"] = datetime.now().isoformat()
+        record["status"] = status  # 操作
+        record["reviewed_by"] = reviewed_by  # 操作
+        record["review_comment"] = review_comment  # 操作
+        record["updated_at"] = datetime.now().isoformat()  # 操作
         self._save()  # 调用
         return record  # 返回
 
@@ -135,7 +135,7 @@ class FeedbackManager:
         clause_id: str = "",  # 赋值
         limit: int = 50,  # 赋值
         offset: int = 0,  # 赋值
-    ) -> Tuple[List[dict], int]:
+    ) -> Tuple[List[dict], int]:  # 闭合
         """查询申诉列表（支持筛选）"""
         items = list(self._feedbacks.values())  # 赋值
         if status:  # 条件判断
@@ -152,23 +152,23 @@ class FeedbackManager:
         status_count = Counter(r["status"] for r in items)  # 赋值
         clause_count = Counter(r["clause_id"] for r in items)  # 赋值
         return {  # 返回
-            "total": len(items),
-            "by_status": dict(status_count),
-            "by_clause": dict(clause_count.most_common(20)),
-            "accepted_rate": round(
-                status_count.get("accepted", 0) / max(len(items), 1), 3
-            ),
-        }
+            "total": len(items),  # 字段
+            "by_status": dict(status_count),  # 字段
+            "by_clause": dict(clause_count.most_common(20)),  # 字段
+            "accepted_rate": round(  # 字段
+                status_count.get("accepted", 0) / max(len(items), 1), 3  # 调用
+            ),  # 闭合
+        }  # 闭合
 
     def get_adjustable_clauses(self, min_samples: int = 3) -> List[dict]:
         """获取可调整的规范（基于申诉样本量）"""
         items = [r for r in self._feedbacks.values() if r["status"] == "accepted"]  # 赋值
         clause_groups = Counter(r["clause_id"] for r in items)  # 赋值
         return [  # 返回
-            {"clause_id": cid, "sample_count": n}
+            {"clause_id": cid, "sample_count": n}  # 字面量
             for cid, n in clause_groups.most_common()  # 循环
             if n >= min_samples  # 条件判断
-        ]
+        ]  # 闭合
 
 
 # ── 学习引擎 ──────────────────────────────────────────────
@@ -180,8 +180,8 @@ class LearningEngine:
         self._fm = feedback_manager  # 赋值
 
     def compute_adjustment(
-        self, clause_id: str, current_threshold: float, margin: float = 0.1
-    ) -> Optional[dict]:
+        self, clause_id: str, current_threshold: float, margin: float = 0.1  # 操作
+    ) -> Optional[dict]:  # 闭合
         """基于申诉数据计算阈值调整建议
 
         逻辑:
@@ -190,28 +190,28 @@ class LearningEngine:
         - 如果多数申诉的偏差方向一致，建议调整阈值
         """
         items = [  # 赋值
-            r for r in self._fm._feedbacks.values()
+            r for r in self._fm._feedbacks.values()  # 操作
             if r["clause_id"] == clause_id  # 条件判断
-            and r["status"] == "accepted"
-            and r.get("original_value") is not None
-        ]
+            and r["status"] == "accepted"  # 操作
+            and r.get("original_value") is not None  # 操作
+        ]  # 闭合
         if len(items) < 3:  # 条件判断
             return {  # 返回
-                "clause_id": clause_id,
-                "adjustable": False,
-                "reason": f"样本不足（{len(items)}/3）",
-                "sample_count": len(items),
-            }
+                "clause_id": clause_id,  # 字段
+                "adjustable": False,  # 字段
+                "reason": f"样本不足（{len(items)}/3）",  # 字段
+                "sample_count": len(items),  # 字段
+            }  # 闭合
 
         # 计算偏差
         original_values = [float(r["original_value"]) for r in items if r["original_value"]]  # 赋值
         if not original_values:  # 条件判断
             return {  # 返回
-                "clause_id": clause_id,
-                "adjustable": False,
-                "reason": "原始值数据缺失",
-                "sample_count": len(items),
-            }
+                "clause_id": clause_id,  # 字段
+                "adjustable": False,  # 字段
+                "reason": "原始值数据缺失",  # 字段
+                "sample_count": len(items),  # 字段
+            }  # 闭合
 
         avg_original = sum(original_values) / len(original_values)  # 赋值
         diff = avg_original - current_threshold  # 赋值
@@ -226,21 +226,21 @@ class LearningEngine:
         new_threshold = round(max(new_threshold, 0.01), 2)  # 赋值
 
         return {  # 返回
-            "clause_id": clause_id,
-            "adjustable": True,
-            "current_threshold": current_threshold,
-            "suggested_threshold": new_threshold,
-            "adjustment": adjustment,
-            "direction": direction,
-            "sample_count": len(items),
-            "avg_original_value": round(avg_original, 2),
-            "confidence": round(min(len(items) / 10, 1.0), 2),
-        }
+            "clause_id": clause_id,  # 字段
+            "adjustable": True,  # 字段
+            "current_threshold": current_threshold,  # 字段
+            "suggested_threshold": new_threshold,  # 字段
+            "adjustment": adjustment,  # 字段
+            "direction": direction,  # 字段
+            "sample_count": len(items),  # 字段
+            "avg_original_value": round(avg_original, 2),  # 字段
+            "confidence": round(min(len(items) / 10, 1.0), 2),  # 字段
+        }  # 闭合
 
     def apply_adjustment(
-        self, clause_id: str, new_threshold: float,
-        spec_repo: Any, reason: str = ""
-    ) -> bool:
+        self, clause_id: str, new_threshold: float,  # 操作
+        spec_repo: Any, reason: str = ""  # 操作
+    ) -> bool:  # 闭合
         """应用阈值调整到规范仓库"""
         try:  # 尝试
             # 更新民用/工业的默认阈值

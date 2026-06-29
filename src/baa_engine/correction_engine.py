@@ -31,14 +31,14 @@ class CorrectionAction(Enum): # 类定义: CorrectionAction
 @dataclass # 装饰器
 class CorrectionSuggestion: # 类定义: CorrectionSuggestion
     """单条修正建议"""
-    entity_id: str
-    entity_type: str
-    clause_id: str
-    clause_title: str
-    action: CorrectionAction
-    description: str
-    current_value: float
-    required_value: float
+    entity_id: str  # 操作
+    entity_type: str  # 操作
+    clause_id: str  # 操作
+    clause_title: str  # 操作
+    action: CorrectionAction  # 操作
+    description: str  # 操作
+    current_value: float  # 操作
+    required_value: float  # 操作
     delta: float                    # 差值（正数=缺少多少）
     recommendation: str             # 具体建议
     parameters: Dict = field(default_factory=dict)  # 修正参数
@@ -59,7 +59,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将楼梯宽度从{r.actual:.2f}m加宽至{r.threshold:.2f}m，需增加{r.delta:.2f}m。建议扩宽梯段或调整相邻房间布局。", # 赋值: recommendation
         parameters={"target_width": r.threshold, "increase_by": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-002": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_zone"), # 安全获取值
@@ -72,7 +72,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"防火分区面积超出{r.delta:.0f}㎡。建议：①增设防火隔墙划分分区；②采用防火卷帘或防火水幕进行分隔；③减少该分区内的可燃烧荷载。", # 赋值: recommendation
         parameters={"excess_area": r.delta, "max_allowed": r.threshold} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-003": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_lane"), # 安全获取值
@@ -85,7 +85,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将消防车道宽度从{r.actual:.2f}m加宽至{r.threshold:.2f}m，需增加{r.delta:.2f}m。建议移除车道两侧障碍物或拓宽路面。", # 赋值: recommendation
         parameters={"target_width": r.threshold, "increase_by": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIST-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "room"), # 安全获取值
@@ -98,7 +98,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"疏散距离超出{r.delta:.1f}m。建议：①增加安全出口位置；②调整房间布局使最远点靠近出口；③增设疏散走道连接至最近安全出口。", # 赋值: recommendation
         parameters={"excess_distance": r.delta, "max_allowed": r.threshold} # 赋值: parameters
-    ),
+    ),  # 闭合
     "COUNT-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "floor"), # 安全获取值
@@ -111,7 +111,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"需要增加{r.delta:.0f}个安全出口。建议：①在防火分区远端增设疏散门；②利用已有窗户改造为消防救援出口；③确保新增出口净宽≥0.9m。", # 赋值: recommendation
         parameters={"needed_exits": r.delta, "total_required": r.threshold} # 赋值: parameters
-    ),
+    ),  # 闭合
     "ATTR-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_door"), # 安全获取值
@@ -124,7 +124,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将现有防火门更换为甲级防火门（耐火极限≥1.5h）。建议：①检查门框与墙体的防火密封；②更换防火五金件；③确保自闭器正常工作。", # 赋值: recommendation
         parameters={"required_rating": "甲级", "required_fire_resistance_h": 1.5} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-004": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "corridor"), # 安全获取值
@@ -137,7 +137,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将走道宽度从{r.actual:.2f}m加宽至{r.threshold:.2f}m，需增加{r.delta:.2f}m。建议调整走道两侧墙体或减少走道内障碍物。", # 赋值: recommendation
         parameters={"target_width": r.threshold, "increase_by": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "AREA-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "refuge_floor"), # 安全获取值
@@ -150,7 +150,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"避难层有效面积需增加{r.delta:.1f}㎡/人。建议：①移除避难层内非必要隔墙和设备；②扩大避难区域范围；③减少该层可容纳人数。", # 赋值: recommendation
         parameters={"required_increase_per_person": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "staircase"), # 安全获取值
@@ -163,7 +163,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="一类高层公共建筑应设置防烟楼梯间。建议：①在适当位置增设防烟楼梯间；②确保楼梯间前室面积≥6㎡；③楼梯间应设置防烟设施。", # 赋值: recommendation
         parameters={"staircase_type": "防烟楼梯间"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-005": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_window"), # 安全获取值
@@ -176,7 +176,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将消防救援窗面积从{r.actual:.2f}㎡扩大至{r.threshold:.2f}㎡。建议：①增大窗户开口尺寸；②改为推拉式或平开式以增加有效开口面积。", # 赋值: recommendation
         parameters={"target_area": r.threshold, "increase_by": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-006": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "exit_door"), # 安全获取值
@@ -189,7 +189,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将疏散门宽度从{r.actual:.2f}m加宽至{r.threshold:.2f}m。建议：①更换为更大尺寸的门扇；②将单开门改为双开门；③调整门洞位置避开结构柱。", # 赋值: recommendation
         parameters={"target_width": r.threshold, "increase_by": r.delta} # 赋值: parameters
-    ),
+    ),  # 闭合
     "DIM-007": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_curtain"), # 安全获取值
@@ -202,7 +202,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"防火卷帘宽度超出{r.delta:.2f}m。建议：①将单幅卷帘拆分为多幅，每幅≤10m；②改用防火隔墙替代部分卷帘；③采用防火水幕系统替代。", # 赋值: recommendation
         parameters={"excess_width": r.delta, "max_allowed": r.threshold} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-002": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "shaft"), # 安全获取值
@@ -215,7 +215,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="每层楼板处应采用不低于楼板耐火极限的不燃材料封堵。建议：①检查所有管道井穿越楼板处；②使用防火封堵材料（防火泥/防火板）封堵；③确保封堵密实无缝隙。", # 赋值: recommendation
         parameters={"sealing_material": "防火封堵材料"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-003": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "scissor_staircase"), # 安全获取值
@@ -228,7 +228,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="剪刀楼梯梯段之间应设置耐火极限不低于1.0h的防火隔墙。建议：①在楼梯梯段之间增设防火隔墙；②隔墙应从基础到屋顶贯通。", # 赋值: recommendation
         parameters={"fire_wall_type": "耐火极限≥1.0h防火隔墙"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-004": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "exit_sign"), # 安全获取值
@@ -241,7 +241,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="疏散走道和安全出口处应设置疏散指示标志。建议：①在走道转角处、交叉口设置标志；②安全出口正上方设置出口标志；③确保标志距地面高度≤1.0m；④采用消防应急标志灯。", # 赋值: recommendation
         parameters={"sign_type": "消防应急疏散指示标志"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-005": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "sprinkler_system"), # 安全获取值
@@ -254,7 +254,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="一类高层公共建筑应设置自动灭火系统。建议：①安装自动喷水灭火系统；②喷头布置满足全覆盖要求；③确保消防水池容量满足持续喷水时间≥1h。", # 赋值: recommendation
         parameters={"system_type": "自动喷水灭火系统"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "EXIST-006": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "fire_alarm"), # 安全获取值
@@ -267,7 +267,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation="一类高层公共建筑应设置火灾自动报警系统。建议：①安装感烟/感温探测器；②设置手动报警按钮；③报警信号应传至消防控制室。", # 赋值: recommendation
         parameters={"system_type": "火灾自动报警系统"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "ATTR-002": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "insulation"), # 安全获取值
@@ -280,7 +280,7 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"将保温材料更换为A级（不燃材料）或B1级（难燃材料）。建议：①外保温系统采用岩棉板等A级材料；②内保温采用B1级以上材料；③注意防火隔离带设置。", # 赋值: recommendation
         parameters={"required_min_rating": "B1级", "preferred_rating": "A级"} # 赋值: parameters
-    ),
+    ),  # 闭合
     "LIGHT-001": lambda e, r: CorrectionSuggestion( # 模板定义
         entity_id=e.get("id", ""), # 安全获取值
         entity_type=e.get("type", "evacuation_lighting"), # 安全获取值
@@ -293,8 +293,8 @@ CORRECTION_TEMPLATES = { # 赋值: CORRECTION_TEMPLATES
         delta=r.delta, # 赋值: delta
         recommendation=f"疏散照明照度需达到{r.threshold:.1f}lx。建议：①增加疏散照明灯具数量；②调整灯具间距（≤20m）；③确保应急电源持续供电时间≥0.5h；④选用消防应急照明灯具。", # 赋值: recommendation
         parameters={"required_illuminance": r.threshold, "min_lighting_duration_h": 0.5} # 赋值: parameters
-    ),
-}
+    ),  # 闭合
+}  # 闭合
 
 
 class CorrectionEngine: # 类定义: CorrectionEngine
@@ -327,7 +327,7 @@ class CorrectionEngine: # 类定义: CorrectionEngine
                 actual=f.get("extracted_value", 0), # 安全获取值
                 threshold=f.get("required_value", 0), # 安全获取值
                 delta=f.get("difference", 0), # 安全获取值
-            )
+            )  # 闭合
 
             template = self._templates.get(func_id) # 安全获取值
             if template: # 判断: template
@@ -363,7 +363,7 @@ class CorrectionEngine: # 类定义: CorrectionEngine
                 "recommendation": s.recommendation, # recommendation
                 "parameters": s.parameters, # parameters
                 "priority": self._calc_priority(s), # 实例属性: _calc_priority
-            })
+            })  # 闭合
         return output # 返回结果
 
     @staticmethod # 装饰器
@@ -389,7 +389,7 @@ class CorrectionEngine: # 类定义: CorrectionEngine
             "GB50016-8.4.1": "EXIST-006", # GB50016-8.4.1
             "GB50016-6.7.1": "ATTR-002", # GB50016-6.7.1
             "GB50016-10.1.5": "LIGHT-001", # GB50016-10.1.5
-        }
+        }  # 闭合
         return mapping.get(clause_id, "") # 返回结果
 
     @staticmethod # 装饰器

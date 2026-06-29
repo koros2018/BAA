@@ -10,17 +10,17 @@ from .drawing_parser import RawPrimitive
 # 短关键字（单字母/2字母）使用全词匹配（前后是_或边界），防止误匹配
 # 例如 "D" 不匹配 "DIM"、"DIMENSION"、"DWG"、"DOOR"
 LAYER_RULES = {  # 赋值
-    "WALL": "wall", "墙体": "wall", "墙": "wall",
-    "DOOR": "door", "门": "door",
-    "WINDOW": "window", "窗": "window", "WIND": "window",
-    "STAIR": "stair", "楼梯": "stair", "STAIRS": "stair",
-    "CORRIDOR": "corridor", "走道": "corridor", "走廊": "corridor",
-    "FIRE_ZONE": "fire_zone", "防火分区": "fire_zone",
-    "DIM": "dimension", "标注": "dimension", "尺寸": "dimension",
-    "DIMENSION": "dimension",
-    "EXIT": "exit", "出口": "exit", "安全出口": "exit",
-    "FIRE_DOOR": "fire_door", "防火门": "fire_door",
-    "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",
+    "WALL": "wall", "墙体": "wall", "墙": "wall",  # 字段
+    "DOOR": "door", "门": "door",  # 字段
+    "WINDOW": "window", "窗": "window", "WIND": "window",  # 字段
+    "STAIR": "stair", "楼梯": "stair", "STAIRS": "stair",  # 字段
+    "CORRIDOR": "corridor", "走道": "corridor", "走廊": "corridor",  # 字段
+    "FIRE_ZONE": "fire_zone", "防火分区": "fire_zone",  # 字段
+    "DIM": "dimension", "标注": "dimension", "尺寸": "dimension",  # 字段
+    "DIMENSION": "dimension",  # 字段
+    "EXIT": "exit", "出口": "exit", "安全出口": "exit",  # 字段
+    "FIRE_DOOR": "fire_door", "防火门": "fire_door",  # 字段
+    "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",  # 字段
     "SB": "door",  # 水消防设备层门标记
     "HATCH": "other",  # 填充图案（非建筑实体）
     "BEAM": "other",  # 结构梁（非建筑实体）
@@ -29,19 +29,19 @@ LAYER_RULES = {  # 赋值
     "AXIS": "other",  # 轴线标记
     "BASE": "other",  # 基础结构
     "钢筋": "other",  # 钢筋（中文图层名）
-}
+}  # 闭合
 
 # 短关键字（单字母/2字母）使用全词匹配
 SHORT_LAYER_RULES = {  # 赋值
-    "W": "wall",
-    "D": "door",
-    "M": "door",
-    "C": "window",
-    "ST": "stair",
-    "FZ": "fire_zone",
-    "FD": "fire_door",
-    "FE": "fire_elevator",
-}
+    "W": "wall",  # 字段
+    "D": "door",  # 字段
+    "M": "door",  # 字段
+    "C": "window",  # 字段
+    "ST": "stair",  # 字段
+    "FZ": "fire_zone",  # 字段
+    "FD": "fire_door",  # 字段
+    "FE": "fire_elevator",  # 字段
+}  # 闭合
 
 
 # ── 语义实体 ──────────────────────────────────────────────
@@ -49,7 +49,7 @@ SHORT_LAYER_RULES = {  # 赋值
 class SemanticEntity:
     """语义化图元"""
     def __init__(self, entity_id: str, entity_type: str,
-                 bbox: Dict[str, float], layer: str = "",
+                 bbox: Dict[str, float], layer: str = "",  # 操作
                  subtype: str = "", confidence: float = 1.0,  # 赋值
                  properties: Dict[str, Any] = None):  # 赋值
         self.id = entity_id  # 赋值
@@ -62,20 +62,20 @@ class SemanticEntity:
 
     def to_dict(self) -> dict:
         return {  # 返回
-            "id": self.id,
-            "type": self.type,
-            "subtype": self.subtype,
-            "bbox": self.bbox,
-            "layer": self.layer,
-            "confidence": self.confidence,
-            "properties": self.properties,
-        }
+            "id": self.id,  # 字段
+            "type": self.type,  # 字段
+            "subtype": self.subtype,  # 字段
+            "bbox": self.bbox,  # 字段
+            "layer": self.layer,  # 字段
+            "confidence": self.confidence,  # 字段
+            "properties": self.properties,  # 字段
+        }  # 闭合
 
 
 class SpatialRelation:
     """空间关系"""
     def __init__(self, source_id: str, target_id: str,
-                 rel_type: str, distance: float = 0,
+                 rel_type: str, distance: float = 0,  # 操作
                  via: str = "", confidence: float = 1.0):  # 赋值
         self.source_id = source_id  # 赋值
         self.target_id = target_id  # 赋值
@@ -96,7 +96,7 @@ class SemanticAnalyzer:
         self._entity_counter = 0  # 赋值
 
     def analyze(self, primitives: List[RawPrimitive],
-                dimensions: List[Dict] = None,
+                dimensions: List[Dict] = None,  # 操作
                 max_entities: int = 1000,  # 赋值
                 building_type: str = "civil") -> Dict[str, Any]:  # 赋值
         """
@@ -135,8 +135,8 @@ class SemanticAnalyzer:
                         w_mm = min(bw, bh)  # 赋值
                         w_m = w_mm * 0.001  # 赋值
                         if 0.3 < w_m < 3.0:  # 条件判断
-                            ent.properties["width"] = w_m
-                            ent.properties["clear_width"] = w_m
+                            ent.properties["width"] = w_m  # 操作
+                            ent.properties["clear_width"] = w_m  # 操作
                 # 防火等级推断：从图层名和实体名推断
                 if ent.type == "fire_door":  # 条件判断
                     existing_rating = ent.properties.get("fire_rating", ent.properties.get("rating", 0))  # 赋值
@@ -152,7 +152,7 @@ class SemanticAnalyzer:
                             ent.properties["fire_rating"] = 1.0  # 丙级=1.0
                         else:  # 否则
                             # 默认设为甲级（保守安全策略）
-                            ent.properties["fire_rating"] = 3.0
+                            ent.properties["fire_rating"] = 3.0  # 操作
 
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # 赋值
@@ -169,31 +169,31 @@ class SemanticAnalyzer:
         # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
         route_by_room = {}  # 赋值
         for route in evacuation_routes:  # 循环
-            route_by_room[route["room_id"]] = route
+            route_by_room[route["room_id"]] = route  # 操作
         dead_end_ids = set(d["id"] for d in corridor_topology.get("dead_ends", []))  # 赋值
         for ent in entities:  # 循环
             if ent.id in dead_end_ids:  # 条件判断
-                ent.properties["is_dead_end"] = True
+                ent.properties["is_dead_end"] = True  # 操作
             if ent.id in route_by_room:  # 条件判断
                 r = route_by_room[ent.id]  # 赋值
-                ent.properties["has_evacuation_route"] = r.get("has_route", False)
+                ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
                 if r.get("path_length") is not None:  # 条件判断
-                    ent.properties["evacuation_path_length"] = r["path_length"]
-                ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)
+                    ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
+                ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)  # 操作
             # 对未找到路径的实体（如走廊兜底），标记为无路径
             elif ent.type in ("room", "corridor"):  # 分支
                 if "has_evacuation_route" not in ent.properties:  # 条件判断
-                    ent.properties["has_evacuation_route"] = False
-                    ent.properties["evacuation_too_far"] = True
+                    ent.properties["has_evacuation_route"] = False  # 操作
+                    ent.properties["evacuation_too_far"] = True  # 操作
 
         return {  # 返回
-            "entities": [e.to_dict() for e in entities],
-            "relations": [self._rel_to_dict(r) for r in relations],
-            "attributes": attributes,
-            "building_type": building_type,
-            "corridor_topology": corridor_topology,
-            "evacuation_routes": evacuation_routes,
-        }
+            "entities": [e.to_dict() for e in entities],  # 字段
+            "relations": [self._rel_to_dict(r) for r in relations],  # 字段
+            "attributes": attributes,  # 字段
+            "building_type": building_type,  # 字段
+            "corridor_topology": corridor_topology,  # 字段
+            "evacuation_routes": evacuation_routes,  # 字段
+        }  # 闭合
 
     def _parse_meta_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
         """
@@ -219,17 +219,17 @@ class SemanticAnalyzer:
             for part in parts[1:]:  # 循环
                 if ":" not in part:  # 条件判断
                     continue  # 继续循环
-                k, v = part.split(":", 1)
+                k, v = part.split(":", 1)  # 操作
                 k = k.strip()  # 赋值
                 v = v.strip()  # 赋值
                 if k == "x":  # 条件判断
-                    bbox["x"] = float(v)
+                    bbox["x"] = float(v)  # 操作
                 elif k == "y":  # 分支
-                    bbox["y"] = float(v)
+                    bbox["y"] = float(v)  # 操作
                 elif k == "w":  # 分支
-                    bbox["width"] = float(v)
+                    bbox["width"] = float(v)  # 操作
                 elif k == "h":  # 分支
-                    bbox["height"] = float(v)
+                    bbox["height"] = float(v)  # 操作
                 else:  # 否则
                     # 尝试转数字，失败保留字符串
                     try:  # 尝试
@@ -245,7 +245,7 @@ class SemanticAnalyzer:
                 layer="META",  # 赋值
                 confidence=1.0,  # 赋值
                 properties=props,  # 赋值
-            )
+            )  # 闭合
             entities.append(entity)  # 调用
 
         return entities  # 返回
@@ -285,7 +285,7 @@ class SemanticAnalyzer:
                 layer=prim.layer,  # 赋值
                 confidence=0.9 if entity_type != "unknown" else 0.5,  # 赋值
                 properties=cleaned_props,  # 赋值
-            )
+            )  # 闭合
             entities.append(entity)  # 调用
 
         # 归并同类重叠图元
@@ -475,7 +475,7 @@ class SemanticAnalyzer:
         return "unknown"  # 返回
 
     def _infer_corridor_widths(self, entities: List[SemanticEntity],
-                              primitives: List[RawPrimitive] = None) -> List[SemanticEntity]:
+                              primitives: List[RawPrimitive] = None) -> List[SemanticEntity]:  # 操作
         """从 bbox 短边和平行线聚类推断走廊/门的宽度（真实图纸适配）
 
         两层策略：
@@ -516,15 +516,15 @@ class SemanticAnalyzer:
                     angle = p.properties.get("angle", 0) % 180  # 赋值
                     if angle > 90: angle = 180 - angle  # 条件判断
                     edge_candidates.append({  # 调用
-                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,
-                        "span": span, "angle": angle,
-                    })
+                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,  # 字段
+                        "span": span, "angle": angle,  # 字段
+                    })  # 闭合
                 elif p.dxf_type == "LWPOLYLINE" and p.properties.get("point_count", 0) == 2:  # 分支
                     angle = 0 if bw > bh else 90  # 赋值
                     edge_candidates.append({  # 调用
-                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,
-                        "span": span, "angle": angle,
-                    })
+                        "cx": cx, "cy": cy, "bw": bw, "bh": bh,  # 字段
+                        "span": span, "angle": angle,  # 字段
+                    })  # 闭合
 
             if edge_candidates:  # 条件判断
                 # 按方向分组
@@ -538,8 +538,8 @@ class SemanticAnalyzer:
                     for j in range(i + 1, min(i + 100, len(h_sorted))):  # 循环
                         gap = abs(h_sorted[i]["cy"] - h_sorted[j]["cy"])  # 赋值
                         if 500 < gap < 10000:  # 条件判断
-                            h_gaps.append({"gap": gap, "y1": h_sorted[i]["cy"], "y2": h_sorted[j]["cy"],
-                                          "cx1": h_sorted[i]["cx"], "cx2": h_sorted[j]["cx"]})
+                            h_gaps.append({"gap": gap, "y1": h_sorted[i]["cy"], "y2": h_sorted[j]["cy"],  # 调用
+                                          "cx1": h_sorted[i]["cx"], "cx2": h_sorted[j]["cx"]})  # 字段
 
                 # 垂直线：按cx排序，收集所有gap
                 v_sorted = sorted(v_edges, key=lambda e: e["cx"])  # 赋值
@@ -548,8 +548,8 @@ class SemanticAnalyzer:
                     for j in range(i + 1, min(i + 100, len(v_sorted))):  # 循环
                         gap = abs(v_sorted[i]["cx"] - v_sorted[j]["cx"])  # 赋值
                         if 500 < gap < 10000:  # 条件判断
-                            v_gaps.append({"gap": gap, "x1": v_sorted[i]["cx"], "x2": v_sorted[j]["cx"],
-                                          "cy1": v_sorted[i]["cy"], "cy2": v_sorted[j]["cy"]})
+                            v_gaps.append({"gap": gap, "x1": v_sorted[i]["cx"], "x2": v_sorted[j]["cx"],  # 调用
+                                          "cy1": v_sorted[i]["cy"], "cy2": v_sorted[j]["cy"]})  # 字段
 
                 all_gaps = h_gaps + v_gaps  # 赋值
                 if all_gaps and len(all_gaps) > 10:  # 条件判断
@@ -568,9 +568,9 @@ class SemanticAnalyzer:
                                 w_mm = min(bw, bh)  # 赋值
                                 w_m = w_mm * 0.001  # 赋值
                                 if 0.3 < w_m < 3.0 and ent.properties.get("width", 0) < w_m:  # 条件判断
-                                    ent.properties["width"] = w_m
-                                    ent.properties["clear_width"] = w_m
-                                    ent.properties["_width_source"] = "bbox_short_edge"
+                                    ent.properties["width"] = w_m  # 操作
+                                    ent.properties["clear_width"] = w_m  # 操作
+                                    ent.properties["_width_source"] = "bbox_short_edge"  # 操作
                                     continue  # 继续循环
                             
                             # bbox 短边≈0（LINE类型）：找附近gap
@@ -582,12 +582,12 @@ class SemanticAnalyzer:
                                         mid_y = (g["y1"] + g["y2"]) / 2  # 赋值
                                         mid_x = (g["cx1"] + g["cx2"]) / 2  # 赋值
                                         if abs(cy - mid_y) < 3000 and abs(cx - mid_x) < 3000:  # 条件判断
-                                            nearby_gaps.append(g["gap"])
+                                            nearby_gaps.append(g["gap"])  # 调用
                                     else:  # 垂直gap
                                         mid_x = (g["x1"] + g["x2"]) / 2  # 赋值
                                         mid_y = (g["cy1"] + g["cy2"]) / 2  # 赋值
                                         if abs(cx - mid_x) < 3000 and abs(cy - mid_y) < 3000:  # 条件判断
-                                            nearby_gaps.append(g["gap"])
+                                            nearby_gaps.append(g["gap"])  # 调用
                                 
                                 if nearby_gaps:  # 条件判断
                                     # 取附近gap的众数作为此走廊宽度
@@ -598,17 +598,17 @@ class SemanticAnalyzer:
                                     best_bucket = max(gap_buckets.items(), key=lambda x: len(x[1]))  # 赋值
                                     w_m = (sum(best_bucket[1]) / len(best_bucket[1])) / 1000.0  # 赋值
                                     if 0.3 < w_m < 3.0:  # 条件判断
-                                        ent.properties["width"] = w_m
-                                        ent.properties["clear_width"] = w_m
-                                        ent.properties["_width_source"] = "nearby_gap"
+                                        ent.properties["width"] = w_m  # 操作
+                                        ent.properties["clear_width"] = w_m  # 操作
+                                        ent.properties["_width_source"] = "nearby_gap"  # 操作
                                 else:  # 否则
                                     # 无附近gap：用bbox长边
                                     span_mm = max(bw, bh)  # 赋值
                                     w_m = span_mm * 0.001  # 赋值
                                     if 0.3 < w_m < 3.0:  # 条件判断
-                                        ent.properties["width"] = w_m
-                                        ent.properties["clear_width"] = w_m
-                                        ent.properties["_width_source"] = "bbox_long_edge"
+                                        ent.properties["width"] = w_m  # 操作
+                                        ent.properties["clear_width"] = w_m  # 操作
+                                        ent.properties["_width_source"] = "bbox_long_edge"  # 操作
         
         # ── 策略1.5：door/window 宽度推断（V2增强）──
         for ent in entities:  # 循环
@@ -622,8 +622,8 @@ class SemanticAnalyzer:
             if radius > 100 and radius < 2000:  # 条件判断
                 w_m = radius * 0.001  # mm → m
                 if 0.3 < w_m < 2.0:  # 条件判断
-                    ent.properties["width"] = w_m
-                    ent.properties["clear_width"] = w_m
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
                     continue  # 继续循环
             # bbox 推断
             bbox = ent.bbox  # 赋值
@@ -633,22 +633,22 @@ class SemanticAnalyzer:
                 w_mm = min(bw, bh)  # 赋值
                 w_m = w_mm * 0.001  # 赋值
                 if 0.3 < w_m < 2.0 and ent.properties.get("width", 0) < w_m:  # 条件判断
-                    ent.properties["width"] = w_m
-                    ent.properties["clear_width"] = w_m
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
             # LINE 类型（短边≈0）：用长边作为宽度
             if ent.properties.get("width", 0) < 0.3:  # 条件判断
                 span_mm = max(bw, bh)  # 赋值
                 if 300 < span_mm < 2000:  # 300mm~2m
                     w_m = span_mm * 0.001  # 赋值
-                    ent.properties["width"] = w_m
-                    ent.properties["clear_width"] = w_m
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
             # Polygon 类 door（闭合多边形）：短边可能是门扇厚度，用长边推断宽度
             if ent.properties.get("width", 0) < 0.3:  # 条件判断
                 long_edge_mm = max(bw, bh)  # 赋值
                 if 300 < long_edge_mm < 2000:  # 条件判断
                     w_m = long_edge_mm * 0.001  # 赋值
-                    ent.properties["width"] = w_m
-                    ent.properties["clear_width"] = w_m
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
 
         # ── 策略2：bbox 短边推断（覆盖所有类型） ──
         for ent in entities:  # 循环
@@ -668,11 +668,11 @@ class SemanticAnalyzer:
                 if not math.isnan(w_m) and w_m > 0.01 and w_m < 10:  # 条件判断
                     current_w = ent.properties.get("width", 0)  # 赋值
                     if current_w < w_m:  # 条件判断
-                        ent.properties["width"] = w_m
-                        ent.properties["clear_width"] = w_m
+                        ent.properties["width"] = w_m  # 操作
+                        ent.properties["clear_width"] = w_m  # 操作
                 l_mm = max(bw, bh)  # 赋值
                 if l_mm > 0:  # 条件判断
-                    ent.properties["length"] = l_mm * 0.001
+                    ent.properties["length"] = l_mm * 0.001  # 操作
                 continue  # 继续循环
 
             # bbox 只有一边非零（LINE / 2 点 LWPOLYLINE）
@@ -680,7 +680,7 @@ class SemanticAnalyzer:
             if span_mm > 0:  # 条件判断
                 span_m = span_mm * 0.001  # 赋值
                 if not math.isnan(span_m) and span_m > 0.05:  # 条件判断
-                    ent.properties["length"] = span_m
+                    ent.properties["length"] = span_m  # 操作
                     # 对 corridor/room：bbox短边≈宽度
                     if ent.type in ("corridor", "room", "door", "fire_door", "exit_door"):  # 条件判断
                         short_mm = min(bw, bh) if bw > 0 and bh > 0 else 0  # 赋值
@@ -688,8 +688,8 @@ class SemanticAnalyzer:
                             short_m = short_mm * 0.001  # 赋值
                             current_w = ent.properties.get("width", 0)  # 赋值
                             if current_w < 0.01 and 0.05 < short_m < 3.0:  # 条件判断
-                                ent.properties["width"] = short_m
-                                ent.properties["clear_width"] = short_m
+                                ent.properties["width"] = short_m  # 操作
+                                ent.properties["clear_width"] = short_m  # 操作
 
         return entities  # 返回
 
@@ -725,7 +725,7 @@ class SemanticAnalyzer:
                     layer=a.layer,  # 赋值
                     confidence=max(e.confidence for e in cluster),  # 赋值
                     properties=a.properties,  # 赋值
-                ))
+                ))  # 闭合
             else:  # 否则
                 merged.append(a)  # 调用
 
@@ -745,7 +745,7 @@ class SemanticAnalyzer:
         # ── 1. 相邻关系（空间哈希加速）──
         CELL_SIZE = 100.0  # mm
         # 空间哈希网格
-        grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
+        grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}  # 操作
         for idx, e in enumerate(entities):  # 循环
             bx = e.bbox.get("x", 0)  # 赋值
             by = e.bbox.get("y", 0)  # 赋值
@@ -786,7 +786,7 @@ class SemanticAnalyzer:
                                 source_id=a.id, target_id=b.id,  # 赋值
                                 rel_type="adjacent", distance=dist,  # 赋值
                                 confidence=1.0 - dist / self.ADJACENT_THRESHOLD,  # 赋值
-                            ))
+                            ))  # 闭合
 
         # ── 2. 墙体-门窗拓扑关系（V2升级）──
         # 用几何方法精确匹配门/窗在墙上的位置：
@@ -801,7 +801,7 @@ class SemanticAnalyzer:
             best_distance = float('inf')  # 赋值
             
             ob = opening.bbox  # 赋值
-            ox1, oy1 = ob.get("x", 0), ob.get("y", 0)
+            ox1, oy1 = ob.get("x", 0), ob.get("y", 0)  # 操作
             ox2 = ox1 + ob.get("width", 0)  # 赋值
             oy2 = oy1 + ob.get("height", 0)  # 赋值
             o_cx = (ox1 + ox2) / 2  # 赋值
@@ -809,7 +809,7 @@ class SemanticAnalyzer:
             
             for wall in walls:  # 循环
                 wb = wall.bbox  # 赋值
-                wx1, wy1 = wb.get("x", 0), wb.get("y", 0)
+                wx1, wy1 = wb.get("x", 0), wb.get("y", 0)  # 操作
                 wx2 = wx1 + wb.get("width", 0)  # 赋值
                 wy2 = wy1 + wb.get("height", 0)  # 赋值
                 
@@ -853,10 +853,10 @@ class SemanticAnalyzer:
                     source_id=best_wall.id, target_id=opening.id,  # 赋值
                     rel_type="contains",  # 赋值
                     confidence=min(0.95, best_overlap),  # 赋值
-                ))
+                ))  # 闭合
                 # 给门注入宿主墙信息
-                opening.properties["host_wall_id"] = best_wall.id
-                opening.properties["host_wall_overlap"] = round(best_overlap, 2)
+                opening.properties["host_wall_id"] = best_wall.id  # 操作
+                opening.properties["host_wall_overlap"] = round(best_overlap, 2)  # 操作
 
         # ── 3. 走廊-门-房间拓扑（V2：基于边缘距离）──
         # 用 _min_edge_distance 判断门是否连接走廊/房间
@@ -872,7 +872,7 @@ class SemanticAnalyzer:
                         source_id=c.id, target_id=door.id,  # 赋值
                         rel_type="connects_to", distance=dist,  # 赋值
                         via="door",  # 赋值
-                    ))
+                    ))  # 闭合
             for r in rooms:  # 循环
                 dist = self._min_edge_distance(door.bbox, r.bbox)  # 赋值
                 if dist < 200.0:  # 条件判断
@@ -880,7 +880,7 @@ class SemanticAnalyzer:
                         source_id=r.id, target_id=door.id,  # 赋值
                         rel_type="connects_to", distance=dist,  # 赋值
                         via="door",  # 赋值
-                    ))
+                    ))  # 闭合
 
         # ── 4. 包含关系（房间包含设备/柱）──
         contained_types = {"column", "stair", "exit", "fire_door"}  # 赋值
@@ -891,7 +891,7 @@ class SemanticAnalyzer:
                     relations.append(SpatialRelation(  # 调用
                         source_id=room.id, target_id=item.id,  # 赋值
                         rel_type="contains", confidence=0.9,  # 赋值
-                    ))
+                    ))  # 闭合
 
         # ── 5. 房间-门间接连接（通过墙传递）──
         # 如果房间与墙相邻，且门被墙包含，则建立房间-门的连接
@@ -914,12 +914,12 @@ class SemanticAnalyzer:
                         source_id=room_id, target_id=door_id,  # 赋值
                         rel_type="connects_to", distance=0.0,  # 赋值
                         via="door",  # 赋值
-                    ))
+                    ))  # 闭合
 
         return relations  # 返回
 
     def _bind_dimensions(self, entities: List[SemanticEntity],
-                         dimensions: List[Dict]) -> Dict[str, Dict]:
+                         dimensions: List[Dict]) -> Dict[str, Dict]:  # 操作
         """尺寸标注绑定到实体"""
         bindings = {}  # 赋值
 
@@ -942,7 +942,7 @@ class SemanticAnalyzer:
                 if nearest.id not in bindings:  # 条件判断
                     bindings[nearest.id] = {}  # 操作
                 attr_name = self._infer_attribute_name(dim, nearest)  # 赋值
-                bindings[nearest.id][attr_name] = dim.get("measurement", 0)
+                bindings[nearest.id][attr_name] = dim.get("measurement", 0)  # 操作
 
         return bindings  # 返回
 
@@ -974,18 +974,18 @@ class SemanticAnalyzer:
         x2s = [b["x"] + b["width"] for b in bboxes]  # 赋值
         y2s = [b["y"] + b["height"] for b in bboxes]  # 赋值
         return {  # 返回
-            "x": min(xs), "y": min(ys),
-            "width": max(x2s) - min(xs),
-            "height": max(y2s) - min(ys),
-        }
+            "x": min(xs), "y": min(ys),  # 字段
+            "width": max(x2s) - min(xs),  # 字段
+            "height": max(y2s) - min(ys),  # 字段
+        }  # 闭合
 
     @staticmethod
     def _min_edge_distance(bbox1: Dict, bbox2: Dict) -> float:
         """最小边缘距离"""
-        x1a, y1a = bbox1["x"], bbox1["y"]
+        x1a, y1a = bbox1["x"], bbox1["y"]  # 操作
         x2a = x1a + bbox1["width"]  # 赋值
         y2a = y1a + bbox1["height"]  # 赋值
-        x1b, y1b = bbox2["x"], bbox2["y"]
+        x1b, y1b = bbox2["x"], bbox2["y"]  # 操作
         x2b = x1b + bbox2["width"]  # 赋值
         y2b = y1b + bbox2["height"]  # 赋值
 
@@ -997,14 +997,14 @@ class SemanticAnalyzer:
     def _is_inside(inner: Dict, outer: Dict) -> bool:
         """判断内部"""
         return (inner["x"] >= outer["x"]  # 返回
-                and inner["y"] >= outer["y"]
-                and inner["x"] + inner["width"] <= outer["x"] + outer["width"]
-                and inner["y"] + inner["height"] <= outer["y"] + outer["height"])
+                and inner["y"] >= outer["y"]  # 操作
+                and inner["x"] + inner["width"] <= outer["x"] + outer["width"]  # 操作
+                and inner["y"] + inner["height"] <= outer["y"] + outer["height"])  # 操作
 
     @staticmethod
     def _bbox_center(bbox: Dict) -> Dict[str, float]:
         return {"x": bbox["x"] + bbox["width"] / 2,  # 返回
-                "y": bbox["y"] + bbox["height"] / 2}
+                "y": bbox["y"] + bbox["height"] / 2}  # 字段
 
     @staticmethod
     def _point_distance(p1: Dict, p2: Dict) -> float:
@@ -1035,7 +1035,7 @@ class SemanticAnalyzer:
     # ── 走廊拓扑网络 ────────────────────────────────────
 
     def build_corridor_topology(self, entities: List[SemanticEntity],
-                                 relations: List[SpatialRelation]) -> Dict[str, Any]:
+                                 relations: List[SpatialRelation]) -> Dict[str, Any]:  # 操作
         """构建走廊拓扑网络
         
         将走廊实体按空间相邻关系连接为图，识别：
@@ -1047,14 +1047,14 @@ class SemanticAnalyzer:
         
         if len(corridor_map) < 2:  # 条件判断
             return {  # 返回
-                "corridors": [e.to_dict() for e in corridor_map.values()],
-                "components": 1,
-                "dead_ends": [],
-                "network": {"nodes": list(corridor_map.keys()), "edges": []},
-            }
+                "corridors": [e.to_dict() for e in corridor_map.values()],  # 字段
+                "components": 1,  # 字段
+                "dead_ends": [],  # 字段
+                "network": {"nodes": list(corridor_map.keys()), "edges": []},  # 字段
+            }  # 闭合
 
         # 构建走廊-走廊相邻图
-        adjacency: Dict[str, List[Tuple[str, float]]] = {eid: [] for eid in corridor_map}
+        adjacency: Dict[str, List[Tuple[str, float]]] = {eid: [] for eid in corridor_map}  # 操作
         
         for rel in relations:  # 循环
             src = rel.source_id  # 赋值
@@ -1105,38 +1105,38 @@ class SemanticAnalyzer:
             if len(neighbors) == 1:  # 条件判断
                 ent = corridor_map[eid]  # 赋值
                 dead_ends.append({  # 调用
-                    "id": eid,
-                    "width": ent.properties.get("width", 0),
-                    "length": ent.properties.get("length", 0),
-                    "bbox": ent.bbox,
-                })
+                    "id": eid,  # 字段
+                    "width": ent.properties.get("width", 0),  # 字段
+                    "length": ent.properties.get("length", 0),  # 字段
+                    "bbox": ent.bbox,  # 字段
+                })  # 闭合
 
         # 走廊宽度统计
         widths = [e.properties.get("width", 0) for e in corridor_map.values()]  # 赋值
         valid_widths = [w for w in widths if w > 0]  # 赋值
 
         return {  # 返回
-            "corridors": [e.to_dict() for e in corridor_map.values()],
-            "components": len(components),
-            "component_sizes": [len(c) for c in components],
-            "dead_ends": dead_ends,
-            "dead_end_count": len(dead_ends),
-            "width_avg": round(sum(valid_widths) / len(valid_widths), 2) if valid_widths else 0,
-            "width_min": round(min(valid_widths), 2) if valid_widths else 0,
-            "width_max": round(max(valid_widths), 2) if valid_widths else 0,
-            "network": {
-                "nodes": list(corridor_map.keys()),
-                "edges": [
-                    {"source": s, "target": t, "distance": d}
+            "corridors": [e.to_dict() for e in corridor_map.values()],  # 字段
+            "components": len(components),  # 字段
+            "component_sizes": [len(c) for c in components],  # 字段
+            "dead_ends": dead_ends,  # 字段
+            "dead_end_count": len(dead_ends),  # 字段
+            "width_avg": round(sum(valid_widths) / len(valid_widths), 2) if valid_widths else 0,  # 字段
+            "width_min": round(min(valid_widths), 2) if valid_widths else 0,  # 字段
+            "width_max": round(max(valid_widths), 2) if valid_widths else 0,  # 字段
+            "network": {  # 字段
+                "nodes": list(corridor_map.keys()),  # 字段
+                "edges": [  # 字段
+                    {"source": s, "target": t, "distance": d}  # 字面量
                     for s, neighbors in adjacency.items()  # 循环
                     for t, d in neighbors  # 循环
                     if s < t  # 去重
-                ],
-            },
-        }
+                ],  # 闭合
+            },  # 闭合
+        }  # 闭合
 
     def analyze_evacuation_routes(self, entities: List[SemanticEntity],
-                                    relations: List[SpatialRelation]) -> List[Dict]:
+                                    relations: List[SpatialRelation]) -> List[Dict]:  # 操作
         """疏散路径分析
         
         检查从每个 room 到最近 exit 的路径：
@@ -1145,7 +1145,7 @@ class SemanticAnalyzer:
         3. 路径上的走廊宽度是否满足要求
         """
         # 构建全量实体邻接表
-        adj: Dict[str, List[Tuple[str, str, float]]] = {}
+        adj: Dict[str, List[Tuple[str, str, float]]] = {}  # 操作
         for e in entities:  # 循环
             adj[e.id] = []  # 赋值
         
@@ -1191,13 +1191,13 @@ class SemanticAnalyzer:
                 area = bw * bh / 1e6  # 赋值
                 if area < 10:  # 条件判断
                     route_info = {  # 赋值
-                        "room_id": room.id,
-                        "room_type": room.type,
-                        "room_bbox": room.bbox,
-                        "has_route": True,
-                        "path_length": None,
-                        "exit_id": None,
-                    }
+                        "room_id": room.id,  # 字段
+                        "room_type": room.type,  # 字段
+                        "room_bbox": room.bbox,  # 字段
+                        "has_route": True,  # 字段
+                        "path_length": None,  # 字段
+                        "exit_id": None,  # 字段
+                    }  # 闭合
                     routes.append(route_info)  # 调用
                     continue  # 继续循环
 
@@ -1217,16 +1217,16 @@ class SemanticAnalyzer:
                         queue.append((neighbor, path + [neighbor], distance + dist))  # 调用
 
             route_info = {  # 赋值
-                "room_id": room.id,
-                "room_type": room.type,
-                "room_bbox": room.bbox,
-                "has_route": found_route is not None,
-                "path_length": round(found_route[1], 2) if found_route else None,
-                "path": found_route[0] if found_route else [],
-                "is_dead_end_room": room.properties.get("is_dead_end", False),
+                "room_id": room.id,  # 字段
+                "room_type": room.type,  # 字段
+                "room_bbox": room.bbox,  # 字段
+                "has_route": found_route is not None,  # 字段
+                "path_length": round(found_route[1], 2) if found_route else None,  # 字段
+                "path": found_route[0] if found_route else [],  # 字段
+                "is_dead_end_room": room.properties.get("is_dead_end", False),  # 字段
                 # 死胡同走廊（袋形走道）：疏散距离 ≤ 20m（GB50016-5.5.17注1）
                 # 其他走廊/房间：≤ 30m
-                "evac_distance_limit": 20.0 if room.properties.get("is_dead_end", False) else 30.0,
-                "exceeds_max_distance": found_route is not None and found_route[1] > (20.0 if room.properties.get("is_dead_end", False) else 30.0),
-            }
+                "evac_distance_limit": 20.0 if room.properties.get("is_dead_end", False) else 30.0,  # 字段
+                "exceeds_max_distance": found_route is not None and found_route[1] > (20.0 if room.properties.get("is_dead_end", False) else 30.0),  # 字段
+            }  # 闭合
             routes.append(route_info)  # 调用

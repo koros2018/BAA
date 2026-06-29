@@ -34,7 +34,7 @@ YOLO_CLASSES = [  # 赋值
     "insulation",     # 15
     "evacuation_lighting", # 16
     "refuge_floor",   # 17
-]
+]  # 闭合
 
 # 哪些类别需要面积估算（基于bbox）
 AREA_CLASSES = {"room", "fire_zone", "wall"}  # 赋值
@@ -61,11 +61,11 @@ class YOLODetectionIntegrator:
             # 默认路径：从项目目录找最新训练的best.pt
             project_root = Path(__file__).resolve().parent.parent.parent  # 赋值
             candidates = [  # 赋值
-                project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",
-                project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",
-                project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",
-                project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",
-            ]
+                project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",  # 操作
+                project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",  # 操作
+                project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",  # 操作
+                project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",  # 操作
+            ]  # 闭合
             for c in candidates:  # 循环
                 if c.exists():  # 条件判断
                     path = str(c)  # 赋值
@@ -105,7 +105,7 @@ class YOLODetectionIntegrator:
             conf=conf,  # 赋值
             iou=iou,  # 赋值
             verbose=False,  # 赋值
-        )
+        )  # 闭合
 
         detections = []  # 赋值
         for result in results:  # 循环
@@ -121,29 +121,29 @@ class YOLODetectionIntegrator:
 
                 entity_type = YOLO_CLASSES[cls_id]  # 赋值
                 bbox = {  # 赋值
-                    "x": x1,
-                    "y": y1,
-                    "width": x2 - x1,
-                    "height": y2 - y1,
-                }
+                    "x": x1,  # 字段
+                    "y": y1,  # 字段
+                    "width": x2 - x1,  # 字段
+                    "height": y2 - y1,  # 字段
+                }  # 闭合
 
                 props = {"confidence": confidence}  # 赋值
 
                 # 估算面积
                 if entity_type in AREA_CLASSES:  # 条件判断
-                    props["area"] = bbox["width"] * bbox["height"]
+                    props["area"] = bbox["width"] * bbox["height"]  # 操作
 
                 # 估算宽度（取短边作为"宽度"参考）
                 if entity_type in WIDTH_CLASSES:  # 条件判断
-                    props["width"] = min(bbox["width"], bbox["height"])
-                    props["clear_width"] = props["width"]
+                    props["width"] = min(bbox["width"], bbox["height"])  # 操作
+                    props["clear_width"] = props["width"]  # 操作
 
                 detections.append({  # 调用
-                    "type": entity_type,
-                    "confidence": confidence,
-                    "bbox": bbox,
-                    "properties": props,
-                })
+                    "type": entity_type,  # 字段
+                    "confidence": confidence,  # 字段
+                    "bbox": bbox,  # 字段
+                    "properties": props,  # 字段
+                })  # 闭合
 
         return detections  # 返回
 
@@ -160,8 +160,8 @@ class YOLODetectionIntegrator:
         return image_path, detections  # 返回
 
     def detections_to_entities(self, detections: List[Dict],
-                                world_bbox: Optional[Dict] = None,
-                                image_size: Tuple[int, int] = (640, 640)) -> List[Dict]:
+                                world_bbox: Optional[Dict] = None,  # 操作
+                                image_size: Tuple[int, int] = (640, 640)) -> List[Dict]:  # 操作
         """将 YOLO 检测结果映射为引擎实体格式
 
         参数:
@@ -194,14 +194,14 @@ class YOLODetectionIntegrator:
                 wx, wy, ww, wh = px, py, pw, ph  # 赋值
 
             entity = {  # 赋值
-                "type": det["type"],
-                "count": 1,
-                "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},
-                "properties": {
+                "type": det["type"],  # 字段
+                "count": 1,  # 字段
+                "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},  # 字段
+                "properties": {  # 字段
                     **det["properties"],
-                    "detection_source": "yolo",
-                },
-            }
+                    "detection_source": "yolo",  # 字段
+                },  # 闭合
+            }  # 闭合
 
             # 合并同名实体的计数
             existing = None  # 赋值
@@ -211,7 +211,7 @@ class YOLODetectionIntegrator:
                     break  # 跳出循环
 
             if existing:  # 条件判断
-                existing["count"] += 1
+                existing["count"] += 1  # 操作
             else:  # 否则
                 entities.append(entity)  # 调用
 
@@ -221,7 +221,7 @@ class YOLODetectionIntegrator:
         """将 DXF 渲染为 JPG 图像（同训练数据准备逻辑）"""
         import ezdxf
         import matplotlib
-        matplotlib.use('Agg')
+        matplotlib.use('Agg')  # 调用
         import matplotlib.pyplot as plt
         import tempfile
 
@@ -267,8 +267,8 @@ class YOLODetectionIntegrator:
         fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)  # 赋值
         ax.set_xlim(x_min, x_max)  # 调用
         ax.set_ylim(y_min, y_max)  # 调用
-        ax.set_aspect('equal')
-        ax.axis('off')
+        ax.set_aspect('equal')  # 调用
+        ax.axis('off')  # 调用
 
         for entity in msp:  # 循环
             layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''  # 赋值

@@ -11,11 +11,11 @@ import os
 import json
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # 调用
 
 from src.baa_engine.atomic_functions import (
     FuncRegistry, AtomicFunction, FuncCategory, Severity, FuncResult  # 解包
-)
+)  # 闭合
 from src.baa_engine.spec_repository import SpecRepository
 from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.attribution_analyzer import AttributionAnalyzer
@@ -39,7 +39,7 @@ class TestFuncRegistry:
         for fid in ["DIM-001", "DIM-002", "DIM-003", "DIST-001", "COUNT-001",  # 遍历
                      "ATTR-001", "DIM-004", "AREA-001", "EXIST-001", "DIM-005"]:
             func = registry.get(fid)  # 赋值
-            assert func is not None, f"函数{fid}不存在"
+            assert func is not None, f"函数{fid}不存在"  # 断言
 
     def test_list_all(self):
         """列表包含所有已注册函数"""
@@ -50,7 +50,7 @@ class TestFuncRegistry:
         for cat in [FuncCategory.DIMENSION, FuncCategory.DISTANCE,  # 循环
                      FuncCategory.COUNT, FuncCategory.ATTR,  # 解包
                      FuncCategory.AREA, FuncCategory.EXIST,  # 解包
-                     FuncCategory.EVAC]:
+                     FuncCategory.EVAC]:  # 操作
             assert cat in categories  # 断言
 
     def test_get_nonexistent(self):
@@ -65,7 +65,7 @@ class TestFuncRegistry:
             func_id="DIM-001", name="重复测试", clause_id="GB50016-5.5.18",  # 赋值
             description="测试", category=FuncCategory.DIMENSION,  # 赋值
             target_entities=["staircase"], operator=">=", threshold=1.2, unit="m",  # 赋值
-        )
+        )  # 闭合
         registry.register(dupe)  # 调用
         assert registry.count == count_before  # 断言
 
@@ -77,7 +77,7 @@ class TestFuncRegistry:
                 func_id=f"TEST-{i:03d}", name=f"测试{i}", clause_id="TEST",  # 赋值
                 description="测试", category=FuncCategory.DIMENSION,  # 赋值
                 target_entities=["wall"], operator=">=", threshold=1.0, unit="m",  # 赋值
-            )
+            )  # 闭合
             registry.register(func)  # 调用
         assert registry.count == registry.capacity  # 断言
 
@@ -402,27 +402,27 @@ class TestSpecRepository:
         assert len(repo.get_by_func("DIM-001")) >= 1  # 断言
 
     def test_get_nonexistent(self, repo):
-        assert repo.get("NONEXIST") is None
+        assert repo.get("NONEXIST") is None  # 断言
 
     def test_get_threshold_default(self, repo):
-        val, unit, op = repo.get_threshold("GB50016-5.5.18", "civil")
+        val, unit, op = repo.get_threshold("GB50016-5.5.18", "civil")  # 操作
         assert val == 1.2  # 赋值
         assert unit == "m"  # 断言
 
     def test_get_threshold_civil_dim002(self, repo):
-        val, _, _ = repo.get_threshold("GB50016-6.1.1", "civil")
+        val, _, _ = repo.get_threshold("GB50016-6.1.1", "civil")  # 操作
         assert val == 2500.0  # 赋值
 
     def test_get_threshold_industrial_dim002(self, repo):
-        val, _, _ = repo.get_threshold("GB50016-6.1.1", "industrial")
+        val, _, _ = repo.get_threshold("GB50016-6.1.1", "industrial")  # 操作
         assert val == 4000.0  # 赋值
 
     def test_all_clauses_have_building_types(self, repo):
         for c in repo.list_all():  # 循环
-            assert c.threshold is not None, f"{c.func_id} 缺少threshold"
-            assert c.threshold.building_types is not None, f"{c.func_id} 缺少building_types"
+            assert c.threshold is not None, f"{c.func_id} 缺少threshold"  # 断言
+            assert c.threshold.building_types is not None, f"{c.func_id} 缺少building_types"  # 断言
             for bt in ["civil", "industrial"]:  # 遍历
-                assert bt in c.threshold.building_types, f"{c.func_id} 缺少{bt}"
+                assert bt in c.threshold.building_types, f"{c.func_id} 缺少{bt}"  # 断言
                 val, _, _ = repo.get_threshold(c.clause_id, bt)  # 赋值
                 assert val is not None  # 断言
 
@@ -466,32 +466,32 @@ class TestAttributionAnalyzer:
 
     def make_clause(self):
         return {"standard": "GB 50016-2014", "clause_id": "GB50016-5.5.18",  # 返回
-                "title": "疏散楼梯净宽", "text": "净宽度不应小于1.2m",
-                "category": "fire_safety"}
+                "title": "疏散楼梯净宽", "text": "净宽度不应小于1.2m",  # 字段
+                "category": "fire_safety"}  # 字段
 
     def make_entity(self):
         return {"id": "ST_001", "type": "staircase",  # 返回
-                "bbox": {"x": 0, "y": 0, "width": 2.5, "height": 6.0},
-                "confidence": 0.94}
+                "bbox": {"x": 0, "y": 0, "width": 2.5, "height": 6.0},  # 字段
+                "confidence": 0.94}  # 字段
 
     def test_finding_id_format(self, analyzer):
         f = analyzer.build_finding(self.make_result(), self.make_clause(), self.make_entity(), [])  # 赋值
-        assert f.finding_id.startswith("BAA-")
+        assert f.finding_id.startswith("BAA-")  # 断言
 
     def test_judgement_result(self, analyzer):
         f = analyzer.build_finding(self.make_result(), self.make_clause(), self.make_entity(), [])  # 赋值
         assert f.judgement["result"] == "FAIL"  # 断言
         # func_id不在judgement中，在顶层clause中
         assert f.clause["clause_id"] == "GB50016-5.5.18"  # 断言
-        assert "actual" in f.judgement
-        assert "threshold" in f.judgement
+        assert "actual" in f.judgement  # 断言
+        assert "threshold" in f.judgement  # 断言
 
     def test_attention_map(self, analyzer):
         f = analyzer.build_finding(self.make_result(), self.make_clause(), self.make_entity(),  # 赋值
-                                    [{"id": "DR_007", "type": "door"}])
+                                    [{"id": "DR_007", "type": "door"}])  # 字面量
         assert len(f.attention_map["focus_areas"]) >= 1  # 断言
         entity_ids = [a["entity_id"] for a in f.attention_map["focus_areas"]]  # 赋值
-        assert "ST_001" in entity_ids
+        assert "ST_001" in entity_ids  # 断言
 
     def test_explanation_not_empty(self, analyzer):
         f = analyzer.build_finding(self.make_result(), self.make_clause(), self.make_entity(), [])  # 赋值
@@ -503,7 +503,7 @@ class TestAttributionAnalyzer:
 
     def test_attention_map_has_heatmap(self, analyzer):
         f = analyzer.build_finding(self.make_result(), self.make_clause(), self.make_entity(), [])  # 赋值
-        assert "heatmap_entities" in f.attention_map or "focus_areas" in f.attention_map
+        assert "heatmap_entities" in f.attention_map or "focus_areas" in f.attention_map  # 断言
 
 
 # ═══════════════════════════════════════════════════════════
@@ -516,7 +516,7 @@ def test_synthetic_drawing_batch():
     from pathlib import Path
     manifest_path = Path("data/drawings/synthetic_v2/manifest.json")  # 赋值
     if not manifest_path.exists():  # 条件判断
-        pytest.skip("合成图纸清单不存在")
+        pytest.skip("合成图纸清单不存在")  # 调用
 
     with open(manifest_path) as f:  # 上下文管理
         data = json.load(f)  # 赋值
@@ -560,7 +560,7 @@ def test_synthetic_drawing_batch():
         results.append(matched / max(len(expected_failed), 1))  # 调用
 
     rate = sum(results) / len(results) if results else 0  # 赋值
-    print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")
+    print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")  # 调用
     assert rate >= 0.80, f"检出率 {rate:.1%} 低于 80% 阈值"  # 断言
 
     results = []  # 赋值
@@ -593,7 +593,7 @@ def test_synthetic_drawing_batch():
         results.append(matched / max(len(expected_failed), 1))  # 调用
 
     rate = sum(results) / len(results) if results else 0  # 赋值
-    print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")
+    print(f"\n  批量回归: {len(results)}张, 平均检出率: {rate:.1%}")  # 调用
     # v1.8.5 合成数据生成器修复后，全量200张 100% 检出
     assert rate >= 0.80, f"检出率 {rate:.1%} 低于 80% 阈值"  # 断言
 
@@ -604,11 +604,11 @@ def test_synthetic_civil_industrial_distribution():
     from collections import Counter
     manifest_path = Path("data/drawings/synthetic_v2/manifest.json")  # 赋值
     if not manifest_path.exists():  # 条件判断
-        pytest.skip("合成图纸清单不存在")
+        pytest.skip("合成图纸清单不存在")  # 调用
     with open(manifest_path) as f:  # 上下文管理
         data = json.load(f)  # 赋值
     bt = Counter(e["building_type"] for e in data["drawings"])  # 赋值
-    print(f"\n  建筑类型分布: {dict(bt)}")
+    print(f"\n  建筑类型分布: {dict(bt)}")  # 调用
     assert bt["civil"] >= 50  # 断言
     assert bt["industrial"] >= 50  # 断言
 
@@ -626,7 +626,7 @@ class TestDrawingParser:
         parser = DrawingParser()  # 赋值
         dxf_path = "data/drawings/synthetic_v2/drawing_0001.dxf"  # 赋值
         if not os.path.exists(dxf_path):  # 条件判断
-            pytest.skip("合成图纸不存在")
+            pytest.skip("合成图纸不存在")  # 调用
         r = parser.parse(dxf_path, "test_0001")  # 赋值
         assert r.success  # 断言
         assert len(r.primitives) > 0  # 断言
@@ -642,13 +642,13 @@ class TestSemanticAnalyzer:
         analyzer = SemanticAnalyzer()  # 赋值
         dxf_path = "data/drawings/synthetic_v2/drawing_0001.dxf"  # 赋值
         if not os.path.exists(dxf_path):  # 条件判断
-            pytest.skip("合成图纸不存在")
+            pytest.skip("合成图纸不存在")  # 调用
         r = parser.parse(dxf_path, "test_0001")  # 赋值
         sem = analyzer.analyze(r.primitives)  # 赋值
-        assert len(sem["entities"]) > 0
+        assert len(sem["entities"]) > 0  # 断言
         for e in sem["entities"]:  # 遍历
             assert e["confidence"] >= 0.9  # 断言
 
 
 if __name__ == "__main__":  # 条件判断
-    pytest.main(["-v", __file__, "-k", "not slow"])
+    pytest.main(["-v", __file__, "-k", "not slow"])  # 调用

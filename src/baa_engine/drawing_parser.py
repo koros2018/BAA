@@ -21,20 +21,20 @@ class RawPrimitive:
 
     def to_dict(self) -> dict:
         return {  # 返回
-            "dxf_type": self.dxf_type,
-            "layer": self.layer,
-            "handle": self.handle,
-            "bbox": self.bbox,
-            "properties": self.properties,
-        }
+            "dxf_type": self.dxf_type,  # 字段
+            "layer": self.layer,  # 字段
+            "handle": self.handle,  # 字段
+            "bbox": self.bbox,  # 字段
+            "properties": self.properties,  # 字段
+        }  # 闭合
 
 
 class DrawingResult:
     """图纸解析结果"""
     def __init__(self, file_path: str, file_id: str,
-                 primitives: List[RawPrimitive] = None,
-                 dimensions: List[Dict] = None,
-                 error: Optional[str] = None):
+                 primitives: List[RawPrimitive] = None,  # 操作
+                 dimensions: List[Dict] = None,  # 操作
+                 error: Optional[str] = None):  # 操作
         self.file_path = file_path  # 赋值
         self.file_id = file_id  # 赋值
         self.primitives = primitives or []  # 赋值
@@ -72,14 +72,14 @@ class DrawingParser:
                 file_path=file_path,  # 赋值
                 file_id=file_id or f"baa-file-{path.stem}",  # 赋值
                 error=f"不支持的文件格式: {ext}。支持: dxf, dwg"  # 赋值
-            )
+            )  # 闭合
 
         if not path.exists():  # 条件判断
             return DrawingResult(  # 返回
                 file_path=file_path,  # 赋值
                 file_id=file_id or f"baa-file-{path.stem}",  # 赋值
                 error=f"文件不存在: {file_path}"  # 赋值
-            )
+            )  # 闭合
 
         try:  # 尝试
             if ext == ".dwg":  # 条件判断
@@ -88,7 +88,7 @@ class DrawingParser:
                     # 检查文件头，提供针对性建议
                     version_hint = ""  # 赋值
                     try:  # 尝试
-                        with open(path, "rb") as f:
+                        with open(path, "rb") as f:  # 上下文
                             header = f.read(6)  # 赋值
                         if header.startswith(b"AC10"):  # 条件判断
                             ver = header[:6].decode("ascii", errors="ignore")  # 赋值
@@ -98,9 +98,9 @@ class DrawingParser:
                     return DrawingResult(  # 返回
                         file_path=file_path,  # 赋值
                         file_id=file_id or f"baa-file-{path.stem}",  # 赋值
-                        error=f"DWG 解析失败{version_hint}ezdwg 无法读取此文件)。"
-                               f"请用 LibreCAD (开源免费) 打开后另存为 DXF 格式再上传。"
-                    )
+                        error=f"DWG 解析失败{version_hint}ezdwg 无法读取此文件)。"  # 赋值
+                               f"请用 LibreCAD (开源免费) 打开后另存为 DXF 格式再上传。"  # 操作
+                    )  # 闭合
                 self._doc = dxf_doc  # 赋值
             else:  # 否则
                 self._doc = ezdxf.readfile(str(path))  # 赋值
@@ -109,7 +109,7 @@ class DrawingParser:
                 file_path=file_path,  # 赋值
                 file_id=file_id or f"baa-file-{path.stem}",  # 赋值
                 error=f"DXF 解析失败: {str(e)}"  # 赋值
-            )
+            )  # 闭合
 
         primitives = self._extract_primitives()  # 赋值
         dimensions = self._extract_dimensions()  # 赋值
@@ -119,7 +119,7 @@ class DrawingParser:
             file_id=file_id or f"baa-file-{path.stem}",  # 赋值
             primitives=primitives,  # 赋值
             dimensions=dimensions,  # 赋值
-        )
+        )  # 闭合
 
     def _extract_primitives(self) -> List[RawPrimitive]:
         """提取所有图元"""
@@ -148,7 +148,7 @@ class DrawingParser:
                 handle=handle,  # 赋值
                 bbox=bbox,  # 赋值
                 properties=props,  # 赋值
-            ))
+            ))  # 闭合
 
         return primitives  # 返回
 
@@ -167,28 +167,28 @@ class DrawingParser:
                     defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None  # 赋值
                     tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None  # 赋值
                     dim = {  # 赋值
-                        "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',
-                        "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',
-                        "measurement": meas,
-                        "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),
-                        "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',
-                        "position": {
-                            "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,
-                            "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,
-                        },
-                        "defpoint2": {
-                            "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,
-                            "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,
-                        },
-                        "defpoint3": {
-                            "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,
-                            "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,
-                        },
-                        "text_midpoint": {
-                            "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,
-                            "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,
-                        },
-                    }
+                        "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',  # 字段
+                        "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',  # 字段
+                        "measurement": meas,  # 字段
+                        "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),  # 字段
+                        "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',  # 字段
+                        "position": {  # 字段
+                            "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,  # 字段
+                            "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,  # 字段
+                        },  # 闭合
+                        "defpoint2": {  # 字段
+                            "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,  # 字段
+                            "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,  # 字段
+                        },  # 闭合
+                        "defpoint3": {  # 字段
+                            "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,  # 字段
+                            "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,  # 字段
+                        },  # 闭合
+                        "text_midpoint": {  # 字段
+                            "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,  # 字段
+                            "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,  # 字段
+                        },  # 闭合
+                    }  # 闭合
                     if meas is not None and meas > 0.1:  # 条件判断
                         dimensions.append(dim)  # 调用
                 except Exception:  # 捕获异常
@@ -243,9 +243,9 @@ class DrawingParser:
 
                         if dxf_type == "LINE":  # 条件判断
                             msp_dst.add_line(  # 调用
-                                d["start"][:2], d["end"][:2],
+                                d["start"][:2], d["end"][:2],  # 操作
                                 dxfattribs={"color": color},  # 赋值
-                            )
+                            )  # 闭合
                             total += 1  # 赋值
                         elif dxf_type == "LWPOLYLINE":  # 分支
                             pts = [(p[0], p[1]) for p in d["points"]]  # 赋值
@@ -256,25 +256,25 @@ class DrawingParser:
                             msp_dst.add_circle(  # 调用
                                 (d["center"][0], d["center"][1]), d["radius"],
                                 dxfattribs={"color": color},  # 赋值
-                            )
+                            )  # 闭合
                             total += 1  # 赋值
                         elif dxf_type == "ARC":  # 分支
                             msp_dst.add_arc(  # 调用
                                 (d["center"][0], d["center"][1]), d["radius"],
-                                d["start_angle"], d["end_angle"],
+                                d["start_angle"], d["end_angle"],  # 操作
                                 dxfattribs={"color": color},  # 赋值
-                            )
+                            )  # 闭合
                             total += 1  # 赋值
                         elif dxf_type in ("TEXT", "MTEXT"):  # 分支
                             ins = d.get("insert", (0, 0, 0))  # 赋值
                             msp_dst.add_text(  # 调用
-                                d.get("text", ""),
+                                d.get("text", ""),  # 调用
                                 dxfattribs={  # 赋值
-                                    "color": color,
-                                    "height": d.get("height", 2.5),
-                                    "insert": (ins[0], ins[1]),
-                                },
-                            )
+                                    "color": color,  # 字段
+                                    "height": d.get("height", 2.5),  # 字段
+                                    "insert": (ins[0], ins[1]),  # 字段
+                                },  # 闭合
+                            )  # 闭合
                             total += 1  # 赋值
                     except Exception:  # 捕获异常
                         pass  # 占位
@@ -295,12 +295,12 @@ class DrawingParser:
             
             # 逐个类型解码，跳过格式错误的
             decode_map = {  # 赋值
-                "LINE": lambda: raw.decode_line_entities(str(path)),
-                "LWPOLYLINE": lambda: raw.decode_lwpolyline_entities(str(path)),
-                "CIRCLE": lambda: raw.decode_circle_entities(str(path)),
-                "ARC": lambda: raw.decode_arc_entities(str(path)),
-                "TEXT": lambda: raw.decode_text_entities(str(path)),
-            }
+                "LINE": lambda: raw.decode_line_entities(str(path)),  # 字段
+                "LWPOLYLINE": lambda: raw.decode_lwpolyline_entities(str(path)),  # 字段
+                "CIRCLE": lambda: raw.decode_circle_entities(str(path)),  # 字段
+                "ARC": lambda: raw.decode_arc_entities(str(path)),  # 字段
+                "TEXT": lambda: raw.decode_text_entities(str(path)),  # 字段
+            }  # 闭合
             for dxf_type, decode_func in decode_map.items():  # 循环
                 try:  # 尝试
                     for row in decode_func():  # 循环
@@ -310,7 +310,7 @@ class DrawingParser:
                                     (row.get("start_x", 0), row.get("start_y", 0)),
                                     (row.get("end_x", 0), row.get("end_y", 0)),
                                     dxfattribs={"color": row.get("color_index", 7)},  # 赋值
-                                )
+                                )  # 闭合
                                 total += 1  # 赋值
                             elif dxf_type == "LWPOLYLINE":  # 分支
                                 pts = row.get("points", [])  # 赋值
@@ -320,28 +320,28 @@ class DrawingParser:
                             elif dxf_type == "CIRCLE":  # 分支
                                 msp_dst.add_circle(  # 调用
                                     (row.get("center_x", 0), row.get("center_y", 0)),
-                                    row.get("radius", 1),
+                                    row.get("radius", 1),  # 调用
                                     dxfattribs={"color": row.get("color_index", 7)},  # 赋值
-                                )
+                                )  # 闭合
                                 total += 1  # 赋值
                             elif dxf_type == "ARC":  # 分支
                                 msp_dst.add_arc(  # 调用
                                     (row.get("center_x", 0), row.get("center_y", 0)),
-                                    row.get("radius", 1),
-                                    row.get("start_angle", 0),
-                                    row.get("end_angle", 360),
+                                    row.get("radius", 1),  # 调用
+                                    row.get("start_angle", 0),  # 调用
+                                    row.get("end_angle", 360),  # 调用
                                     dxfattribs={"color": row.get("color_index", 7)},  # 赋值
-                                )
+                                )  # 闭合
                                 total += 1  # 赋值
                             elif dxf_type == "TEXT":  # 分支
                                 msp_dst.add_text(  # 调用
-                                    row.get("text", ""),
+                                    row.get("text", ""),  # 调用
                                     dxfattribs={  # 赋值
-                                        "color": row.get("color_index", 7),
-                                        "height": row.get("height", 2.5),
-                                        "insert": (row.get("insert_x", 0), row.get("insert_y", 0)),
-                                    },
-                                )
+                                        "color": row.get("color_index", 7),  # 字段
+                                        "height": row.get("height", 2.5),  # 字段
+                                        "insert": (row.get("insert_x", 0), row.get("insert_y", 0)),  # 字段
+                                    },  # 闭合
+                                )  # 闭合
                                 total += 1  # 赋值
                         except Exception:  # 捕获异常
                             pass  # 占位
@@ -428,47 +428,47 @@ class DrawingParser:
             if entity.dxftype() == 'LINE':  # 条件判断
                 start = entity.dxf.start  # 赋值
                 end = entity.dxf.end  # 赋值
-                props["length"] = Vec2(start).distance(Vec2(end))
-                props["angle"] = Vec2(end - start).angle_deg
+                props["length"] = Vec2(start).distance(Vec2(end))  # 操作
+                props["angle"] = Vec2(end - start).angle_deg  # 操作
 
             elif entity.dxftype() == 'CIRCLE':  # 分支
-                props["radius"] = entity.dxf.radius
-                props["diameter"] = entity.dxf.radius * 2
+                props["radius"] = entity.dxf.radius  # 操作
+                props["diameter"] = entity.dxf.radius * 2  # 操作
 
             elif entity.dxftype() == 'LWPOLYLINE':  # 分支
                 if hasattr(entity, 'length'):  # 条件判断
-                    props["length"] = entity.length
+                    props["length"] = entity.length  # 操作
                 if entity.closed:  # 条件判断
-                    props["area"] = self._compute_polygon_area(entity)
+                    props["area"] = self._compute_polygon_area(entity)  # 操作
                 # 记录顶点数（ezdwg 重建的图元用 points）
                 try:  # 尝试
                     pts = entity.dxf.get('points', [])  # 赋值
-                    props["point_count"] = len(pts)
+                    props["point_count"] = len(pts)  # 操作
                 except Exception:  # 捕获异常
                     try:  # 尝试
                         pts = list(entity.vertices())  # 赋值
-                        props["point_count"] = len(pts)
+                        props["point_count"] = len(pts)  # 操作
                     except Exception:  # 捕获异常
                         pass  # 占位
 
             elif entity.dxftype() == 'ARC':  # 分支
-                props["radius"] = entity.dxf.radius
-                props["start_angle"] = entity.dxf.start_angle
-                props["end_angle"] = entity.dxf.end_angle
+                props["radius"] = entity.dxf.radius  # 操作
+                props["start_angle"] = entity.dxf.start_angle  # 操作
+                props["end_angle"] = entity.dxf.end_angle  # 操作
 
             elif entity.dxftype() == 'TEXT':  # 分支
-                props["text"] = entity.dxf.text
-                props["height"] = entity.dxf.height
+                props["text"] = entity.dxf.text  # 操作
+                props["height"] = entity.dxf.height  # 操作
 
             elif entity.dxftype() == 'INSERT':  # 分支
                 # 提取块名和插入点
                 try:  # 尝试
                     block_name = entity.dxf.name if hasattr(entity.dxf, 'name') else ''  # 赋值
-                    props["block_name"] = block_name or ''
+                    props["block_name"] = block_name or ''  # 操作
                     ins = entity.dxf.insert if hasattr(entity.dxf, 'insert') else None  # 赋值
                     if ins:  # 条件判断
-                        props["insert_x"] = ins[0] if hasattr(ins, '__getitem__') else ins.x
-                        props["insert_y"] = ins[1] if hasattr(ins, '__getitem__') else ins.y
+                        props["insert_x"] = ins[0] if hasattr(ins, '__getitem__') else ins.x  # 操作
+                        props["insert_y"] = ins[1] if hasattr(ins, '__getitem__') else ins.y  # 操作
                 except Exception:  # 捕获异常
                     pass  # 占位
 

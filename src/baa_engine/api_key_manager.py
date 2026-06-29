@@ -124,11 +124,11 @@ class ApiKeyPermission:
 
 DEFAULT_KEY_TTL_DAYS = 90          # 密钥默认有效期90天
 DEFAULT_RATE_LIMIT = {             # 每密钥每分钟限制
-    "admin": 1000,
-    "write": 100,
-    "read": 60,
-    "limited": 10,
-}
+    "admin": 1000,  # 字段
+    "write": 100,  # 字段
+    "read": 60,  # 字段
+    "limited": 10,  # 字段
+}  # 闭合
 DEFAULT_STORAGE_PATH = "data/api_keys.json"  # 赋值
 
 
@@ -142,7 +142,7 @@ class ApiKeyManager:
         self._storage_path = storage_path or os.getenv(  # 赋值
             "BAA_API_KEYS_PATH",
             str(Path(__file__).resolve().parent.parent.parent / DEFAULT_STORAGE_PATH)  # 调用
-        )
+        )  # 闭合
         self._keys: Dict[str, dict] = {}  # key_id → key_info
         self._usage: Dict[str, dict] = {}  # key_id → {calls, last_used, per_minute}
         self._env_key = env_key or os.getenv("BAA_API_KEY", "")  # 赋值
@@ -185,13 +185,13 @@ class ApiKeyManager:
         self._ensure_storage_dir()  # 调用
         with self._lock:  # 上下文管理
             data = {  # 赋值
-                "keys": self._keys,
-                "usage": self._usage,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
+                "keys": self._keys,  # 字段
+                "usage": self._usage,  # 字段
+                "updated_at": datetime.now(timezone.utc).isoformat(),  # 字段
+            }  # 闭合
         # 原子写入：先写临时文件再rename
         tmp = self._storage_path + ".tmp"  # 赋值
-        with open(tmp, "w") as f:
+        with open(tmp, "w") as f:  # 上下文
             json.dump(data, f, indent=2, ensure_ascii=False)  # 调用
         os.replace(tmp, self._storage_path)  # 调用
 
@@ -203,7 +203,7 @@ class ApiKeyManager:
         ttl_days: int = None,  # 赋值
         label: str = "",  # 赋值
         created_by: str = "system",  # 赋值
-    ) -> dict:
+    ) -> dict:  # 闭合
         """生成新 API Key
 
         Args:
@@ -217,7 +217,7 @@ class ApiKeyManager:
         """
         self.load()  # 调用
         if not ApiKeyPermission.validate(permission):  # 条件判断
-            raise ValueError(f"无效权限等级: {permission}")
+            raise ValueError(f"无效权限等级: {permission}")  # 抛出
 
         ttl = ttl_days or DEFAULT_KEY_TTL_DAYS  # 赋值
         raw_key = f"baa_{secrets.token_urlsafe(32)}"  # 赋值
@@ -231,33 +231,33 @@ class ApiKeyManager:
         encrypted_raw = encrypt_raw_key(raw_key)  # 赋值
 
         key_info = {  # 赋值
-            "key_id": key_id,
-            "hash": key_hash,
+            "key_id": key_id,  # 字段
+            "hash": key_hash,  # 字段
             "encrypted_raw": encrypted_raw,  # AES-GCM 密文，可解密为原始密钥
-            "permission": permission,
-            "label": label,
-            "created_by": created_by,
-            "created_at": now.isoformat(),
-            "expires_at": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
-            "ttl_days": ttl,
-            "enabled": True,
-            "last_used": None,
-            "calls": 0,
-        }
+            "permission": permission,  # 字段
+            "label": label,  # 字段
+            "created_by": created_by,  # 字段
+            "created_at": now.isoformat(),  # 字段
+            "expires_at": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),  # 字段
+            "ttl_days": ttl,  # 字段
+            "enabled": True,  # 字段
+            "last_used": None,  # 字段
+            "calls": 0,  # 字段
+        }  # 闭合
 
         with self._lock:  # 上下文管理
             self._keys[key_id] = key_info  # 赋值
-            self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}
+            self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}  # 操作
 
         self.save()  # 调用
 
         # 返回时不包含hash和encrypted_raw
         return_info = {k: v for k, v in key_info.items() if k not in ("hash", "encrypted_raw")}  # 赋值
         return {  # 返回
-            "key_id": key_id,
+            "key_id": key_id,  # 字段
             "raw_key": raw_key,   # 创建时返回，后续可通过 decrypt 恢复
-            "info": return_info,
-        }
+            "info": return_info,  # 字段
+        }  # 闭合
 
     def generate_admin_key(self) -> dict:
         """生成初始admin密钥（从环境变量加载时调用）"""
@@ -266,7 +266,7 @@ class ApiKeyManager:
             ttl_days=365,  # 赋值
             label="admin-initial",  # 赋值
             created_by="system"  # 赋值
-        )
+        )  # 闭合
 
     # ── 密钥验证 ──────────────────────────────────────────
 
@@ -277,12 +277,12 @@ class ApiKeyManager:
         # 先检查环境变量密钥（管理员通道）
         if self._env_key and hmac.compare_digest(raw_key, self._env_key):  # 条件判断
             return {  # 返回
-                "key_id": "__env__",
-                "permission": "admin",
-                "label": "env-key",
-                "enabled": True,
-                "expires_at": None,
-            }
+                "key_id": "__env__",  # 字段
+                "permission": "admin",  # 字段
+                "label": "env-key",  # 字段
+                "enabled": True,  # 字段
+                "expires_at": None,  # 字段
+            }  # 闭合
 
         for key_id, info in self._keys.items():  # 循环
             if not info.get("enabled", True):  # 条件判断
@@ -316,16 +316,16 @@ class ApiKeyManager:
             entry = {k: v for k, v in info.items() if k != "hash"}  # 赋值
             # 合并用量
             usage = self._usage.get(key_id, {})  # 赋值
-            entry["calls"] = usage.get("calls", 0)
-            entry["last_used"] = usage.get("last_used")
+            entry["calls"] = usage.get("calls", 0)  # 操作
+            entry["last_used"] = usage.get("last_used")  # 操作
             # 解密 raw_key（前端可用）
             encrypted = info.get("encrypted_raw", "")  # 赋值
             if include_raw and encrypted:  # 条件判断
                 raw = decrypt_raw_key(encrypted)  # 赋值
-                entry["raw_key"] = raw if raw else None
-                entry["has_raw_key"] = raw is not None
+                entry["raw_key"] = raw if raw else None  # 操作
+                entry["has_raw_key"] = raw is not None  # 操作
             else:  # 否则
-                entry["has_raw_key"] = bool(encrypted)
+                entry["has_raw_key"] = bool(encrypted)  # 操作
             result.append(entry)  # 调用
         return sorted(result, key=lambda x: x.get("created_at", ""), reverse=True)  # 返回
 
@@ -335,7 +335,7 @@ class ApiKeyManager:
         with self._lock:  # 上下文管理
             if key_id not in self._keys:  # 条件判断
                 return False  # 返回
-            self._keys[key_id]["enabled"] = False
+            self._keys[key_id]["enabled"] = False  # 操作
         self.save()  # 调用
         return True  # 返回
 
@@ -362,20 +362,20 @@ class ApiKeyManager:
             expires_at = now.timestamp() + ttl * 86400  # 赋值
 
             encrypted_raw = encrypt_raw_key(raw_key)  # 赋值
-            self._keys[key_id]["hash"] = new_hash
-            self._keys[key_id]["encrypted_raw"] = encrypted_raw
-            self._keys[key_id]["ttl_days"] = ttl
-            self._keys[key_id]["expires_at"] = datetime.fromtimestamp(
+            self._keys[key_id]["hash"] = new_hash  # 操作
+            self._keys[key_id]["encrypted_raw"] = encrypted_raw  # 操作
+            self._keys[key_id]["ttl_days"] = ttl  # 操作
+            self._keys[key_id]["expires_at"] = datetime.fromtimestamp(  # 操作
                 expires_at, tz=timezone.utc  # 赋值
-            ).isoformat()
-            self._keys[key_id]["created_at"] = now.isoformat()
+            ).isoformat()  # 闭合
+            self._keys[key_id]["created_at"] = now.isoformat()  # 操作
 
         self.save()  # 调用
         return {  # 返回
-            "key_id": key_id,
-            "raw_key": raw_key,
-            "info": {k: v for k, v in self._keys[key_id].items() if k not in ("hash", "encrypted_raw")},
-        }
+            "key_id": key_id,  # 字段
+            "raw_key": raw_key,  # 字段
+            "info": {k: v for k, v in self._keys[key_id].items() if k not in ("hash", "encrypted_raw")},  # 字段
+        }  # 闭合
 
     def delete_key(self, key_id: str) -> bool:
         """删除密钥（不可恢复）"""
@@ -409,13 +409,13 @@ class ApiKeyManager:
         now = time.time()  # 赋值
         with self._lock:  # 上下文管理
             usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # 赋值
-            usage["calls"] += 1
-            usage["last_used"] = datetime.now(timezone.utc).isoformat()
+            usage["calls"] += 1  # 操作
+            usage["last_used"] = datetime.now(timezone.utc).isoformat()  # 操作
             # 每分钟计数（保留最近5分钟）
             minute_bucket = int(now // 60)  # 赋值
-            usage["per_minute"] = [b for b in usage.get("per_minute", [])
+            usage["per_minute"] = [b for b in usage.get("per_minute", [])  # 操作
                                    if b[0] > minute_bucket - 5]  # 条件判断
-            usage["per_minute"].append((minute_bucket, now))
+            usage["per_minute"].append((minute_bucket, now))  # 操作
 
     def get_usage_stats(self, key_id: str = None) -> dict:
         """获取用量统计"""
@@ -426,15 +426,15 @@ class ApiKeyManager:
             if not key_info:  # 条件判断
                 return {}  # 返回
             return {  # 返回
-                "key_id": key_id,
-                "label": key_info.get("label", ""),
-                "permission": key_info.get("permission", ""),
-                "total_calls": usage.get("calls", 0),
-                "last_used": usage.get("last_used"),
-                "created_at": key_info.get("created_at"),
-                "expires_at": key_info.get("expires_at"),
-                "enabled": key_info.get("enabled", True),
-            }
+                "key_id": key_id,  # 字段
+                "label": key_info.get("label", ""),  # 字段
+                "permission": key_info.get("permission", ""),  # 字段
+                "total_calls": usage.get("calls", 0),  # 字段
+                "last_used": usage.get("last_used"),  # 字段
+                "created_at": key_info.get("created_at"),  # 字段
+                "expires_at": key_info.get("expires_at"),  # 字段
+                "enabled": key_info.get("enabled", True),  # 字段
+            }  # 闭合
 
         stats = {}  # 赋值
         for kid in self._keys:  # 循环
@@ -462,7 +462,7 @@ class ApiKeyManager:
         with self._lock:  # 上下文管理
             usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # 赋值
             # 清理旧bucket
-            usage["per_minute"] = [b for b in usage.get("per_minute", [])
+            usage["per_minute"] = [b for b in usage.get("per_minute", [])  # 操作
                                    if b[0] == minute_bucket]  # 条件判断
             return len(usage["per_minute"]) < limit  # 返回
 
@@ -481,7 +481,7 @@ class ApiKeyManager:
                     if exp_time.tzinfo is None:  # 条件判断
                         exp_time = exp_time.replace(tzinfo=timezone.utc)  # 赋值
                     if now > exp_time:  # 条件判断
-                        self._keys[key_id]["enabled"] = False
+                        self._keys[key_id]["enabled"] = False  # 操作
                         cleaned += 1  # 赋值
         if cleaned:  # 条件判断
             self.save()  # 调用
@@ -506,22 +506,22 @@ class ApiKeyManager:
         key_id = "key_env_admin"  # 赋值
 
         key_info = {  # 赋值
-            "key_id": key_id,
-            "hash": key_hash,
-            "encrypted_raw": encrypt_raw_key(raw_key),
-            "permission": "admin",
-            "label": "env-key",
-            "created_by": "env",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "expires_at": None,
-            "ttl_days": None,
-            "enabled": True,
-            "last_used": None,
-            "calls": 0,
-        }
+            "key_id": key_id,  # 字段
+            "hash": key_hash,  # 字段
+            "encrypted_raw": encrypt_raw_key(raw_key),  # 字段
+            "permission": "admin",  # 字段
+            "label": "env-key",  # 字段
+            "created_by": "env",  # 字段
+            "created_at": datetime.now(timezone.utc).isoformat(),  # 字段
+            "expires_at": None,  # 字段
+            "ttl_days": None,  # 字段
+            "enabled": True,  # 字段
+            "last_used": None,  # 字段
+            "calls": 0,  # 字段
+        }  # 闭合
         with self._lock:  # 上下文管理
             self._keys[key_id] = key_info  # 赋值
-            self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}
+            self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}  # 操作
         self.save()  # 调用
         return key_id  # 返回
 

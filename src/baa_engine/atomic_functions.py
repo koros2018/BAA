@@ -32,31 +32,31 @@ class Severity(Enum):
 @dataclass
 class FuncResult:
     """原子函数判定结果"""
-    func_id: str
-    func_name: str
+    func_id: str  # 操作
+    func_name: str  # 操作
     clause_id: str           # 规范条款编号
     operator: str            # >=, <=, ==, >, <
-    threshold: float
-    actual: float
+    threshold: float  # 操作
+    actual: float  # 操作
     result: str              # PASS / FAIL
-    delta: float
-    severity: Severity
-    entity_id: str
-    entity_type: str
+    delta: float  # 操作
+    severity: Severity  # 操作
+    entity_id: str  # 操作
+    entity_type: str  # 操作
     params: Dict[str, Any] = field(default_factory=dict)  # 赋值
 
 
 @dataclass
 class AtomicFunction:
     """原子函数定义"""
-    func_id: str
-    name: str
-    category: FuncCategory
-    clause_id: str
-    description: str
-    operator: str
-    threshold: float
-    unit: str
+    func_id: str  # 操作
+    name: str  # 操作
+    category: FuncCategory  # 操作
+    clause_id: str  # 操作
+    description: str  # 操作
+    operator: str  # 操作
+    threshold: float  # 操作
+    unit: str  # 操作
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
 
     def matches(self, entity: Dict[str, Any]) -> bool:
@@ -89,8 +89,8 @@ class AtomicFunction:
                     entity_id="",  # 赋值
                     entity_type="missing",  # 赋值
                     params={"extracted_value": 0.0, "unit": self.unit,  # 赋值
-                            "note": "未检测到目标实体"},
-                )
+                            "note": "未检测到目标实体"},  # 字段
+                )  # 闭合
             return None  # 返回
 
         if not self.matches(entity):  # 条件判断
@@ -135,7 +135,7 @@ class AtomicFunction:
                 entity_id=entity.get("id", ""),  # 赋值
                 entity_type=entity.get("type", ""),  # 赋值
                 params={"extracted_value": actual, "unit": self.unit},  # 赋值
-            )
+            )  # 闭合
         
         actual = self._extract_value(entity)  # 赋值
         if actual is None:  # 条件判断
@@ -181,7 +181,7 @@ class AtomicFunction:
             entity_id=entity.get("id", ""),  # 赋值
             entity_type=entity.get("type", ""),  # 赋值
             params={"extracted_value": actual, "unit": self.unit},  # 赋值
-        )
+        )  # 闭合
 
     def _extract_value(self, entity: Dict[str, Any]) -> float:
         """从实体中提取判定所需的值
@@ -378,124 +378,124 @@ class FuncRegistry:
 
     # 首批 10 个原子函数（L1级，与规范JSON库对齐）
     INITIAL_FUNCS = [  # 赋值
-        AtomicFunction("DIM-001", "疏散楼梯净宽判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-001", "疏散楼梯净宽判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-5.5.18", "疏散楼梯净宽度不应小于1.2m", ">=", 1.2, "m",
                        target_entities=["staircase", "stair"]),  # 赋值
-        AtomicFunction("DIM-002", "防火分区面积判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-002", "防火分区面积判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-6.1.1", "防火分区面积不应大于2500㎡", "<=", 2500, "㎡",
                        target_entities=["fire_zone", "room", "floor"]),  # 赋值
-        AtomicFunction("DIM-003", "消防车道宽度判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-003", "消防车道宽度判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-7.1.1", "消防车道宽度不应小于4m", ">=", 4.0, "m",
                        target_entities=["fire_lane", "road", "driveway"]),  # 赋值
-        AtomicFunction("DIST-001", "疏散距离判定", FuncCategory.DISTANCE,
+        AtomicFunction("DIST-001", "疏散距离判定", FuncCategory.DISTANCE,  # 调用
                        "GB50016-5.5.17", "疏散距离不应大于30m", "<=", 30.0, "m",
                        target_entities=["room", "floor", "space"]),  # 赋值
-        AtomicFunction("COUNT-001", "安全出口数量判定", FuncCategory.COUNT,
+        AtomicFunction("COUNT-001", "安全出口数量判定", FuncCategory.COUNT,  # 调用
                        "GB50016-5.5.8", "安全出口不应少于2个", ">=", 2.0, "个",
                        target_entities=["floor", "fire_zone"]),  # 赋值
-        AtomicFunction("ATTR-001", "防火门等级判定", FuncCategory.ATTR,
+        AtomicFunction("ATTR-001", "防火门等级判定", FuncCategory.ATTR,  # 调用
                        "GB50016-6.5.1", "防火门等级不应低于丙级", ">=", 1.0, "级",
                        target_entities=["fire_door", "door"]),  # 赋值
-        AtomicFunction("DIM-004", "疏散走道宽度判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-004", "疏散走道宽度判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-5.5.18", "疏散走道净宽度不应小于1.1m", ">=", 1.1, "m",
                        target_entities=["corridor", "aisle", "passage"]),  # 赋值
-        AtomicFunction("AREA-001", "避难层面积判定", FuncCategory.AREA,
+        AtomicFunction("AREA-001", "避难层面积判定", FuncCategory.AREA,  # 调用
                        "GB50016-7.4.1", "避难层净面积不宜小于5㎡/人", ">=", 5.0, "㎡/人",
                        target_entities=["refuge_floor", "refuge_area", "floor"]),  # 赋值
-        AtomicFunction("EXIST-001", "楼梯间存在判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-001", "楼梯间存在判定", FuncCategory.EXIST,  # 调用
                        "GB50016-5.5.12", "建筑应设置楼梯间", "==", 1.0, "有/无",
                        target_entities=["staircase", "stair"]),  # 赋值
-        AtomicFunction("DIM-005", "窗净面积判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-005", "窗净面积判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-7.2.4", "消防窗净面积不应小于1.0㎡", ">=", 1.0, "㎡",
                        target_entities=["fire_window", "window"]),  # 赋值
         # L2 规范原子函数（9个）
-        AtomicFunction("DIM-006", "疏散门净宽判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-006", "疏散门净宽判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-5.5.19", "人员密集场所疏散门净宽不应小于1.4m", ">=", 1.4, "m",
                        target_entities=["exit_door", "door"]),  # 赋值
-        AtomicFunction("DIM-007", "防火卷帘宽度判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-007", "防火卷帘宽度判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-6.5.3", "防火分隔防火卷帘宽度不应大于10m", "<=", 10.0, "m",
                        target_entities=["fire_curtain", "curtain"]),  # 赋值
-        AtomicFunction("EXIST-002", "管道井封堵判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-002", "管道井封堵判定", FuncCategory.EXIST,  # 调用
                        "GB50016-6.6.1", "管道井应每层用不燃材料封堵", "==", 1.0, "有/无",
                        target_entities=["shaft", "pipe_shaft", "cable_shaft"]),  # 赋值
-        AtomicFunction("EXIST-003", "剪刀楼梯分隔判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-003", "剪刀楼梯分隔判定", FuncCategory.EXIST,  # 调用
                        "GB50016-5.5.24", "剪刀楼梯梯段间应设置防火隔墙", "==", 1.0, "有/无",
                        target_entities=["scissor_staircase", "staircase"]),  # 赋值
-        AtomicFunction("EXIST-004", "疏散指示标志判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-004", "疏散指示标志判定", FuncCategory.EXIST,  # 调用
                        "GB50016-10.3.1", "疏散走道和安全出口应设疏散指示标志", "==", 1.0, "有/无",
                        target_entities=["exit_sign", "sign"]),  # 赋值
-        AtomicFunction("EXIST-005", "自动灭火系统判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-005", "自动灭火系统判定", FuncCategory.EXIST,  # 调用
                        "GB50016-8.3.1", "一类高层应设置自动灭火系统", "==", 1.0, "有/无",
                        target_entities=["sprinkler_system", "sprinkler", "fire_system"]),  # 赋值
-        AtomicFunction("EXIST-006", "火灾报警系统判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-006", "火灾报警系统判定", FuncCategory.EXIST,  # 调用
                        "GB50016-8.4.1", "一类高层应设置火灾自动报警系统", "==", 1.0, "有/无",
                        target_entities=["fire_alarm", "alarm_system", "fire_system"]),  # 赋值
-        AtomicFunction("ATTR-002", "保温材料等级判定", FuncCategory.ATTR,
+        AtomicFunction("ATTR-002", "保温材料等级判定", FuncCategory.ATTR,  # 调用
                        "GB50016-6.7.1", "保温材料应选用A或B1级", ">=", 2.0, "级",
                        target_entities=["insulation", "wall_insulation", "roof_insulation"]),  # 赋值
-        AtomicFunction("LIGHT-001", "应急照明照度判定", FuncCategory.DIMENSION,
+        AtomicFunction("LIGHT-001", "应急照明照度判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-10.1.5", "疏散照明照度不应低于1.0lx", ">=", 1.0, "lx",
                        target_entities=["evacuation_lighting", "light", "lighting"]),  # 赋值
-    ]
+    ]  # 闭合
 
     # 框架预留 20 个位置（V2.0扩展）
     RESERVED_FUNCS = [  # 赋值
         # ===== L3 新增（11个，从19→30）=====
         # 防火间距
-        AtomicFunction("DIST-002", "防火间距判定", FuncCategory.DISTANCE,
+        AtomicFunction("DIST-002", "防火间距判定", FuncCategory.DISTANCE,  # 调用
                        "GB50016-3.4.1", "厂房之间防火间距不应小于表3.4.1规定", ">=", 12.0, "m",
                        target_entities=["building", "factory", "warehouse"]),  # 赋值
         # 排烟窗面积
-        AtomicFunction("DIM-008", "排烟窗面积判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-008", "排烟窗面积判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-9.2.1", "排烟窗净面积不应小于房间面积2%", ">=", 0.02, "㎡",
                        target_entities=["smoke_exhaust_window", "window", "room"]),  # 赋值
         # 消防电梯
-        AtomicFunction("EXIST-007", "消防电梯判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-007", "消防电梯判定", FuncCategory.EXIST,  # 调用
                        "GB50016-7.3.1", "一类高层公共建筑应设消防电梯", "==", 1.0, "有/无",
                        target_entities=["fire_elevator", "elevator"]),  # 赋值
         # 消防电梯前室面积
-        AtomicFunction("AREA-002", "消防电梯前室面积判定", FuncCategory.AREA,
+        AtomicFunction("AREA-002", "消防电梯前室面积判定", FuncCategory.AREA,  # 调用
                        "GB50016-7.3.5", "消防电梯前室面积不应小于6㎡", ">=", 6.0, "㎡",
                        target_entities=["elevator_lobby", "lobby", "room"]),  # 赋值
         # 疏散走道长度
-        AtomicFunction("DIST-003", "袋形走道长度判定", FuncCategory.DISTANCE,
+        AtomicFunction("DIST-003", "袋形走道长度判定", FuncCategory.DISTANCE,  # 调用
                        "GB50016-5.5.17", "袋形走道长度不应大于20m", "<=", 20.0, "m",
                        target_entities=["corridor", "aisle", "passage"]),  # 赋值
         # 疏散出口宽度
-        AtomicFunction("DIM-009", "疏散出口宽度判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-009", "疏散出口宽度判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-5.5.18", "疏散出口净宽度不应小于0.9m", ">=", 0.9, "m",
                        target_entities=["exit", "exit_door", "door"]),  # 赋值
         # 防火窗耐火极限
-        AtomicFunction("ATTR-003", "防火窗等级判定", FuncCategory.ATTR,
+        AtomicFunction("ATTR-003", "防火窗等级判定", FuncCategory.ATTR,  # 调用
                        "GB50016-6.5.1", "防火窗耐火极限不应低于1.0h", ">=", 1.0, "h",
                        target_entities=["fire_window", "window"]),  # 赋值
         # 屋顶消防水箱
-        AtomicFunction("EXIST-008", "消防水箱判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-008", "消防水箱判定", FuncCategory.EXIST,  # 调用
                        "GB50016-8.2.1", "一类高层应设消防水箱", "==", 1.0, "有/无",
                        target_entities=["water_tank", "fire_system"]),  # 赋值
         # 消防水池
-        AtomicFunction("EXIST-009", "消防水池判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-009", "消防水池判定", FuncCategory.EXIST,  # 调用
                        "GB50016-8.1.3", "市政供水不足时应设消防水池", "==", 1.0, "有/无",
                        target_entities=["water_reservoir", "fire_system"]),  # 赋值
         # 消防救援窗
-        AtomicFunction("DIM-010", "消防救援窗面积判定", FuncCategory.DIMENSION,
+        AtomicFunction("DIM-010", "消防救援窗面积判定", FuncCategory.DIMENSION,  # 调用
                        "GB50016-7.2.4", "消防救援窗口净面积不应小于1.0㎡", ">=", 1.0, "㎡",
                        target_entities=["rescue_window", "window"]),  # 赋值
         # 应急广播
-        AtomicFunction("EXIST-010", "应急广播判定", FuncCategory.EXIST,
+        AtomicFunction("EXIST-010", "应急广播判定", FuncCategory.EXIST,  # 调用
                        "GB50016-8.5.1", "一类高层应设应急广播系统", "==", 1.0, "有/无",
                        target_entities=["emergency_broadcast", "speaker", "fire_system"]),  # 赋值
         # ===== EVAC 疏散路径判定（V2新增，3个）=====
-        AtomicFunction("EVAC-001", "疏散路径连通性判定", FuncCategory.EVAC,
+        AtomicFunction("EVAC-001", "疏散路径连通性判定", FuncCategory.EVAC,  # 调用
                        "GB50016-5.5.17", "每个房间应有通往安全出口的疏散路径", "==", 1.0, "有/无",
                        target_entities=["room", "space", "floor"]),  # 赋值
-        AtomicFunction("EVAC-002", "疏散路径长度判定", FuncCategory.EVAC,
+        AtomicFunction("EVAC-002", "疏散路径长度判定", FuncCategory.EVAC,  # 调用
                        "GB50016-5.5.17", "房间到最近安全出口的疏散距离不应大于30m", "<=", 30.0, "m",
                        target_entities=["room", "space", "floor"]),  # 赋值
-        AtomicFunction("EVAC-003", "疏散路径合规性判定", FuncCategory.EVAC,
+        AtomicFunction("EVAC-003", "疏散路径合规性判定", FuncCategory.EVAC,  # 调用
                        "GB50016-5.5.17", "房间到安全出口的疏散路径应满足规范要求", "==", 1.0, "合规/违规",
                        target_entities=["room", "space", "floor"]),  # 赋值
-    ]
+    ]  # 闭合
 
     def __init__(self):
         self._funcs: Dict[str, AtomicFunction] = {}  # 赋值
