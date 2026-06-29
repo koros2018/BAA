@@ -205,6 +205,11 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))
             if val < 0.01:
                 return None  # 无宽度数据，跳过判定
+
+            # DIM-004 边界容差：<2% 偏差视为测量误差，不报违规
+            # 1.1m * 0.98 = 1.078m（含测量误差仍判定为合规）
+            if func_id == "DIM-004" and 0.98 <= (val / 1.1) < 1.0:
+                return None  # 边界走廊，跳过判定
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
