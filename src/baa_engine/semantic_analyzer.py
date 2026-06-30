@@ -10,25 +10,59 @@ from .drawing_parser import RawPrimitive
 # 短关键字（单字母/2字母）使用全词匹配（前后是_或边界），防止误匹配
 # 例如 "D" 不匹配 "DIM"、"DIMENSION"、"DWG"、"DOOR"
 LAYER_RULES = {  # 赋值
+    # ── 墙 ──
     "WALL": "wall", "墙体": "wall", "墙": "wall",  # 字段
+    "BEAM": "wall",  # 结构梁图层（real: BEAM, BEAM_SE, beam-line）
+    "COLUMN": "wall",  # 柱子（real: column-line, COLUMN-hatch）
+    # ── 门 ──
     "DOOR": "door", "门": "door",  # 字段
+    "SB": "door",  # 水消防设备层门标记
+    # ── 窗 ──
     "WINDOW": "window", "窗": "window", "WIND": "window",  # 字段
+    # ── 楼梯 ──
     "STAIR": "stair", "楼梯": "stair", "STAIRS": "stair",  # 字段
+    # ── 走廊/走道 ──
     "CORRIDOR": "corridor", "走道": "corridor", "走廊": "corridor",  # 字段
+    # ── 防火分区 ──
     "FIRE_ZONE": "fire_zone", "防火分区": "fire_zone",  # 字段
+    # ── 尺寸标注 ──
     "DIM": "dimension", "标注": "dimension", "尺寸": "dimension",  # 字段
     "DIMENSION": "dimension",  # 字段
+    "DIM_": "dimension",  # real: DIM_ELEV, DIM_SYMB, AXIS_DIM
+    # ── 出口 ──
     "EXIT": "exit", "出口": "exit", "安全出口": "exit",  # 字段
+    # ── 防火门 ──
     "FIRE_DOOR": "fire_door", "防火门": "fire_door",  # 字段
+    # ── 消防电梯 ──
     "FIRE_ELEV": "fire_elevator", "消防电梯": "fire_elevator",  # 字段
-    "SB": "door",  # 水消防设备层门标记
-    "HATCH": "other",  # 填充图案（非建筑实体）
-    "BEAM": "other",  # 结构梁（非建筑实体）
+    # ── 设备（电气/消防） ──
+    "电-": "equipment",  # 电气设备图层（real: 电-系统-设备）
+    "设备": "equipment",  # 设备
+    "GCD": "equipment",  # 供电设备（real）
+    "NET": "equipment",  # 网络设备（real）
+    "气体": "equipment",  # 气体灭火设备
+    "通风": "equipment",  # 通风设备
+    # ── 结构基础 ──
+    "BASE": "foundation",  # 基础（real: BASE_SING）
+    # ── 非建筑实体 ──
+    "HATCH": "other",  # 填充图案
     "BAR": "other",  # 钢筋标记
     "REIN": "other",  # 钢筋
     "AXIS": "other",  # 轴线标记
-    "BASE": "other",  # 基础结构
-    "钢筋": "other",  # 钢筋（中文图层名）
+    "AXS": "other",  # 轴线（real）
+    "AXIS_": "other",  # 轴线前缀（real: AXIS_NUM, AXIS_DIM）
+    "NUM": "other",  # 编号标记（real: COLU_NUM, AXIS_NUM）
+    "钢筋": "other",  # 钢筋（中文）
+    "THIN": "other",  # 细线（real）
+    "DOTE": "other",  # 点线（real）
+    "TEXT": "other",  # 纯文字图层
+    "PUB_": "other",  # 公共标记
+    "COLU_": "other",  # 柱子标注
+    "钢吊柱": "other",  # 钢柱
+    "焊缝": "other",  # 焊缝标记
+    "水池": "other",  # 水池边线
+    "外部参照": "other",  # 外部参照
+    "钢夹层": "other",  # 钢结构夹层
 }  # 闭合
 
 # 短关键字（单字母/2字母）使用全词匹配
@@ -41,6 +75,7 @@ SHORT_LAYER_RULES = {  # 赋值
     "FZ": "fire_zone",  # 字段
     "FD": "fire_door",  # 字段
     "FE": "fire_elevator",  # 字段
+    "T": "equipment",  # 通信设备（real: T=通信图层，需全词匹配）
 }  # 闭合
 
 
@@ -97,7 +132,7 @@ class SemanticAnalyzer:
 
     def analyze(self, primitives: List[RawPrimitive],
                 dimensions: List[Dict] = None,  # 操作
-                max_entities: int = 1000,  # 赋值
+                max_entities: int = 3000,  # 赋值
                 building_type: str = "civil") -> Dict[str, Any]:  # 赋值
         """
         执行语义分析
@@ -164,7 +199,7 @@ class SemanticAnalyzer:
         corridor_topology = self.build_corridor_topology(entities, relations)  # 赋值
 
         # Step 5: 疏散路径分析（V2新增）
-        evacuation_routes = self.analyze_evacuation_routes(entities, relations)  # 赋值
+        evacuation_routes = self.analyze_evacuation_routes(entities, relations) or []  # 赋值
 
         # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
         route_by_room = {}  # 赋值
@@ -188,7 +223,7 @@ class SemanticAnalyzer:
 
         return {  # 返回
             "entities": [e.to_dict() for e in entities],  # 字段
-            "relations": [self._rel_to_dict(r) for r in relations],  # 字段
+            "relations": [r.__dict__ if hasattr(r, '__dict__') else r for r in relations],  # 字段
             "attributes": attributes,  # 字段
             "building_type": building_type,  # 字段
             "corridor_topology": corridor_topology,  # 字段
