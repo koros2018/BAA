@@ -16,6 +16,7 @@ import uuid  # 生成唯一标识符（文件ID、任务ID等）
 import os  # 环境变量、路径操作
 import time  # 时间戳、超时控制
 import json  # JSON 序列化/反序列化
+import gc  # 垃圾回收
 from pathlib import Path  # 跨平台路径操作
 from typing import Optional, List  # 类型注解
 from datetime import datetime, timedelta  # 日期时间处理
@@ -214,6 +215,27 @@ def _load_engine():
 
 
 from contextlib import asynccontextmanager
+
+
+import gc
+
+# ── 内存监控（每 300 秒触发 GC，防止内存泄漏） ─────────
+_GC_INTERVAL = 300  # 秒
+_last_gc_time = 0  # 上次 GC 时间戳
+
+
+def _periodic_gc():
+    """定时 GC 回收，防止大图纸解析后的内存堆积"""
+    global _last_gc_time
+    now = time.time()
+    if now - _last_gc_time > _GC_INTERVAL:
+        gc.collect()
+        _last_gc_time = now
+
+
+# ── 并发限制（防止大图纸爆炸） ──────────────────────────
+MAX_CONCURRENT_REVIEWS = 4  # 最大并发审查数
+_review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
 
 
 @asynccontextmanager
@@ -421,11 +443,15 @@ async def health():
     except Exception:  # 捕获异常
         yolo_info = "不可用"  # 赋值
     
+    import psutil
+    process = psutil.Process()
+    mem_info = process.memory_info()
+
     all_ok = engine_ok and spec_ok and parser_ok  # 赋值
     return {  # 返回
         "status": "ok" if all_ok else "degraded",  # 字段
-        "version": "1.10.0",  # 字段
-        "uptime_seconds": int(time.time() - _start_time) if hasattr(health, "_start_time") else 0,  # 字段
+        "version": "1.25.0",  # 字段
+        "uptime_seconds": int(time.time() - _start_time),  # 字段
         "engine_status": "ready" if all_ok else "degraded",  # 字段
         "supported_formats": list(SUPPORTED_FORMATS),  # 字段
         "api_version": "v1",  # 字段
@@ -436,6 +462,10 @@ async def health():
             "yolo_integrator": {"status": "ok" if yolo_ok else "unavailable", "info": yolo_info},  # 字段
         },  # 闭合
         "data_dir": str(DATA_DIR),  # 字段
+        "memory": {  # 字段
+            "rss_mb": round(mem_info.rss / 1024 / 1024, 1),  # 字段
+            "vms_mb": round(mem_info.vms / 1024 / 1024, 1),  # 字段
+        },  # 闭合
     }  # 闭合
 
 # ── 记录服务启动时间 ───────────────────────────────────────
