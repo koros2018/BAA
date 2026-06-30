@@ -74,17 +74,22 @@ class FeedbackManager:
 
     def _load(self):
         """从 JSON 文件加载申诉数据"""
+        # 条件分支：if self.data_file.exists()
         if self.data_file.exists():  # 条件判断
+            # 异常保护
             try:  # 尝试
+                # 上下文管理器
                 with open(self.data_file, "r", encoding="utf-8") as f:  # 上下文
                     data = json.load(f)  # 赋值
                     self._feedbacks = {r["feedback_id"]: r for r in data}  # 赋值
+            # 异常处理
             except (json.JSONDecodeError, IOError):  # 捕获异常
                 self._feedbacks = {}  # 赋值
 
     def _save(self):
         """持久化到 JSON 文件"""
         self.data_file.parent.mkdir(parents=True, exist_ok=True)  # 赋值
+        # 上下文管理器
         with open(self.data_file, "w", encoding="utf-8") as f:  # 上下文
             json.dump(list(self._feedbacks.values()), f, ensure_ascii=False, indent=2)  # 调用
 
@@ -117,6 +122,7 @@ class FeedbackManager:
     def review(self, feedback_id: str, status: str, reviewed_by: str, review_comment: str = "") -> Optional[dict]:
         """审核申诉"""
         record = self._feedbacks.get(feedback_id)  # 赋值
+        # 条件分支：if not record
         if not record:  # 条件判断
             return None  # 返回
         record["status"] = status  # 操作
@@ -138,8 +144,10 @@ class FeedbackManager:
     ) -> Tuple[List[dict], int]:  # 闭合
         """查询申诉列表（支持筛选）"""
         items = list(self._feedbacks.values())  # 赋值
+        # 条件分支：if status
         if status:  # 条件判断
             items = [r for r in items if r["status"] == status]  # 赋值
+        # 条件分支：if clause_id
         if clause_id:  # 条件判断
             items = [r for r in items if r["clause_id"] == clause_id]  # 赋值
         total = len(items)  # 赋值
@@ -166,7 +174,9 @@ class FeedbackManager:
         clause_groups = Counter(r["clause_id"] for r in items)  # 赋值
         return [  # 返回
             {"clause_id": cid, "sample_count": n}  # 字面量
+            # 遍历处理
             for cid, n in clause_groups.most_common()  # 循环
+            # 条件分支：if n >= min_samples  # 条件判断
             if n >= min_samples  # 条件判断
         ]  # 闭合
 
@@ -191,10 +201,12 @@ class LearningEngine:
         """
         items = [  # 赋值
             r for r in self._fm._feedbacks.values()  # 操作
+            # 条件分支：if r["clause_id"] == clause_id  # 条件判断
             if r["clause_id"] == clause_id  # 条件判断
             and r["status"] == "accepted"  # 操作
             and r.get("original_value") is not None  # 操作
         ]  # 闭合
+        # 条件分支：if len(items) < 3
         if len(items) < 3:  # 条件判断
             return {  # 返回
                 "clause_id": clause_id,  # 字段
@@ -242,6 +254,7 @@ class LearningEngine:
         spec_repo: Any, reason: str = ""  # 操作
     ) -> bool:  # 闭合
         """应用阈值调整到规范仓库"""
+        # 异常保护
         try:  # 尝试
             # 更新民用/工业的默认阈值
             for bt in ("civil", "industrial"):  # 遍历

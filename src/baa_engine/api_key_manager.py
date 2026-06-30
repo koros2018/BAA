@@ -46,10 +46,13 @@ def _get_encryption_key() -> bytes:
     3. 自动生成并保存
     """
     global _ENCRYPTION_MASTER_KEY  # 全局变量
+    # 条件分支：if _ENCRYPTION_MASTER_KEY is not None
     if _ENCRYPTION_MASTER_KEY is not None:  # 条件判断
         return _ENCRYPTION_MASTER_KEY  # 返回
     
+    # 上下文管理器
     with _ENCRYPTION_KEY_LOCK:  # 上下文管理
+        # 条件分支：if _ENCRYPTION_MASTER_KEY is not None
         if _ENCRYPTION_MASTER_KEY is not None:  # 条件判断
             return _ENCRYPTION_MASTER_KEY  # 返回
         
@@ -60,6 +63,7 @@ def _get_encryption_key() -> bytes:
                 _ENCRYPTION_MASTER_KEY = bytes.fromhex(env_key)  # 赋值
                 if len(_ENCRYPTION_MASTER_KEY) == 32:  # 条件判断
                     return _ENCRYPTION_MASTER_KEY  # 返回
+            # 异常处理
             except ValueError:  # 捕获异常
                 pass  # 占位
         
@@ -93,6 +97,7 @@ def encrypt_raw_key(raw_key: str) -> str:
 
 def decrypt_raw_key(encrypted: str) -> Optional[str]:
     """解密 raw_key，失败返回 None"""
+    # 异常保护
     try:  # 尝试
         key = _get_encryption_key()  # 赋值
         data = base64.b64decode(encrypted)  # 赋值
@@ -101,6 +106,7 @@ def decrypt_raw_key(encrypted: str) -> Optional[str]:
         aesgcm = AESGCM(key)  # 赋值
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)  # 赋值
         return plaintext.decode("utf-8")  # 返回
+    # 异常处理
     except Exception:  # 捕获异常
         return None  # 返回
 
@@ -162,6 +168,7 @@ class ApiKeyManager:
 
     def load(self):
         """从持久化存储加载密钥"""
+        # 条件分支：if self._loaded
         if self._loaded:  # 条件判断
             return  # 返回
         self._reload()  # 调用
@@ -169,13 +176,18 @@ class ApiKeyManager:
     def _reload(self):
         """强制从文件重新加载（跳过 _loaded 短路）"""
         self._ensure_storage_dir()  # 调用
+        # 条件分支：if os.path.exists(self._storage_path)
         if os.path.exists(self._storage_path):  # 条件判断
+            # 异常保护
             try:  # 尝试
+                # 上下文管理器
                 with open(self._storage_path) as f:  # 上下文管理
                     data = json.load(f)  # 赋值
+                # 上下文管理器
                 with self._lock:  # 上下文管理
                     self._keys = data.get("keys", {})  # 赋值
                     self._usage = data.get("usage", {})  # 赋值
+            # 异常处理
             except (json.JSONDecodeError, IOError):  # 捕获异常
                 pass  # 占位
         self._loaded = True  # 赋值
@@ -183,6 +195,7 @@ class ApiKeyManager:
     def save(self):
         """持久化存储到文件"""
         self._ensure_storage_dir()  # 调用
+        # 上下文管理器
         with self._lock:  # 上下文管理
             data = {  # 赋值
                 "keys": self._keys,  # 字段
@@ -216,6 +229,7 @@ class ApiKeyManager:
             {"key_id": str, "raw_key": str, "info": dict}
         """
         self.load()  # 调用
+        # 条件分支：if not ApiKeyPermission.validate(permission)
         if not ApiKeyPermission.validate(permission):  # 条件判断
             raise ValueError(f"无效权限等级: {permission}")  # 抛出
 
@@ -245,6 +259,7 @@ class ApiKeyManager:
             "calls": 0,  # 字段
         }  # 闭合
 
+        # 上下文管理器
         with self._lock:  # 上下文管理
             self._keys[key_id] = key_info  # 赋值
             self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}  # 操作
@@ -284,9 +299,12 @@ class ApiKeyManager:
                 "expires_at": None,  # 字段
             }  # 闭合
 
+        # 遍历处理
         for key_id, info in self._keys.items():  # 循环
+            # 条件分支：if not info.get("enabled", True)
             if not info.get("enabled", True):  # 条件判断
                 continue  # 继续循环
+            # 条件分支：if self._verify_key(raw_key, info["hash"])
             if self._verify_key(raw_key, info["hash"]):  # 条件判断
                 # 检查过期
                 expires = info.get("expires_at")  # 赋值
@@ -294,6 +312,7 @@ class ApiKeyManager:
                     exp_time = datetime.fromisoformat(expires)  # 赋值
                     if exp_time.tzinfo is None:  # 条件判断
                         exp_time = exp_time.replace(tzinfo=timezone.utc)  # 赋值
+                    # 条件分支：if datetime.now(timezone.utc) > exp_time
                     if datetime.now(timezone.utc) > exp_time:  # 条件判断
                         continue  # 已过期
                 return {k: v for k, v in info.items() if k != "hash"}  # 返回
@@ -310,7 +329,9 @@ class ApiKeyManager:
         """
         self.load()  # 调用
         result = []  # 赋值
+        # 遍历处理
         for key_id, info in self._keys.items():  # 循环
+            # 条件分支：if not include_disabled and not info.get("enabled", True)
             if not include_disabled and not info.get("enabled", True):  # 条件判断
                 continue  # 继续循环
             entry = {k: v for k, v in info.items() if k != "hash"}  # 赋值
@@ -324,6 +345,7 @@ class ApiKeyManager:
                 raw = decrypt_raw_key(encrypted)  # 赋值
                 entry["raw_key"] = raw if raw else None  # 操作
                 entry["has_raw_key"] = raw is not None  # 操作
+            # 其他情况处理
             else:  # 否则
                 entry["has_raw_key"] = bool(encrypted)  # 操作
             result.append(entry)  # 调用
@@ -332,7 +354,9 @@ class ApiKeyManager:
     def revoke_key(self, key_id: str) -> bool:
         """撤销密钥"""
         self._reload()  # 调用
+        # 上下文管理器
         with self._lock:  # 上下文管理
+            # 条件分支：if key_id not in self._keys
             if key_id not in self._keys:  # 条件判断
                 return False  # 返回
             self._keys[key_id]["enabled"] = False  # 操作
@@ -346,10 +370,13 @@ class ApiKeyManager:
         建议：先创建新密钥（generate_key），旧密钥宽限期再撤销。
         """
         self.load()  # 调用
+        # 上下文管理器
         with self._lock:  # 上下文管理
+            # 条件分支：if key_id not in self._keys
             if key_id not in self._keys:  # 条件判断
                 return None  # 返回
             old_info = self._keys[key_id]  # 赋值
+            # 条件分支：if not old_info.get("enabled", True)
             if not old_info.get("enabled", True):  # 条件判断
                 return None  # 返回
 
@@ -380,7 +407,9 @@ class ApiKeyManager:
     def delete_key(self, key_id: str) -> bool:
         """删除密钥（不可恢复）"""
         self._reload()  # 调用
+        # 上下文管理器
         with self._lock:  # 上下文管理
+            # 条件分支：if key_id not in self._keys
             if key_id not in self._keys:  # 条件判断
                 return False  # 返回
             del self._keys[key_id]  # 删除
@@ -399,14 +428,17 @@ class ApiKeyManager:
 
         key_id = None  # 赋值
         for kid, info in self._keys.items():  # 循环
+            # 条件分支：if self._verify_key(raw_key, info["hash"])
             if self._verify_key(raw_key, info["hash"]):  # 条件判断
                 key_id = kid  # 赋值
                 break  # 跳出循环
 
+        # 条件分支：if not key_id
         if not key_id:  # 条件判断
             return  # 返回
 
         now = time.time()  # 赋值
+        # 上下文管理器
         with self._lock:  # 上下文管理
             usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # 赋值
             usage["calls"] += 1  # 操作
@@ -420,9 +452,11 @@ class ApiKeyManager:
     def get_usage_stats(self, key_id: str = None) -> dict:
         """获取用量统计"""
         self.load()  # 调用
+        # 条件分支：if key_id
         if key_id:  # 条件判断
             usage = self._usage.get(key_id, {})  # 赋值
             key_info = self._keys.get(key_id, {})  # 赋值
+            # 条件分支：if not key_info
             if not key_info:  # 条件判断
                 return {}  # 返回
             return {  # 返回
@@ -437,6 +471,7 @@ class ApiKeyManager:
             }  # 闭合
 
         stats = {}  # 赋值
+        # 遍历处理
         for kid in self._keys:  # 循环
             stats[kid] = self.get_usage_stats(kid)  # 赋值
         return stats  # 返回
@@ -459,6 +494,7 @@ class ApiKeyManager:
         now = time.time()  # 赋值
         minute_bucket = int(now // 60)  # 赋值
 
+        # 上下文管理器
         with self._lock:  # 上下文管理
             usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # 赋值
             # 清理旧bucket
@@ -473,16 +509,22 @@ class ApiKeyManager:
         self.load()  # 调用
         now = datetime.now(timezone.utc)  # 赋值
         cleaned = 0  # 赋值
+        # 上下文管理器
         with self._lock:  # 上下文管理
+            # 遍历处理
             for key_id, info in list(self._keys.items()):  # 循环
                 expires = info.get("expires_at")  # 赋值
+                # 条件分支：if expires
                 if expires:  # 条件判断
                     exp_time = datetime.fromisoformat(expires)  # 赋值
+                    # 条件分支：if exp_time.tzinfo is None
                     if exp_time.tzinfo is None:  # 条件判断
                         exp_time = exp_time.replace(tzinfo=timezone.utc)  # 赋值
+                    # 条件分支：if now > exp_time
                     if now > exp_time:  # 条件判断
                         self._keys[key_id]["enabled"] = False  # 操作
                         cleaned += 1  # 赋值
+        # 条件分支：if cleaned
         if cleaned:  # 条件判断
             self.save()  # 调用
         return cleaned  # 返回
@@ -519,6 +561,7 @@ class ApiKeyManager:
             "last_used": None,  # 字段
             "calls": 0,  # 字段
         }  # 闭合
+        # 上下文管理器
         with self._lock:  # 上下文管理
             self._keys[key_id] = key_info  # 赋值
             self._usage[key_id] = {"calls": 0, "last_used": None, "per_minute": []}  # 操作
@@ -533,6 +576,7 @@ _key_manager = None  # 赋值
 
 def get_key_manager() -> ApiKeyManager:
     global _key_manager  # 全局变量
+    # 条件分支：if _key_manager is None
     if _key_manager is None:  # 条件判断
         _key_manager = ApiKeyManager()  # 赋值
         _key_manager.load()  # 调用

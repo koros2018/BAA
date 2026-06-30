@@ -43,6 +43,7 @@ class RawPrimitive:
         self.properties = properties or {} # 额外属性（长度、面积、角度等）
 
     def to_dict(self) -> dict:
+        """处理RawPrimitive相关逻辑"""
         return {  # 返回
             "dxf_type": self.dxf_type,  # 字段
             "layer": self.layer,  # 字段

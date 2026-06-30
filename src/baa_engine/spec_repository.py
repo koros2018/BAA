@@ -472,6 +472,7 @@ class SpecRepository:
 
     def __init__(self):
         self._clauses: Dict[str, Clause] = {}  # 赋值
+        # 遍历处理
         for clause in INITIAL_CLAUSES:  # 循环
             self._clauses[clause.clause_id] = clause  # 赋值
 
@@ -495,6 +496,7 @@ class SpecRepository:
         返回: (value, unit, operator)
         """
         clause = self.get(clause_id)  # 赋值
+        # 条件分支：if not clause
         if not clause:  # 条件判断
             raise ValueError(f"规范 {clause_id} 不存在")  # 抛出
 
@@ -513,6 +515,7 @@ class SpecRepository:
     def to_json(self) -> str:
         """序列化为 JSON"""
         data = []  # 赋值
+        # 遍历处理
         for c in self._clauses.values():  # 循环
             entry = {  # 赋值
                 "clause_id": c.clause_id,  # 字段
@@ -524,6 +527,7 @@ class SpecRepository:
                 "category": c.category,  # 字段
                 "params": c.params,  # 字段
             }  # 闭合
+            # 条件分支：if c.threshold and c.threshold.building_types
             if c.threshold and c.threshold.building_types:  # 条件判断
                 entry["building_type_thresholds"] = c.threshold.building_types  # 操作
             data.append(entry)  # 调用
@@ -531,17 +535,21 @@ class SpecRepository:
 
     def save_json(self, file_path: str):
         """保存为 JSON 文件"""
+        # 上下文管理器
         with open(file_path, "w", encoding="utf-8") as f:  # 上下文
             f.write(self.to_json())  # 调用
 
     def set_threshold(self, clause_id: str, building_type: str, value: float):
         """设置指定建筑类型的阈值（用于反馈闭环微调）"""
         clause = self.get(clause_id)  # 赋值
+        # 条件分支：if not clause
         if not clause:  # 条件判断
             raise ValueError(f"规范 {clause_id} 不存在")  # 抛出
 
+        # 条件分支：if not clause.threshold
         if not clause.threshold:  # 条件判断
             clause.threshold = ClauseThreshold()  # 赋值
+        # 条件分支：if not clause.threshold.building_types
         if not clause.threshold.building_types:  # 条件判断
             clause.threshold.building_types = {}  # 赋值
         clause.threshold.building_types[building_type] = value  # 操作

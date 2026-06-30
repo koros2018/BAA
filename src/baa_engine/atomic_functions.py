@@ -503,21 +503,27 @@ class FuncRegistry:
             self.register(func)  # 调用
 
     def register(self, func: AtomicFunction):
+        """注册"""
         self._funcs[func.func_id] = func  # 赋值
 
     def get(self, func_id: str) -> Optional[AtomicFunction]:
+        """获取资源"""
         return self._funcs.get(func_id)  # 返回
 
     def get_by_clause(self, clause_id: str) -> List[AtomicFunction]:
+        """获取资源"""
         return [f for f in self._funcs.values() if f.clause_id == clause_id]  # 返回
 
     def list_all(self) -> List[AtomicFunction]:
+        """列出资源"""
         return list(self._funcs.values())  # 返回
 
     @property
     def count(self) -> int:
+        """执行count功能"""
         return len(self._funcs)  # 返回
 
     @property
     def capacity(self) -> int:
+        """执行capacity功能"""
         return 33  # 框架总容量：30 INITIAL + 3 EVAC

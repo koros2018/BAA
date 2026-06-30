@@ -316,6 +316,7 @@ class CorrectionEngine: # 类定义: CorrectionEngine
         suggestions = [] # 赋值: suggestions
         entity_map = {e.get("id", ""): e for e in entities} # 安全获取值
 
+        # 遍历处理
         for f in findings: # 循环: f ← findings
             clause_id = f.get("clause_id", "") # 安全获取值
             entity_id = f.get("entity_id", "") # 安全获取值
@@ -330,10 +331,13 @@ class CorrectionEngine: # 类定义: CorrectionEngine
             )  # 闭合
 
             template = self._templates.get(func_id) # 安全获取值
+            # 条件分支：if template
             if template: # 判断: template
+                # 异常保护
                 try: # 异常捕获
                     suggestion = template(entity, result) # 赋值: suggestion
                     suggestions.append(suggestion) # 追加元素
+                # 异常处理
                 except Exception: # 异常处理
                     pass # 空实现
 
@@ -352,6 +356,7 @@ class CorrectionEngine: # 类定义: CorrectionEngine
         suggestions = self.generate(findings, []) # 赋值: suggestions
 
         output = [] # 赋值: output
+        # 遍历处理
         for s in suggestions: # 循环: s ← suggestions
             output.append({ # 追加元素
                 "entity_id": s.entity_id, # entity_id
@@ -396,10 +401,13 @@ class CorrectionEngine: # 类定义: CorrectionEngine
     def _calc_priority(s: CorrectionSuggestion) -> str: # 函数定义: _calc_priority
         """计算修正优先级"""
         urgent_categories = {"ADD", "REPLACE", "UPGRADE"} # 赋值: urgent_categories
+        # 条件分支：if s.action.value in {a.value for a in [CorrectionAction.ADD, CorrectionAction.REPLACE, CorrectionAction.UPGRADE]}
         if s.action.value in {a.value for a in [CorrectionAction.ADD, CorrectionAction.REPLACE, CorrectionAction.UPGRADE]}: # 判断: s.action.value in {a.value for a in [...
             return "high" # 返回结果
+        # 条件分支：if s.delta > s.required_value * 0.5
         if s.delta > s.required_value * 0.5: # 判断: s.delta > s.required_value * 0.5
             return "high" # 返回结果
+        # 条件分支：if s.delta > s.required_value * 0.2
         if s.delta > s.required_value * 0.2: # 判断: s.delta > s.required_value * 0.2
             return "medium" # 返回结果
         return "low" # 返回结果

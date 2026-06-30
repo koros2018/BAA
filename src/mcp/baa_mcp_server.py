@@ -122,13 +122,18 @@ class BAAMCPServer:
 
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+            # 异常保护
             try:  # 尝试
+                # 条件分支：if name == "baa_deconstruct"
                 if name == "baa_deconstruct":  # 条件判断
                     result = await self._handle_deconstruct(arguments)  # 赋值
+                # 条件分支：elif name == "baa_reconstruct"
                 elif name == "baa_reconstruct":  # 分支
                     result = await self._handle_reconstruct(arguments)  # 赋值
+                # 条件分支：elif name == "baa_review"
                 elif name == "baa_review":  # 分支
                     result = await self._handle_review(arguments)  # 赋值
+                # 其他情况处理
                 else:  # 否则
                     raise ValueError(f"未知工具: {name}")  # 抛出
 
@@ -136,6 +141,7 @@ class BAAMCPServer:
                     type="text",  # 赋值
                     text=json.dumps(result, ensure_ascii=False, indent=2)  # 赋值
                 )]  # 闭合
+            # 异常处理
             except Exception as e:  # 捕获异常
                 return [TextContent(  # 返回
                     type="text",  # 赋值
@@ -148,6 +154,7 @@ class BAAMCPServer:
 
     def _ensure_engine(self):
         """懒加载引擎模块"""
+        # 条件分支：if self._drawing_parser is not None
         if self._drawing_parser is not None:  # 条件判断
             return  # 返回
         self._drawing_parser = DrawingParser()  # 赋值
@@ -193,14 +200,18 @@ class BAAMCPServer:
             )  # 闭合
 
         elements = []  # 赋值
+        # 遍历处理
         for t, stats in sorted(type_stats.items()):  # 循环
             areas = stats["bbox_areas"]  # 赋值
             elem = {"type": t, "count": stats["count"]}  # 赋值
             total_area = sum(areas) if areas else 0  # 赋值
+            # 条件分支：if t in ("wall", "corridor", "stair")
             if t in ("wall", "corridor", "stair"):  # 条件判断
                 elem["total_length_m"] = round(total_area ** 0.5, 1)  # 操作
+            # 条件分支：elif t in ("door", "fire_door", "window")
             elif t in ("door", "fire_door", "window"):  # 分支
                 elem["total_count"] = stats["count"]  # 操作
+            # 条件分支：elif t == "fire_zone"
             elif t == "fire_zone":  # 分支
                 elem["total_area_sqm"] = round(total_area, 1)  # 操作
             elements.append(elem)  # 调用
@@ -253,12 +264,14 @@ class BAAMCPServer:
         file_path = args["file_path"]  # 赋值
         building_type = args.get("building_type", "civil")  # 赋值
 
+        # 条件分支：if not os.path.exists(file_path)
         if not os.path.exists(file_path):  # 条件判断
             return {"status": "error", "error_code": "FILE_NOT_FOUND",  # 返回
                     "message": f"文件不存在: {file_path}"}  # 字段
 
         file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # 赋值
         result = self._drawing_parser.parse(file_path, file_id=file_id)  # 赋值
+        # 条件分支：if not result.success
         if not result.success:  # 条件判断
             return {"status": "error", "error_code": "PARSE_FAILED",  # 返回
                     "message": f"图纸解析失败: {result.error}"}  # 字段
@@ -275,7 +288,9 @@ class BAAMCPServer:
         registry_funcs = self._func_registry.list_all()  # 赋值
         total_checks = 0  # 赋值
 
+        # 遍历处理
         for e in entities:  # 循环
+            # 遍历处理
             for func in registry_funcs:  # 循环
                 total_checks += 1  # 赋值
                 threshold_val, unit, op = self._spec_repo.get_threshold(  # 赋值
@@ -285,9 +300,11 @@ class BAAMCPServer:
                 func.unit = unit  # 赋值
                 func.operator = op  # 赋值
                 r = func.execute(e)  # 赋值
+                # 条件分支：if r is None
                 if r is None:  # 条件判断
                     continue  # 继续循环
                 clause_results[func.clause_id] += 1  # 赋值
+                # 条件分支：if r.result != "PASS"
                 if r.result != "PASS":  # 条件判断
                     clause = {  # 赋值
                         "standard": "GB50016",  # 字段
@@ -362,11 +379,14 @@ def main():
 
     server = BAAMCPServer()  # 赋值
 
+    # 条件分支：if args.transport == "stdio"
     if args.transport == "stdio":  # 条件判断
         asyncio.run(server.run_stdio())  # 调用
+    # 其他情况处理
     else:  # 否则
         asyncio.run(server.run_http(host=args.host, port=args.port))  # 赋值
 
 
+# 条件分支：if __name__ == "__main__"
 if __name__ == "__main__":  # 条件判断
     main()  # 调用

@@ -183,6 +183,7 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
                 return None  # token 已过期
 
         return payload  # 返回
+    # 异常处理
     except Exception:  # 捕获异常
         return None  # 返回
 
@@ -314,6 +315,7 @@ def verify_api_key(request: Request):
         return "anonymous"  # 返回
     auth_header = request.headers.get("authorization", "")  # 赋值
     
+    # 根据条件判断分支：if auth_header.startswith("Bearer ")
     if auth_header.startswith("Bearer "):  # 条件判断
         token = auth_header[7:]  # 赋值
     else:  # 否则
@@ -589,6 +591,7 @@ async def deconstruct(
     total_checks = 0  # 赋值
     seen_violations = set()  # (clause_id, entity_type) 用于 FAIL 去重
 
+    # 遍历处理
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
             total_checks += 1  # 赋值
@@ -716,6 +719,7 @@ async def deconstruct(
         "processing_time_ms": elapsed,  # 字段
     }  # 闭合
 
+    # 根据条件判断分支：if use_yolo
     if use_yolo:  # 条件判断
         result["yolo_entities"] = len(yolo_entities)  # 操作
         result["yolo_enabled"] = True  # 操作
@@ -1378,6 +1382,7 @@ async def render_drawing(
     import ezdxf
     from io import StringIO
 
+    # 异常保护：捕获可能失败的调用
     try:  # 尝试
         doc = ezdxf.readfile(str(file_path))  # 赋值
         msp = doc.modelspace()  # 赋值
@@ -1408,6 +1413,7 @@ async def render_drawing(
         except Exception:  # 捕获异常
             continue  # 继续循环
 
+    # 根据条件判断分支：if not all_x
     if not all_x:  # 条件判断
         return {"status": "error", "message": "图纸无有效图元"}  # 返回
 
@@ -1430,6 +1436,7 @@ async def render_drawing(
     max_entities = 2000  # 渲染上限，避免大图纸超时
     drawn = 0  # 赋值
 
+    # 遍历处理
     for entity in msp:  # 循环
         if drawn >= max_entities:  # 条件判断
             break  # 跳出循环
@@ -1475,6 +1482,7 @@ SPECS_DIR = DATA_DIR / "specs"  # 赋值
 if SPECS_DIR.exists():  # 条件判断
     app.mount("/data/specs", StaticFiles(directory=str(SPECS_DIR)), name="specs")  # 调用
 
+# 根据条件判断分支：if MODELS_DIR.exists()
 if MODELS_DIR.exists():  # 条件判断
     app.mount("/models", StaticFiles(directory=str(MODELS_DIR)), name="models")  # 调用
 
@@ -1496,6 +1504,7 @@ async def create_api_key(
     ttl_days = body.get("ttl_days", 90)  # 赋值
     label = body.get("label", "")  # 赋值
 
+    # 异常保护：捕获可能失败的调用
     try:  # 尝试
         result = km.generate_key(  # 赋值
             permission=permission,  # 赋值
@@ -1529,6 +1538,7 @@ async def list_api_keys(
     keys = km.list_keys(include_disabled=include_disabled, include_raw=include_raw)  # 赋值
     stats = km.get_usage_stats()  # 赋值
 
+    # 遍历处理
     for k in keys:  # 循环
         k_id = k["key_id"]  # 赋值
         if k_id in stats:  # 条件判断
@@ -1598,6 +1608,7 @@ async def revoke_api_key(
     """撤销API Key"""
     km = get_key_manager()  # 赋值
 
+    # 根据条件判断分支：if km.revoke_key(key_id)
     if km.revoke_key(key_id):  # 条件判断
         return {"status": "success", "message": f"密钥 {key_id} 已撤销"}  # 返回
     raise HTTPException(status_code=404, detail={  # 抛出异常
@@ -1711,6 +1722,7 @@ async def _fire_webhook(webhook_url: str, payload: dict) -> bool:
         async with httpx.AsyncClient(timeout=10.0) as client:  # 赋值
             resp = await client.post(webhook_url, json=payload)  # 赋值
             return resp.status_code == 200  # 返回
+    # 异常处理
     except Exception:  # 捕获异常
         return False  # 返回
 
@@ -1724,6 +1736,7 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
     _tasks[task_id]["status"] = "running"  # 操作
     _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
     
+    # 异常保护：捕获可能失败的调用
     try:  # 尝试
         start = time.time()  # 赋值
         loop = asyncio.get_event_loop()  # 赋值
@@ -1834,6 +1847,7 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                 "processing_time_ms": elapsed,  # 字段
             })  # 闭合
     
+    # 异常处理
     except Exception as e:  # 捕获异常
         _tasks[task_id]["status"] = "failed"  # 操作
         _tasks[task_id]["error"] = str(e)  # 操作
@@ -1931,12 +1945,14 @@ async def get_task_result(task_id: str, api_key: str = Depends(verify_api_key)):
             "message": f"任务不存在: {task_id}",  # 字段
         })  # 闭合
     
+    # 根据条件判断分支：if task["status"] == "pending"
     if task["status"] == "pending":  # 条件判断
         raise HTTPException(status_code=409, detail={  # 抛出异常
             "status": "pending",  # 字段
             "message": "任务仍在处理中，请稍后查询",  # 字段
         })  # 闭合
     
+    # 根据条件判断分支：if task["status"] == "failed"
     if task["status"] == "failed":  # 条件判断
         raise HTTPException(status_code=500, detail={  # 抛出异常
             "status": "error", "error_code": "TASK_FAILED",  # 字段
@@ -2088,6 +2104,7 @@ async def adjust_threshold(
     clause_id = body.get("clause_id", "")  # 赋值
     apply = body.get("apply", False)  # 赋值
     
+    # 异常保护：捕获可能失败的调用
     try:  # 尝试
         current, unit, op = _spec_repo.get_threshold(clause_id, "civil")  # 操作
     except ValueError:  # 捕获异常
@@ -2098,6 +2115,7 @@ async def adjust_threshold(
 
     adjustment = _learning_engine.compute_adjustment(clause_id, current)  # 赋值
 
+    # 根据条件判断分支：if apply and adjustment.get("adjustable")
     if apply and adjustment.get("adjustable"):  # 条件判断
         success = _learning_engine.apply_adjustment(  # 赋值
             clause_id, adjustment["suggested_threshold"], _spec_repo,  # 操作

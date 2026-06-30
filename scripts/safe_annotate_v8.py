@@ -366,51 +366,67 @@ def process_file(filepath: Path, dry_run: bool = False) -> Tuple[int, int]:
         line = lines[i]
         stripped = line.strip()
         
-        # 匹配 def xxx(...)
-        m = re.match(r'^(\s*)def\s+(\w+)\s*\(', line)
-        if m:
-            indent = m.group(1)
-            func_name = m.group(2)
-            
-            # 跳过私有辅助方法
-            if func_name.startswith(SKIP_PREFIXES):
-                i += 1
-                continue
-            
-            # 跳过已有注释的（下一行是 docstring 或前一行是注释）
-            has_docstring = False
-            if i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if next_line.startswith('"""') or next_line.startswith("'''"):
-                    has_docstring = True
-            
-            has_pre_comment = False
-            if i > 0:
-                prev_line = lines[i - 1].strip()
-                if prev_line.startswith('#') or prev_line.startswith('"""') or prev_line.startswith("'''"):
-                    has_pre_comment = True
-            
-            if has_docstring or has_pre_comment:
-                skipped += 1
-                i += 1
-                continue
-            
-            # 需要添加注释
-            comment = infer_comment(func_name, lines, i)
-            comment_line = f'{indent}"""\n{indent}{comment}\n{indent}"""'
-            comment_line = f'{indent}"""{comment}"""'
-            
-            if not dry_run:
-                lines.insert(i + 1, comment_line)
-                modified += 1
-                i += 2  # 跳过刚插入的行
-            else:
-                modified += 1
-                i += 1
-            
+        # 匹配 def xxx(...) — 必须匹配完整签名（可能跨多行）
+        if not re.match(r'^\s*def\s+\w+\s*\(', line):
+            i += 1
             continue
         
-        i += 1
+        m = re.match(r'^(\s*)def\s+(\w+)\s*\(', line)
+        if not m:
+            i += 1
+            continue
+        
+        indent = m.group(1)
+        func_name = m.group(2)
+        
+        # 跳过私有辅助方法
+        if func_name.startswith(SKIP_PREFIXES):
+            i += 1
+            continue
+        
+        # 找到函数体第一行（跳过跨行签名）
+        body_line_idx = i + 1
+        paren_depth = line.count('(') - line.count(')')
+        while body_line_idx < len(lines) and paren_depth > 0:
+            body_line_idx += 1
+            if body_line_idx < len(lines):
+                paren_depth += lines[body_line_idx].count('(') - lines[body_line_idx].count(')')
+        
+        # body_line_idx 现在指向签名结束后的第一行
+        # 检查该行是否为 docstring
+        has_docstring = False
+        if body_line_idx < len(lines):
+            next_line = lines[body_line_idx].strip()
+            if next_line.startswith('"""') or next_line.startswith("'''"):
+                has_docstring = True
+        
+        # 检查上一行是否为注释
+        has_pre_comment = False
+        if i > 0:
+            prev_line = lines[i - 1].strip()
+            if prev_line.startswith('#') or prev_line.startswith('"""') or prev_line.startswith("'''"):
+                has_pre_comment = True
+        
+        if has_docstring or has_pre_comment:
+            skipped += 1
+            i = body_line_idx
+            continue
+        
+        # 需要添加注释
+        comment = infer_comment(func_name, lines, i)
+        # 函数体内缩进 = def 行缩进 + 4 空格
+        body_indent = indent + '    '
+        comment_line = f'{body_indent}"""{comment}"""'
+        
+        if not dry_run:
+            lines.insert(body_line_idx, comment_line)
+            modified += 1
+            i = body_line_idx + 2  # 跳过刚插入的 docstring
+        else:
+            modified += 1
+            i = body_line_idx + 1
+        
+        continue
     
     if not dry_run:
         filepath.write_text("\n".join(lines), encoding="utf-8")

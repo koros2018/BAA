@@ -53,10 +53,12 @@ class YOLODetectionIntegrator:
 
     def load_model(self, model_path: Optional[str] = None) -> bool:
         """加载 YOLO 模型"""
+        # 条件分支：if self._loaded
         if self._loaded:  # 条件判断
             return True  # 返回
 
         path = model_path or self._model_path  # 赋值
+        # 条件分支：if not path
         if not path:  # 条件判断
             # 默认路径：从项目目录找最新训练的best.pt
             project_root = Path(__file__).resolve().parent.parent.parent  # 赋值
@@ -66,20 +68,25 @@ class YOLODetectionIntegrator:
                 project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",  # 操作
                 project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",  # 操作
             ]  # 闭合
+            # 遍历处理
             for c in candidates:  # 循环
+                # 条件分支：if c.exists()
                 if c.exists():  # 条件判断
                     path = str(c)  # 赋值
                     break  # 跳出循环
 
+        # 条件分支：if not path or not os.path.exists(path)
         if not path or not os.path.exists(path):  # 条件判断
             return False  # 返回
 
+        # 异常保护
         try:  # 尝试
             from ultralytics import YOLO
             self._model = YOLO(str(path))  # 赋值
             self._model_path = str(path)  # 赋值
             self._loaded = True  # 赋值
             return True  # 返回
+        # 异常处理
         except Exception:  # 捕获异常
             return False  # 返回
 
@@ -96,7 +103,9 @@ class YOLODetectionIntegrator:
                 - bbox: {"x", "y", "width", "height"} (像素坐标)
                 - properties: dict (额外属性)
         """
+        # 条件分支：if not self._loaded
         if not self._loaded:  # 条件判断
+            # 条件分支：if not self.load_model()
             if not self.load_model():  # 条件判断
                 return []  # 返回
 
@@ -108,11 +117,15 @@ class YOLODetectionIntegrator:
         )  # 闭合
 
         detections = []  # 赋值
+        # 遍历处理
         for result in results:  # 循环
+            # 条件分支：if result.boxes is None
             if result.boxes is None:  # 条件判断
                 continue  # 继续循环
+            # 遍历处理
             for box in result.boxes:  # 循环
                 cls_id = int(box.cls[0].item())  # 赋值
+                # 条件分支：if cls_id >= len(YOLO_CLASSES)
                 if cls_id >= len(YOLO_CLASSES):  # 条件判断
                     continue  # 继续循环
                 confidence = box.conf[0].item()  # 赋值
@@ -154,6 +167,7 @@ class YOLODetectionIntegrator:
             (image_path, detections)
         """
         image_path = self._render_dxf(dxf_path, dpi)  # 赋值
+        # 条件分支：if image_path is None
         if image_path is None:  # 条件判断
             return None, []  # 返回
         detections = self.predict(image_path)  # 赋值
@@ -176,12 +190,14 @@ class YOLODetectionIntegrator:
         img_w, img_h = image_size  # 赋值
         entities = []  # 赋值
 
+        # 遍历处理
         for det in detections:  # 循环
             px = det["bbox"]["x"]  # 赋值
             py = det["bbox"]["y"]  # 赋值
             pw = det["bbox"]["width"]  # 赋值
             ph = det["bbox"]["height"]  # 赋值
 
+            # 条件分支：if world_bbox
             if world_bbox:  # 条件判断
                 # 像素坐标 → 世界坐标
                 scale_x = world_bbox["width"] / img_w  # 赋值
@@ -190,6 +206,7 @@ class YOLODetectionIntegrator:
                 wy = world_bbox["y"] + py * scale_y  # 赋值
                 ww = pw * scale_x  # 赋值
                 wh = ph * scale_y  # 赋值
+            # 其他情况处理
             else:  # 否则
                 wx, wy, ww, wh = px, py, pw, ph  # 赋值
 
@@ -210,8 +227,10 @@ class YOLODetectionIntegrator:
                     existing = e  # 赋值
                     break  # 跳出循环
 
+            # 条件分支：if existing
             if existing:  # 条件判断
                 existing["count"] += 1  # 操作
+            # 其他情况处理
             else:  # 否则
                 entities.append(entity)  # 调用
 
@@ -225,9 +244,11 @@ class YOLODetectionIntegrator:
         import matplotlib.pyplot as plt
         import tempfile
 
+        # 异常保护
         try:  # 尝试
             doc = ezdxf.readfile(dxf_path)  # 赋值
             msp = doc.modelspace()  # 赋值
+        # 异常处理
         except Exception:  # 捕获异常
             return None  # 返回
 
@@ -239,22 +260,27 @@ class YOLODetectionIntegrator:
                     s, e = entity.dxf.start, entity.dxf.end  # 赋值
                     all_x.extend([s[0], e[0]])  # 调用
                     all_y.extend([s[1], e[1]])  # 调用
+                # 条件分支：elif entity.dxftype() == "LWPOLYLINE"
                 elif entity.dxftype() == "LWPOLYLINE":  # 分支
                     pts = [(v[0], v[1]) for v in entity.get_points()]  # 赋值
                     all_x.extend(p[0] for p in pts)  # 调用
                     all_y.extend(p[1] for p in pts)  # 调用
+                # 条件分支：elif entity.dxftype() == "CIRCLE"
                 elif entity.dxftype() == "CIRCLE":  # 分支
                     cx, cy = entity.dxf.center[:2]  # 赋值
                     r = entity.dxf.radius  # 赋值
                     all_x.extend([cx - r, cx + r])  # 调用
                     all_y.extend([cy - r, cy + r])  # 调用
+                # 条件分支：elif entity.dxftype() in ("TEXT", "MTEXT")
                 elif entity.dxftype() in ("TEXT", "MTEXT"):  # 分支
                     ins = entity.dxf.insert[:2]  # 赋值
                     all_x.append(ins[0])  # 调用
                     all_y.append(ins[1])  # 调用
+            # 异常处理
             except Exception:  # 捕获异常
                 continue  # 继续循环
 
+        # 条件分支：if not all_x
         if not all_x:  # 条件判断
             return None  # 返回
 
@@ -270,23 +296,30 @@ class YOLODetectionIntegrator:
         ax.set_aspect('equal')  # 调用
         ax.axis('off')  # 调用
 
+        # 遍历处理
         for entity in msp:  # 循环
             layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''  # 赋值
+            # 条件分支：if layer.upper() == "META"
             if layer.upper() == "META":  # 条件判断
                 continue  # 继续循环
             dxftype = entity.dxftype()  # 赋值
+            # 异常保护
             try:  # 尝试
+                # 条件分支：if dxftype == "LINE"
                 if dxftype == "LINE":  # 条件判断
                     s, e = entity.dxf.start, entity.dxf.end  # 赋值
                     ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)  # 调用
+                # 条件分支：elif dxftype == "LWPOLYLINE"
                 elif dxftype == "LWPOLYLINE":  # 分支
                     pts = [(v[0], v[1]) for v in entity.get_points()]  # 赋值
                     xs, ys = zip(*pts)  # 赋值
                     ax.plot(xs, ys, 'k-', linewidth=0.3)  # 调用
+                # 条件分支：elif dxftype == "CIRCLE"
                 elif dxftype == "CIRCLE":  # 分支
                     cx, cy = entity.dxf.center[:2]  # 赋值
                     r = entity.dxf.radius  # 赋值
                     ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))  # 调用
+                # 条件分支：elif dxftype == "ARC"
                 elif dxftype == "ARC":  # 分支
                     cx, cy = entity.dxf.center[:2]  # 赋值
                     r = entity.dxf.radius  # 赋值
@@ -294,6 +327,7 @@ class YOLODetectionIntegrator:
                                           theta1=entity.dxf.start_angle,  # 赋值
                                           theta2=entity.dxf.end_angle,  # 赋值
                                           color='k', linewidth=0.3))  # 赋值
+            # 异常处理
             except Exception:  # 捕获异常
                 continue  # 继续循环
 
