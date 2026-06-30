@@ -692,6 +692,10 @@ async def deconstruct(
             elem["total_count"] = stats["count"]  # 操作
         elif t == "fire_zone":  # 分支
             elem["total_area_sqm"] = round(total_area, 1)  # 操作
+        elif t in ("equipment", "foundation", "column"):  # 分支
+            elem["total_count"] = stats["count"]  # 操作
+        elif t == "other":  # 分支
+            elem["total_count"] = stats["count"]  # 操作
         elements.append(elem)  # 调用
 
     elapsed = int((time.time() - start) * 1000)  # 赋值
