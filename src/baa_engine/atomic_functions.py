@@ -396,10 +396,16 @@ class AtomicFunction:
 
         # EVAC 类：疏散路径判定
         if func_id == "EVAC-001":  # 疏散路径是否存在
+            if "has_evacuation_route" not in props:  # 条件判断
+                return None  # 无疏散路径分析结果，跳过判定
             return 1.0 if props.get("has_evacuation_route", False) else 0.0  # 返回
         if func_id == "EVAC-002":  # 疏散路径长度
+            if "evacuation_path_length" not in props and "travel_distance" not in props:  # 条件判断
+                return None  # 无疏散路径长度数据，跳过判定
             return props.get("evacuation_path_length", props.get("travel_distance", 0.0))  # 返回
         if func_id == "EVAC-003":  # 疏散路径是否超距
+            if "evacuation_too_far" not in props:  # 条件判断
+                return None  # 无疏散路径分析结果，跳过判定
             return 0.0 if props.get("evacuation_too_far", False) else 1.0  # 返回
 
         # 兜底：直接用value或0

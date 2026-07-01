@@ -227,9 +227,10 @@ class SemanticAnalyzer:
                 if r.get("path_length") is not None:  # 条件判断
                     ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
                 ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)  # 操作
-            # 对未找到路径的实体（如走廊兜底），标记为无路径
+            # 对未找到路径的实体：如果疏散路径分析有结果但房间不在其中，标记为无路径
+            # 如果分析结果为空（无出口/无拓扑），则不标记——让 EVAC 原子函数跳过判定
             elif ent.type in ("room", "corridor"):  # 分支
-                if "has_evacuation_route" not in ent.properties:  # 条件判断
+                if "has_evacuation_route" not in ent.properties and evacuation_routes:  # 条件判断
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
 
