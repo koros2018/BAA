@@ -26,3 +26,5 @@ memory/
 .idea/data/logs/
 data/1*
 ROADMAP.md
+.venv_old/
+datasets/

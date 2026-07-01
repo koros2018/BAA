@@ -113,6 +113,7 @@ class YOLODetectionIntegrator:
             source=image_path,  # 赋值
             conf=conf,  # 赋值
             iou=iou,  # 赋值
+            imgsz=640,  # 限制推理尺寸，防 OOM
             verbose=False,  # 赋值
         )  # 闭合
 
@@ -290,6 +291,12 @@ class YOLODetectionIntegrator:
 
         fig_w = max(x_max - x_min, 1) * 0.4  # 赋值
         fig_h = max(y_max - y_min, 1) * 0.4  # 赋值
+        # 限制最大图像尺寸，防止 OOM（max 2048px）
+        max_pixels = 2048  # 赋值
+        if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:  # 条件判断
+            scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))  # 赋值
+            fig_w *= scale  # 赋值
+            fig_h *= scale  # 赋值
         fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)  # 赋值
         ax.set_xlim(x_min, x_max)  # 调用
         ax.set_ylim(y_min, y_max)  # 调用

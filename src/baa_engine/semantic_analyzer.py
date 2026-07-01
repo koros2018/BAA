@@ -1,8 +1,12 @@
 """
 BAA 语义识别引擎 - 图元分类 + 空间关系构建（规则版）
 """
+import os
 from typing import List, Dict, Any, Optional, Tuple
-from .drawing_parser import RawPrimitive
+from .drawing_parser import RawPrimitive  # 导入
+import logging  # 导入
+
+logger = logging.getLogger(__name__)  # 赋值
 
 
 # ── 图层规则表 ────────────────────────────────────────────
@@ -133,7 +137,8 @@ class SemanticAnalyzer:
     def analyze(self, primitives: List[RawPrimitive],
                 dimensions: List[Dict] = None,  # 操作
                 max_entities: int = 3000,  # 赋值
-                building_type: str = "civil") -> Dict[str, Any]:  # 赋值
+                building_type: str = "civil",  # 赋值
+                dxf_path: Optional[str] = None) -> Dict[str, Any]:  # 赋值
         """
         执行语义分析
 
@@ -141,6 +146,7 @@ class SemanticAnalyzer:
             primitives: 原始图元列表
             dimensions: 尺寸标注列表
             max_entities: 最大处理实体数（超过则采样，防OOM）
+            dxf_path: DXF 文件路径（可选），提供后启用 YOLO 检测增强
 
         输出: 结构化语义数据（entities + relations + attributes）
         """
@@ -154,6 +160,16 @@ class SemanticAnalyzer:
 
         # Step 1: 图元分类归并
         entities = self._classify_entities(primitives)  # 赋值
+
+        # Step 1.1: YOLO 检测增强（可选，通过 dxf_path 触发）
+        if dxf_path:  # 条件判断
+            try:  # 尝试
+                yolo_entities = self._yolo_enhance(dxf_path)  # 赋值
+                if yolo_entities:  # 条件判断
+                    entities = self._merge_yolo_results(entities, yolo_entities)  # 赋值
+                    logger.info(f"YOLO 增强: 新增 {len(yolo_entities)} 个实体, 合并后共 {len(entities)} 个")  # 调用
+            except Exception as e:  # 捕获异常
+                logger.warning(f"YOLO 增强失败: {e}")  # 调用
 
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)  # 赋值
@@ -1278,3 +1294,124 @@ class SemanticAnalyzer:
                 "exceeds_max_distance": found_route is not None and found_route[1] > (20.0 if room.properties.get("is_dead_end", False) else 30.0),  # 字段
             }  # 闭合
             routes.append(route_info)  # 调用
+
+        return routes  # 返回
+
+    def _yolo_enhance(self, dxf_path: str) -> List[SemanticEntity]:
+        """对 DXF 执行 YOLO 检测，返回增强实体列表
+
+        当前只保留 YOLO 检测精度高的实体类型：
+        - room (mAP50=0.995)：房间检测极准确
+        - corridor (mAP50=0.709)：走廊检测良好
+        """
+        from .yolo_integrator import YOLODetectionIntegrator  # 导入
+
+        integrator = YOLODetectionIntegrator()  # 赋值
+        if not integrator.load_model():  # 条件判断
+            logger.warning("YOLO 模型加载失败")  # 调用
+            return []  # 返回
+
+        # 渲染 DXF 并预测
+        image_path, detections = integrator.render_and_predict(dxf_path, dpi=72)  # 赋值
+        if not image_path or not detections:  # 条件判断
+            return []  # 返回
+
+        # 只保留高精度类型（room, corridor）
+        # room mAP50=0.995, corridor mAP50=0.709
+        HIGH_CONF_TYPES = {"room", "corridor"}  # 赋值
+        filtered = [d for d in detections if d["type"] in HIGH_CONF_TYPES and d["confidence"] >= 0.35]  # 赋值
+
+        # 对 room 类型：过滤掉 bbox 面积过小或过大的（不合理房间）
+        # YOLO 的 bbox 是像素坐标，需要先转为世界坐标再判断面积
+        # 用 bbox 的像素宽高比辅助判断：房间应该是矩形（宽高比 < 3）
+        filtered = [d for d in filtered if d["type"] != "room" or (
+            d["bbox"]["width"] > 20 and d["bbox"]["height"] > 20 and  # 最小尺寸 20 像素
+            max(d["bbox"]["width"], d["bbox"]["height"]) / max(d["bbox"]["height"], d["bbox"]["width"], 1) < 4.0  # 宽高比 < 4
+        )]  # 闭合
+
+        if not filtered:  # 条件判断
+            return []  # 返回
+
+        # 转换为 SemanticEntity
+        entities = []  # 赋值
+        for det in filtered:  # 循环
+            self._entity_counter += 1  # 赋值
+            entity = SemanticEntity(  # 赋值
+                entity_id=f"YOLO_{det['type'].upper()}_{self._entity_counter:03d}",  # 赋值
+                entity_type=det["type"],  # 赋值
+                bbox=det["bbox"],  # 赋值
+                layer="YOLO",  # 赋值
+                confidence=det["confidence"],  # 赋值
+                properties={
+                    **det.get("properties", {}),  # 展开
+                    "detection_source": "yolo",  # 字段
+                },  # 闭合
+            )  # 闭合
+            entities.append(entity)  # 调用
+
+        # 清理临时图片
+        try:  # 尝试
+            os.remove(image_path)  # 调用
+        except Exception:  # 捕获异常
+            pass  # 忽略
+
+        return entities  # 返回
+
+    def _merge_yolo_results(self, rule_entities: List[SemanticEntity],
+                             yolo_entities: List[SemanticEntity]) -> List[SemanticEntity]:
+        """合并规则解析和 YOLO 检测的实体
+
+        策略：
+        1. 规则解析的实体优先保留（含已识别的 room）
+        2. YOLO 检测的 room/corridor 只在规则未识别到时添加
+        3. 通过 IOU 判断重叠——YOLO 框与规则框高度重叠时不重复添加
+        4. YOLO 实体标记 detection_source="yolo"，原子函数对 YOLO 实体放宽判定
+        """
+        if not yolo_entities:  # 条件判断
+            return rule_entities  # 返回
+
+        merged = list(rule_entities)  # 赋值
+        added_ids = set()  # 赋值
+
+        for yolo_ent in yolo_entities:  # 循环
+            yolo_bbox = yolo_ent.bbox  # 赋值
+            yolo_center_x = yolo_bbox["x"] + yolo_bbox["width"] / 2  # 赋值
+            yolo_center_y = yolo_bbox["y"] + yolo_bbox["height"] / 2  # 赋值
+
+            # 检查是否与规则实体重叠
+            is_duplicate = False  # 赋值
+            for rule_ent in rule_entities:  # 循环
+                # 只检查同类型（room 可能被归为 wall，所以放宽限制）
+                if yolo_ent.type == "room" and rule_ent.type not in ("room", "wall"):  # 条件判断
+                    continue  # 继续循环
+                if yolo_ent.type == "corridor" and rule_ent.type != "corridor":  # 条件判断
+                    continue  # 继续循环
+
+                rule_bbox = rule_ent.bbox  # 赋值
+                # 检查 YOLO 中心点是否在规则实体的 bbox 内
+                if (rule_bbox["x"] <= yolo_center_x <= rule_bbox["x"] + rule_bbox["width"] and
+                    rule_bbox["y"] <= yolo_center_y <= rule_bbox["y"] + rule_bbox["height"]):  # 条件判断
+                    is_duplicate = True  # 赋值
+                    break  # 跳出循环
+
+                # 计算 IOU
+                inter_x = max(0, min(yolo_bbox["x"] + yolo_bbox["width"], rule_bbox["x"] + rule_bbox["width"]) -
+                                 max(yolo_bbox["x"], rule_bbox["x"]))  # 赋值
+                inter_y = max(0, min(yolo_bbox["y"] + yolo_bbox["height"], rule_bbox["y"] + rule_bbox["height"]) -
+                                 max(yolo_bbox["y"], rule_bbox["y"]))  # 赋值
+                union = yolo_bbox["width"] * yolo_bbox["height"] + rule_bbox["width"] * rule_bbox["height"] - inter_x * inter_y  # 赋值
+                iou = (inter_x * inter_y) / max(union, 1)  # 赋值
+                if iou > 0.3:  # 条件判断
+                    is_duplicate = True  # 赋值
+                    break  # 跳出循环
+
+            if not is_duplicate and yolo_ent.id not in added_ids:  # 条件判断
+                # YOLO 实体标记检测来源，原子函数会据此放宽尺寸相关判定
+                yolo_ent.properties["detection_source"] = "yolo"  # 操作
+                # 对 YOLO 检测的 room 不设置 area 属性（bbox 映射不精确）
+                if yolo_ent.type == "room":  # 条件判断
+                    yolo_ent.properties.pop("area", None)  # 操作
+                merged.append(yolo_ent)  # 调用
+                added_ids.add(yolo_ent.id)  # 调用
+
+        return merged  # 返回

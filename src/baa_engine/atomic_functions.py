@@ -277,6 +277,9 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))  # 赋值
             if val < 0.01:  # 条件判断
                 return None  # 无宽度数据，跳过判定
+            # YOLO 检测的实体尺寸不精确，跳过尺寸判定
+            if props.get("detection_source") == "yolo":  # 条件判断
+                return None  # 返回
             # DIM-006 疏散门净宽：exit_door 类型始终判定；普通 door 仅宽度 >= 1.3m 时判定
             # 0.8~1.3m 的门是标准单开门/双开门，不是人员密集场所疏散门
             if func_id == "DIM-006":  # 条件判断
@@ -358,6 +361,9 @@ class AtomicFunction:
             return val  # 返回
 
         if func_id == "AREA-002":  # 消防电梯前室面积
+            # YOLO 检测的实体 bbox 映射不精确，跳过面积判定
+            if props.get("detection_source") == "yolo":  # 条件判断
+                return None  # 返回
             val = props.get("area", 0.0)  # 赋值
             if val < 0.01:  # 条件判断
                 # 从 bbox 宽高计算面积（mm²）

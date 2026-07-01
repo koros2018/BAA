@@ -87,9 +87,9 @@ def validate_drawing(data_dir: Path, filename: str, label: str, btype: str) -> d
             result["total_time_ms"] = int((time.time() - t0) * 1000)
             return result
 
-        # 2. 语义分析
+        # 2. 语义分析（启用 YOLO 增强）
         analyzer = SemanticAnalyzer()
-        semantic = analyzer.analyze(drawing_result.primitives, drawing_result.dimensions)
+        semantic = analyzer.analyze(drawing_result.primitives, drawing_result.dimensions, dxf_path=filepath)
         entities = semantic.get("entities", semantic) if isinstance(semantic, dict) else semantic
         # 兼容：analyze 可能返回 dict {entities, relations, attributes} 或直接返回列表
         if isinstance(entities, dict):
