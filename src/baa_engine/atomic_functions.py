@@ -244,7 +244,14 @@ class AtomicFunction:
             return props.get("count", props.get("exit_count", 1.0))  # 返回
 
         if func_id == "ATTR-001":  # 防火门等级
+            # 区分"属性不存在"和"属性值为0"：
+            # - 属性不存在（真实图纸）：跳过判定，不产生违规
+            # - 属性值为0（合成图纸显式设0表示丙级以下）：返回 FAIL
+            has_fire_rating = "fire_rating" in props or "rating" in props  # 赋值
             val = props.get("fire_rating", props.get("rating", 0.0))  # 赋值
+            if not has_fire_rating:  # 条件判断
+                # 完全无防火等级属性 → 无法判定
+                return None  # 返回
             if val < 0.5 and entity_type in ("door", "exit_door"):  # 条件判断
                 # 非 fire_door：不判定防火等级
                 return None  # 返回
@@ -270,6 +277,12 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))  # 赋值
             if val < 0.01:  # 条件判断
                 return None  # 无宽度数据，跳过判定
+            # DIM-006 疏散门净宽：exit_door 类型始终判定；普通 door 仅宽度 >= 1.3m 时判定
+            # 0.8~1.3m 的门是标准单开门/双开门，不是人员密集场所疏散门
+            if func_id == "DIM-006":  # 条件判断
+                entity_type = entity.get("type", "")  # 赋值
+                if entity_type != "exit_door" and val < 1.3:  # 条件判断
+                    return None  # 普通门（<1.3m）不是疏散门，不适用此规范
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # 条件判断
                 return None  # 返回
@@ -291,7 +304,12 @@ class AtomicFunction:
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0  # 返回
 
         if func_id == "ATTR-002":  # 保温材料等级
-            return props.get("fire_rating", props.get("rating", 0.0))  # 返回
+            has_fire_rating = "fire_rating" in props or "rating" in props  # 赋值
+            val = props.get("fire_rating", props.get("rating", 0.0))  # 赋值
+            if not has_fire_rating:  # 条件判断
+                # 完全无防火等级属性 → 无法判定
+                return None  # 返回
+            return val  # 返回
 
         if func_id == "LIGHT-001":  # 照度
             return props.get("illuminance", props.get("lux", 0.0))  # 返回
@@ -313,6 +331,11 @@ class AtomicFunction:
             val = props.get("width", props.get("clear_width", 0.0))  # 赋值
             if val < 0.01:  # 条件判断
                 return None  # 无宽度数据，跳过判定
+            # DIM-009 疏散出口宽度：仅适用于 exit/exit_door 或宽度 >= 1.3m 的 door
+            # 0.8~1.3m 的门是标准单开门，不是疏散出口
+            entity_type = entity.get("type", "")  # 赋值
+            if entity_type not in ("exit", "exit_door") and val < 1.3:  # 条件判断
+                return None  # 普通门（<1.3m）不是疏散出口，不适用此规范
             # 小门（<0.8m）不适用疏散出口宽度判定
             if val < 0.8:  # 条件判断
                 return None  # 返回
@@ -341,7 +364,15 @@ class AtomicFunction:
                 bw = entity.get("bbox", {}).get("width", 0)  # 赋值
                 bh = entity.get("bbox", {}).get("height", 0)  # 赋值
                 if bw > 0 and bh > 0:  # 条件判断
-                    val = bw * bh  # 赋值
+                    bbox_area = bw * bh  # 赋值
+                    # bbox 面积太小（< 0.5m²）或太大（> 500m²），说明不是真实房间
+                    bbox_area_m2 = bbox_area / 1000000.0  # 赋值
+                    if 0.5 <= bbox_area_m2 <= 500:  # 条件判断
+                        val = bbox_area  # 赋值
+                    else:  # 否则
+                        return None  # bbox 面积不合理，跳过判定
+            if val < 0.01:  # 条件判断
+                return None  # 无面积数据，跳过判定
             if unit == "mm2":  # 条件判断
                 return val / 1000000.0  # 返回
             if unit == "m2":  # 条件判断
@@ -351,7 +382,11 @@ class AtomicFunction:
             return val  # 返回
 
         if func_id == "ATTR-003":  # 防火窗等级
+            has_fire_rating = "fire_rating" in props or "rating" in props  # 赋值
             val = props.get("fire_rating", props.get("rating", 0.0))  # 赋值
+            if not has_fire_rating:  # 条件判断
+                # 完全无防火等级属性 → 无法判定
+                return None  # 返回
             if val < 0.01:  # 条件判断
                 return None  # 无防火等级数据，跳过判定
             return val  # 返回

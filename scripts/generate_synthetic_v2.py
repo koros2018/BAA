@@ -162,7 +162,9 @@ def generate_drawing(building_type, variant, dwg_id, violations):
         # 门
         door_x = room_width
         door_y = ry + room_h * 0.3
-        door_w = 0.9
+        # DIM-006 违规时用 1.35m（略低于 1.4m 阈值）模拟疏散门过窄；
+        # 否则用 0.9m 标准单开门
+        door_w = 1.35 if violations.get("DIM-006", {}).get("fail") else 0.9
         add_door(msp, door_x, door_y, door_w, "DOOR")
         db = {"x": door_x, "y": door_y, "width": 0.5, "height": door_w}
         register_entity("door", door_x, door_y, 0.5, door_w, {"width": door_w}, bbox=db)

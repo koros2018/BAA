@@ -161,13 +161,26 @@ class SemanticAnalyzer:
         # Step 1.6: door/fire_door 属性增强（宽度兜底 + 防火等级推断）
         for ent in entities:  # 循环
             if ent.type in ("door", "fire_door", "exit_door"):  # 条件判断
-                # 宽度兜底：bbox短边推断
+                # 宽度兜底：bbox长边优先推断（门扇的宽度是长边，短边是门扇厚度）
                 if ent.properties.get("width", 0) < 0.3 and ent.properties.get("clear_width", 0) < 0.3:  # 条件判断
                     bbox = ent.bbox  # 赋值
                     bw = bbox.get("width", 0)  # 赋值
                     bh = bbox.get("height", 0)  # 赋值
                     if bw > 0 and bh > 0:  # 条件判断
-                        w_mm = min(bw, bh)  # 赋值
+                        # 优先用长边推断门的宽度（短边是门扇厚度）
+                        long_edge = max(bw, bh)  # 赋值
+                        short_edge = min(bw, bh)  # 赋值
+                        # 门宽度的常见模数值（mm）：700/800/900/1000/1200/1500
+                        COMMON_DOOR_WIDTHS = [700, 800, 900, 1000, 1200, 1500]  # 赋值
+                        # 如果长边是短边的 3 倍以上，说明长边是门宽、短边是厚度
+                        if short_edge > 0 and long_edge / short_edge >= 3.0:  # 条件判断
+                            w_mm = long_edge  # 赋值
+                        else:  # 否则
+                            w_mm = long_edge  # 赋值
+                        # 匹配最近的模数
+                        best_match = min(COMMON_DOOR_WIDTHS, key=lambda x: abs(x - w_mm))  # 赋值
+                        if abs(w_mm - best_match) / max(best_match, 1) < 0.3:  # 偏差 < 30%，取模数
+                            w_mm = best_match  # 赋值
                         w_m = w_mm * 0.001  # 赋值
                         if 0.3 < w_m < 3.0:  # 条件判断
                             ent.properties["width"] = w_m  # 操作
@@ -177,17 +190,16 @@ class SemanticAnalyzer:
                     existing_rating = ent.properties.get("fire_rating", ent.properties.get("rating", 0))  # 赋值
                     if existing_rating < 0.5:  # 条件判断
                         # 图层名包含关键字推断
+                        # 注意：META 图层可能含有 A/B/C，要用完整单词匹配避免误触
                         layer_upper = (ent.layer or "").upper()  # 赋值
-                        combined = layer_upper  # 赋值
-                        if "甲" in combined or "A" in combined:  # 条件判断
+                        words = layer_upper.replace("-", " ").replace("_", " ").split()  # 赋值
+                        if "甲" in layer_upper or "A" in words:  # 条件判断
                             ent.properties["fire_rating"] = 3.0  # 甲级=3.0
-                        elif "乙" in combined or "B" in combined:  # 分支
+                        elif "乙" in layer_upper or "B" in words:  # 分支
                             ent.properties["fire_rating"] = 2.0  # 乙级=2.0
-                        elif "丙" in combined or "C" in combined:  # 分支
+                        elif "丙" in layer_upper or "C" in words:  # 分支
                             ent.properties["fire_rating"] = 1.0  # 丙级=1.0
-                        else:  # 否则
-                            # 默认设为甲级（保守安全策略）
-                            ent.properties["fire_rating"] = 3.0  # 操作
+                        # 不设默认值——无法推断时留空，让原子函数处理
 
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # 赋值
