@@ -503,7 +503,7 @@ class FuncRegistry:
         # 消防电梯前室面积
         AtomicFunction("AREA-002", "消防电梯前室面积判定", FuncCategory.AREA,  # 调用
                        "GB50016-7.3.5", "消防电梯前室面积不应小于6㎡", ">=", 6.0, "㎡",
-                       target_entities=["elevator_lobby", "lobby", "room"]),  # 赋值
+                       target_entities=["elevator_lobby", "lobby"]),  # 赋值
         # 疏散走道长度
         AtomicFunction("DIST-003", "袋形走道长度判定", FuncCategory.DISTANCE,  # 调用
                        "GB50016-5.5.17", "袋形走道长度不应大于20m", "<=", 20.0, "m",
