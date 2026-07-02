@@ -278,7 +278,9 @@ class DrawingParser:
 
         天正 T3 图纸通常同时提供 DWG 和 DXF 版本。
         如果同目录有同名 DXF，直接用它。
+        增强：如果同目录没有，也搜索父目录和同级目录。
         """
+        # 1. 同目录同名 DXF
         dxf_path = path.with_suffix('.dxf')
         if dxf_path.exists():
             try:
@@ -289,47 +291,119 @@ class DrawingParser:
                     return dxf_doc
             except Exception:
                 pass
+
+        # 2. 搜索父目录及以下所有子目录，找同名或近名 DXF
+        parent_dir = path.parent.parent
+        if parent_dir.exists() and parent_dir != path.parent:
+            dwg_name = path.stem  # 去掉后缀
+            for dxf_file in parent_dir.rglob('*.dxf'):
+                dxf_stem = dxf_file.stem
+                # 匹配规则：去掉编号、_t3 后缀后比较核心名称
+                if self._names_match(dwg_name, dxf_stem):
+                    try:
+                        dxf_doc = ezdxf.readfile(str(dxf_file))
+                        msp = dxf_doc.modelspace()
+                        count = len(list(msp))
+                        if count > 10:
+                            return dxf_doc
+                    except Exception:
+                        pass
+
         return None
+
+    def _names_match(self, dwg_name: str, dxf_name: str) -> bool:
+        """检查 DWG 和 DXF 文件名是否匹配
+
+        天正 T3 文件命名不统一，需要做模糊匹配：
+        - 去掉编号前缀（数字开头的部分）
+        - 去掉 _t3 后缀
+        - 统一空格和括号
+        """
+        import re
+
+        def normalize(name: str) -> str:
+            # 去掉 _t3 后缀
+            name = re.sub(r'_t3$', '', name, flags=re.IGNORECASE)
+            # 去掉开头的数字编号（如 "6.", "20210409-3#"）
+            name = re.sub(r'^[\d#\-\.\s]+', '', name)
+            # 统一括号和空格
+            name = name.replace('（', '(').replace('）', ')')
+            name = name.replace('_', '').replace(' ', '')
+            return name.lower()
+
+        dwg_norm = normalize(dwg_name)
+        dxf_norm = normalize(dxf_name)
+        return dwg_norm == dxf_norm or dwg_norm in dxf_norm or dxf_norm in dwg_norm
 
     def _try_librecad_convert(self, path: Path) -> Optional[Any]:
         """尝试用 LibreCAD CLI 将 DWG 转换为 DXF
 
-        LibreCAD 对天正 T3 格式有较好的兼容性。
-        需要系统中安装 LibreCAD。
+        LibreCAD -c 不生成输出文件，CLI 只支持 dxf2pdf，无法做 DWG→DXF 转换。
+        此方法目前返回 None，保留接口以备未来支持。
         """
-        librecad = shutil.which('librecad')
-        if not librecad:
-            return None
+        # LibreCAD CLI 不支持 DWG→DXF 转换，跳过
+        return None
 
+    def _try_aspose_cad_convert(self, path: Path) -> Optional[Any]:
+        """尝试用 aspose-cad 将 DWG 转换为 DXF
+
+        aspose-cad 基于 .NET 互操作，能解析 T3 DWG 但触发 ICU/libssl SIGABRT。
+        用子进程隔离避免主进程崩溃，并设置 DOTNET_SYSTEM_GLOBALIZATION_INVARIANT。
+        """
         tmp_dxf = tempfile.NamedTemporaryFile(suffix='.dxf', delete=False)
         tmp_path = tmp_dxf.name
         tmp_dxf.close()
 
         try:
+            script = f'''
+import os, sys, signal
+sys.path.insert(0, "/home/kezhigang/.local/lib/python3.12/site-packages")
+# 捕获 SIGABRT
+signal.signal(signal.SIGABRT, lambda *a: sys.exit(127))
+
+try:
+    import aspose.cad as ac
+    from aspose.cad.imageoptions import DxfOptions
+except Exception:
+    sys.exit(1)
+
+try:
+    img = ac.Image.load("{str(path)}")
+    if img is None:
+        sys.exit(1)
+    opts = DxfOptions()
+    img.save("{tmp_path}", opts)
+except Exception:
+    sys.exit(2)
+'''
+            env = os.environ.copy()
+            env['DOTNET_SYSTEM_GLOBALIZATION_INVARIANT'] = '1'
             result = subprocess.run(
-                [librecad, '-c', str(path), tmp_path],
-                capture_output=True,
-                timeout=60,
-                cwd='/tmp'
+                [sys.executable, '-c', script],
+                capture_output=True, timeout=180, cwd='/tmp', env=env
             )
-            if result.returncode == 0 and Path(tmp_path).stat().st_size > 1000:
-                dxf_doc = ezdxf.readfile(tmp_path)
-                msp = dxf_doc.modelspace()
-                count = len(list(msp))
-                if count > 10:
-                    return dxf_doc
+            if result.returncode == 0:
+                stat = Path(tmp_path).stat()
+                if stat.st_size > 10000:
+                    try:
+                        dxf_doc = ezdxf.readfile(tmp_path)
+                        msp = dxf_doc.modelspace()
+                        count = len(list(msp))
+                        if count > 10:
+                            return dxf_doc
+                    except Exception:
+                        pass
         except Exception:
             pass
         finally:
             Path(tmp_path).unlink(missing_ok=True)
-
         return None
 
     def _try_ezdwg_export_dxf(self, path: Path) -> Optional[Any]:
         """第 1 级：ezdwg.read() + export_dxf() 直转"""
         try:
-            from ezdwg import Document as _DwgDoc
-            dwg_doc = _DwgDoc.read(str(path))
+            import ezdwg as _ezdwg
+            dwg_doc = _ezdwg.read(str(path))
             tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
             tmp_path = tmp.name
             tmp.close()
@@ -346,8 +420,8 @@ class DrawingParser:
         增强版：增加 INSERT 展开、HATCH、SOLID 实体支持
         """
         try:
-            from ezdwg import Document as _DwgDoc
-            dwg_doc = _DwgDoc.read(str(path))
+            import ezdwg as _ezdwg
+            dwg_doc = _ezdwg.read(str(path))
             msp_src = dwg_doc.modelspace()
             dxf_doc = ezdxf.new("R2010")
             msp_dst = dxf_doc.modelspace()
@@ -593,22 +667,27 @@ class DrawingParser:
         if dxf_result is not None:
             return dxf_result
 
-        # ── 第 1 级：export_dxf 直转 ──
+        # ── 第 1 级：aspose-cad 转换（最可靠，支持 T3） ──
+        result = self._try_aspose_cad_convert(path)
+        if result is not None:
+            return result
+
+        # ── 第 2 级：export_dxf 直转 ──
         result = self._try_ezdwg_export_dxf(path)
         if result is not None:
             return result
 
-        # ── 第 1.5 级：LibreCAD CLI 转换 ──
+        # ── 第 3 级：LibreCAD CLI 转换 ──
         result = self._try_librecad_convert(path)
         if result is not None:
             return result
 
-        # ── 第 2 级：手动逐元素转换 ──
+        # ── 第 4 级：手动逐元素转换 ──
         result = self._try_manual_convert(path)
         if result is not None:
             return result
 
-        # ── 第 3 级：raw 逐个类型解码 ──
+        # ── 第 5 级：raw 逐个类型解码 ──
         result = self._try_raw_decode(path)
         if result is not None:
             return result

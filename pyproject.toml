@@ -6,6 +6,11 @@ description = "Blueprint AI Agent - 图纸合规智能体"
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
+addopts = "-m 'not slow' --tb=short"
+markers = [
+    "slow: slow-running tests (skip by default)",
+    "api: API-level integration tests",
+]
 
 [tool.black]
 line-length = 100
