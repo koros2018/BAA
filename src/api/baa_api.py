@@ -18,7 +18,7 @@ import time  # 时间戳、超时控制
 import json  # JSON 序列化/反序列化
 import gc  # 垃圾回收
 from pathlib import Path  # 跨平台路径操作
-from typing import Optional, List  # 类型注解
+from typing import Optional, List, Dict  # 类型注解
 from datetime import datetime, timedelta  # 日期时间处理
 
 # ── FastAPI 及依赖 ──────────────────────────────────────────
@@ -50,10 +50,15 @@ MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── 异步任务存储（内存） ───────────────────────────────────
 from collections import Counter
+import hashlib
 
 # EMA2 第三方对接用：异步审查任务 + Webhook 回调的全局存储
 _tasks = {}     # task_id -> {status, result, created_at, webhook_url, ...}
 _webhooks = {}  # webhook_id -> {url, events, active, ...}
+
+# 审查结果缓存：file_hash -> response_data
+_review_cache: Dict[str, dict] = {}
+_REVIEW_CACHE_MAX = 100
 
 # 支持的文件格式（DWG/DXF）
 SUPPORTED_FORMATS = {"dxf", "dwg"}
@@ -780,6 +785,14 @@ async def review(
     file_id = generate_file_id()
     file_path = store_file(content, file_id, ext)
 
+    # ── 缓存检查：相同文件内容秒级返回 ──────────────────────
+    file_hash = hashlib.sha256(content).hexdigest()[:32]
+    cached = _review_cache.get(file_hash)
+    if cached is not None:
+        # 更新 file_id 以支持后续 PDF 导出
+        cached["file_id"] = file_id
+        return cached
+
     start = time.time()
     loop = asyncio.get_event_loop()
 
@@ -923,6 +936,13 @@ async def review(
             {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}  # 字面量
             for e in entities  # 循环
         ]
+
+    # ── 写入缓存 ──────────────────────────────────────────
+    if file_hash:
+        if len(_review_cache) >= _REVIEW_CACHE_MAX:
+            old_key = next(iter(_review_cache))
+            del _review_cache[old_key]
+        _review_cache[file_hash] = response_data
 
     return response_data
 

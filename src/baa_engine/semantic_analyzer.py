@@ -133,6 +133,8 @@ class SemanticAnalyzer:
 
     def __init__(self):
         self._entity_counter = 0
+        self._analyze_cache: Dict[str, Dict[str, Any]] = {}  # hash -> result
+        self._cache_max = 50
 
     def analyze(self, primitives: List[RawPrimitive],
                 dimensions: List[Dict] = None,  # 操作
@@ -151,6 +153,21 @@ class SemanticAnalyzer:
         输出: 结构化语义数据（entities + relations + attributes）
         """
         self._entity_counter = 0
+
+        # ── 缓存检查：相同 primitives hash 秒级返回 ──────
+        try:
+            import hashlib
+            prim_hash = hashlib.md5(str(id(primitives))).hexdigest()[:16]
+            # 使用前100个图元的type+bbox近似指纹
+            fingerprint_parts = []
+            for p in primitives[:100]:
+                fingerprint_parts.append(f"{p.dxf_type}:{p.bbox}")
+            fingerprint = hashlib.sha256("".join(fingerprint_parts).encode()).hexdigest()[:32]
+            cached = self._analyze_cache.get(fingerprint)
+            if cached is not None:
+                return cached
+        except Exception:
+            fingerprint = None
 
         # 采样限制，防止全量关系构建OOM
         if len(primitives) > max_entities:
@@ -250,7 +267,7 @@ class SemanticAnalyzer:
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
 
-        return {
+        result = {
             "entities": [e.to_dict() for e in entities],  # 字段
             "relations": [r.__dict__ if hasattr(r, '__dict__') else r for r in relations],  # 字段
             "attributes": attributes,  # 字段
@@ -258,6 +275,15 @@ class SemanticAnalyzer:
             "corridor_topology": corridor_topology,  # 字段
             "evacuation_routes": evacuation_routes,  # 字段
         }
+
+        # ── 写入缓存 ──────────────────────────────────────
+        if fingerprint and result:
+            if len(self._analyze_cache) >= self._cache_max:
+                old_key = next(iter(self._analyze_cache))
+                del self._analyze_cache[old_key]
+            self._analyze_cache[fingerprint] = result
+
+        return result
 
     def _parse_meta_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
         """

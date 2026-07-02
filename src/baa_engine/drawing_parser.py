@@ -76,6 +76,8 @@ class DrawingParser:
 
     def __init__(self):
         self._doc = None
+        self._parse_cache: Dict[str, DrawingResult] = {}  # file_hash -> DrawingResult
+        self._cache_max = 50  # 最多缓存50个结果
 
     def parse(self, file_path: str, file_id: str = None) -> DrawingResult:
         """
@@ -90,6 +92,16 @@ class DrawingParser:
         """
         path = Path(file_path)
         ext = path.suffix.lower()
+
+        # ── 文件哈希缓存：相同文件秒级返回 ────────────────
+        try:
+            import hashlib
+            file_hash = hashlib.sha256(path.read_bytes()).hexdigest()[:32]
+            cached = self._parse_cache.get(file_hash)
+            if cached is not None:
+                return cached
+        except Exception:
+            file_hash = None
 
         if ext not in self.SUPPORTED_FORMATS:
             return DrawingResult(
@@ -161,12 +173,22 @@ class DrawingParser:
         primitives = self._extract_primitives()
         dimensions = self._extract_dimensions()
 
-        return DrawingResult(
+        result = DrawingResult(
             file_path=file_path,
             file_id=file_id or f"baa-file-{path.stem}",
             primitives=primitives,
             dimensions=dimensions,
         )
+
+        # ── 写入缓存 ──────────────────────────────────────
+        if file_hash and result.success:
+            if len(self._parse_cache) >= self._cache_max:
+                # 淘汰最旧的一个
+                old_key = next(iter(self._parse_cache))
+                del self._parse_cache[old_key]
+            self._parse_cache[file_hash] = result
+
+        return result
 
     def _extract_primitives(self) -> List[RawPrimitive]:
         """提取所有图元"""
@@ -694,6 +716,10 @@ except Exception:
 
         # ── 第 5 级：所有方案都失败 ──
         return None
+
+    def clear_cache(self):
+        """清除解析缓存"""
+        self._parse_cache.clear()
 
     def _compute_bbox(self, entity) -> Dict[str, float]:
         """计算图元边界框
