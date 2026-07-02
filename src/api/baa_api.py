@@ -2317,6 +2317,147 @@ async def adjust_threshold(
     return {"status": "success", "adjustment": adjustment}
 
 
+# ── 审查结果对比（Diff） ─────────────────────────────────
+
+
+@app.post("/review/compare")
+async def review_compare(
+    file1: UploadFile = File(..., description="版本1（旧图纸）"),
+    file2: UploadFile = File(..., description="版本2（新图纸）"),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),
+    api_key: str = Depends(verify_api_key),
+):
+    """审查结果对比（Diff）
+
+    上传同一图纸的两个版本，自动分别审查并对比差异：
+    - 新增违规：新版新增的违规项
+    - 消失违规：旧版有但新版已修复的违规项
+    - 变化违规：同一实体值或状态发生变化
+
+    返回结构化 Diff 报告，含变更摘要和逐条详情。
+    """
+    from src.baa_engine.review_diff import ReviewDiffEngine
+
+    loop = asyncio.get_event_loop()
+
+    async def _run_review(file: UploadFile) -> tuple:
+        content = await file.read()
+        filename = file.filename or "unknown"
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+        if ext not in SUPPORTED_FORMATS:
+            raise HTTPException(status_code=400, detail={
+                "status": "error", "error_code": "UNSUPPORTED_FORMAT",
+                "message": f"不支持的文件格式: {ext}",
+            })
+
+        file_id = generate_file_id()
+        file_path = store_file(content, file_id, ext)
+
+        result = await loop.run_in_executor(
+            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id
+        )
+        if not result.success:
+            raise HTTPException(status_code=400, detail={
+                "status": "error", "message": f"图纸解析失败: {result.error}",
+            })
+
+        semantic = await loop.run_in_executor(
+            ENGINE_THREAD_POOL,
+            lambda: _semantic_analyzer.analyze(
+                result.primitives, result.dimensions,
+                building_type=building_type, dxf_path=str(file_path)
+            )
+        )
+        entities = semantic["entities"]
+
+        from src.baa_engine.spec_repository import SpecRepository
+        from collections import Counter
+        repo = SpecRepository()
+        details = []
+        registry_funcs = _func_registry.list_all()
+
+        for e in entities:
+            for func in registry_funcs:
+                try:
+                    threshold_val, unit, op = repo.get_threshold(
+                        func.clause_id, building_type, standard
+                    )
+                    func.threshold = threshold_val
+                    func.unit = unit
+                    func.operator = op
+                    r = func.execute(e)
+                    if r is not None and r.result != "PASS":
+                        clause = {
+                            "standard": standard,
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
+                        f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                        details.append({
+                            "entity_id": e.get("id", ""),
+                            "entity_type": e.get("type", ""),
+                            "clause_id": f.clause.get("clause_id", ""),
+                            "clause_title": f.clause.get("title", ""),
+                            "result": f.judgement["result"],
+                            "extracted_value": r.actual,
+                            "required_value": threshold_val,
+                            "difference": (r.actual or 0) - threshold_val,
+                            "explanation": f.explanation[:120],
+                        })
+                except Exception:
+                    continue
+
+        # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
+        for func in registry_funcs:
+            if func.category.value != "exist":
+                continue
+            has_match = any(func.matches(e) for e in entities)
+            if not has_match:
+                r = func.execute(None)
+                if r is not None and r.result != "PASS":
+                    clause = {
+                        "standard": standard,
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": "missing",
+                        "clause_id": f.clause.get("clause_id", ""),
+                        "clause_title": f.clause.get("title", ""),
+                        "result": f.judgement["result"],
+                        "extracted_value": 0.0,
+                        "required_value": f.extracted_params.get("required_value", 1.0),
+                        "difference": -f.extracted_params.get("required_value", 1.0),
+                        "explanation": f.explanation[:120],
+                    })
+
+        return filename, details
+
+    name1, details1 = await _run_review(file1)
+    name2, details2 = await _run_review(file2)
+
+    engine = ReviewDiffEngine()
+    report = engine.compare(
+        details1, details2,
+        v1_file=name1,
+        v2_file=name2,
+        v1_building_type=building_type,
+        v2_building_type=building_type,
+        v1_standard=standard,
+        v2_standard=standard,
+    )
+
+    return engine.to_json(report)
+
+
 # ── 启动入口 ──────────────────────────────────────────────
 
 if __name__ == "__main__":
