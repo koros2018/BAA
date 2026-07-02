@@ -1479,6 +1479,163 @@ async def render_drawing(
     return Response(content=svg_content, media_type="image/svg+xml")
 
 
+# ── PDF 审查报告导出 ─────────────────────────────────
+
+
+@app.get("/review/{file_id}/pdf")
+async def review_pdf(
+    file_id: str,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """导出审查报告 PDF
+
+    对已审查过的图纸生成结构化 PDF 审查报告，包含封面、
+    违规分类统计、每条违规详情及修正建议。
+    """
+    from src.baa_engine.report_generator import ReviewReport
+
+    # 获取文件路径
+    file_path = get_file_path(file_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": "文件不存在"})
+
+    # 重新审查（保证使用最新引擎版本）
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    result = await loop.run_in_executor(
+        ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id
+    )
+    if not result.success:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": f"图纸解析失败: {result.error}"})
+
+    semantic = await loop.run_in_executor(
+        ENGINE_THREAD_POOL,
+        lambda: _semantic_analyzer.analyze(result.primitives, result.dimensions, dxf_path=str(file_path))
+    )
+    entities = semantic["entities"]
+
+    from src.baa_engine.spec_repository import SpecRepository
+    from collections import Counter
+    repo = SpecRepository()
+    details = []
+    registry_funcs = _func_registry.list_all()
+
+    start = time.time()
+
+    # ── 逐实体逐函数规范判定 ──────────────────────────────
+    for e in entities:
+        for func in registry_funcs:
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, "civil")
+            try:
+                r = func.execute(e)
+                if r is None:
+                    continue
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                if f.judgement["result"] != "PASS":
+                    details.append({
+                        "entity_id": e.get("id", ""),
+                        "entity_type": e.get("type", ""),
+                        "clause_id": f.clause.get("clause_id", ""),
+                        "clause_title": f.clause.get("title", ""),
+                        "result": f.judgement["result"],
+                        "extracted_value": r.actual,
+                        "required_value": threshold_val,
+                        "difference": (r.actual or 0) - threshold_val,
+                        "explanation": f.explanation[:120],
+                    })
+            except Exception:
+                continue
+
+    # ── 缺失检查 ──────────────────────────────────────────
+    for func in registry_funcs:
+        if func.category.value != "exist":
+            continue
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            r = func.execute(None)
+            if r is not None and r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                details.append({
+                    "entity_id": "",
+                    "entity_type": "missing",
+                    "clause_id": f.clause.get("clause_id", ""),
+                    "clause_title": f.clause.get("title", ""),
+                    "result": f.judgement["result"],
+                    "extracted_value": 0.0,
+                    "required_value": f.extracted_params.get("required_value", 1.0),
+                    "difference": -f.extracted_params.get("required_value", 1.0),
+                    "explanation": f.explanation[:120],
+                })
+
+    elapsed = int((time.time() - start) * 1000)
+    entity_types = Counter(e["type"] for e in entities)
+    violation_count = Counter(d["clause_id"] for d in details)
+
+    summary = {
+        "total_entities": len(entities),
+        "entity_types": dict(entity_types),
+        "total_checks": len(entities) * len(registry_funcs),
+        "violations": len(details),
+        "violation_by_clause": dict(violation_count.most_common(10)),
+        "building_type": "civil",
+        "processing_time_ms": elapsed,
+    }
+
+    # ── 修正建议 ──────────────────────────────────────────
+    corrections = []
+    try:
+        from src.baa_engine.correction_engine import CorrectionEngine
+        correction_engine = CorrectionEngine()
+        review_result = {
+            "findings": [{
+                "entity_id": d["entity_id"],
+                "entity_type": d["entity_type"],
+                "clause_id": d["clause_id"],
+                "clause_title": d["clause_title"],
+                "extracted_value": d["extracted_value"],
+                "required_value": d["required_value"],
+                "difference": d["difference"],
+            } for d in details]
+        }
+        corrections = correction_engine.generate_for_result(review_result)
+    except Exception:
+        pass
+
+    # ── 生成 PDF ──────────────────────────────────────────
+    generator = ReviewReport()
+    pdf_bytes = generator.generate(
+        filename=file_path.name,
+        summary=summary,
+        details=details,
+        corrections=corrections,
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{file_path.stem}_report.pdf\"",
+            "Content-Length": str(len(pdf_bytes)),
+        },
+    )
+
+
 # ── 静态文件服务（模型下载） ─────────────────────────────
 
 SPECS_DIR = DATA_DIR / "specs"
