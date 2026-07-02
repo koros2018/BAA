@@ -37,16 +37,16 @@ from fastapi.staticfiles import StaticFiles
 # 计算项目根目录（src/../）并加入 sys.path，确保模块可导入
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # src/../
 import sys
-if str(PROJECT_ROOT) not in sys.path:  # 条件判断
-    sys.path.insert(0, str(PROJECT_ROOT))  # 调用
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # 数据目录：优先使用环境变量 BAA_DATA_DIR，否则默认为 data/
-DATA_DIR = Path(os.getenv("BAA_DATA_DIR", str(PROJECT_ROOT / "data")))  # 赋值
+DATA_DIR = Path(os.getenv("BAA_DATA_DIR", str(PROJECT_ROOT / "data")))
 FILES_DIR = DATA_DIR / "files"       # 上传的图纸文件存储目录
 MODELS_DIR = DATA_DIR / "models"     # YOLO 模型文件目录
-DATA_DIR.mkdir(parents=True, exist_ok=True)  # 赋值
-FILES_DIR.mkdir(parents=True, exist_ok=True)  # 赋值
-MODELS_DIR.mkdir(parents=True, exist_ok=True)  # 赋值
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+FILES_DIR.mkdir(parents=True, exist_ok=True)
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── 异步任务存储（内存） ───────────────────────────────────
 from collections import Counter
@@ -56,22 +56,22 @@ _tasks = {}     # task_id -> {status, result, created_at, webhook_url, ...}
 _webhooks = {}  # webhook_id -> {url, events, active, ...}
 
 # 支持的文件格式（DWG/DXF）
-SUPPORTED_FORMATS = {"dxf", "dwg"}  # 赋值
-MAX_FILE_SIZE_MB = 50  # 赋值
+SUPPORTED_FORMATS = {"dxf", "dwg"}
+MAX_FILE_SIZE_MB = 50
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024  # 上传文件大小上限（50MB）
 
 # ── API 密钥（从环境变量加载） ────────────────────────────
-API_KEYS = set()  # 赋值
-_api_key = os.getenv("BAA_API_KEY", "")  # 赋值
-if _api_key:  # 条件判断
-    API_KEYS.add(_api_key)  # 调用
+API_KEYS = set()
+_api_key = os.getenv("BAA_API_KEY", "")
+if _api_key:
+    API_KEYS.add(_api_key)
 
 # ── 共享密钥（用于 auth_token 验证，支持多密钥宽限期） ──
 # 格式：逗号分隔，第一个为最新密钥，后续为旧密钥（48h宽限期）
-AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "").split(",") if s.strip()]  # 赋值
-if not AUTH_SECRETS:  # 条件判断
+AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "").split(",") if s.strip()]
+if not AUTH_SECRETS:
     # 开发模式默认密钥（生产环境必须通过环境变量设置）
-    AUTH_SECRETS = ["baa-dev-secret-change-in-production"]  # 赋值
+    AUTH_SECRETS = ["baa-dev-secret-change-in-production"]
 
 
 # ── 线程池（CPU密集型引擎任务用） ─────────────────────────
@@ -80,10 +80,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 # 引擎线程池：用于在独立线程中执行 CPU 密集的图纸分析任务
 # 避免阻塞 FastAPI 的异步事件循环
-ENGINE_THREAD_POOL = ThreadPoolExecutor(  # 赋值
-    max_workers=min(8, (os.cpu_count() or 4) * 2),  # 赋值
-    thread_name_prefix="baa-engine"  # 赋值
-)  # 闭合
+ENGINE_THREAD_POOL = ThreadPoolExecutor(
+    max_workers=min(8, (os.cpu_count() or 4) * 2),
+    thread_name_prefix="baa-engine"
+)
 
 
 # ── 授权验证 ──────────────────────────────────────────────
@@ -106,22 +106,22 @@ def generate_auth_token(payload: dict, secret: str = None) -> str:
     """生成 auth_token（JWT格式，HMAC-SHA256）
     默认使用最新密钥
     """
-    if secret is None:  # 条件判断
+    if secret is None:
         secret = AUTH_SECRETS[0]  # 使用最新密钥
     # ── 构造 JWT Header（算法 + 类型） ──────────────────────
-    header = {"alg": "HS256", "typ": "JWT"}  # 赋值
-    header_b64 = base64.urlsafe_b64encode(  # 赋值
-        json.dumps(header, separators=(",", ":")).encode()).rstrip(b"=").decode()  # 调用
+    header = {"alg": "HS256", "typ": "JWT"}
+    header_b64 = base64.urlsafe_b64encode(
+        json.dumps(header, separators=(",", ":")).encode()).rstrip(b"=").decode()
     # ── Base64 编码 Payload ─────────────────────────────────
-    payload_b64 = base64.urlsafe_b64encode(  # 赋值
-        json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()  # 调用
+    payload_b64 = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
     # ── HMAC-SHA256 签名 ────────────────────────────────────
-    signing_input = f"{header_b64}.{payload_b64}"  # 赋值
-    sig = hmac.new(  # 赋值
-        secret.encode(), signing_input.encode(), hashlib.sha256  # 调用
-    ).digest()  # 闭合
-    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()  # 赋值
-    return f"{header_b64}.{payload_b64}.{sig_b64}"  # 返回
+    signing_input = f"{header_b64}.{payload_b64}"
+    sig = hmac.new(
+        secret.encode(), signing_input.encode(), hashlib.sha256
+    ).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
 def verify_auth_token(token: str) -> Optional[dict]:
@@ -131,10 +131,10 @@ def verify_auth_token(token: str) -> Optional[dict]:
     旧密钥在 48h 宽限期内仍有效，确保密钥轮换期间不影响已有 token。
     """
     for secret in AUTH_SECRETS:  # 循环
-        result = _verify_with_secret(token, secret)  # 赋值
-        if result is not None:  # 条件判断
-            return result  # 返回
-    return None  # 返回
+        result = _verify_with_secret(token, secret)
+        if result is not None:
+            return result
+    return None
 
 
 def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
@@ -149,49 +149,49 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:
     """
     try:  # 尝试
         # ── 解析 JWT 三段式结构 ──────────────────────────────
-        parts = token.split(".")  # 赋值
-        if len(parts) != 3:  # 条件判断
-            return None  # 返回
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
 
-        header_b64, payload_b64, sig_b64 = parts  # 赋值
-        signing_input = f"{header_b64}.{payload_b64}"  # 赋值
+        header_b64, payload_b64, sig_b64 = parts
+        signing_input = f"{header_b64}.{payload_b64}"
 
         def add_padding(s):
             """Base64 URL-safe 解码需要补齐 '=' 填充符"""
-            return s + "=" * (4 - len(s) % 4)  # 返回
+            return s + "=" * (4 - len(s) % 4)
 
         # ── 重新计算签名并与 token 中的签名比较 ──────────────
-        expected_sig = hmac.new(  # 赋值
-            secret.encode(), signing_input.encode(), hashlib.sha256  # 调用
-        ).digest()  # 闭合
+        expected_sig = hmac.new(
+            secret.encode(), signing_input.encode(), hashlib.sha256
+        ).digest()
 
-        actual_sig = base64.urlsafe_b64decode(add_padding(sig_b64))  # 赋值
-        if not hmac.compare_digest(expected_sig, actual_sig):  # 条件判断
-            return None  # 返回
+        actual_sig = base64.urlsafe_b64decode(add_padding(sig_b64))
+        if not hmac.compare_digest(expected_sig, actual_sig):
+            return None
 
         # ── 解码 payload ─────────────────────────────────────
-        payload = json.loads(base64.urlsafe_b64decode(add_padding(payload_b64)))  # 赋值
+        payload = json.loads(base64.urlsafe_b64decode(add_padding(payload_b64)))
 
         # ── 验证有效期（兼容带时区和不带时区的时间字符串） ──
-        expires = payload.get("expires_at")  # 赋值
-        if expires:  # 条件判断
+        expires = payload.get("expires_at")
+        if expires:
             from datetime import timezone
-            exp_time = datetime.fromisoformat(expires)  # 赋值
-            if exp_time.tzinfo is None:  # 条件判断
-                exp_time = exp_time.replace(tzinfo=timezone.utc)  # 赋值
-            if datetime.now(timezone.utc) > exp_time:  # 条件判断
+            exp_time = datetime.fromisoformat(expires)
+            if exp_time.tzinfo is None:
+                exp_time = exp_time.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > exp_time:
                 return None  # token 已过期
 
-        return payload  # 返回
+        return payload
     # 异常处理
     except Exception:  # 捕获异常
-        return None  # 返回
+        return None
 
 
 # ── FastAPI 应用 ──────────────────────────────────────────
 
 # 前端静态文件路径
-FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"  # 赋值
+FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"
 
 
 # ── 引擎预热（app启动时加载） ──────────────────────────────
@@ -204,15 +204,15 @@ def _load_engine():
     from src.baa_engine.attribution_analyzer import AttributionAnalyzer
     from src.baa_engine.spec_repository import SpecRepository
     global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine  # 全局变量
-    _drawing_parser = DrawingParser()  # 赋值
-    _semantic_analyzer = SemanticAnalyzer()  # 赋值
-    _func_registry = FuncRegistry()  # 赋值
-    _attribution_analyzer = AttributionAnalyzer()  # 赋值
-    _spec_repo = SpecRepository()  # 赋值
-    _feedback_manager = FeedbackManager(DATA_DIR)  # 赋值
-    _learning_engine = LearningEngine(_feedback_manager)  # 赋值
-    print(f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范")  # 调用
-    print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")  # 调用
+    _drawing_parser = DrawingParser()
+    _semantic_analyzer = SemanticAnalyzer()
+    _func_registry = FuncRegistry()
+    _attribution_analyzer = AttributionAnalyzer()
+    _spec_repo = SpecRepository()
+    _feedback_manager = FeedbackManager(DATA_DIR)
+    _learning_engine = LearningEngine(_feedback_manager)
+    print(f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范")
+    print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")
 
 
 from contextlib import asynccontextmanager
@@ -247,19 +247,19 @@ async def lifespan(app: FastAPI):
     关闭时：优雅关闭线程池
     """
     # 启动时：预热引擎
-    loop = asyncio.get_event_loop()  # 赋值
+    loop = asyncio.get_event_loop()
     await loop.run_in_executor(ENGINE_THREAD_POOL, _load_engine)  # 操作
     yield  # 生成
     # 关闭时：清理线程池
-    ENGINE_THREAD_POOL.shutdown(wait=False)  # 赋值
+    ENGINE_THREAD_POOL.shutdown(wait=False)
 
 
-app = FastAPI(title="BAA API", version="1.0.0", lifespan=lifespan)  # 赋值
-security = HTTPBearer(auto_error=False)  # 赋值
+app = FastAPI(title="BAA API", version="1.0.0", lifespan=lifespan)
+security = HTTPBearer(auto_error=False)
 
 # ── 挂载前端静态文件 ──────────────────────────────────────
-if FRONTEND_DIR.exists():  # 条件判断
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")  # 调用
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
 
 @app.get("/")
@@ -270,12 +270,12 @@ async def root():
     如果前端文件不存在，降级返回 JSON 格式的 API 信息。
     """
     from fastapi.responses import HTMLResponse
-    index_path = FRONTEND_DIR / "index.html"  # 赋值
-    if index_path.exists():  # 条件判断
-        content = index_path.read_text(encoding="utf-8")  # 赋值
-        return HTMLResponse(content=content, status_code=200)  # 返回
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        content = index_path.read_text(encoding="utf-8")
+        return HTMLResponse(content=content, status_code=200)
     # 降级：返回 JSON 信息（前端文件未部署时使用）
-    return {  # 返回
+    return {
         "service": "BAA - Building Audit Assistant",  # 字段
         "version": "1.0.0",  # 字段
         "api_docs": "/docs",  # 字段
@@ -285,18 +285,18 @@ async def root():
             "/review": "图纸合规审查（详细报告）",  # 字段
             "/reconstruct": "图纸重构",  # 字段
             "/order/{order_id}": "查询订单/任务状态",  # 字段
-        },  # 闭合
+        },
         "note": "前端 UI 文件未找到，请检查 src/frontend/index.html"  # 字段
-    }  # 闭合
+    }
 
 # ── CORS 中间件（允许跨域访问） ────────────────────────────
-app.add_middleware(  # 调用
+app.add_middleware(
     CORSMiddleware,  # 解包
     allow_origins=["*"],        # 允许所有来源（开发阶段）
-    allow_credentials=True,  # 赋值
-    allow_methods=["*"],  # 赋值
-    allow_headers=["*"],  # 赋值
-)  # 闭合
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_api_key(authorization: str = Query("", description="Bearer API Key")):
@@ -311,29 +311,29 @@ def verify_api_key(request: Request):
     4. 如果是环境变量中的密钥也放行
     5. 开发模式下无效密钥也放行（anonymous）
     """
-    if not API_KEYS:  # 条件判断
-        return "anonymous"  # 返回
-    auth_header = request.headers.get("authorization", "")  # 赋值
+    if not API_KEYS:
+        return "anonymous"
+    auth_header = request.headers.get("authorization", "")
     
     # 根据条件判断分支：if auth_header.startswith("Bearer ")
-    if auth_header.startswith("Bearer "):  # 条件判断
-        token = auth_header[7:]  # 赋值
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
     else:  # 否则
         return "anonymous"  # 开发模式：没传key也放行
     
     # 使用 ApiKeyManager 验证（数据库中的密钥）
-    km = get_key_manager()  # 赋值
-    key_info = km.validate_key(token)  # 赋值
-    if key_info:  # 条件判断
-        km.record_usage(token)  # 调用
-        return token  # 返回
+    km = get_key_manager()
+    key_info = km.validate_key(token)
+    if key_info:
+        km.record_usage(token)
+        return token
     
     # 环境变量密钥也放行
-    if token in API_KEYS:  # 条件判断
-        return token  # 返回
+    if token in API_KEYS:
+        return token
     
     # 开发模式：没传有效key也放行
-    return "anonymous"  # 返回
+    return "anonymous"
 
 
 def require_admin(request: Request, api_key: str = ""):
@@ -344,26 +344,26 @@ def require_admin(request: Request, api_key: str = ""):
     2. 使用 ApiKeyManager 验证密钥是否具有 admin 权限
     3. 环境变量中的密钥也视为 admin 权限
     """
-    if not API_KEYS:  # 条件判断
-        return "anonymous"  # 返回
-    km = get_key_manager()  # 赋值
-    key_info = km.validate_key(api_key)  # 赋值
-    if key_info and key_info.get("permission") == "admin":  # 条件判断
-        return api_key  # 返回
+    if not API_KEYS:
+        return "anonymous"
+    km = get_key_manager()
+    key_info = km.validate_key(api_key)
+    if key_info and key_info.get("permission") == "admin":
+        return api_key
     # 环境变量key也视为admin
-    if api_key and api_key in API_KEYS:  # 条件判断
-        return api_key  # 返回
+    if api_key and api_key in API_KEYS:
+        return api_key
     raise HTTPException(status_code=403, detail={  # 抛出异常
         "status": "error", "error_code": "FORBIDDEN",  # 字段
         "message": "需要admin权限"  # 字段
-    })  # 闭合
+    })
 
 
 # ── 文件管理 ──────────────────────────────────────────────
 
 def generate_file_id() -> str:
     """生成唯一文件标识符（UUID 前 12 位）"""
-    return f"baa-file-{uuid.uuid4().hex[:12]}"  # 返回
+    return f"baa-file-{uuid.uuid4().hex[:12]}"
 
 
 def store_file(content: bytes, file_id: str, extension: str) -> Path:
@@ -377,9 +377,9 @@ def store_file(content: bytes, file_id: str, extension: str) -> Path:
     Returns:
         保存后的文件路径
     """
-    path = FILES_DIR / f"{file_id}.{extension}"  # 赋值
-    path.write_bytes(content)  # 调用
-    return path  # 返回
+    path = FILES_DIR / f"{file_id}.{extension}"
+    path.write_bytes(content)
+    return path
 
 
 def get_file_path(file_id: str) -> Optional[Path]:
@@ -394,10 +394,10 @@ def get_file_path(file_id: str) -> Optional[Path]:
         文件路径（如果存在），否则 None
     """
     for ext in SUPPORTED_FORMATS:  # 循环
-        path = FILES_DIR / f"{file_id}.{ext}"  # 赋值
-        if path.exists():  # 条件判断
-            return path  # 返回
-    return None  # 返回
+        path = FILES_DIR / f"{file_id}.{ext}"
+        if path.exists():
+            return path
+    return None
 
 
 # ── 引擎导入（懒加载） ──────────────────────────────────
@@ -412,7 +412,7 @@ _attribution_analyzer = None    # 属性推断引擎
 _spec_repo = None               # 规范知识库
 
 # ── 反馈闭环引擎（P10） ────────────────────────────────────
-_feedback_manager: Optional[FeedbackManager] = None  # 赋值
+_feedback_manager: Optional[FeedbackManager] = None
 _learning_engine: Optional[LearningEngine] = None  # 操作
 
 
@@ -431,26 +431,26 @@ async def health():
             subsystems: 各子系统的状态详情
         }
     """
-    engine_ok = _func_registry is not None  # 赋值
-    spec_ok = _spec_repo is not None  # 赋值
-    parser_ok = _drawing_parser is not None  # 赋值
-    yolo_ok = False  # 赋值
-    yolo_info = "未加载"  # 赋值
+    engine_ok = _func_registry is not None
+    spec_ok = _spec_repo is not None
+    parser_ok = _drawing_parser is not None
+    yolo_ok = False
+    yolo_info = "未加载"
     try:  # 尝试
         from src.baa_engine.yolo_integrator import get_yolo_model
-        yolo_model = get_yolo_model()  # 赋值
-        if yolo_model is not None:  # 条件判断
-            yolo_ok = True  # 赋值
-            yolo_info = "就绪"  # 赋值
+        yolo_model = get_yolo_model()
+        if yolo_model is not None:
+            yolo_ok = True
+            yolo_info = "就绪"
     except Exception:  # 捕获异常
-        yolo_info = "不可用"  # 赋值
+        yolo_info = "不可用"
     
     import psutil
     process = psutil.Process()
     mem_info = process.memory_info()
 
-    all_ok = engine_ok and spec_ok and parser_ok  # 赋值
-    return {  # 返回
+    all_ok = engine_ok and spec_ok and parser_ok
+    return {
         "status": "ok" if all_ok else "degraded",  # 字段
         "version": "1.25.0",  # 字段
         "uptime_seconds": int(time.time() - _start_time),  # 字段
@@ -462,26 +462,26 @@ async def health():
             "spec_repository": {"status": "ok" if spec_ok else "down"},  # 字段
             "drawing_parser": {"status": "ok" if parser_ok else "down"},  # 字段
             "yolo_integrator": {"status": "ok" if yolo_ok else "unavailable", "info": yolo_info},  # 字段
-        },  # 闭合
+        },
         "data_dir": str(DATA_DIR),  # 字段
         "memory": {  # 字段
             "rss_mb": round(mem_info.rss / 1024 / 1024, 1),  # 字段
             "vms_mb": round(mem_info.vms / 1024 / 1024, 1),  # 字段
-        },  # 闭合
-    }  # 闭合
+        },
+    }
 
 # ── 记录服务启动时间 ───────────────────────────────────────
-_start_time = time.time()  # 赋值
+_start_time = time.time()
 
 
 @app.post("/deconstruct")
 async def deconstruct(
-    file: UploadFile = File(...),  # 赋值
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # 赋值
-    use_yolo: bool = Query(False, description="是否使用 YOLO 图元检测增强"),  # 赋值
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    file: UploadFile = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    use_yolo: bool = Query(False, description="是否使用 YOLO 图元检测增强"),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """图纸解构（免费端点）
 
     将上传的 DWG/DXF 图纸解析为结构化实体数据，包括：
@@ -496,78 +496,78 @@ async def deconstruct(
         dict: {status, elements, findings, summary, ...}
     """
     # ── 检查文件格式 ────────────────────────────────────────
-    filename = file.filename or "unknown"  # 赋值
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # 赋值
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    if ext not in SUPPORTED_FORMATS:  # 条件判断
+    if ext not in SUPPORTED_FORMATS:
         raise HTTPException(  # 抛出异常
-            status_code=400,  # 赋值
-            detail={  # 赋值
+            status_code=400,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "UNSUPPORTED_FORMAT",  # 字段
                 "message": f"不支持的文件格式: {ext}。支持: {', '.join(SUPPORTED_FORMATS)}",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 检查文件大小 ────────────────────────────────────────
-    content = await file.read()  # 赋值
-    if len(content) > MAX_FILE_SIZE:  # 条件判断
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
         raise HTTPException(  # 抛出异常
-            status_code=400,  # 赋值
-            detail={  # 赋值
+            status_code=400,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "FILE_TOO_LARGE",  # 字段
                 "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 存储文件到磁盘 ──────────────────────────────────────
-    file_id = generate_file_id()  # 赋值
-    file_path = store_file(content, file_id, ext)  # 赋值
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
 
     # ── 调用核心引擎进行解析 ─────────────────────────────────
-    start = time.time()  # 赋值
-    loop = asyncio.get_event_loop()  # 赋值
+    start = time.time()
+    loop = asyncio.get_event_loop()
 
     # Step 1: 图纸解析（CPU密集型 → 线程池）
     # 将 DWG/DXF 文件解析为基本图元（线、弧、圆、文字等）
-    result = await loop.run_in_executor(  # 赋值
+    result = await loop.run_in_executor(
         ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
-    )  # 闭合
-    if not result.success:  # 条件判断
-        return {  # 返回
+    )
+    if not result.success:
+        return {
             "status": "error",  # 字段
             "error_code": "PARSE_FAILED",  # 字段
             "message": f"图纸解析失败: {result.error}",  # 字段
             "file_id": file_id,  # 字段
-        }  # 闭合
+        }
 
     # Step 2: 语义分析（CPU密集型 → 线程池）
     # 识别墙、门、窗、楼梯、防火分区等语义实体
-    semantic = await loop.run_in_executor(  # 赋值
+    semantic = await loop.run_in_executor(
         ENGINE_THREAD_POOL,  # 解包
         lambda: _semantic_analyzer.analyze(  # 操作
             result.primitives, result.dimensions,  # 解包
-            building_type=building_type  # 赋值
-        )  # 闭合
-    )  # 闭合
-    entities = semantic["entities"]  # 赋值
-    relations = semantic["relations"]  # 赋值
+            building_type=building_type
+        )
+    )
+    entities = semantic["entities"]
+    relations = semantic["relations"]
 
     # Step 2.5: YOLO 图元检测增强（可选）
     # 使用 CV 模型辅助识别规则解析遗漏的实体
-    if use_yolo:  # 条件判断
+    if use_yolo:
         try:  # 尝试
             from src.baa_engine.yolo_integrator import YOLODetectionIntegrator
-            yolo = YOLODetectionIntegrator()  # 赋值
-            if yolo.load_model():  # 条件判断
-                _, dets = yolo.render_and_predict(str(file_path))  # 赋值
-                yolo_entities = yolo.detections_to_entities(dets)  # 赋值
+            yolo = YOLODetectionIntegrator()
+            if yolo.load_model():
+                _, dets = yolo.render_and_predict(str(file_path))
+                yolo_entities = yolo.detections_to_entities(dets)
                 # 合并到实体列表（去重，优先保留规则解析结果）
-                existing_types = set(e.get("type", "") for e in entities)  # 赋值
+                existing_types = set(e.get("type", "") for e in entities)
                 for ye in yolo_entities:  # 循环
-                    if ye["type"] not in existing_types:  # 条件判断
-                        entities.append(ye)  # 调用
+                    if ye["type"] not in existing_types:
+                        entities.append(ye)
         except Exception as yolo_e:  # 捕获异常
             # YOLO 失败不影响主流程
             pass  # 占位
@@ -575,50 +575,50 @@ async def deconstruct(
     # Step 2.75: DIMENSION 尺寸标注注入（自动反推实体属性）
     try:  # 尝试
         from src.baa_engine.dimension_parser import DimensionParser
-        dp = DimensionParser()  # 赋值
-        dims = dp.extract_dimensions(str(file_path))  # 赋值
-        if dims:  # 条件判断
-            entities = dp.inject_into_entities(dims, entities)  # 赋值
+        dp = DimensionParser()
+        dims = dp.extract_dimensions(str(file_path))
+        if dims:
+            entities = dp.inject_into_entities(dims, entities)
     except Exception:  # 捕获异常
         pass  # 占位
 
     # Step 3: 规范判定（使用 building_type 确定阈值，含去重）
     # 遍历所有实体和所有原子函数，逐项检查合规性
     from src.baa_engine.spec_repository import SpecRepository
-    repo = SpecRepository()  # 赋值
-    findings = []  # 赋值
-    registry_funcs = _func_registry.list_all()  # 赋值
-    total_checks = 0  # 赋值
+    repo = SpecRepository()
+    findings = []
+    registry_funcs = _func_registry.list_all()
+    total_checks = 0
     seen_violations = set()  # (clause_id, entity_type) 用于 FAIL 去重
 
     # 遍历处理
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
-            total_checks += 1  # 赋值
+            total_checks += 1
             # 根据建筑类型获取阈值参数
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)  # 赋值
-            func.threshold = threshold_val  # 赋值
-            func.unit = unit  # 赋值
-            func.operator = op  # 赋值
-            r = func.execute(e)  # 赋值
-            if r is not None and r.result != "PASS":  # 条件判断
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
+            r = func.execute(e)
+            if r is not None and r.result != "PASS":
                 # 去重：同一 clause_id + 同一 entity_type 只记一次 FAIL
-                etype = e.get("type", "")  # 赋值
-                dedup_key = (func.clause_id, etype)  # 赋值
-                is_dup = dedup_key in seen_violations  # 赋值
-                if r.result == "FAIL":  # 条件判断
-                    seen_violations.add(dedup_key)  # 调用
+                etype = e.get("type", "")
+                dedup_key = (func.clause_id, etype)
+                is_dup = dedup_key in seen_violations
+                if r.result == "FAIL":
+                    seen_violations.add(dedup_key)
                 
-                clause = {  # 赋值
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # 赋值
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
                 # 详细的违规信息输出
-                finding_detail = {  # 赋值
+                finding_detail = {
                     "finding_id": f.finding_id,  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "clause_title": func.name,  # 字段
@@ -630,33 +630,33 @@ async def deconstruct(
                     "required_value": threshold_val,  # 字段
                     "explanation": getattr(f, 'explanation', f.description[:100] if hasattr(f, 'description') else ''),  # 字段
                     "is_duplicate": is_dup,  # 字段
-                }  # 闭合
-                findings.append(finding_detail)  # 调用
+                }
+                findings.append(finding_detail)
 
     # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
     # 例如"应有防火门"→检查是否存在 fire_door 实体
     for func in registry_funcs:  # 循环
-        if func.category.value != "exist":  # 条件判断
+        if func.category.value != "exist":
             continue  # 继续循环
-        has_match = any(func.matches(e) for e in entities)  # 赋值
-        if not has_match:  # 条件判断
-            total_checks += 1  # 赋值
-            r = func.execute(None)  # 赋值
-            if r is not None and r.result != "PASS":  # 条件判断
-                dedup_key = (func.clause_id, "missing")  # 赋值
-                is_dup = dedup_key in seen_violations  # 赋值
-                if r.result == "FAIL":  # 条件判断
-                    seen_violations.add(dedup_key)  # 调用
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            total_checks += 1
+            r = func.execute(None)
+            if r is not None and r.result != "PASS":
+                dedup_key = (func.clause_id, "missing")
+                is_dup = dedup_key in seen_violations
+                if r.result == "FAIL":
+                    seen_violations.add(dedup_key)
                 
-                clause = {  # 赋值
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # 赋值
-                finding_detail = {  # 赋值
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                finding_detail = {
                     "finding_id": f.finding_id,  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "clause_title": func.name,  # 字段
@@ -668,25 +668,25 @@ async def deconstruct(
                     "required_value": 1,  # 字段
                     "explanation": f"缺少{func.name}相关实体（{func.description}）",  # 字段
                     "is_duplicate": is_dup,  # 字段
-                }  # 闭合
-                findings.append(finding_detail)  # 调用
+                }
+                findings.append(finding_detail)
 
     # 统计
-    type_stats = {}  # 赋值
+    type_stats = {}
     for e in entities:  # 循环
-        t = e["type"]  # 赋值
-        if t not in type_stats:  # 条件判断
+        t = e["type"]
+        if t not in type_stats:
             type_stats[t] = {"count": 0, "bbox_areas": []}  # 操作
         type_stats[t]["count"] += 1  # 操作
-        bbox = e["bbox"]  # 赋值
+        bbox = e["bbox"]
         type_stats[t]["bbox_areas"].append(bbox.get("width", 0) * bbox.get("height", 0))  # 操作
 
-    elements = []  # 赋值
+    elements = []
     for t, stats in sorted(type_stats.items()):  # 循环
-        areas = stats["bbox_areas"]  # 赋值
-        total_area = sum(areas) if areas else 0  # 赋值
-        elem = {"type": t, "count": stats["count"]}  # 赋值
-        if t in ("wall", "corridor", "stair"):  # 条件判断
+        areas = stats["bbox_areas"]
+        total_area = sum(areas) if areas else 0
+        elem = {"type": t, "count": stats["count"]}
+        if t in ("wall", "corridor", "stair"):
             elem["total_length_m"] = round(total_area ** 0.5, 1)  # 操作
         elif t in ("door", "fire_door", "window"):  # 分支
             elem["total_count"] = stats["count"]  # 操作
@@ -696,16 +696,16 @@ async def deconstruct(
             elem["total_count"] = stats["count"]  # 操作
         elif t == "other":  # 分支
             elem["total_count"] = stats["count"]  # 操作
-        elements.append(elem)  # 调用
+        elements.append(elem)
 
-    elapsed = int((time.time() - start) * 1000)  # 赋值
+    elapsed = int((time.time() - start) * 1000)
 
     # ── 统计违规严重度分布（去重后） ────────────────────────
-    fail_count = len([f for f in findings if f["result"] == "FAIL" and not f["is_duplicate"]])  # 赋值
-    warn_count = len([f for f in findings if f["result"] == "WARN" and not f["is_duplicate"]])  # 赋值
-    critical_count = len([f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]])  # 赋值
+    fail_count = len([f for f in findings if f["result"] == "FAIL" and not f["is_duplicate"]])
+    warn_count = len([f for f in findings if f["result"] == "WARN" and not f["is_duplicate"]])
+    critical_count = len([f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]])
 
-    result = {  # 赋值
+    result = {
         "status": "success",  # 字段
         "elements": elements,              # 实体类型统计
         "relations": len(relations),       # 实体间关系数量
@@ -716,29 +716,29 @@ async def deconstruct(
             "warnings": warn_count,  # 字段
             "critical": critical_count,  # 字段
             "total_checks": total_checks,  # 字段
-        },  # 闭合
+        },
         "confidence": 0.85 if len(entities) > 0 else 0,  # 解析置信度
         "file_id": file_id,  # 字段
         "building_type": building_type,  # 字段
         "processing_time_ms": elapsed,  # 字段
-    }  # 闭合
+    }
 
     # 根据条件判断分支：if use_yolo
-    if use_yolo:  # 条件判断
+    if use_yolo:
         result["yolo_entities"] = len(yolo_entities)  # 操作
         result["yolo_enabled"] = True  # 操作
 
-    return result  # 返回
+    return result
 
 
 @app.post("/review")
 async def review(
-    file: UploadFile = File(...),  # 赋值
-    full: bool = Query(False, description="返回完整图元列表"),  # 赋值
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # 赋值
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    file: UploadFile = File(...),
+    full: bool = Query(False, description="返回完整图元列表"),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """图纸合规审查（免费试用）
 
     对上传的 DWG/DXF 图纸进行完整合规审查，返回：
@@ -751,92 +751,92 @@ async def review(
     - /review 侧重"审查"，输出合规报告和修正建议
     """
     # ── 检查文件格式 ────────────────────────────────────────
-    filename = file.filename or "unknown"  # 赋值
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # 赋值
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    if ext not in SUPPORTED_FORMATS:  # 条件判断
+    if ext not in SUPPORTED_FORMATS:
         raise HTTPException(  # 抛出异常
-            status_code=400,  # 赋值
-            detail={  # 赋值
+            status_code=400,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "UNSUPPORTED_FORMAT",  # 字段
                 "message": f"不支持的文件格式: {ext}",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 检查文件大小 ────────────────────────────────────────
-    content = await file.read()  # 赋值
-    if len(content) > MAX_FILE_SIZE:  # 条件判断
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
         raise HTTPException(  # 抛出异常
-            status_code=400,  # 赋值
-            detail={  # 赋值
+            status_code=400,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "FILE_TOO_LARGE",  # 字段
                 "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 存储文件到磁盘 ──────────────────────────────────────
-    file_id = generate_file_id()  # 赋值
-    file_path = store_file(content, file_id, ext)  # 赋值
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
 
-    start = time.time()  # 赋值
-    loop = asyncio.get_event_loop()  # 赋值
+    start = time.time()
+    loop = asyncio.get_event_loop()
 
     # Step 1: 图纸解析（CPU密集型 → 线程池）
-    result = await loop.run_in_executor(  # 赋值
+    result = await loop.run_in_executor(
         ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
-    )  # 闭合
-    if not result.success:  # 条件判断
-        return {  # 返回
+    )
+    if not result.success:
+        return {
             "status": "error",  # 字段
             "error_code": "PARSE_FAILED",  # 字段
             "message": f"图纸解析失败: {result.error}",  # 字段
             "file_id": file_id,  # 字段
-        }  # 闭合
+        }
 
     # Step 2: 语义分析（CPU密集型 → 线程池）
-    semantic = await loop.run_in_executor(  # 赋值
+    semantic = await loop.run_in_executor(
         ENGINE_THREAD_POOL,  # 解包
         lambda: _semantic_analyzer.analyze(  # 操作
             result.primitives, result.dimensions,  # 解包
-            building_type=building_type  # 赋值
-        )  # 闭合
-    )  # 闭合
-    entities = semantic["entities"]  # 赋值
+            building_type=building_type
+        )
+    )
+    entities = semantic["entities"]
 
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository
-    repo = SpecRepository()  # 赋值
+    repo = SpecRepository()
     from collections import Counter
-    clause_results = Counter()  # 赋值
-    details = []  # 赋值
-    registry_funcs = _func_registry.list_all()  # 赋值
+    clause_results = Counter()
+    details = []
+    registry_funcs = _func_registry.list_all()
 
     # 收集已出现的实体类型
-    found_entity_types = set(e["type"] for e in entities)  # 赋值
+    found_entity_types = set(e["type"] for e in entities)
 
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
             # 根据 building_type 获取实际阈值
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)  # 赋值
-            func.threshold = threshold_val  # 赋值
-            func.unit = unit  # 赋值
-            func.operator = op  # 赋值
-            r = func.execute(e)  # 赋值
-            if r is None:  # 条件判断
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
+            r = func.execute(e)
+            if r is None:
                 continue  # 继续循环
-            clause_results[func.clause_id] += 1  # 赋值
-            if r.result != "PASS":  # 条件判断
-                clause = {  # 赋值
+            clause_results[func.clause_id] += 1
+            if r.result != "PASS":
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # 赋值
-                details.append({  # 调用
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
                     "entity_id": e.get("id", e.get("type", "")),  # 字段
                     "entity_type": e["type"],  # 字段
                     "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -846,25 +846,25 @@ async def review(
                     "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
                     "difference": f.extracted_params.get("difference", 0),  # 字段
                     "explanation": f.explanation[:120],  # 字段
-                })  # 闭合
+                })
 
     # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
     for func in registry_funcs:  # 循环
-        if func.category.value != "exist":  # 条件判断
+        if func.category.value != "exist":
             continue  # 继续循环
-        has_match = any(func.matches(e) for e in entities)  # 赋值
-        if not has_match:  # 条件判断
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
             r = func.execute(None)  # 触发缺失检查模式
-            if r is not None and r.result != "PASS":  # 条件判断
-                clause = {  # 赋值
+            if r is not None and r.result != "PASS":
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # 赋值
-                details.append({  # 调用
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                details.append({
                     "entity_id": "",  # 字段
                     "entity_type": "missing",  # 字段
                     "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -874,15 +874,15 @@ async def review(
                     "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
                     "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
                     "explanation": f.explanation[:120],  # 字段
-                })  # 闭合
+                })
 
-    elapsed = int((time.time() - start) * 1000)  # 赋值
+    elapsed = int((time.time() - start) * 1000)
 
     # ── 统计 ─────────────────────────────────────────────────
     entity_types = Counter(e["type"] for e in entities)        # 各类型实体数量
     violation_count = Counter(d["clause_id"] for d in details)  # 各规范条款违规数
 
-    response_data = {  # 赋值
+    response_data = {
         "status": "success",  # 字段
         "summary": {  # 字段
             "total_entities": len(entities),  # 字段
@@ -890,18 +890,18 @@ async def review(
             "total_checks": len(entities) * len(registry_funcs),  # 字段
             "violations": len(details),  # 字段
             "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
-        },  # 闭合
+        },
         "details": details[:100],  # 最多返回100条详情
         "file_id": file_id,  # 字段
         "building_type": building_type,  # 字段
         "processing_time_ms": elapsed,  # 字段
-    }  # 闭合
+    }
 
     # ── 生成修正建议（基于 CorrectionEngine） ────────────────
     try:  # 尝试
         from src.baa_engine.correction_engine import CorrectionEngine
-        correction_engine = CorrectionEngine()  # 赋值
-        review_result_for_correction = {  # 赋值
+        correction_engine = CorrectionEngine()
+        review_result_for_correction = {
             "findings": [{  # 字段
                 "entity_id": d["entity_id"],  # 字段
                 "entity_type": d["entity_type"],  # 字段
@@ -910,123 +910,123 @@ async def review(
                 "extracted_value": d["extracted_value"],  # 字段
                 "required_value": d["required_value"],  # 字段
                 "difference": d["difference"],  # 字段
-            } for d in details]  # 闭合
-        }  # 闭合
-        corrections = correction_engine.generate_for_result(review_result_for_correction)  # 赋值
+            } for d in details]
+        }
+        corrections = correction_engine.generate_for_result(review_result_for_correction)
         response_data["corrections"] = corrections  # 操作
     except Exception as e:  # 捕获异常
         response_data["corrections"] = []  # 操作
 
     # ── 如果请求 full 模式，返回完整图元列表 ─────────────────
-    if full:  # 条件判断
+    if full:
         response_data["all_entities"] = [  # 操作
             {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}  # 字面量
             for e in entities  # 循环
-        ]  # 闭合
+        ]
 
-    return response_data  # 返回
+    return response_data
 
 
 @app.post("/batch-review")
 async def batch_review(
     files: List[UploadFile] = File(...),  # 操作
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    api_key: str = Depends(verify_api_key),
+):
     """多文件批量审查
 
     同时审查最多 20 个图纸文件，返回每个文件的单独审查结果，
     以及跨文件的交叉分析（同一违规类别在多少文件中出现）。
     """
-    if len(files) < 1:  # 条件判断
+    if len(files) < 1:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "请至少上传一个文件"})  # 抛出异常
-    if len(files) > 20:  # 条件判断
+    if len(files) > 20:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "单次最多审查20个文件"})  # 抛出异常
 
-    start = time.time()  # 赋值
-    loop = asyncio.get_event_loop()  # 赋值
+    start = time.time()
+    loop = asyncio.get_event_loop()
     from src.baa_engine.spec_repository import SpecRepository
     from collections import Counter
-    repo = SpecRepository()  # 赋值
-    registry_funcs = _func_registry.list_all()  # 赋值
+    repo = SpecRepository()
+    registry_funcs = _func_registry.list_all()
 
-    results = []  # 赋值
-    all_details = []  # 赋值
-    all_entities = []  # 赋值
-    total_violations = 0  # 赋值
-    total_checks = 0  # 赋值
+    results = []
+    all_details = []
+    all_entities = []
+    total_violations = 0
+    total_checks = 0
 
     # ── 遍历每个文件，逐一审查 ──────────────────────────────
     for file in files:  # 循环
-        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""  # 赋值
-        if ext not in SUPPORTED_FORMATS:  # 条件判断
-            results.append({  # 调用
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if ext not in SUPPORTED_FORMATS:
+            results.append({
                 "filename": file.filename,  # 字段
                 "status": "error",  # 字段
                 "error_code": "UNSUPPORTED_FORMAT",  # 字段
                 "message": f"不支持的文件格式: {ext}",  # 字段
-            })  # 闭合
+            })
             continue  # 继续循环
 
-        content = await file.read()  # 赋值
-        if len(content) > MAX_FILE_SIZE:  # 条件判断
-            results.append({  # 调用
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            results.append({
                 "filename": file.filename,  # 字段
                 "status": "error",  # 字段
                 "error_code": "FILE_TOO_LARGE",  # 字段
                 "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            })  # 闭合
+            })
             continue  # 继续循环
 
-        file_id = generate_file_id()  # 赋值
-        file_path = store_file(content, file_id, ext)  # 赋值
+        file_id = generate_file_id()
+        file_path = store_file(content, file_id, ext)
 
         # ── 解析（CPU密集型 → 线程池） ───────────────────────
-        result = await loop.run_in_executor(  # 赋值
+        result = await loop.run_in_executor(
             ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
-        )  # 闭合
-        if not result.success:  # 条件判断
-            results.append({  # 调用
+        )
+        if not result.success:
+            results.append({
                 "filename": file.filename,  # 字段
                 "status": "error",  # 字段
                 "error_code": "PARSE_FAILED",  # 字段
                 "message": f"图纸解析失败: {result.error}",  # 字段
-            })  # 闭合
+            })
             continue  # 继续循环
 
         # ── 语义分析（CPU密集型 → 线程池） ───────────────────
-        semantic = await loop.run_in_executor(  # 赋值
+        semantic = await loop.run_in_executor(
             ENGINE_THREAD_POOL,  # 解包
             lambda: _semantic_analyzer.analyze(  # 操作
                 result.primitives, result.dimensions,  # 解包
-                building_type=building_type  # 赋值
-            )  # 闭合
-        )  # 闭合
-        entities = semantic["entities"]  # 赋值
+                building_type=building_type
+            )
+        )
+        entities = semantic["entities"]
 
         # ── 规范判定 ──────────────────────────────────────────
-        details = []  # 赋值
-        found_entity_types = set(e["type"] for e in entities)  # 赋值
+        details = []
+        found_entity_types = set(e["type"] for e in entities)
 
         for e in entities:  # 循环
             for func in registry_funcs:  # 循环
-                threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)  # 赋值
-                func.threshold = threshold_val  # 赋值
-                func.unit = unit  # 赋值
-                func.operator = op  # 赋值
-                r = func.execute(e)  # 赋值
-                if r is None:  # 条件判断
+                threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+                func.threshold = threshold_val
+                func.unit = unit
+                func.operator = op
+                r = func.execute(e)
+                if r is None:
                     continue  # 继续循环
-                if r.result != "PASS":  # 条件判断
-                    clause = {  # 赋值
+                if r.result != "PASS":
+                    clause = {
                         "standard": "GB50016",  # 字段
                         "clause_id": func.clause_id,  # 字段
                         "title": func.name,  # 字段
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
-                    }  # 闭合
-                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # 赋值
-                    details.append({  # 调用
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                    details.append({
                         "entity_id": e.get("id", e.get("type", "")),  # 字段
                         "entity_type": e["type"],  # 字段
                         "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1036,25 +1036,25 @@ async def batch_review(
                         "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
                         "difference": f.extracted_params.get("difference", 0),  # 字段
                         "explanation": f.explanation[:120],  # 字段
-                    })  # 闭合
+                    })
 
         # ── 缺失检查 ──────────────────────────────────────────
         for func in registry_funcs:  # 循环
-            if func.category.value != "exist":  # 条件判断
+            if func.category.value != "exist":
                 continue  # 继续循环
-            has_match = any(func.matches(e) for e in entities)  # 赋值
-            if not has_match:  # 条件判断
-                r = func.execute(None)  # 赋值
-                if r is not None and r.result != "PASS":  # 条件判断
-                    clause = {  # 赋值
+            has_match = any(func.matches(e) for e in entities)
+            if not has_match:
+                r = func.execute(None)
+                if r is not None and r.result != "PASS":
+                    clause = {
                         "standard": "GB50016",  # 字段
                         "clause_id": func.clause_id,  # 字段
                         "title": func.name,  # 字段
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
-                    }  # 闭合
-                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # 赋值
-                    details.append({  # 调用
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                    details.append({
                         "entity_id": "",  # 字段
                         "entity_type": "missing",  # 字段
                         "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1064,13 +1064,13 @@ async def batch_review(
                         "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
                         "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
                         "explanation": f.explanation[:120],  # 字段
-                    })  # 闭合
+                    })
 
         # ── 单文件统计 ────────────────────────────────────────
-        entity_types = Counter(e["type"] for e in entities)  # 赋值
-        violation_count = Counter(d["clause_id"] for d in details)  # 赋值
+        entity_types = Counter(e["type"] for e in entities)
+        violation_count = Counter(d["clause_id"] for d in details)
 
-        file_result = {  # 赋值
+        file_result = {
             "filename": file.filename,  # 字段
             "file_id": file_id,  # 字段
             "status": "success",  # 字段
@@ -1079,42 +1079,42 @@ async def batch_review(
                 "entity_types": dict(entity_types),  # 字段
                 "violations": len(details),  # 字段
                 "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
-            },  # 闭合
+            },
             "details": details[:100],  # 字段
             "entities": [  # 字段
                 {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}  # 字面量
                 for e in entities  # 循环
-            ],  # 闭合
-        }  # 闭合
+            ],
+        }
 
-        all_details.extend(details)  # 调用
-        all_entities.extend(entities)  # 调用
-        total_violations += len(details)  # 赋值
-        total_checks += len(entities) * len(registry_funcs)  # 赋值
-        results.append(file_result)  # 调用
+        all_details.extend(details)
+        all_entities.extend(entities)
+        total_violations += len(details)
+        total_checks += len(entities) * len(registry_funcs)
+        results.append(file_result)
 
     # ── 交叉分析：跨图纸找出同一违规类别 ─────────────────────
-    cross_clause = Counter(d["clause_id"] for d in all_details)  # 赋值
-    cross_analysis = []  # 赋值
+    cross_clause = Counter(d["clause_id"] for d in all_details)
+    cross_analysis = []
     for clause_id, count in cross_clause.most_common(10):  # 循环
-        involved_files = set()  # 赋值
+        involved_files = set()
         for r in results:  # 循环
-            if r["status"] != "success":  # 条件判断
+            if r["status"] != "success":
                 continue  # 继续循环
-            for d in r["details"]:  # 遍历
-                if d["clause_id"] == clause_id:  # 条件判断
-                    involved_files.add(r["filename"])  # 调用
+            for d in r["details"]:
+                if d["clause_id"] == clause_id:
+                    involved_files.add(r["filename"])
                     break  # 跳出循环
-        cross_analysis.append({  # 调用
+        cross_analysis.append({
             "clause_id": clause_id,  # 字段
             "violations": count,  # 字段
             "files": len(involved_files),  # 字段
             "file_names": list(involved_files)[:5],  # 字段
-        })  # 闭合
+        })
 
-    elapsed = int((time.time() - start) * 1000)  # 赋值
+    elapsed = int((time.time() - start) * 1000)
 
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "batch_summary": {  # 字段
             "total_files": len(files),  # 字段
@@ -1124,56 +1124,56 @@ async def batch_review(
             "total_checks": total_checks,  # 字段
             "total_entities": len(all_entities),  # 字段
             "processing_time_ms": elapsed,  # 字段
-        },  # 闭合
+        },
         "cross_analysis": cross_analysis,  # 字段
         "results": results,  # 字段
-    }  # 闭合
+    }
 
 
 @app.post("/review-from-data")
 async def review_from_data(
     body: dict,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """从已解析的结构化数据执行规范审查（无需重新上传文件）
 
     接收前端或其他服务已解析好的实体数据，直接运行规范判定。
     适用于已有结构化数据的场景，跳过图纸解析步骤。
     """
-    entities = body.get("entities", [])  # 赋值
-    building_type = body.get("building_type", "civil")  # 赋值
+    entities = body.get("entities", [])
+    building_type = body.get("building_type", "civil")
 
     from src.baa_engine.spec_repository import SpecRepository
     from collections import Counter
-    repo = SpecRepository()  # 赋值
-    clause_results = Counter()  # 赋值
-    details = []  # 赋值
-    registry_funcs = _func_registry.list_all()  # 赋值
+    repo = SpecRepository()
+    clause_results = Counter()
+    details = []
+    registry_funcs = _func_registry.list_all()
 
-    start = time.time()  # 赋值
+    start = time.time()
 
     # ── 逐实体逐函数规范判定 ──────────────────────────────
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)  # 赋值
-            func.threshold = threshold_val  # 赋值
-            func.unit = unit  # 赋值
-            func.operator = op  # 赋值
-            r = func.execute(e)  # 赋值
-            if r is None:  # 条件判断
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            func.threshold = threshold_val
+            func.unit = unit
+            func.operator = op
+            r = func.execute(e)
+            if r is None:
                 continue  # 继续循环
-            clause_results[func.clause_id] += 1  # 赋值
-            if r.result != "PASS":  # 条件判断
-                clause = {  # 赋值
+            clause_results[func.clause_id] += 1
+            if r.result != "PASS":
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # 赋值
-                details.append({  # 调用
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
                     "entity_id": e.get("id", e.get("type", "")),  # 字段
                     "entity_type": e["type"],  # 字段
                     "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1184,25 +1184,25 @@ async def review_from_data(
                     "difference": f.extracted_params.get("difference", 0),  # 字段
                     "severity": f.judgement.get("severity", "major"),  # 字段
                     "explanation": f.explanation[:120],  # 字段
-                })  # 闭合
+                })
 
     # ── 缺失检查 ──────────────────────────────────────────
     for func in registry_funcs:  # 循环
-        if func.category.value != "exist":  # 条件判断
+        if func.category.value != "exist":
             continue  # 继续循环
-        has_match = any(func.matches(e) for e in entities)  # 赋值
-        if not has_match:  # 条件判断
-            r = func.execute(None)  # 赋值
-            if r is not None and r.result != "PASS":  # 条件判断
-                clause = {  # 赋值
+        has_match = any(func.matches(e) for e in entities)
+        if not has_match:
+            r = func.execute(None)
+            if r is not None and r.result != "PASS":
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # 赋值
-                details.append({  # 调用
+                }
+                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                details.append({
                     "entity_id": "",  # 字段
                     "entity_type": "missing",  # 字段
                     "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1213,13 +1213,13 @@ async def review_from_data(
                     "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
                     "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
                     "explanation": f.explanation[:120],  # 字段
-                })  # 闭合
+                })
 
-    elapsed = int((time.time() - start) * 1000)  # 赋值
-    entity_types = Counter(e["type"] for e in entities)  # 赋值
-    violation_count = Counter(d["clause_id"] for d in details)  # 赋值
+    elapsed = int((time.time() - start) * 1000)
+    entity_types = Counter(e["type"] for e in entities)
+    violation_count = Counter(d["clause_id"] for d in details)
 
-    response_data = {  # 赋值
+    response_data = {
         "status": "success",  # 字段
         "summary": {  # 字段
             "total_entities": len(entities),  # 字段
@@ -1227,17 +1227,17 @@ async def review_from_data(
             "total_checks": len(entities) * len(registry_funcs),  # 字段
             "violations": len(details),  # 字段
             "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
-        },  # 闭合
+        },
         "details": details[:100],  # 字段
         "building_type": building_type,  # 字段
         "processing_time_ms": elapsed,  # 字段
-    }  # 闭合
+    }
 
     # ── 生成修正建议 ──────────────────────────────────────
     try:  # 尝试
         from src.baa_engine.correction_engine import CorrectionEngine
-        ce = CorrectionEngine()  # 赋值
-        review_result_for_correction = {  # 赋值
+        ce = CorrectionEngine()
+        review_result_for_correction = {
             "findings": [{  # 字段
                 "entity_id": d["entity_id"],  # 字段
                 "entity_type": d["entity_type"],  # 字段
@@ -1246,9 +1246,9 @@ async def review_from_data(
                 "extracted_value": d["extracted_value"],  # 字段
                 "required_value": d["required_value"],  # 字段
                 "difference": d["difference"],  # 字段
-            } for d in details]  # 闭合
-        }  # 闭合
-        corrections = ce.generate_for_result(review_result_for_correction)  # 赋值
+            } for d in details]
+        }
+        corrections = ce.generate_for_result(review_result_for_correction)
         response_data["corrections"] = corrections  # 操作
         # raw_result 供对比重构消费
         response_data["raw_result"] = {  # 操作
@@ -1256,64 +1256,64 @@ async def review_from_data(
             "details": details,  # 字段
             "corrections": corrections,  # 字段
             "summary": response_data.get("summary", {}),  # 字段
-        }  # 闭合
+        }
     except Exception as e:  # 捕获异常
         response_data["corrections"] = []  # 操作
         response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
 
-    return response_data  # 返回
+    return response_data
 
 
 @app.post("/reconstruct")
 async def reconstruct(
     body: dict,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """BIM 重构（需授权验证）
 
     将已解析的审查结果重构为 IFC 格式的 BIM 模型文件。
     需要有效的 auth_token（通过支付获取）。
     """
-    file_id = body.get("file_id", "")  # 赋值
-    auth_token = body.get("auth_token", "")  # 赋值
+    file_id = body.get("file_id", "")
+    auth_token = body.get("auth_token", "")
 
     # ── 验证授权 ────────────────────────────────────────────
-    auth_payload = verify_auth_token(auth_token)  # 赋值
-    if auth_payload is None:  # 条件判断
+    auth_payload = verify_auth_token(auth_token)
+    if auth_payload is None:
         raise HTTPException(  # 抛出异常
-            status_code=402,  # 赋值
-            detail={  # 赋值
+            status_code=402,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "AUTH_FAILED",  # 字段
                 "message": "支付授权验证失败，请确认订单已支付",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 检查 file_id 是否存在 ───────────────────────────────
-    file_path = get_file_path(file_id)  # 赋值
-    if not file_path:  # 条件判断
+    file_path = get_file_path(file_id)
+    if not file_path:
         raise HTTPException(  # 抛出异常
-            status_code=404,  # 赋值
-            detail={  # 赋值
+            status_code=404,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "FILE_NOT_FOUND",  # 字段
                 "message": f"文件不存在: {file_id}",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
     # ── 执行重构（暂返回 mock 数据） ─────────────────────────
-    order_id = f"baa-order-{uuid.uuid4().hex[:8]}"  # 赋值
-    model_path = MODELS_DIR / order_id  # 赋值
-    model_path.mkdir(parents=True, exist_ok=True)  # 赋值
+    order_id = f"baa-order-{uuid.uuid4().hex[:8]}"
+    model_path = MODELS_DIR / order_id
+    model_path.mkdir(parents=True, exist_ok=True)
     (model_path / "model.ifc").write_text(  # 写入模型文件
         f"# Mock IFC file for order {order_id}\n"
         f"# Generated from file: {file_id}\n"
-    )  # 闭合
+    )
 
-    base_url = str(app.root_path) if app.root_path else "http://localhost:8000"  # 赋值
+    base_url = str(app.root_path) if app.root_path else "http://localhost:8000"
 
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "order_id": body.get("order_id", ""),  # 字段
         "baa_order_id": order_id,  # 字段
@@ -1322,46 +1322,46 @@ async def reconstruct(
         "processing_time_ms": 15000,  # 字段
         "file_size_mb": 2.5,  # 字段
         "valid_until": (datetime.utcnow() + timedelta(days=30)).isoformat() + "Z",  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/order/{order_id}")
 async def get_order(
     order_id: str,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """订单状态查询
 
     查询 BIM 重构订单的处理状态和结果下载链接。
     """
-    order_dir = MODELS_DIR / order_id  # 赋值
-    if not order_dir.exists():  # 条件判断
+    order_dir = MODELS_DIR / order_id
+    if not order_dir.exists():
         raise HTTPException(  # 抛出异常
-            status_code=404,  # 赋值
-            detail={  # 赋值
+            status_code=404,
+            detail={
                 "status": "error",  # 字段
                 "error_code": "ORDER_NOT_FOUND",  # 字段
                 "message": "订单不存在",  # 字段
-            }  # 闭合
-        )  # 闭合
+            }
+        )
 
-    model_file = order_dir / "model.ifc"  # 赋值
-    if model_file.exists():  # 条件判断
-        return {  # 返回
+    model_file = order_dir / "model.ifc"
+    if model_file.exists():
+        return {
             "status": "completed",  # 字段
             "order_id": order_id,  # 字段
             "progress": 100,  # 字段
             "model_url": f"/models/{order_id}/model.ifc",  # 字段
             "file_size_mb": round(model_file.stat().st_size / 1024 / 1024, 2),  # 字段
-        }  # 闭合
+        }
     else:  # 否则
-        return {  # 返回
+        return {
             "status": "processing",  # 字段
             "order_id": order_id,  # 字段
             "progress": 50,  # 字段
             "estimated_remaining_ms": 15000,  # 字段
-        }  # 闭合
+        }
 
 
 # ── 图纸渲染 ──────────────────────────────────────────────
@@ -1370,17 +1370,17 @@ async def get_order(
 @app.get("/render/{file_id}")
 async def render_drawing(
     file_id: str,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
     """将 DXF/DWG 图纸渲染为 SVG 供前端展示
 
     从存储的 DWG/DXF 文件中提取图元，生成缩放适配的 SVG 预览图。
     支持 LINE、LWPOLYLINE、CIRCLE、TEXT/MTEXT 等图元类型。
     最多渲染 2000 个图元以避免超时。
     """
-    file_path = get_file_path(file_id)  # 赋值
-    if not file_path:  # 条件判断
+    file_path = get_file_path(file_id)
+    if not file_path:
         raise HTTPException(status_code=404, detail={"status": "error", "message": "文件不存在"})  # 抛出异常
 
     import ezdxf
@@ -1388,107 +1388,107 @@ async def render_drawing(
 
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
-        doc = ezdxf.readfile(str(file_path))  # 赋值
-        msp = doc.modelspace()  # 赋值
+        doc = ezdxf.readfile(str(file_path))
+        msp = doc.modelspace()
     except Exception:  # 捕获异常
         raise HTTPException(status_code=400, detail={"status": "error", "message": "无法解析图纸文件"})  # 抛出异常
 
     # ── 计算图元边界（用于 SVG viewBox 适配） ────────────────
-    all_x, all_y = [], []  # 赋值
+    all_x, all_y = [], []
     for entity in msp:  # 循环
         try:  # 尝试
-            if entity.dxftype() == "LINE":  # 条件判断
-                s, e = entity.dxf.start, entity.dxf.end  # 赋值
-                all_x.extend([s[0], e[0]])  # 调用
-                all_y.extend([s[1], e[1]])  # 调用
+            if entity.dxftype() == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                all_x.extend([s[0], e[0]])
+                all_y.extend([s[1], e[1]])
             elif entity.dxftype() == "LWPOLYLINE":  # 分支
-                pts = [(v[0], v[1]) for v in entity.get_points()]  # 赋值
-                all_x.extend(p[0] for p in pts)  # 调用
-                all_y.extend(p[1] for p in pts)  # 调用
+                pts = [(v[0], v[1]) for v in entity.get_points()]
+                all_x.extend(p[0] for p in pts)
+                all_y.extend(p[1] for p in pts)
             elif entity.dxftype() == "CIRCLE":  # 分支
-                cx, cy = entity.dxf.center[:2]  # 赋值
-                r = entity.dxf.radius  # 赋值
-                all_x.extend([cx - r, cx + r])  # 调用
-                all_y.extend([cy - r, cy + r])  # 调用
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                all_x.extend([cx - r, cx + r])
+                all_y.extend([cy - r, cy + r])
             elif entity.dxftype() in ("TEXT", "MTEXT"):  # 分支
-                ins = entity.dxf.insert[:2]  # 赋值
-                all_x.append(ins[0])  # 调用
-                all_y.append(ins[1])  # 调用
+                ins = entity.dxf.insert[:2]
+                all_x.append(ins[0])
+                all_y.append(ins[1])
         except Exception:  # 捕获异常
             continue  # 继续循环
 
     # 根据条件判断分支：if not all_x
-    if not all_x:  # 条件判断
-        return {"status": "error", "message": "图纸无有效图元"}  # 返回
+    if not all_x:
+        return {"status": "error", "message": "图纸无有效图元"}
 
     # ── 计算 SVG viewBox 参数 ────────────────────────────────
-    margin = 5.0  # 赋值
+    margin = 5.0
     x_min, x_max = min(all_x) - margin, max(all_x) + margin  # 解包
     y_min, y_max = min(all_y) - margin, max(all_y) + margin  # 解包
-    w, h = x_max - x_min, y_max - y_min  # 赋值
+    w, h = x_max - x_min, y_max - y_min
 
     svg_w = min(max(w * 0.5, 400), 1200)    # SVG 输出宽度
     svg_h = min(max(h * 0.5, 300), 800)      # SVG 输出高度
 
     # ── 构建 SVG 字符串 ──────────────────────────────────────
-    buf = StringIO()  # 赋值
-    buf.write(f'<svg xmlns="http://www.w3.org/2000/svg" '  # 调用
+    buf = StringIO()
+    buf.write(f'<svg xmlns="http://www.w3.org/2000/svg" '
               f'viewBox="{x_min} {-y_max} {w} {h}" '  # 操作
               f'width="{svg_w}" height="{svg_h}" '  # 操作
               f'style="background:#fff">\n')
 
     max_entities = 2000  # 渲染上限，避免大图纸超时
-    drawn = 0  # 赋值
+    drawn = 0
 
     # 遍历处理
     for entity in msp:  # 循环
-        if drawn >= max_entities:  # 条件判断
+        if drawn >= max_entities:
             break  # 跳出循环
-        dxftype = entity.dxftype()  # 赋值
+        dxftype = entity.dxftype()
         try:  # 尝试
-            if dxftype == "LINE":  # 条件判断
-                s, e = entity.dxf.start, entity.dxf.end  # 赋值
-                buf.write(f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '  # 调用
+            if dxftype == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                buf.write(f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '
                           f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '  # 操作
                           f'stroke="#333" stroke-width="0.5" />\n')
-                drawn += 1  # 赋值
+                drawn += 1
             elif dxftype == "LWPOLYLINE":  # 分支
-                pts = [(v[0], -v[1]) for v in entity.get_points()]  # 赋值
-                d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)  # 赋值
+                pts = [(v[0], -v[1]) for v in entity.get_points()]
+                d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)
                 buf.write(f'<path d="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n')
-                drawn += 1  # 赋值
+                drawn += 1
             elif dxftype == "CIRCLE":  # 分支
-                cx, cy = entity.dxf.center[:2]  # 赋值
-                r = entity.dxf.radius  # 赋值
-                buf.write(f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '  # 调用
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                buf.write(f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '
                           f'fill="none" stroke="#333" stroke-width="0.5" />\n')
-                drawn += 1  # 赋值
+                drawn += 1
             elif dxftype in ("TEXT", "MTEXT"):  # 分支
-                ins = entity.dxf.insert[:2]  # 赋值
-                txt = entity.dxf.text if hasattr(entity.dxf, 'text') else ''  # 赋值
-                ht = entity.dxf.height if hasattr(entity.dxf, 'height') else 2.5  # 赋值
-                buf.write(f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '  # 调用
+                ins = entity.dxf.insert[:2]
+                txt = entity.dxf.text if hasattr(entity.dxf, 'text') else ''
+                ht = entity.dxf.height if hasattr(entity.dxf, 'height') else 2.5
+                buf.write(f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '
                           f'font-size="{ht}" fill="#666">{txt[:30]}</text>\n')
-                drawn += 1  # 赋值
+                drawn += 1
         except Exception:  # 捕获异常
             continue  # 继续循环
 
-    buf.write('</svg>')  # 调用
-    svg_content = buf.getvalue()  # 赋值
+    buf.write('</svg>')
+    svg_content = buf.getvalue()
 
-    return Response(content=svg_content, media_type="image/svg+xml")  # 返回
+    return Response(content=svg_content, media_type="image/svg+xml")
 
 
 # ── 静态文件服务（模型下载） ─────────────────────────────
 
-SPECS_DIR = DATA_DIR / "specs"  # 赋值
+SPECS_DIR = DATA_DIR / "specs"
 
-if SPECS_DIR.exists():  # 条件判断
-    app.mount("/data/specs", StaticFiles(directory=str(SPECS_DIR)), name="specs")  # 调用
+if SPECS_DIR.exists():
+    app.mount("/data/specs", StaticFiles(directory=str(SPECS_DIR)), name="specs")
 
 # 根据条件判断分支：if MODELS_DIR.exists()
-if MODELS_DIR.exists():  # 条件判断
-    app.mount("/models", StaticFiles(directory=str(MODELS_DIR)), name="models")  # 调用
+if MODELS_DIR.exists():
+    app.mount("/models", StaticFiles(directory=str(MODELS_DIR)), name="models")
 
 
 # ── API密钥管理端点 ──────────────────────────────────
@@ -1497,77 +1497,77 @@ if MODELS_DIR.exists():  # 条件判断
 @app.post("/admin/keys", tags=["admin"])
 async def create_api_key(
     body: dict,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """创建新的API Key（需要admin权限）"""
-    km = get_key_manager()  # 赋值
+    km = get_key_manager()
 
-    permission = body.get("permission", "write")  # 赋值
-    ttl_days = body.get("ttl_days", 90)  # 赋值
-    label = body.get("label", "")  # 赋值
+    permission = body.get("permission", "write")
+    ttl_days = body.get("ttl_days", 90)
+    label = body.get("label", "")
 
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
-        result = km.generate_key(  # 赋值
-            permission=permission,  # 赋值
-            ttl_days=ttl_days,  # 赋值
-            label=label,  # 赋值
-            created_by=api_key or "anonymous"  # 赋值
-        )  # 闭合
+        result = km.generate_key(
+            permission=permission,
+            ttl_days=ttl_days,
+            label=label,
+            created_by=api_key or "anonymous"
+        )
     except ValueError as e:  # 捕获异常
         raise HTTPException(status_code=400, detail={  # 抛出异常
             "status": "error", "error_code": "INVALID_PARAM",  # 字段
             "message": str(e)  # 字段
-        })  # 闭合
+        })
 
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "data": result,  # 字段
         "warning": "请立即保存 raw_key，创建后不再显示",  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/admin/keys", tags=["admin"])
 async def list_api_keys(
-    include_disabled: bool = Query(False),  # 赋值
-    include_raw: bool = Query(False, description="是否返回解密后的 raw_key（密钥详情时使用）"),  # 赋值
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    include_disabled: bool = Query(False),
+    include_raw: bool = Query(False, description="是否返回解密后的 raw_key（密钥详情时使用）"),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """列出所有API Key"""
-    km = get_key_manager()  # 赋值
-    keys = km.list_keys(include_disabled=include_disabled, include_raw=include_raw)  # 赋值
-    stats = km.get_usage_stats()  # 赋值
+    km = get_key_manager()
+    keys = km.list_keys(include_disabled=include_disabled, include_raw=include_raw)
+    stats = km.get_usage_stats()
 
     # 遍历处理
     for k in keys:  # 循环
-        k_id = k["key_id"]  # 赋值
-        if k_id in stats:  # 条件判断
+        k_id = k["key_id"]
+        if k_id in stats:
             k["usage"] = stats[k_id]  # 操作
 
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "data": keys,  # 字段
         "total": len(keys),  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/admin/keys/stats", tags=["admin"])
 async def api_key_stats(
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """API Key用量统计"""
-    km = get_key_manager()  # 赋值
+    km = get_key_manager()
 
-    stats = km.get_usage_stats()  # 赋值
-    keys = km.list_keys(include_disabled=True)  # 赋值
+    stats = km.get_usage_stats()
+    keys = km.list_keys(include_disabled=True)
 
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "data": {  # 字段
             "keys": stats,  # 字段
@@ -1576,105 +1576,105 @@ async def api_key_stats(
                 "active": len([k for k in keys if k.get("enabled")]),  # 字段
                 "disabled": len([k for k in keys if not k.get("enabled")]),  # 字段
                 "total_calls": sum(s.get("total_calls", 0) for s in stats.values()),  # 字段
-            }  # 闭合
-        }  # 闭合
-    }  # 闭合
+            }
+        }
+    }
 
 
 @app.get("/admin/keys/{key_id}", tags=["admin"])
 async def get_api_key_detail(
     key_id: str,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """获取单个API Key详情（含解密后的 raw_key）"""
-    km = get_key_manager()  # 赋值
-    keys = km.list_keys(include_disabled=True, include_raw=True)  # 赋值
+    km = get_key_manager()
+    keys = km.list_keys(include_disabled=True, include_raw=True)
     for k in keys:  # 循环
-        if k["key_id"] == key_id:  # 条件判断
-            stats = km.get_usage_stats(key_id)  # 赋值
+        if k["key_id"] == key_id:
+            stats = km.get_usage_stats(key_id)
             k["usage"] = stats  # 操作
-            return {"status": "success", "data": k}  # 返回
+            return {"status": "success", "data": k}
     raise HTTPException(status_code=404, detail={  # 抛出异常
         "status": "error", "error_code": "NOT_FOUND",  # 字段
         "message": f"密钥不存在: {key_id}"  # 字段
-    })  # 闭合
+    })
 
 
 @app.post("/admin/keys/{key_id}/revoke", tags=["admin"])
 async def revoke_api_key(
     key_id: str,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """撤销API Key"""
-    km = get_key_manager()  # 赋值
+    km = get_key_manager()
 
     # 根据条件判断分支：if km.revoke_key(key_id)
-    if km.revoke_key(key_id):  # 条件判断
-        return {"status": "success", "message": f"密钥 {key_id} 已撤销"}  # 返回
+    if km.revoke_key(key_id):
+        return {"status": "success", "message": f"密钥 {key_id} 已撤销"}
     raise HTTPException(status_code=404, detail={  # 抛出异常
         "status": "error", "error_code": "NOT_FOUND",  # 字段
         "message": f"密钥不存在: {key_id}"  # 字段
-    })  # 闭合
+    })
 
 
 @app.post("/admin/keys/{key_id}/rotate", tags=["admin"])
 async def rotate_api_key(
     key_id: str,  # 操作
     body: dict,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """轮换API Key（生成新密钥值，旧密钥失效）"""
-    km = get_key_manager()  # 赋值
-    result = km.rotate_key(key_id, new_ttl_days=new_ttl)  # 赋值
-    if result:  # 条件判断
-        return {  # 返回
+    km = get_key_manager()
+    result = km.rotate_key(key_id, new_ttl_days=new_ttl)
+    if result:
+        return {
             "status": "success",  # 字段
             "data": result,  # 字段
             "warning": "旧密钥已失效，请立即保存新 raw_key",  # 字段
-        }  # 闭合
+        }
     raise HTTPException(status_code=404, detail={  # 抛出异常
         "status": "error", "error_code": "NOT_FOUND",  # 字段
         "message": f"密钥不存在或已禁用: {key_id}"  # 字段
-    })  # 闭合
+    })
 
 
 @app.delete("/admin/keys/{key_id}", tags=["admin"])
 async def delete_api_key(
     key_id: str,  # 操作
-    request: Request = None,  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-    _admin: str = Depends(require_admin),  # 赋值
-):  # 闭合
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+    _admin: str = Depends(require_admin),
+):
     """物理删除API Key（不可恢复）"""
-    km = get_key_manager()  # 赋值
-    if km.delete_key(key_id):  # 条件判断
-        return {"status": "success", "message": f"密钥 {key_id} 已永久删除"}  # 返回
+    km = get_key_manager()
+    if km.delete_key(key_id):
+        return {"status": "success", "message": f"密钥 {key_id} 已永久删除"}
     raise HTTPException(status_code=404, detail={  # 抛出异常
         "status": "error", "error_code": "NOT_FOUND",  # 字段
         "message": f"密钥不存在: {key_id}"  # 字段
-    })  # 闭合
+    })
 
 
 @app.post("/admin/keys/verify", tags=["admin"])
 async def verify_api_key_raw(
     body: dict,  # 操作
-    request: Request = None,  # 赋值
-):  # 闭合
+    request: Request = None,
+):
     """验证原始API Key是否有效（无需admin权限，供前端导入时校验）"""
-    raw_key = body.get("raw_key", "")  # 赋值
-    if not raw_key:  # 条件判断
-        return {"status": "error", "valid": False, "message": "请提供 raw_key"}  # 返回
+    raw_key = body.get("raw_key", "")
+    if not raw_key:
+        return {"status": "error", "valid": False, "message": "请提供 raw_key"}
 
-    km = get_key_manager()  # 赋值
-    key_info = km.validate_key(raw_key)  # 赋值
-    if key_info and key_info.get("enabled", True):  # 条件判断
-        return {  # 返回
+    km = get_key_manager()
+    key_info = km.validate_key(raw_key)
+    if key_info and key_info.get("enabled", True):
+        return {
             "status": "success",  # 字段
             "valid": True,  # 字段
             "key_info": {  # 字段
@@ -1683,14 +1683,14 @@ async def verify_api_key_raw(
                 "permission": key_info.get("permission"),  # 字段
                 "expires_at": key_info.get("expires_at"),  # 字段
                 "created_at": key_info.get("created_at"),  # 字段
-            }  # 闭合
-        }  # 闭合
+            }
+        }
     else:  # 否则
-        return {  # 返回
+        return {
             "status": "success",  # 字段
             "valid": False,  # 字段
             "message": "密钥无效或已过期/撤销"  # 字段
-        }  # 闭合
+        }
 
 
 @app.get("/admin/bootstrap-key", tags=["admin"])
@@ -1701,12 +1701,12 @@ async def bootstrap_admin_key():
     此时后端 require_admin 不校验令牌，前端直接发请求即可。
     生产模式时返回环境变量中的 admin key。
     """
-    env_key = os.getenv("BAA_API_KEY", "")  # 赋值
-    return {  # 返回
+    env_key = os.getenv("BAA_API_KEY", "")
+    return {
         "status": "success",  # 字段
         "admin_key": env_key,  # 字段
         "mode": "production" if env_key else "development",  # 字段
-    }  # 闭合
+    }
 
 
 # ── EMA2 第三方对接 API ───────────────────────────────────
@@ -1723,12 +1723,12 @@ async def _fire_webhook(webhook_url: str, payload: dict) -> bool:
     """
     import httpx
     try:  # 尝试
-        async with httpx.AsyncClient(timeout=10.0) as client:  # 赋值
-            resp = await client.post(webhook_url, json=payload)  # 赋值
-            return resp.status_code == 200  # 返回
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(webhook_url, json=payload)
+            return resp.status_code == 200
     # 异常处理
     except Exception:  # 捕获异常
-        return False  # 返回
+        return False
 
 
 async def _run_review_task(task_id: str, file_path: str, building_type: str, webhook_url: str = None):
@@ -1742,52 +1742,52 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
     
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
-        start = time.time()  # 赋值
-        loop = asyncio.get_event_loop()  # 赋值
+        start = time.time()
+        loop = asyncio.get_event_loop()
         
         # ── Step 1: 图纸解析 ─────────────────────────────────
-        result = await loop.run_in_executor(  # 赋值
+        result = await loop.run_in_executor(
             ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), task_id  # 操作
-        )  # 闭合
-        if not result.success:  # 条件判断
+        )
+        if not result.success:
             _tasks[task_id]["status"] = "failed"  # 操作
             _tasks[task_id]["error"] = f"解析失败: {result.error}"  # 操作
             _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
-            if webhook_url:  # 条件判断
+            if webhook_url:
                 await _fire_webhook(webhook_url, {  # 操作
                     "task_id": task_id, "status": "failed", "error": _tasks[task_id]["error"]  # 字段
-                })  # 闭合
-            return  # 返回
+                })
+            return
         
         # ── Step 2: 语义分析 ─────────────────────────────────
-        semantic = await loop.run_in_executor(  # 赋值
+        semantic = await loop.run_in_executor(
             ENGINE_THREAD_POOL,  # 解包
             lambda: _semantic_analyzer.analyze(  # 操作
                 result.primitives, result.dimensions, building_type=building_type  # 解包
-            )  # 闭合
-        )  # 闭合
-        entities = semantic["entities"]  # 赋值
+            )
+        )
+        entities = semantic["entities"]
         
         # ── Step 3: 规范判定 ─────────────────────────────────
-        details = []  # 赋值
+        details = []
         for e in entities:  # 循环
             for func in _func_registry.list_all():  # 循环
-                threshold_val, unit, op = _spec_repo.get_threshold(func.clause_id, building_type)  # 赋值
-                func.threshold = threshold_val  # 赋值
-                func.unit = unit  # 赋值
-                func.operator = op  # 赋值
-                r = func.execute(e)  # 赋值
-                if r is None or r.result == "PASS":  # 条件判断
+                threshold_val, unit, op = _spec_repo.get_threshold(func.clause_id, building_type)
+                func.threshold = threshold_val
+                func.unit = unit
+                func.operator = op
+                r = func.execute(e)
+                if r is None or r.result == "PASS":
                     continue  # 继续循环
-                clause = {  # 赋值
+                clause = {
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
-                }  # 闭合
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # 赋值
-                details.append({  # 调用
+                }
+                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                details.append({
                     "entity_id": e.get("id", e.get("type", "")),  # 字段
                     "entity_type": e["type"],  # 字段
                     "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1798,24 +1798,24 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                     "difference": f.extracted_params.get("difference", 0),  # 字段
                     "explanation": f.explanation[:120],  # 字段
                     "severity": f.judgement.get("severity", "major"),  # 字段
-                })  # 闭合
+                })
         
         # ── Step 4: 缺失检查 ─────────────────────────────────
         for func in _func_registry.list_all():  # 循环
-            if func.category.value != "exist":  # 条件判断
+            if func.category.value != "exist":
                 continue  # 继续循环
-            if not any(func.matches(e) for e in entities):  # 条件判断
-                r = func.execute(None)  # 赋值
-                if r is not None and r.result != "PASS":  # 条件判断
-                    clause = {  # 赋值
+            if not any(func.matches(e) for e in entities):
+                r = func.execute(None)
+                if r is not None and r.result != "PASS":
+                    clause = {
                         "standard": "GB50016",  # 字段
                         "clause_id": func.clause_id,  # 字段
                         "title": func.name,  # 字段
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
-                    }  # 闭合
-                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # 赋值
-                    details.append({  # 调用
+                    }
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
+                    details.append({
                         "entity_id": "",  # 字段
                         "entity_type": "missing",  # 字段
                         "clause_id": f.clause.get("clause_id", ""),  # 字段
@@ -1826,9 +1826,9 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                         "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
                         "explanation": f.explanation[:120],  # 字段
                         "severity": f.judgement.get("severity", "major"),  # 字段
-                    })  # 闭合
+                    })
         
-        elapsed = int((time.time() - start) * 1000)  # 赋值
+        elapsed = int((time.time() - start) * 1000)
         
         # ── 存储结果 ────────────────────────────────────────
         _tasks[task_id]["status"] = "completed"  # 操作
@@ -1837,63 +1837,63 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                 "total_entities": len(entities),  # 字段
                 "violations": len(details),  # 字段
                 "entity_types": dict(Counter(e["type"] for e in entities)),  # 字段
-            },  # 闭合
+            },
             "details": details,  # 字段
             "processing_time_ms": elapsed,  # 字段
-        }  # 闭合
+        }
         _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
         
         # ── Webhook 回调通知 ─────────────────────────────────
-        if webhook_url:  # 条件判断
+        if webhook_url:
             await _fire_webhook(webhook_url, {  # 操作
                 "task_id": task_id, "status": "completed",  # 字段
                 "violations": len(details), "entities": len(entities),  # 字段
                 "processing_time_ms": elapsed,  # 字段
-            })  # 闭合
+            })
     
     # 异常处理
     except Exception as e:  # 捕获异常
         _tasks[task_id]["status"] = "failed"  # 操作
         _tasks[task_id]["error"] = str(e)  # 操作
         _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
-        if webhook_url:  # 条件判断
+        if webhook_url:
             await _fire_webhook(webhook_url, {  # 操作
                 "task_id": task_id, "status": "failed", "error": str(e)  # 字段
-            })  # 闭合
+            })
 
 
 @app.post("/api/v1/tasks", tags=["EMA2"])
 async def create_review_task(
-    file: UploadFile = File(...),  # 赋值
-    building_type: str = Query("civil", description="建筑类型: civil/industrial"),  # 赋值
-    webhook_url: str = Query("", description="回调通知 URL（可选）"),  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    file: UploadFile = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil/industrial"),
+    webhook_url: str = Query("", description="回调通知 URL（可选）"),
+    api_key: str = Depends(verify_api_key),
+):
     """创建异步审查任务（EMA2 对接）
     
     上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。
     """
-    filename = file.filename or "unknown"  # 赋值
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # 赋值
-    if ext not in SUPPORTED_FORMATS:  # 条件判断
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in SUPPORTED_FORMATS:
         raise HTTPException(status_code=400, detail={  # 抛出异常
             "status": "error", "error_code": "UNSUPPORTED_FORMAT",  # 字段
             "message": f"不支持的文件格式: {ext}",  # 字段
-        })  # 闭合
+        })
     
-    content = await file.read()  # 赋值
-    if len(content) > MAX_FILE_SIZE:  # 条件判断
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail={  # 抛出异常
             "status": "error", "error_code": "FILE_TOO_LARGE",  # 字段
             "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-        })  # 闭合
+        })
     
-    file_id = generate_file_id()  # 赋值
-    file_path = store_file(content, file_id, ext)  # 赋值
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
     
     # 创建任务
-    task_id = str(uuid.uuid4())[:8]  # 赋值
-    _tasks[task_id] = {  # 赋值
+    task_id = str(uuid.uuid4())[:8]
+    _tasks[task_id] = {
         "task_id": task_id,  # 字段
         "status": "pending",  # 字段
         "file_id": file_id,  # 字段
@@ -1905,30 +1905,30 @@ async def create_review_task(
         "updated_at": datetime.now().isoformat(),  # 字段
         "result": None,  # 字段
         "error": None,  # 字段
-    }  # 闭合
+    }
     
     # 启动后台任务
-    asyncio.create_task(_run_review_task(task_id, str(file_path), building_type, webhook_url))  # 调用
+    asyncio.create_task(_run_review_task(task_id, str(file_path), building_type, webhook_url))
     
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
         "status_url": f"/api/v1/tasks/{task_id}",  # 字段
         "result_url": f"/api/v1/tasks/{task_id}/result",  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/api/v1/tasks/{task_id}", tags=["EMA2"])
 async def get_task_status(task_id: str, api_key: str = Depends(verify_api_key)):
     """查询任务状态（EMA2 对接）"""
-    task = _tasks.get(task_id)  # 赋值
-    if not task:  # 条件判断
+    task = _tasks.get(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "TASK_NOT_FOUND",  # 字段
             "message": f"任务不存在: {task_id}",  # 字段
-        })  # 闭合
+        })
     
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
         "state": task["status"],  # 字段
@@ -1936,85 +1936,85 @@ async def get_task_status(task_id: str, api_key: str = Depends(verify_api_key)):
         "created_at": task.get("created_at"),  # 字段
         "updated_at": task.get("updated_at"),  # 字段
         "error": task.get("error"),  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/api/v1/tasks/{task_id}/result", tags=["EMA2"])
 async def get_task_result(task_id: str, api_key: str = Depends(verify_api_key)):
     """获取审查结果（EMA2 对接）"""
-    task = _tasks.get(task_id)  # 赋值
-    if not task:  # 条件判断
+    task = _tasks.get(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "TASK_NOT_FOUND",  # 字段
             "message": f"任务不存在: {task_id}",  # 字段
-        })  # 闭合
+        })
     
     # 根据条件判断分支：if task["status"] == "pending"
-    if task["status"] == "pending":  # 条件判断
+    if task["status"] == "pending":
         raise HTTPException(status_code=409, detail={  # 抛出异常
             "status": "pending",  # 字段
             "message": "任务仍在处理中，请稍后查询",  # 字段
-        })  # 闭合
+        })
     
     # 根据条件判断分支：if task["status"] == "failed"
-    if task["status"] == "failed":  # 条件判断
+    if task["status"] == "failed":
         raise HTTPException(status_code=500, detail={  # 抛出异常
             "status": "error", "error_code": "TASK_FAILED",  # 字段
             "message": task.get("error", "任务执行失败"),  # 字段
-        })  # 闭合
+        })
     
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
         "result": task.get("result"),  # 字段
-    }  # 闭合
+    }
 
 
 @app.post("/api/v1/webhooks", tags=["EMA2"])
 async def register_webhook(
-    url: str = Query(..., description="回调 URL"),  # 赋值
-    events: str = Query("completed", description="触发事件: completed,failed,all"),  # 赋值
-    api_key: str = Depends(verify_api_key),  # 赋值
-):  # 闭合
+    url: str = Query(..., description="回调 URL"),
+    events: str = Query("completed", description="触发事件: completed,failed,all"),
+    api_key: str = Depends(verify_api_key),
+):
     """注册 Webhook 回调（EMA2 对接）
 
     注册后，当异步审查任务完成或失败时，系统会 POST 通知到该 URL。
     """
-    webhook_id = str(uuid.uuid4())[:8]  # 赋值
-    _webhooks[webhook_id] = {  # 赋值
+    webhook_id = str(uuid.uuid4())[:8]
+    _webhooks[webhook_id] = {
         "webhook_id": webhook_id,  # 字段
         "url": url,  # 字段
         "events": events,  # 字段
         "active": True,  # 字段
         "created_at": datetime.now().isoformat(),  # 字段
-    }  # 闭合
-    return {  # 返回
+    }
+    return {
         "status": "success",  # 字段
         "webhook_id": webhook_id,  # 字段
         "url": url,  # 字段
         "events": events,  # 字段
-    }  # 闭合
+    }
 
 
 @app.get("/api/v1/webhooks", tags=["EMA2"])
 async def list_webhooks(api_key: str = Depends(verify_api_key)):
     """查询 Webhook 列表（EMA2 对接）"""
-    return {  # 返回
+    return {
         "status": "success",  # 字段
         "webhooks": list(_webhooks.values()),  # 字段
-    }  # 闭合
+    }
 
 
 @app.delete("/api/v1/webhooks/{webhook_id}", tags=["EMA2"])
 async def delete_webhook(webhook_id: str, api_key: str = Depends(verify_api_key)):
     """删除 Webhook（EMA2 对接）"""
-    if webhook_id not in _webhooks:  # 条件判断
+    if webhook_id not in _webhooks:
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "WEBHOOK_NOT_FOUND",  # 字段
             "message": f"Webhook 不存在: {webhook_id}",  # 字段
-        })  # 闭合
+        })
     del _webhooks[webhook_id]  # 删除
-    return {"status": "success", "message": "Webhook 已删除"}  # 返回
+    return {"status": "success", "message": "Webhook 已删除"}
 
 
 # ── P10 反馈闭环 API ───────────────────────────────────────
@@ -2027,86 +2027,86 @@ async def submit_feedback(body: dict):
     Body 包含 task_id, clause_id, entity_id, entity_type, reason, description 等。
     申诉数据后续用于模型微调，减少误报。
     """
-    record = _feedback_manager.submit(  # 赋值
-        task_id=body.get("task_id", ""),  # 赋值
-        clause_id=body.get("clause_id", ""),  # 赋值
-        entity_id=body.get("entity_id", ""),  # 赋值
-        entity_type=body.get("entity_type", ""),  # 赋值
-        reason=body.get("reason", ""),  # 赋值
-        description=body.get("description", ""),  # 赋值
-        original_value=body.get("original_value"),  # 赋值
-        severity=body.get("severity", ""),  # 赋值
-    )  # 闭合
-    return {"status": "success", "feedback": record}  # 返回
+    record = _feedback_manager.submit(
+        task_id=body.get("task_id", ""),
+        clause_id=body.get("clause_id", ""),
+        entity_id=body.get("entity_id", ""),
+        entity_type=body.get("entity_type", ""),
+        reason=body.get("reason", ""),
+        description=body.get("description", ""),
+        original_value=body.get("original_value"),
+        severity=body.get("severity", ""),
+    )
+    return {"status": "success", "feedback": record}
 
 
 @app.get("/api/v1/feedbacks", tags=["Feedback"])
 async def list_feedbacks(
-    status: str = Query("", description="筛选状态: pending/accepted/rejected"),  # 赋值
-    clause_id: str = Query("", description="筛选规范条款"),  # 赋值
-    limit: int = Query(50, ge=1, le=200),  # 赋值
-    offset: int = Query(0, ge=0),  # 赋值
-):  # 闭合
+    status: str = Query("", description="筛选状态: pending/accepted/rejected"),
+    clause_id: str = Query("", description="筛选规范条款"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
     """查询申诉列表（支持状态和规范条款筛选）"""
-    items, total = _feedback_manager.list_all(  # 赋值
-        status=status, clause_id=clause_id, limit=limit, offset=offset  # 赋值
-    )  # 闭合
-    return {"status": "success", "feedbacks": items, "total": total}  # 返回
+    items, total = _feedback_manager.list_all(
+        status=status, clause_id=clause_id, limit=limit, offset=offset
+    )
+    return {"status": "success", "feedbacks": items, "total": total}
 
 
 @app.get("/api/v1/feedbacks/stats", tags=["Feedback"])
 async def feedback_stats():
     """申诉统计（总数、待处理数、各类分布）"""
-    return {"status": "success", "stats": _feedback_manager.stats()}  # 返回
+    return {"status": "success", "stats": _feedback_manager.stats()}
 
 
 @app.get("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])
 async def get_feedback(feedback_id: str):
     """查询单条申诉详情"""
-    record = _feedback_manager.get(feedback_id)  # 赋值
-    if not record:  # 条件判断
+    record = _feedback_manager.get(feedback_id)
+    if not record:
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "FEEDBACK_NOT_FOUND",  # 字段
             "message": f"申诉不存在: {feedback_id}",  # 字段
-        })  # 闭合
-    return {"status": "success", "feedback": record}  # 返回
+        })
+    return {"status": "success", "feedback": record}
 
 
 @app.patch("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])
 async def review_feedback(
     feedback_id: str,  # 操作
     body: dict,  # 操作
-):  # 闭合
+):
     """审核申诉（P10 反馈闭环）
 
     管理员审核用户提交的申诉。
     Body: {status: accepted/rejected, reviewed_by, review_comment?}
     """
-    record = _feedback_manager.review(  # 赋值
+    record = _feedback_manager.review(
         feedback_id, body.get("status", ""), body.get("reviewed_by", ""),  # 操作
-        body.get("review_comment", "")  # 调用
-    )  # 闭合
-    if not record:  # 条件判断
+        body.get("review_comment", "")
+    )
+    if not record:
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "FEEDBACK_NOT_FOUND",  # 字段
             "message": f"申诉不存在: {feedback_id}",  # 字段
-        })  # 闭合
-    return {"status": "success", "feedback": record}  # 返回
+        })
+    return {"status": "success", "feedback": record}
 
 
 @app.post("/api/v1/feedbacks/{feedback_id}/adjust", tags=["Feedback"])
 async def adjust_threshold(
     feedback_id: str,  # 操作
     body: dict,  # 操作
-):  # 闭合
+):
     """基于申诉数据计算/应用阈值调整
 
     使用 LearningEngine 分析申诉数据，计算建议的阈值调整值。
     如果 apply=true，直接应用调整到规范知识库。
     Body: {clause_id, apply?}
     """
-    clause_id = body.get("clause_id", "")  # 赋值
-    apply = body.get("apply", False)  # 赋值
+    clause_id = body.get("clause_id", "")
+    apply = body.get("apply", False)
     
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
@@ -2115,24 +2115,24 @@ async def adjust_threshold(
         raise HTTPException(status_code=404, detail={  # 抛出异常
             "status": "error", "error_code": "CLAUSE_NOT_FOUND",  # 字段
             "message": f"规范不存在: {clause_id}",  # 字段
-        })  # 闭合
+        })
 
-    adjustment = _learning_engine.compute_adjustment(clause_id, current)  # 赋值
+    adjustment = _learning_engine.compute_adjustment(clause_id, current)
 
     # 根据条件判断分支：if apply and adjustment.get("adjustable")
-    if apply and adjustment.get("adjustable"):  # 条件判断
-        success = _learning_engine.apply_adjustment(  # 赋值
+    if apply and adjustment.get("adjustable"):
+        success = _learning_engine.apply_adjustment(
             clause_id, adjustment["suggested_threshold"], _spec_repo,  # 操作
-            reason=f"基于申诉 {feedback_id} 的自动微调"  # 赋值
-        )  # 闭合
+            reason=f"基于申诉 {feedback_id} 的自动微调"
+        )
         adjustment["applied"] = success  # 操作
 
-    return {"status": "success", "adjustment": adjustment}  # 返回
+    return {"status": "success", "adjustment": adjustment}
 
 
 # ── 启动入口 ──────────────────────────────────────────────
 
-if __name__ == "__main__":  # 条件判断
+if __name__ == "__main__":
     """直接运行本文件时启动 Uvicorn 服务器
 
     生产环境建议通过 Docker 或 systemd 管理进程生命周期。
@@ -2144,18 +2144,18 @@ if __name__ == "__main__":  # 条件判断
     workers = int(os.getenv("BAA_WORKERS", "4"))    # 默认4 worker
 
     # 日志输出到项目 data/logs/ 下
-    log_dir = DATA_DIR / "logs"  # 赋值
-    log_dir.mkdir(parents=True, exist_ok=True)  # 赋值
-    log_file = log_dir / "baa-api.log"  # 赋值
-    print(f"[BAA] 日志路径: {log_file}", flush=True)  # 调用
-    print(f"[BAA] Worker 数: {workers}", flush=True)  # 调用
+    log_dir = DATA_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "baa-api.log"
+    print(f"[BAA] 日志路径: {log_file}", flush=True)
+    print(f"[BAA] Worker 数: {workers}", flush=True)
 
-    uvicorn.run(  # 调用
+    uvicorn.run(
         "src.api.baa_api:app",  # 应用模块路径
-        host="0.0.0.0",  # 赋值
-        port=port,  # 赋值
-        workers=workers,  # 赋值
-        log_config=None,  # 赋值
-        access_log=False,  # 赋值
-        log_level="info"  # 赋值
-    )  # 闭合
+        host="0.0.0.0",
+        port=port,
+        workers=workers,
+        log_config=None,
+        access_log=False,
+        log_level="info"
+    )

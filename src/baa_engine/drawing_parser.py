@@ -35,7 +35,7 @@ except ImportError:
 class RawPrimitive:
     """原始图元 - 图纸解析管线的输出"""
     def __init__(self, dxf_type: str, layer: str, handle: str,
-                 bbox: Dict[str, float], properties: Dict[str, Any] = None):  # 赋值
+                 bbox: Dict[str, float], properties: Dict[str, Any] = None):
         self.dxf_type = dxf_type          # LINE, LWPOLYLINE, CIRCLE, TEXT, DIMENSION...
         self.layer = layer                 # 图层名
         self.handle = handle               # DXF handle
@@ -44,13 +44,13 @@ class RawPrimitive:
 
     def to_dict(self) -> dict:
         """处理RawPrimitive相关逻辑"""
-        return {  # 返回
+        return {
             "dxf_type": self.dxf_type,  # 字段
             "layer": self.layer,  # 字段
             "handle": self.handle,  # 字段
             "bbox": self.bbox,  # 字段
             "properties": self.properties,  # 字段
-        }  # 闭合
+        }
 
 
 class DrawingResult:
@@ -59,12 +59,12 @@ class DrawingResult:
                  primitives: List[RawPrimitive] = None,  # 操作
                  dimensions: List[Dict] = None,  # 操作
                  error: Optional[str] = None):  # 操作
-        self.file_path = file_path  # 赋值
-        self.file_id = file_id  # 赋值
-        self.primitives = primitives or []  # 赋值
-        self.dimensions = dimensions or []  # 赋值
-        self.error = error  # 赋值
-        self.success = error is None  # 赋值
+        self.file_path = file_path
+        self.file_id = file_id
+        self.primitives = primitives or []
+        self.dimensions = dimensions or []
+        self.error = error
+        self.success = error is None
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -72,10 +72,10 @@ class DrawingResult:
 class DrawingParser:
     """图纸解析引擎 - 基于 ezdxf"""
 
-    SUPPORTED_FORMATS = {".dxf", ".dwg"}  # 赋值
+    SUPPORTED_FORMATS = {".dxf", ".dwg"}
 
     def __init__(self):
-        self._doc = None  # 赋值
+        self._doc = None
 
     def parse(self, file_path: str, file_id: str = None) -> DrawingResult:
         """
@@ -88,32 +88,32 @@ class DrawingParser:
         返回:
             DrawingResult 包含原始图元列表
         """
-        path = Path(file_path)  # 赋值
-        ext = path.suffix.lower()  # 赋值
+        path = Path(file_path)
+        ext = path.suffix.lower()
 
-        if ext not in self.SUPPORTED_FORMATS:  # 条件判断
-            return DrawingResult(  # 返回
-                file_path=file_path,  # 赋值
-                file_id=file_id or f"baa-file-{path.stem}",  # 赋值
-                error=f"不支持的文件格式: {ext}。支持: dxf, dwg"  # 赋值
-            )  # 闭合
+        if ext not in self.SUPPORTED_FORMATS:
+            return DrawingResult(
+                file_path=file_path,
+                file_id=file_id or f"baa-file-{path.stem}",
+                error=f"不支持的文件格式: {ext}。支持: dxf, dwg"
+            )
 
-        if not path.exists():  # 条件判断
-            return DrawingResult(  # 返回
-                file_path=file_path,  # 赋值
-                file_id=file_id or f"baa-file-{path.stem}",  # 赋值
-                error=f"文件不存在: {file_path}"  # 赋值
-            )  # 闭合
+        if not path.exists():
+            return DrawingResult(
+                file_path=file_path,
+                file_id=file_id or f"baa-file-{path.stem}",
+                error=f"文件不存在: {file_path}"
+            )
 
         try:  # 尝试
-            if ext == ".dwg":  # 条件判断
-                dxf_doc = self._parse_dwg(path)  # 赋值
-                if dxf_doc is None:  # 条件判断
+            if ext == ".dwg":
+                dxf_doc = self._parse_dwg(path)
+                if dxf_doc is None:
                     # DWG 格式检测
                     format_hint = self._detect_dwg_format(path)
                     
                     # 版本检测
-                    version_hint = ""  # 赋值
+                    version_hint = ""
                     try:  # 尝试
                         ver = _ezdwg_raw.detect_version(str(path)) if _ezdwg_raw else None
                         if ver is None:
@@ -143,77 +143,77 @@ class DrawingParser:
                         diag_parts.append("，当前解析器无法读取此格式。")
                         diag_parts.append("请用 LibreCAD (开源免费) 打开后另存为 DXF 格式再上传。")
                     
-                    return DrawingResult(  # 返回
-                        file_path=file_path,  # 赋值
-                        file_id=file_id or f"baa-file-{path.stem}",  # 赋值
+                    return DrawingResult(
+                        file_path=file_path,
+                        file_id=file_id or f"baa-file-{path.stem}",
                         error="".join(diag_parts)
-                    )  # 闭合
-                self._doc = dxf_doc  # 赋值
+                    )
+                self._doc = dxf_doc
             else:  # 否则
-                self._doc = ezdxf.readfile(str(path))  # 赋值
+                self._doc = ezdxf.readfile(str(path))
         except Exception as e:  # 捕获异常
-            return DrawingResult(  # 返回
-                file_path=file_path,  # 赋值
-                file_id=file_id or f"baa-file-{path.stem}",  # 赋值
-                error=f"DXF 解析失败: {str(e)}"  # 赋值
-            )  # 闭合
+            return DrawingResult(
+                file_path=file_path,
+                file_id=file_id or f"baa-file-{path.stem}",
+                error=f"DXF 解析失败: {str(e)}"
+            )
 
-        primitives = self._extract_primitives()  # 赋值
-        dimensions = self._extract_dimensions()  # 赋值
+        primitives = self._extract_primitives()
+        dimensions = self._extract_dimensions()
 
-        return DrawingResult(  # 返回
-            file_path=file_path,  # 赋值
-            file_id=file_id or f"baa-file-{path.stem}",  # 赋值
-            primitives=primitives,  # 赋值
-            dimensions=dimensions,  # 赋值
-        )  # 闭合
+        return DrawingResult(
+            file_path=file_path,
+            file_id=file_id or f"baa-file-{path.stem}",
+            primitives=primitives,
+            dimensions=dimensions,
+        )
 
     def _extract_primitives(self) -> List[RawPrimitive]:
         """提取所有图元"""
-        primitives = []  # 赋值
+        primitives = []
 
         # 模型空间
-        msp = self._doc.modelspace()  # 赋值
+        msp = self._doc.modelspace()
 
         for entity in msp:  # 循环
-            dxf_type = entity.dxftype()  # 赋值
-            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0'  # 赋值
-            handle = entity.dxf.handle if hasattr(entity.dxf, 'handle') else ''  # 赋值
+            dxf_type = entity.dxftype()
+            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0'
+            handle = entity.dxf.handle if hasattr(entity.dxf, 'handle') else ''
 
             # 计算边界框
             try:  # 尝试
-                bbox = self._compute_bbox(entity)  # 赋值
+                bbox = self._compute_bbox(entity)
             except Exception:  # 捕获异常
                 continue  # 继续循环
 
             # 提取几何属性
-            props = self._extract_properties(entity)  # 赋值
+            props = self._extract_properties(entity)
 
-            primitives.append(RawPrimitive(  # 调用
-                dxf_type=dxf_type,  # 赋值
-                layer=layer,  # 赋值
-                handle=handle,  # 赋值
-                bbox=bbox,  # 赋值
-                properties=props,  # 赋值
-            ))  # 闭合
+            primitives.append(RawPrimitive(
+                dxf_type=dxf_type,
+                layer=layer,
+                handle=handle,
+                bbox=bbox,
+                properties=props,
+            ))
 
-        return primitives  # 返回
+        return primitives
 
     def _extract_dimensions(self) -> List[Dict]:
         """提取尺寸标注"""
-        dimensions = []  # 赋值
-        msp = self._doc.modelspace()  # 赋值
+        dimensions = []
+        msp = self._doc.modelspace()
 
         for entity in msp:  # 循环
-            dxftype = entity.dxftype()  # 赋值
-            if dxftype == 'DIMENSION':  # 条件判断
+            dxftype = entity.dxftype()
+            if dxftype == 'DIMENSION':
                 try:  # 尝试
                     # ezdxf DIMENSION 实体
-                    meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None  # 赋值
-                    defp2 = entity.dxf.defpoint2 if hasattr(entity.dxf, 'defpoint2') else None  # 赋值
-                    defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None  # 赋值
-                    tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None  # 赋值
-                    dim = {  # 赋值
+                    meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None
+                    defp2 = entity.dxf.defpoint2 if hasattr(entity.dxf, 'defpoint2') else None
+                    defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None
+                    tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None
+                    dim = {
                         "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',  # 字段
                         "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',  # 字段
                         "measurement": meas,  # 字段
@@ -222,26 +222,26 @@ class DrawingParser:
                         "position": {  # 字段
                             "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,  # 字段
                             "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,  # 字段
-                        },  # 闭合
+                        },
                         "defpoint2": {  # 字段
                             "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,  # 字段
                             "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,  # 字段
-                        },  # 闭合
+                        },
                         "defpoint3": {  # 字段
                             "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,  # 字段
                             "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,  # 字段
-                        },  # 闭合
+                        },
                         "text_midpoint": {  # 字段
                             "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,  # 字段
                             "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,  # 字段
-                        },  # 闭合
-                    }  # 闭合
-                    if meas is not None and meas > 0.1:  # 条件判断
-                        dimensions.append(dim)  # 调用
+                        },
+                    }
+                    if meas is not None and meas > 0.1:
+                        dimensions.append(dim)
                 except Exception:  # 捕获异常
                     continue  # 继续循环
 
-        return dimensions  # 返回
+        return dimensions
 
     # ── DWG 解析（六级兜底） ───────────────────────────
 
@@ -702,71 +702,71 @@ except Exception:
         """
         # 1. ezdxf 原生 bbox 方法
         try:  # 尝试
-            if hasattr(entity, 'bbox'):  # 条件判断
-                bbox = entity.bbox()  # 赋值
-                if bbox and bbox.extmin is not None and bbox.extmax is not None:  # 条件判断
-                    w = bbox.extmax[0] - bbox.extmin[0]  # 赋值
-                    h = bbox.extmax[1] - bbox.extmin[1]  # 赋值
-                    if w > 0 or h > 0:  # 条件判断
-                        return {"x": bbox.extmin[0], "y": bbox.extmin[1], "width": w, "height": h}  # 返回
+            if hasattr(entity, 'bbox'):
+                bbox = entity.bbox()
+                if bbox and bbox.extmin is not None and bbox.extmax is not None:
+                    w = bbox.extmax[0] - bbox.extmin[0]
+                    h = bbox.extmax[1] - bbox.extmin[1]
+                    if w > 0 or h > 0:
+                        return {"x": bbox.extmin[0], "y": bbox.extmin[1], "width": w, "height": h}
         except Exception:  # 捕获异常
             pass  # 占位
 
         # 2. 从 vertices() 计算（ezdxf 原生图元）
         try:  # 尝试
-            points = list(entity.vertices())  # 赋值
-            if points:  # 条件判断
-                xs, ys = [], []  # 赋值
+            points = list(entity.vertices())
+            if points:
+                xs, ys = [], []
                 for p in points:  # 循环
                     try:  # 尝试
-                        xs.append(p.dxf.location.x)  # 调用
-                        ys.append(p.dxf.location.y)  # 调用
+                        xs.append(p.dxf.location.x)
+                        ys.append(p.dxf.location.y)
                     except Exception:  # 捕获异常
                         try:  # 尝试
-                            xs.append(p[0])  # 调用
-                            ys.append(p[1])  # 调用
+                            xs.append(p[0])
+                            ys.append(p[1])
                         except Exception:  # 捕获异常
                             pass  # 占位
-                if xs and ys:  # 条件判断
-                    w, h = max(xs) - min(xs), max(ys) - min(ys)  # 赋值
-                    if w > 0 or h > 0:  # 条件判断
-                        return {"x": min(xs), "y": min(ys), "width": w, "height": h}  # 返回
+                if xs and ys:
+                    w, h = max(xs) - min(xs), max(ys) - min(ys)
+                    if w > 0 or h > 0:
+                        return {"x": min(xs), "y": min(ys), "width": w, "height": h}
         except Exception:  # 捕获异常
             pass  # 占位
 
         # 3. 从 dxf 字典 points 计算（ezdwg 手动重建的 LWPOLYLINE）
         try:  # 尝试
-            pts = entity.dxf.get('points', [])  # 赋值
-            if pts:  # 条件判断
-                xs = [p[0] for p in pts]  # 赋值
-                ys = [p[1] for p in pts]  # 赋值
-                return {"x": min(xs), "y": min(ys), "width": max(xs) - min(xs), "height": max(ys) - min(ys)}  # 返回
+            pts = entity.dxf.get('points', [])
+            if pts:
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                return {"x": min(xs), "y": min(ys), "width": max(xs) - min(xs), "height": max(ys) - min(ys)}
         except Exception:  # 捕获异常
             pass  # 占位
 
         # 4. 从 start/end 端点计算（LINE / ezdwg 重建的 LINE）
         try:  # 尝试
-            start = entity.dxf.start  # 赋值
-            end = entity.dxf.end  # 赋值
-            if start is not None and end is not None:  # 条件判断
-                sx = start[0] if hasattr(start, '__getitem__') else start.x  # 赋值
-                sy = start[1] if hasattr(start, '__getitem__') else start.y  # 赋值
-                ex = end[0] if hasattr(end, '__getitem__') else end.x  # 赋值
-                ey = end[1] if hasattr(end, '__getitem__') else end.y  # 赋值
-                return {"x": min(sx, ex), "y": min(sy, ey), "width": abs(ex - sx), "height": abs(ey - sy)}  # 返回
+            start = entity.dxf.start
+            end = entity.dxf.end
+            if start is not None and end is not None:
+                sx = start[0] if hasattr(start, '__getitem__') else start.x
+                sy = start[1] if hasattr(start, '__getitem__') else start.y
+                ex = end[0] if hasattr(end, '__getitem__') else end.x
+                ey = end[1] if hasattr(end, '__getitem__') else end.y
+                return {"x": min(sx, ex), "y": min(sy, ey), "width": abs(ex - sx), "height": abs(ey - sy)}
         except Exception:  # 捕获异常
             pass  # 占位
 
-        return {"x": 0, "y": 0, "width": 0, "height": 0}  # 返回
+        return {"x": 0, "y": 0, "width": 0, "height": 0}
 
     def _extract_properties(self, entity) -> Dict[str, Any]:
         """提取几何属性"""
-        props = {}  # 赋值
+        props = {}
 
         try:  # 尝试
-            if entity.dxftype() == 'LINE':  # 条件判断
-                start = entity.dxf.start  # 赋值
-                end = entity.dxf.end  # 赋值
+            if entity.dxftype() == 'LINE':
+                start = entity.dxf.start
+                end = entity.dxf.end
                 props["length"] = Vec2(start).distance(Vec2(end))  # 操作
                 props["angle"] = Vec2(end - start).angle_deg  # 操作
 
@@ -775,17 +775,17 @@ except Exception:
                 props["diameter"] = entity.dxf.radius * 2  # 操作
 
             elif entity.dxftype() == 'LWPOLYLINE':  # 分支
-                if hasattr(entity, 'length'):  # 条件判断
+                if hasattr(entity, 'length'):
                     props["length"] = entity.length  # 操作
-                if entity.closed:  # 条件判断
+                if entity.closed:
                     props["area"] = self._compute_polygon_area(entity)  # 操作
                 # 记录顶点数（ezdwg 重建的图元用 points）
                 try:  # 尝试
-                    pts = entity.dxf.get('points', [])  # 赋值
+                    pts = entity.dxf.get('points', [])
                     props["point_count"] = len(pts)  # 操作
                 except Exception:  # 捕获异常
                     try:  # 尝试
-                        pts = list(entity.vertices())  # 赋值
+                        pts = list(entity.vertices())
                         props["point_count"] = len(pts)  # 操作
                     except Exception:  # 捕获异常
                         pass  # 占位
@@ -802,10 +802,10 @@ except Exception:
             elif entity.dxftype() == 'INSERT':  # 分支
                 # 提取块名和插入点
                 try:  # 尝试
-                    block_name = entity.dxf.name if hasattr(entity.dxf, 'name') else ''  # 赋值
+                    block_name = entity.dxf.name if hasattr(entity.dxf, 'name') else ''
                     props["block_name"] = block_name or ''  # 操作
-                    ins = entity.dxf.insert if hasattr(entity.dxf, 'insert') else None  # 赋值
-                    if ins:  # 条件判断
+                    ins = entity.dxf.insert if hasattr(entity.dxf, 'insert') else None
+                    if ins:
                         props["insert_x"] = ins[0] if hasattr(ins, '__getitem__') else ins.x  # 操作
                         props["insert_y"] = ins[1] if hasattr(ins, '__getitem__') else ins.y  # 操作
                 except Exception:  # 捕获异常
@@ -814,20 +814,20 @@ except Exception:
         except Exception:  # 捕获异常
             pass  # 占位
 
-        return props  # 返回
+        return props
 
     @staticmethod
     def _compute_polygon_area(entity) -> float:
         """计算多边形面积"""
         try:  # 尝试
-            points = list(entity.vertices())  # 赋值
-            if len(points) < 3:  # 条件判断
-                return 0.0  # 返回
+            points = list(entity.vertices())
+            if len(points) < 3:
+                return 0.0
             # 鞋带公式
-            xs = [p[0] for p in points]  # 赋值
-            ys = [p[1] for p in points]  # 赋值
-            area = 0.5 * abs(sum(xs[i]*ys[i+1] - xs[i+1]*ys[i]  # 赋值
+            xs = [p[0] for p in points]
+            ys = [p[1] for p in points]
+            area = 0.5 * abs(sum(xs[i]*ys[i+1] - xs[i+1]*ys[i]
                                  for i in range(len(points)-1)))  # 循环
-            return area  # 返回
+            return area
         except Exception:  # 捕获异常
-            return 0.0  # 返回
+            return 0.0

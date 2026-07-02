@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional, Tuple
 
 # ── 类别映射 ──────────────────────────────────────────────
 
-YOLO_CLASSES = [  # 赋值
+YOLO_CLASSES = [
     "wall",           # 0
     "door",           # 1
     "window",         # 2
@@ -34,64 +34,64 @@ YOLO_CLASSES = [  # 赋值
     "insulation",     # 15
     "evacuation_lighting", # 16
     "refuge_floor",   # 17
-]  # 闭合
+]
 
 # 哪些类别需要面积估算（基于bbox）
-AREA_CLASSES = {"room", "fire_zone", "wall"}  # 赋值
+AREA_CLASSES = {"room", "fire_zone", "wall"}
 
 # 哪些类别有宽度属性（门/窗/楼梯/走廊等）
-WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "corridor", "fire_lane"}  # 赋值
+WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "corridor", "fire_lane"}
 
 
 class YOLODetectionIntegrator:
     """YOLO 图元检测集成器"""
 
     def __init__(self, model_path: Optional[str] = None):
-        self._model = None  # 赋值
-        self._model_path = model_path  # 赋值
-        self._loaded = False  # 赋值
+        self._model = None
+        self._model_path = model_path
+        self._loaded = False
 
     def load_model(self, model_path: Optional[str] = None) -> bool:
         """加载 YOLO 模型"""
         # 条件分支：if self._loaded
-        if self._loaded:  # 条件判断
-            return True  # 返回
+        if self._loaded:
+            return True
 
-        path = model_path or self._model_path  # 赋值
+        path = model_path or self._model_path
         # 条件分支：if not path
-        if not path:  # 条件判断
+        if not path:
             # 默认路径：从项目目录找最新训练的best.pt
-            project_root = Path(__file__).resolve().parent.parent.parent  # 赋值
-            candidates = [  # 赋值
+            project_root = Path(__file__).resolve().parent.parent.parent
+            candidates = [
                 project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",  # 操作
                 project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",  # 操作
                 project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",  # 操作
                 project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",  # 操作
-            ]  # 闭合
+            ]
             # 遍历处理
             for c in candidates:  # 循环
                 # 条件分支：if c.exists()
-                if c.exists():  # 条件判断
-                    path = str(c)  # 赋值
+                if c.exists():
+                    path = str(c)
                     break  # 跳出循环
 
         # 条件分支：if not path or not os.path.exists(path)
-        if not path or not os.path.exists(path):  # 条件判断
-            return False  # 返回
+        if not path or not os.path.exists(path):
+            return False
 
         # 异常保护
         try:  # 尝试
             from ultralytics import YOLO
-            self._model = YOLO(str(path))  # 赋值
-            self._model_path = str(path)  # 赋值
-            self._loaded = True  # 赋值
-            return True  # 返回
+            self._model = YOLO(str(path))
+            self._model_path = str(path)
+            self._loaded = True
+            return True
         # 异常处理
         except Exception:  # 捕获异常
-            return False  # 返回
+            return False
 
     def is_loaded(self) -> bool:
-        return self._loaded  # 返回
+        return self._loaded
 
     def predict(self, image_path: str, conf: float = 0.25, iou: float = 0.5) -> List[Dict[str, Any]]:
         """对单张图纸图像执行 YOLO 预测
@@ -104,62 +104,62 @@ class YOLODetectionIntegrator:
                 - properties: dict (额外属性)
         """
         # 条件分支：if not self._loaded
-        if not self._loaded:  # 条件判断
+        if not self._loaded:
             # 条件分支：if not self.load_model()
-            if not self.load_model():  # 条件判断
-                return []  # 返回
+            if not self.load_model():
+                return []
 
-        results = self._model.predict(  # 赋值
-            source=image_path,  # 赋值
-            conf=conf,  # 赋值
-            iou=iou,  # 赋值
+        results = self._model.predict(
+            source=image_path,
+            conf=conf,
+            iou=iou,
             imgsz=640,  # 限制推理尺寸，防 OOM
-            verbose=False,  # 赋值
-        )  # 闭合
+            verbose=False,
+        )
 
-        detections = []  # 赋值
+        detections = []
         # 遍历处理
         for result in results:  # 循环
             # 条件分支：if result.boxes is None
-            if result.boxes is None:  # 条件判断
+            if result.boxes is None:
                 continue  # 继续循环
             # 遍历处理
             for box in result.boxes:  # 循环
-                cls_id = int(box.cls[0].item())  # 赋值
+                cls_id = int(box.cls[0].item())
                 # 条件分支：if cls_id >= len(YOLO_CLASSES)
-                if cls_id >= len(YOLO_CLASSES):  # 条件判断
+                if cls_id >= len(YOLO_CLASSES):
                     continue  # 继续循环
-                confidence = box.conf[0].item()  # 赋值
+                confidence = box.conf[0].item()
                 xyxy = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-                x1, y1, x2, y2 = xyxy  # 赋值
+                x1, y1, x2, y2 = xyxy
 
-                entity_type = YOLO_CLASSES[cls_id]  # 赋值
-                bbox = {  # 赋值
+                entity_type = YOLO_CLASSES[cls_id]
+                bbox = {
                     "x": x1,  # 字段
                     "y": y1,  # 字段
                     "width": x2 - x1,  # 字段
                     "height": y2 - y1,  # 字段
-                }  # 闭合
+                }
 
-                props = {"confidence": confidence}  # 赋值
+                props = {"confidence": confidence}
 
                 # 估算面积
-                if entity_type in AREA_CLASSES:  # 条件判断
+                if entity_type in AREA_CLASSES:
                     props["area"] = bbox["width"] * bbox["height"]  # 操作
 
                 # 估算宽度（取短边作为"宽度"参考）
-                if entity_type in WIDTH_CLASSES:  # 条件判断
+                if entity_type in WIDTH_CLASSES:
                     props["width"] = min(bbox["width"], bbox["height"])  # 操作
                     props["clear_width"] = props["width"]  # 操作
 
-                detections.append({  # 调用
+                detections.append({
                     "type": entity_type,  # 字段
                     "confidence": confidence,  # 字段
                     "bbox": bbox,  # 字段
                     "properties": props,  # 字段
-                })  # 闭合
+                })
 
-        return detections  # 返回
+        return detections
 
     def render_and_predict(self, dxf_path: str, dpi: int = 100) -> Tuple[Optional[str], List[Dict]]:
         """渲染 DXF 为图像 → 执行 YOLO 预测
@@ -167,12 +167,12 @@ class YOLODetectionIntegrator:
         返回:
             (image_path, detections)
         """
-        image_path = self._render_dxf(dxf_path, dpi)  # 赋值
+        image_path = self._render_dxf(dxf_path, dpi)
         # 条件分支：if image_path is None
-        if image_path is None:  # 条件判断
-            return None, []  # 返回
-        detections = self.predict(image_path)  # 赋值
-        return image_path, detections  # 返回
+        if image_path is None:
+            return None, []
+        detections = self.predict(image_path)
+        return image_path, detections
 
     def detections_to_entities(self, detections: List[Dict],
                                 world_bbox: Optional[Dict] = None,  # 操作
@@ -188,159 +188,159 @@ class YOLODetectionIntegrator:
         返回:
             List[Dict]: 与 deconstruct API 的 elements 格式一致
         """
-        img_w, img_h = image_size  # 赋值
-        entities = []  # 赋值
+        img_w, img_h = image_size
+        entities = []
 
         # 遍历处理
         for det in detections:  # 循环
-            px = det["bbox"]["x"]  # 赋值
-            py = det["bbox"]["y"]  # 赋值
-            pw = det["bbox"]["width"]  # 赋值
-            ph = det["bbox"]["height"]  # 赋值
+            px = det["bbox"]["x"]
+            py = det["bbox"]["y"]
+            pw = det["bbox"]["width"]
+            ph = det["bbox"]["height"]
 
             # 条件分支：if world_bbox
-            if world_bbox:  # 条件判断
+            if world_bbox:
                 # 像素坐标 → 世界坐标
-                scale_x = world_bbox["width"] / img_w  # 赋值
-                scale_y = world_bbox["height"] / img_h  # 赋值
-                wx = world_bbox["x"] + px * scale_x  # 赋值
-                wy = world_bbox["y"] + py * scale_y  # 赋值
-                ww = pw * scale_x  # 赋值
-                wh = ph * scale_y  # 赋值
+                scale_x = world_bbox["width"] / img_w
+                scale_y = world_bbox["height"] / img_h
+                wx = world_bbox["x"] + px * scale_x
+                wy = world_bbox["y"] + py * scale_y
+                ww = pw * scale_x
+                wh = ph * scale_y
             # 其他情况处理
             else:  # 否则
-                wx, wy, ww, wh = px, py, pw, ph  # 赋值
+                wx, wy, ww, wh = px, py, pw, ph
 
-            entity = {  # 赋值
+            entity = {
                 "type": det["type"],  # 字段
                 "count": 1,  # 字段
                 "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},  # 字段
                 "properties": {  # 字段
                     **det["properties"],  # 展开 YOLO 检测属性
                     "detection_source": "yolo",  # 字段
-                },  # 闭合
-            }  # 闭合
+                },
+            }
 
             # 合并同名实体的计数
-            existing = None  # 赋值
+            existing = None
             for e in entities:  # 循环
-                if e["type"] == det["type"] and e.get("properties", {}).get("detection_source") == "yolo":  # 条件判断
-                    existing = e  # 赋值
+                if e["type"] == det["type"] and e.get("properties", {}).get("detection_source") == "yolo":
+                    existing = e
                     break  # 跳出循环
 
             # 条件分支：if existing
-            if existing:  # 条件判断
+            if existing:
                 existing["count"] += 1  # 操作
             # 其他情况处理
             else:  # 否则
-                entities.append(entity)  # 调用
+                entities.append(entity)
 
-        return entities  # 返回
+        return entities
 
     def _render_dxf(self, dxf_path: str, dpi: int = 100) -> Optional[str]:
         """将 DXF 渲染为 JPG 图像（同训练数据准备逻辑）"""
         import ezdxf
         import matplotlib
-        matplotlib.use('Agg')  # 调用
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         import tempfile
 
         # 异常保护
         try:  # 尝试
-            doc = ezdxf.readfile(dxf_path)  # 赋值
-            msp = doc.modelspace()  # 赋值
+            doc = ezdxf.readfile(dxf_path)
+            msp = doc.modelspace()
         # 异常处理
         except Exception:  # 捕获异常
-            return None  # 返回
+            return None
 
         # 计算边界
-        all_x, all_y = [], []  # 赋值
+        all_x, all_y = [], []
         for entity in msp:  # 循环
             try:  # 尝试
-                if entity.dxftype() == "LINE":  # 条件判断
-                    s, e = entity.dxf.start, entity.dxf.end  # 赋值
-                    all_x.extend([s[0], e[0]])  # 调用
-                    all_y.extend([s[1], e[1]])  # 调用
+                if entity.dxftype() == "LINE":
+                    s, e = entity.dxf.start, entity.dxf.end
+                    all_x.extend([s[0], e[0]])
+                    all_y.extend([s[1], e[1]])
                 # 条件分支：elif entity.dxftype() == "LWPOLYLINE"
                 elif entity.dxftype() == "LWPOLYLINE":  # 分支
-                    pts = [(v[0], v[1]) for v in entity.get_points()]  # 赋值
-                    all_x.extend(p[0] for p in pts)  # 调用
-                    all_y.extend(p[1] for p in pts)  # 调用
+                    pts = [(v[0], v[1]) for v in entity.get_points()]
+                    all_x.extend(p[0] for p in pts)
+                    all_y.extend(p[1] for p in pts)
                 # 条件分支：elif entity.dxftype() == "CIRCLE"
                 elif entity.dxftype() == "CIRCLE":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # 赋值
-                    r = entity.dxf.radius  # 赋值
-                    all_x.extend([cx - r, cx + r])  # 调用
-                    all_y.extend([cy - r, cy + r])  # 调用
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    all_x.extend([cx - r, cx + r])
+                    all_y.extend([cy - r, cy + r])
                 # 条件分支：elif entity.dxftype() in ("TEXT", "MTEXT")
                 elif entity.dxftype() in ("TEXT", "MTEXT"):  # 分支
-                    ins = entity.dxf.insert[:2]  # 赋值
-                    all_x.append(ins[0])  # 调用
-                    all_y.append(ins[1])  # 调用
+                    ins = entity.dxf.insert[:2]
+                    all_x.append(ins[0])
+                    all_y.append(ins[1])
             # 异常处理
             except Exception:  # 捕获异常
                 continue  # 继续循环
 
         # 条件分支：if not all_x
-        if not all_x:  # 条件判断
-            return None  # 返回
+        if not all_x:
+            return None
 
-        margin = 2.0  # 赋值
+        margin = 2.0
         x_min, x_max = min(all_x) - margin, max(all_x) + margin  # 解包
         y_min, y_max = min(all_y) - margin, max(all_y) + margin  # 解包
 
-        fig_w = max(x_max - x_min, 1) * 0.4  # 赋值
-        fig_h = max(y_max - y_min, 1) * 0.4  # 赋值
+        fig_w = max(x_max - x_min, 1) * 0.4
+        fig_h = max(y_max - y_min, 1) * 0.4
         # 限制最大图像尺寸，防止 OOM（max 2048px）
-        max_pixels = 2048  # 赋值
-        if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:  # 条件判断
-            scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))  # 赋值
-            fig_w *= scale  # 赋值
-            fig_h *= scale  # 赋值
-        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)  # 赋值
-        ax.set_xlim(x_min, x_max)  # 调用
-        ax.set_ylim(y_min, y_max)  # 调用
-        ax.set_aspect('equal')  # 调用
-        ax.axis('off')  # 调用
+        max_pixels = 2048
+        if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:
+            scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))
+            fig_w *= scale
+            fig_h *= scale
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_aspect('equal')
+        ax.axis('off')
 
         # 遍历处理
         for entity in msp:  # 循环
-            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''  # 赋值
+            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''
             # 条件分支：if layer.upper() == "META"
-            if layer.upper() == "META":  # 条件判断
+            if layer.upper() == "META":
                 continue  # 继续循环
-            dxftype = entity.dxftype()  # 赋值
+            dxftype = entity.dxftype()
             # 异常保护
             try:  # 尝试
                 # 条件分支：if dxftype == "LINE"
-                if dxftype == "LINE":  # 条件判断
-                    s, e = entity.dxf.start, entity.dxf.end  # 赋值
-                    ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)  # 调用
+                if dxftype == "LINE":
+                    s, e = entity.dxf.start, entity.dxf.end
+                    ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)
                 # 条件分支：elif dxftype == "LWPOLYLINE"
                 elif dxftype == "LWPOLYLINE":  # 分支
-                    pts = [(v[0], v[1]) for v in entity.get_points()]  # 赋值
-                    xs, ys = zip(*pts)  # 赋值
-                    ax.plot(xs, ys, 'k-', linewidth=0.3)  # 调用
+                    pts = [(v[0], v[1]) for v in entity.get_points()]
+                    xs, ys = zip(*pts)
+                    ax.plot(xs, ys, 'k-', linewidth=0.3)
                 # 条件分支：elif dxftype == "CIRCLE"
                 elif dxftype == "CIRCLE":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # 赋值
-                    r = entity.dxf.radius  # 赋值
-                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))  # 调用
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))
                 # 条件分支：elif dxftype == "ARC"
                 elif dxftype == "ARC":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # 赋值
-                    r = entity.dxf.radius  # 赋值
-                    ax.add_patch(plt.Arc((cx, cy), r*2, r*2, angle=0,  # 赋值
-                                          theta1=entity.dxf.start_angle,  # 赋值
-                                          theta2=entity.dxf.end_angle,  # 赋值
-                                          color='k', linewidth=0.3))  # 赋值
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    ax.add_patch(plt.Arc((cx, cy), r*2, r*2, angle=0,
+                                          theta1=entity.dxf.start_angle,
+                                          theta2=entity.dxf.end_angle,
+                                          color='k', linewidth=0.3))
             # 异常处理
             except Exception:  # 捕获异常
                 continue  # 继续循环
 
-        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # 赋值
-        tmp_path = tmp.name  # 赋值
-        tmp.close()  # 调用
-        plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')  # 调用
-        plt.close(fig)  # 调用
-        return tmp_path  # 返回
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')
+        plt.close(fig)
+        return tmp_path
