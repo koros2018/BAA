@@ -207,16 +207,23 @@ class AtomicFunction:
                 return None  # 无宽度数据，跳过判定
 
             # DIM-004 边界容差：<2% 偏差视为测量误差，不报违规
-            # 1.1m * 0.98 = 1.078m（含测量误差仍判定为合规）
             if func_id == "DIM-004" and 0.98 <= (val / 1.1) < 1.0:
                 return None  # 边界走廊，跳过判定
             if unit == "mm":
-                return val / 1000.0
+                converted = val / 1000.0
+                # DIM-004 走廊宽度合理性检查：转换后 <0.5m 视为异常（YOLO 误检）
+                if func_id == "DIM-004" and converted < 0.5:
+                    return None
+                return converted
             if unit == "m":
                 return val
             # 无unit启发式: >100视为mm
             if val > 100:
-                return val / 1000.0
+                converted = val / 1000.0
+                # 转换后的合理性检查
+                if func_id == "DIM-004" and converted < 0.5:
+                    return None  # 走廊宽度 <0.5m 明显异常（可能是 YOLO 误检）
+                return converted
             return val
 
         if func_id == "DIM-002":  # 面积判定
@@ -225,9 +232,12 @@ class AtomicFunction:
                 return val / 1000000.0
             if unit == "m2":
                 return val
-            # 无unit启发式: 阈值10000，>10000视为mm²
+            # 无unit启发式: >10000视为mm²
             if val > 10000:
                 return val / 1000000.0
+            # 面积合理性检查：>10000㎡明显异常（单位未转换或误算）
+            if val > 10000:
+                return None
             return val
 
         if func_id == "DIST-001":  # 距离判定
@@ -295,6 +305,10 @@ class AtomicFunction:
                 non_exit_layer_kw = ["设备", "管线", "管井", "PIPE", "SB", "喷淋", "消防排水"]
                 if any(kw.upper() in layer for kw in non_exit_layer_kw):
                     return None
+            # DIM-006 疏散门净宽边界容差：<2% 偏差视为测量误差，不报违规
+            # 1.4m * 0.98 = 1.372m（含测量误差仍判定为合规）
+            if func_id == "DIM-006" and 0.98 <= (val / 1.4) < 1.0:
+                return None  # 边界门宽，跳过判定
             if unit == "mm":
                 return val / 1000.0
             if unit == "m":
@@ -404,14 +418,26 @@ class AtomicFunction:
         if func_id == "EVAC-001":  # 疏散路径是否存在
             if "has_evacuation_route" not in props:
                 return None  # 无疏散路径分析结果，跳过判定
+            # 大面积 room 疏散路径分析可能失败，跳过误报
+            area = props.get("area", 0.0)
+            if area and area > 5000:
+                return None  # 大面积 room，路径分析不可靠
             return 1.0 if props.get("has_evacuation_route", False) else 0.0
         if func_id == "EVAC-002":  # 疏散路径长度
             if "evacuation_path_length" not in props and "travel_distance" not in props:
                 return None  # 无疏散路径长度数据，跳过判定
+            # 大面积 room 疏散路径分析可能失败
+            area = props.get("area", 0.0)
+            if area and area > 5000:
+                return None
             return props.get("evacuation_path_length", props.get("travel_distance", 0.0))
         if func_id == "EVAC-003":  # 疏散路径是否超距
             if "evacuation_too_far" not in props:
                 return None  # 无疏散路径分析结果，跳过判定
+            # 大面积 room 疏散路径分析可能失败
+            area = props.get("area", 0.0)
+            if area and area > 5000:
+                return None
             return 0.0 if props.get("evacuation_too_far", False) else 1.0
 
         # 兜底：直接用value或0
