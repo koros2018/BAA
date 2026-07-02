@@ -467,38 +467,255 @@ INITIAL_CLAUSES = [
 ]
 
 
+# ════════════════════════════════════════════════════════════
+# NFPA 101 / NFPA 5000 规范（美国标准）
+# 与 GB 50016 条款对照，同一原子函数复用，仅阈值不同
+# ════════════════════════════════════════════════════════════
+
+NFPA_CLAUSES = [
+    # =============================================
+    # 疏散楼梯净宽 — NFPA 101:7.2.1.2
+    # GB 对照: DIM-001 / GB50016-5.5.18
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.2.1.2",
+        standard="NFPA 101-2021",
+        title="Stairway Width",
+        text="The clear width of stairways shall be not less than 1120 mm (44 in) for occupancy loads exceeding 49.",
+        level="L1",
+        func_id="DIM-001",
+        category="evacuation",
+        params={"target_entity": "staircase", "property": "clear_width",
+                "operator": ">=", "threshold": 1.12, "unit": "m"},
+        threshold=Threshold(value=1.12, unit="m", operator=">=",
+                            building_types={"civil": 1.12, "industrial": 1.12})
+    ),
+    # =============================================
+    # 疏散距离 — NFPA 101:7.7.1
+    # GB 对照: DIST-001 / GB50016-5.5.17
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.7.1",
+        standard="NFPA 101-2021",
+        title="Travel Distance to Exit",
+        text="The travel distance to an exit shall not exceed 61 m (200 ft) for sprinklered buildings.",
+        level="L1",
+        func_id="DIST-001",
+        category="evacuation",
+        params={"target_entity": "room", "property": "travel_distance",
+                "operator": "<=", "threshold": 61.0, "unit": "m"},
+        threshold=Threshold(value=61.0, unit="m", operator="<=",
+                            building_types={"civil": 61.0, "industrial": 76.0})
+    ),
+    # =============================================
+    # 安全出口数量 — NFPA 101:7.4.1
+    # GB 对照: COUNT-001 / GB50016-5.5.8
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.4.1",
+        standard="NFPA 101-2021",
+        title="Number of Exits",
+        text="Every floor or space shall have not less than two exits.",
+        level="L1",
+        func_id="COUNT-001",
+        category="evacuation",
+        params={"target_entity": "fire_zone", "property": "exit_count",
+                "operator": ">=", "threshold": 2.0, "unit": "个"},
+        threshold=Threshold(value=2.0, unit="个", operator=">=",
+                            building_types={"civil": 2.0, "industrial": 2.0})
+    ),
+    # =============================================
+    # 疏散门宽度 — NFPA 101:7.2.1.2
+    # GB 对照: DIM-006 / GB50016-5.5.18
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.2.1.2.2",
+        standard="NFPA 101-2021",
+        title="Door Clear Width",
+        text="The clear width of doorways shall be not less than 810 mm (32 in).",
+        level="L1",
+        func_id="DIM-006",
+        category="evacuation",
+        params={"target_entity": "exit_door", "property": "clear_width",
+                "operator": ">=", "threshold": 0.81, "unit": "m"},
+        threshold=Threshold(value=0.81, unit="m", operator=">=",
+                            building_types={"civil": 0.81, "industrial": 0.81})
+    ),
+    # =============================================
+    # 防火分区面积 — NFPA 5000:8.3.1
+    # GB 对照: DIM-002 / GB50016-6.1.1
+    # =============================================
+    Clause(
+        clause_id="NFPA5000-8.3.1",
+        standard="NFPA 5000-2021",
+        title="Floor Area per Occupancy",
+        text="The maximum floor area per fire area shall not exceed 2323 m² (25,000 ft²) for business occupancies.",
+        level="L1",
+        func_id="DIM-002",
+        category="fire_safety",
+        params={"target_entity": "fire_zone", "property": "area",
+                "operator": "<=", "threshold": 2323, "unit": "㎡"},
+        threshold=Threshold(value=2323, unit="㎡", operator="<=",
+                            building_types={"civil": 2323, "industrial": 3716})
+    ),
+    # =============================================
+    # 走廊宽度 — NFPA 101:7.3.3
+    # GB 对照: DIM-004 / GB50016-5.5.18
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.3.3",
+        standard="NFPA 101-2021",
+        title="Corridor Width",
+        text="The width of any corridor serving an occupant load of 50 or more shall be not less than 1118 mm (44 in).",
+        level="L1",
+        func_id="DIM-004",
+        category="evacuation",
+        params={"target_entity": "corridor", "property": "width",
+                "operator": ">=", "threshold": 1.12, "unit": "m"},
+        threshold=Threshold(value=1.12, unit="m", operator=">=",
+                            building_types={"civil": 1.12, "industrial": 1.12})
+    ),
+    # =============================================
+    # 消防车道 — NFPA 5000:18.3.1
+    # GB 对照: DIM-003 / GB50016-7.1.1
+    # =============================================
+    Clause(
+        clause_id="NFPA5000-18.3.1",
+        standard="NFPA 5000-2021",
+        title="Fire Apparatus Access Road Width",
+        text="Fire apparatus access roads shall have an unobstructed width of not less than 6.1 m (20 ft).",
+        level="L1",
+        func_id="DIM-003",
+        category="fire_safety",
+        params={"target_entity": "fire_lane", "property": "width",
+                "operator": ">=", "threshold": 6.1, "unit": "m"},
+        threshold=Threshold(value=6.1, unit="m", operator=">=",
+                            building_types={"civil": 6.1, "industrial": 6.1})
+    ),
+    # =============================================
+    # 消防栓间距 — NFPA 14:7.3
+    # GB 对照: EXIST-002 / GB50016-8.2.1
+    # =============================================
+    Clause(
+        clause_id="NFPA14-7.3",
+        standard="NFPA 14-2021",
+        title="Standpipe System Spacing",
+        text="Standpipe systems shall be provided in all buildings with a travel distance exceeding 61 m.",
+        level="L2",
+        func_id="EXIST-002",
+        category="fire_safety",
+        params={"target_entity": "standpipe", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    # =============================================
+    # 自动喷淋 — NFPA 13:5.1
+    # GB 对照: EXIST-006 / GB50016-8.3.1
+    # =============================================
+    Clause(
+        clause_id="NFPA13-5.1",
+        standard="NFPA 13-2021",
+        title="Automatic Sprinkler System",
+        text="Automatic sprinkler systems shall be provided in all buildings exceeding 465 m² in fire area.",
+        level="L2",
+        func_id="EXIST-006",
+        category="fire_safety",
+        params={"target_entity": "sprinkler", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    # =============================================
+    # 应急照明 — NFPA 101:7.9.2
+    # GB 对照: EXIST-004 / GB50016-10.3.1
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.9.2",
+        standard="NFPA 101-2021",
+        title="Emergency Lighting",
+        text="Emergency lighting shall be provided in all means of egress.",
+        level="L2",
+        func_id="EXIST-004",
+        category="fire_safety",
+        params={"target_entity": "emergency_light", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+    # =============================================
+    # 疏散标志 — NFPA 101:7.10.1
+    # GB 对照: EXIST-001 / GB50016-6.6.1
+    # =============================================
+    Clause(
+        clause_id="NFPA101-7.10.1",
+        standard="NFPA 101-2021",
+        title="Exit Signs",
+        text="Exit signs shall be placed at every exit door and along the means of egress where necessary.",
+        level="L2",
+        func_id="EXIST-001",
+        category="evacuation",
+        params={"target_entity": "exit_sign", "property": "exists",
+                "operator": "==", "threshold": 1.0, "unit": "有/无"},
+        threshold=Threshold(value=1.0, unit="有/无", operator="==",
+                            building_types={"civil": 1.0, "industrial": 1.0})
+    ),
+]
+
+
 class SpecRepository:
-    """规范 JSON 知识库"""
+    """规范 JSON 知识库（多标准支持）
+
+    支持 GB 50016（中国建筑防火规范）、NFPA 101（生命安全规范）、
+    NFPA 5000（建筑规范）等多套标准。
+    规范通过 (standard, clause_id) 唯一标识。
+    """
 
     def __init__(self):
-        self._clauses: Dict[str, Clause] = {}
+        self._clauses: Dict[str, Clause] = {}  # key: "{standard}:{clause_id}"
         # 遍历处理
         for clause in INITIAL_CLAUSES:  # 循环
-            self._clauses[clause.clause_id] = clause
+            key = f"{clause.standard}:{clause.clause_id}"
+            self._clauses[key] = clause
+        # 加载 NFPA 规范
+        for clause in NFPA_CLAUSES:
+            key = f"{clause.standard}:{clause.clause_id}"
+            self._clauses[key] = clause
 
-    def get(self, clause_id: str) -> Optional[Clause]:
-        return self._clauses.get(clause_id)
+    def get(self, clause_id: str, standard: str = "GB 50016-2014") -> Optional[Clause]:
+        return self._clauses.get(f"{standard}:{clause_id}")
 
-    def get_by_func(self, func_id: str) -> List[Clause]:
-        return [c for c in self._clauses.values() if c.func_id == func_id]
+    def get_by_func(self, func_id: str, standard: str = None) -> List[Clause]:
+        clauses = list(self._clauses.values())
+        if standard:
+            clauses = [c for c in clauses if c.standard == standard]
+        return [c for c in clauses if c.func_id == func_id]
 
-    def list_all(self) -> List[Clause]:
+    def list_all(self, standard: str = None) -> List[Clause]:
+        if standard:
+            return [c for c in self._clauses.values() if c.standard == standard]
         return list(self._clauses.values())
 
-    def list_by_level(self, level: str) -> List[Clause]:
-        return [c for c in self._clauses.values() if c.level == level]
+    def list_by_level(self, level: str, standard: str = None) -> List[Clause]:
+        clauses = self.list_all(standard)
+        return [c for c in clauses if c.level == level]
 
-    def list_by_category(self, category: str) -> List[Clause]:
-        return [c for c in self._clauses.values() if c.category == category]
+    def list_by_category(self, category: str, standard: str = None) -> List[Clause]:
+        clauses = self.list_all(standard)
+        return [c for c in clauses if c.category == category]
 
-    def get_threshold(self, clause_id: str, building_type: str = "civil") -> Tuple[float, str, str]:
-        """获取指定建筑类型的阈值
+    def get_threshold(self, clause_id: str, building_type: str = "civil", standard: str = "GB 50016-2014") -> Tuple[float, str, str]:
+        """获取指定建筑类型和标准的阈值
         返回: (value, unit, operator)
         """
-        clause = self.get(clause_id)
+        clause = self.get(clause_id, standard)
         # 条件分支：if not clause
         if not clause:
-            raise ValueError(f"规范 {clause_id} 不存在")  # 抛出
+            # 尝试 GB 标准兜底
+            clause = self.get(clause_id, "GB 50016-2014")
+        if not clause:
+            # 找不到时返回默认值（不抛异常，让原子函数自身判定）
+            return 0.0, "", ">="
 
         params = clause.params
         value = float(params["threshold"])
@@ -539,12 +756,12 @@ class SpecRepository:
         with open(file_path, "w", encoding="utf-8") as f:  # 上下文
             f.write(self.to_json())
 
-    def set_threshold(self, clause_id: str, building_type: str, value: float):
+    def set_threshold(self, clause_id: str, building_type: str, value: float, standard: str = "GB 50016-2014"):
         """设置指定建筑类型的阈值（用于反馈闭环微调）"""
-        clause = self.get(clause_id)
+        clause = self.get(clause_id, standard)
         # 条件分支：if not clause
         if not clause:
-            raise ValueError(f"规范 {clause_id} 不存在")  # 抛出
+            raise ValueError(f"规范 {standard}:{clause_id} 不存在")  # 抛出
 
         # 条件分支：if not clause.threshold
         if not clause.threshold:
@@ -553,6 +770,10 @@ class SpecRepository:
         if not clause.threshold.building_types:
             clause.threshold.building_types = {}
         clause.threshold.building_types[building_type] = value  # 操作
+
+    def list_standards(self) -> List[str]:
+        """获取支持的标准列表"""
+        return sorted(set(c.standard for c in self._clauses.values()))
 
     @property
     def count(self) -> int:

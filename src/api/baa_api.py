@@ -600,8 +600,8 @@ async def deconstruct(
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
             total_checks += 1
-            # 根据建筑类型获取阈值参数
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            # 根据建筑类型和规范标准获取阈值参数
+            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type, standard)
             func.threshold = threshold_val
             func.unit = unit
             func.operator = op
@@ -725,6 +725,7 @@ async def deconstruct(
         "confidence": 0.85 if len(entities) > 0 else 0,  # 解析置信度
         "file_id": file_id,  # 字段
         "building_type": building_type,  # 字段
+        "standard": standard,
         "processing_time_ms": elapsed,  # 字段
     }
 
@@ -741,6 +742,7 @@ async def review(
     file: UploadFile = File(...),
     full: bool = Query(False, description="返回完整图元列表"),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),
     request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
@@ -750,6 +752,11 @@ async def review(
     - 审查摘要（实体统计、检查项数、违规分布）
     - 违规详情（每条违规的 clause_id、提取值、要求值、差值）
     - 修正建议（基于 correction_engine 生成）
+
+    支持多标准：
+    - GB 50016-2014（中国建筑防火规范，默认）
+    - NFPA 101-2021（美国生命安全规范）
+    - NFPA 5000-2021（美国建筑规范）
 
     与 /deconstruct 的区别：
     - /deconstruct 侧重"拆解"，输出结构化实体数据
@@ -785,9 +792,10 @@ async def review(
     file_id = generate_file_id()
     file_path = store_file(content, file_id, ext)
 
-    # ── 缓存检查：相同文件内容秒级返回 ──────────────────────
+    # ── 缓存检查：相同文件内容+参数秒级返回 ──────────────────
     file_hash = hashlib.sha256(content).hexdigest()[:32]
-    cached = _review_cache.get(file_hash)
+    cache_key = f"{file_hash}:{standard}:{building_type}"
+    cached = _review_cache.get(cache_key)
     if cached is not None:
         # 更新 file_id 以支持后续 PDF 导出
         cached["file_id"] = file_id
@@ -907,6 +915,7 @@ async def review(
         "details": details[:100],  # 最多返回100条详情
         "file_id": file_id,  # 字段
         "building_type": building_type,  # 字段
+        "standard": standard,
         "processing_time_ms": elapsed,  # 字段
     }
 
@@ -939,10 +948,11 @@ async def review(
 
     # ── 写入缓存 ──────────────────────────────────────────
     if file_hash:
+        cache_key = f"{file_hash}:{standard}:{building_type}"
         if len(_review_cache) >= _REVIEW_CACHE_MAX:
             old_key = next(iter(_review_cache))
             del _review_cache[old_key]
-        _review_cache[file_hash] = response_data
+        _review_cache[cache_key] = response_data
 
     return response_data
 

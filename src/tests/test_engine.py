@@ -391,7 +391,8 @@ class TestSpecRepository:
         return SpecRepository()
 
     def test_count(self, repo):
-        assert repo.count == 31
+        # 31 GB + 11 NFPA = 42
+        assert repo.count == 42
 
     def test_get(self, repo):
         c = repo.get("GB50016-5.5.18")
@@ -399,23 +400,31 @@ class TestSpecRepository:
         assert c.level == "L1"  # 断言
 
     def test_get_by_func(self, repo):
-        assert len(repo.get_by_func("DIM-001")) >= 1  # 断言
+        assert len(repo.get_by_func("DIM-001")) >= 2  # 断言（GB + NFPA）
 
     def test_get_nonexistent(self, repo):
         assert repo.get("NONEXIST") is None  # 断言
 
     def test_get_threshold_default(self, repo):
-        val, unit, op = repo.get_threshold("GB50016-5.5.18", "civil")  # 操作
+        val, unit, op = repo.get_threshold("GB50016-5.5.18", "civil", "GB 50016-2014")  # 操作
         assert val == 1.2
         assert unit == "m"  # 断言
 
     def test_get_threshold_civil_dim002(self, repo):
-        val, _, _ = repo.get_threshold("GB50016-6.1.1", "civil")  # 操作
+        val, _, _ = repo.get_threshold("GB50016-6.1.1", "civil", "GB 50016-2014")  # 操作
         assert val == 2500.0
 
     def test_get_threshold_industrial_dim002(self, repo):
-        val, _, _ = repo.get_threshold("GB50016-6.1.1", "industrial")  # 操作
+        val, _, _ = repo.get_threshold("GB50016-6.1.1", "industrial", "GB 50016-2014")  # 操作
         assert val == 4000.0
+
+    def test_get_threshold_nfpa_dim001(self, repo):
+        val, _, _ = repo.get_threshold("NFPA101-7.2.1.2", "civil", "NFPA 101-2021")  # 操作
+        assert val == 1.12
+
+    def test_get_threshold_nfpa_dist001(self, repo):
+        val, _, _ = repo.get_threshold("NFPA101-7.7.1", "civil", "NFPA 101-2021")  # 操作
+        assert val == 61.0
 
     def test_all_clauses_have_building_types(self, repo):
         for c in repo.list_all():  # 循环
@@ -423,18 +432,18 @@ class TestSpecRepository:
             assert c.threshold.building_types is not None, f"{c.func_id} 缺少building_types"  # 断言
             for bt in ["civil", "industrial"]:
                 assert bt in c.threshold.building_types, f"{c.func_id} 缺少{bt}"  # 断言
-                val, _, _ = repo.get_threshold(c.clause_id, bt)
+                val, _, _ = repo.get_threshold(c.clause_id, bt, c.standard)
                 assert val is not None  # 断言
 
     def test_to_json(self, repo):
         data = json.loads(repo.to_json())
-        assert len(data) == 31
+        assert len(data) == 42
 
     def test_l1_l2_l3_distribution(self, repo):
         levels = [c.level for c in repo.list_all()]
-        assert levels.count("L1") == 10  # 断言
-        assert levels.count("L2") == 10  # 断言
-        assert levels.count("L3") == 11  # 断言
+        assert levels.count("L1") >= 10  # 断言（GB 10 + NFPA ~6）
+        assert levels.count("L2") >= 10  # 断言
+        assert levels.count("L3") == 11  # 断言（GB only）
 
 
 # ═══════════════════════════════════════════════════════════
