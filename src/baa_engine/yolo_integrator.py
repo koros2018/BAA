@@ -46,10 +46,11 @@ WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "cor
 class YOLODetectionIntegrator:
     """YOLO 图元检测集成器"""
 
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):
         self._model = None
         self._model_path = model_path
         self._loaded = False
+        self._device = device  # cpu / xpu（Intel Arc GPU）
 
     def load_model(self, model_path: Optional[str] = None) -> bool:
         """加载 YOLO 模型"""
@@ -82,7 +83,8 @@ class YOLODetectionIntegrator:
         # 异常保护
         try:  # 尝试
             from ultralytics import YOLO
-            self._model = YOLO(str(path))
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+            self._model = YOLO(str(path), task='detect')
             self._model_path = str(path)
             self._loaded = True
             return True

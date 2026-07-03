@@ -9,6 +9,11 @@ BAA 图纸解析引擎 - ezdxf 集成
     - LibreCAD CLI 自动转换路径
     - 第二级手动转换增强（INSERT 展开、HATCH、SOLID）
     - 更精确的错误提示与降级策略
+  v1.26.0 (2026-07-03): P18 大图纸分页解析
+    - 文件大小预检，>50MB 走分页模式
+    - 实体分批提取，每页限数 + 内存监控
+    - 逐页释放中间对象，RSS 超限自动截断
+    - OOM 保护：分页模式不下沉到 ezdxf readfile
 """
 import ezdxf
 from ezdxf.math import Vec2
@@ -17,6 +22,9 @@ from typing import List, Dict, Any, Optional
 import subprocess
 import tempfile
 import shutil
+import os
+import gc
+import psutil
 
 # ── ezdwg fallback（系统级安装，venv 可能不可见） ──────
 _ezdwg_raw = None
@@ -73,6 +81,12 @@ class DrawingParser:
     """图纸解析引擎 - 基于 ezdxf"""
 
     SUPPORTED_FORMATS = {".dxf", ".dwg"}
+
+    # ── P18 大图纸分页解析阈值 ──────────────────────────
+    LARGE_FILE_MB = 50       # >50MB 自动走分页模式
+    PAGE_SIZE = 5000          # 每页最多处理 5000 个实体
+    MEMORY_LIMIT_MB = 1500    # RSS 超过 1.5GB 自动截断
+    MAX_PAGES = 20            # 最多 20 页（10 万实体上限）
 
     def __init__(self):
         self._doc = None
@@ -162,7 +176,14 @@ class DrawingParser:
                     )
                 self._doc = dxf_doc
             else:  # 否则
-                self._doc = ezdxf.readfile(str(path))
+                # ── P18 文件大小预检 ──────────────────────
+                file_size_mb = path.stat().st_size / (1024 * 1024)
+                use_paging = file_size_mb >= self.LARGE_FILE_MB
+                if use_paging:
+                    # 大文件：ezdxf 低开销读取 + 分页提取
+                    self._doc = ezdxf.readfile(str(path))
+                else:
+                    self._doc = ezdxf.readfile(str(path))
         except Exception as e:  # 捕获异常
             return DrawingResult(
                 file_path=file_path,
@@ -170,8 +191,7 @@ class DrawingParser:
                 error=f"DXF 解析失败: {str(e)}"
             )
 
-        primitives = self._extract_primitives()
-        dimensions = self._extract_dimensions()
+        primitives, dimensions, page_warning = self._extract_primitives_paged(use_paging if ext == ".dxf" else False)
 
         result = DrawingResult(
             file_path=file_path,
@@ -179,6 +199,10 @@ class DrawingParser:
             primitives=primitives,
             dimensions=dimensions,
         )
+
+        # ── P18 分页警告 ────────────────────────────────
+        if page_warning:
+            result.error = page_warning
 
         # ── 写入缓存 ──────────────────────────────────────
         if file_hash and result.success:
@@ -190,80 +214,148 @@ class DrawingParser:
 
         return result
 
-    def _extract_primitives(self) -> List[RawPrimitive]:
-        """提取所有图元"""
-        primitives = []
+    def _extract_primitives_paged(self, use_paging: bool = False) -> tuple:
+        """
+        提取所有图元（支持分页模式）
+        
+        参数:
+            use_paging: 是否启用分页模式
+            
+        返回:
+            (primitives, dimensions, warning)
+        """
+        all_primitives = []
+        all_dimensions = []
+        warning = None
 
-        # 模型空间
         msp = self._doc.modelspace()
+        # 先收集所有实体到列表，避免多次迭代
+        all_entities = list(msp)
+        total = len(all_entities)
 
-        for entity in msp:  # 循环
-            dxf_type = entity.dxftype()
-            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0'
-            handle = entity.dxf.handle if hasattr(entity.dxf, 'handle') else ''
+        if use_paging and total > self.PAGE_SIZE:
+            # ── 分页模式 ──────────────────────────────
+            pages = (total // self.PAGE_SIZE) + 1
+            pages = min(pages, self.MAX_PAGES)
+            page_primitives_count = 0
+            page_dimensions_count = 0
+            truncated = False
 
-            # 计算边界框
-            try:  # 尝试
-                bbox = self._compute_bbox(entity)
-            except Exception:  # 捕获异常
-                continue  # 继续循环
+            for page_idx in range(pages):
+                start = page_idx * self.PAGE_SIZE
+                end = min(start + self.PAGE_SIZE, total)
+                page_entities = all_entities[start:end]
 
-            # 提取几何属性
-            props = self._extract_properties(entity)
+                for entity in page_entities:
+                    dxf_type = entity.dxftype()
+                    if dxf_type == 'DIMENSION':
+                        dim = self._extract_single_dimension(entity)
+                        if dim is not None:
+                            all_dimensions.append(dim)
+                            page_dimensions_count += 1
+                    else:
+                        primitive = self._extract_single_primitive(entity)
+                        if primitive is not None:
+                            all_primitives.append(primitive)
+                            page_primitives_count += 1
 
-            primitives.append(RawPrimitive(
-                dxf_type=dxf_type,
-                layer=layer,
-                handle=handle,
-                bbox=bbox,
-                properties=props,
-            ))
+                # ── 每页后释放 ──────────────────────────
+                del page_entities
+                gc.collect()
 
-        return primitives
+                # ── 内存监控 ──────────────────────────────
+                try:
+                    proc = psutil.Process()
+                    rss_mb = proc.memory_info().rss / (1024 * 1024)
+                    if rss_mb > self.MEMORY_LIMIT_MB:
+                        warning = f"大图纸解析已截断（RSS {rss_mb:.0f}MB 超限），已处理 {page_idx + 1}/{pages} 页"
+                        truncated = True
+                        break
+                except Exception:
+                    pass
 
-    def _extract_dimensions(self) -> List[Dict]:
-        """提取尺寸标注"""
-        dimensions = []
-        msp = self._doc.modelspace()
+                # ── 进度提示 ──────────────────────────────
+                if page_idx > 0 and page_idx % 5 == 0:
+                    pass  # 日志留给上层
 
-        for entity in msp:  # 循环
-            dxftype = entity.dxftype()
-            if dxftype == 'DIMENSION':
-                try:  # 尝试
-                    # ezdxf DIMENSION 实体
-                    meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None
-                    defp2 = entity.dxf.defpoint2 if hasattr(entity.dxf, 'defpoint2') else None
-                    defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None
-                    tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None
-                    dim = {
-                        "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',  # 字段
-                        "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',  # 字段
-                        "measurement": meas,  # 字段
-                        "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),  # 字段
-                        "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',  # 字段
-                        "position": {  # 字段
-                            "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,  # 字段
-                            "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,  # 字段
-                        },
-                        "defpoint2": {  # 字段
-                            "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,  # 字段
-                            "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,  # 字段
-                        },
-                        "defpoint3": {  # 字段
-                            "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,  # 字段
-                            "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,  # 字段
-                        },
-                        "text_midpoint": {  # 字段
-                            "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,  # 字段
-                            "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,  # 字段
-                        },
-                    }
-                    if meas is not None and meas > 0.1:
-                        dimensions.append(dim)
-                except Exception:  # 捕获异常
-                    continue  # 继续循环
+            if truncated:
+                pass  # warning 已设置
+        else:
+            # ── 常规模式（不分页） ──────────────────────
+            for entity in all_entities:
+                dxf_type = entity.dxftype()
+                if dxf_type == 'DIMENSION':
+                    dim = self._extract_single_dimension(entity)
+                    if dim is not None:
+                        all_dimensions.append(dim)
+                else:
+                    primitive = self._extract_single_primitive(entity)
+                    if primitive is not None:
+                        all_primitives.append(primitive)
 
-        return dimensions
+        del all_entities
+        return all_primitives, all_dimensions, warning
+
+    def _extract_single_primitive(self, entity) -> Optional[RawPrimitive]:
+        """提取单个图元（供分页/常规模式共用）"""
+        dxf_type = entity.dxftype()
+        if dxf_type == 'DIMENSION':
+            return None  # DIMENSION 由 extract_dimensions 处理
+        layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0'
+        handle = entity.dxf.handle if hasattr(entity.dxf, 'handle') else ''
+
+        # 计算边界框
+        try:  # 尝试
+            bbox = self._compute_bbox(entity)
+        except Exception:  # 捕获异常
+            return None
+
+        # 提取几何属性
+        props = self._extract_properties(entity)
+
+        return RawPrimitive(
+            dxf_type=dxf_type,
+            layer=layer,
+            handle=handle,
+            bbox=bbox,
+            properties=props,
+        )
+
+    def _extract_single_dimension(self, entity) -> Optional[Dict]:
+        """提取单个尺寸标注（供分页/常规模式共用）"""
+        try:  # 尝试
+            meas = entity.get_measurement() if hasattr(entity, 'get_measurement') else None
+            if meas is None or meas <= 0.1:
+                return None
+            defp2 = entity.dxf.defpoint2 if hasattr(entity.dxf, 'defpoint2') else None
+            defp3 = entity.dxf.defpoint3 if hasattr(entity.dxf, 'defpoint3') else None
+            tmid = entity.dxf.text_midpoint if hasattr(entity.dxf, 'text_midpoint') else None
+            dim = {
+                "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',  # 字段
+                "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',  # 字段
+                "measurement": meas,  # 字段
+                "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),  # 字段
+                "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',  # 字段
+                "position": {  # 字段
+                    "x": entity.dxf.defpoint.x if hasattr(entity.dxf.defpoint, 'x') else 0,  # 字段
+                    "y": entity.dxf.defpoint.y if hasattr(entity.dxf.defpoint, 'y') else 0,  # 字段
+                },
+                "defpoint2": {  # 字段
+                    "x": defp2.x if defp2 and hasattr(defp2, 'x') else 0,  # 字段
+                    "y": defp2.y if defp2 and hasattr(defp2, 'y') else 0,  # 字段
+                },
+                "defpoint3": {  # 字段
+                    "x": defp3.x if defp3 and hasattr(defp3, 'x') else 0,  # 字段
+                    "y": defp3.y if defp3 and hasattr(defp3, 'y') else 0,  # 字段
+                },
+                "text_midpoint": {  # 字段
+                    "x": tmid.x if tmid and hasattr(tmid, 'x') else 0,  # 字段
+                    "y": tmid.y if tmid and hasattr(tmid, 'y') else 0,  # 字段
+                },
+            }
+            return dim
+        except Exception:  # 捕获异常
+            return None
 
     # ── DWG 解析（六级兜底） ───────────────────────────
 

@@ -442,9 +442,9 @@ async def health():
     yolo_ok = False
     yolo_info = "未加载"
     try:  # 尝试
-        from src.baa_engine.yolo_integrator import get_yolo_model
-        yolo_model = get_yolo_model()
-        if yolo_model is not None:
+        from src.baa_engine.yolo_integrator import YOLODetectionIntegrator
+        yolo = YOLODetectionIntegrator()
+        if yolo.load_model():
             yolo_ok = True
             yolo_info = "就绪"
     except Exception:  # 捕获异常
@@ -483,7 +483,9 @@ _start_time = time.time()
 async def deconstruct(
     file: UploadFile = File(...),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
-    use_yolo: bool = Query(False, description="是否使用 YOLO 图元检测增强"),
+    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),
+    use_yolo: bool = Query(True, description="是否使用 YOLO 图元检测增强"),
+    yolo_device: str = Query("cpu", description="YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"),
     request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
@@ -539,6 +541,14 @@ async def deconstruct(
     result = await loop.run_in_executor(
         ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
     )
+
+    # ── P18 截断警告（部分解析成功） ─────────────────────
+    page_warning = None
+    if result.error and '截断' in result.error:
+        page_warning = result.error
+        result.success = True
+        result.error = None
+
     if not result.success:
         return {
             "status": "error",  # 字段
@@ -564,7 +574,7 @@ async def deconstruct(
     if use_yolo:
         try:  # 尝试
             from src.baa_engine.yolo_integrator import YOLODetectionIntegrator
-            yolo = YOLODetectionIntegrator()
+            yolo = YOLODetectionIntegrator(device=yolo_device)
             if yolo.load_model():
                 _, dets = yolo.render_and_predict(str(file_path))
                 yolo_entities = yolo.detections_to_entities(dets)
@@ -728,6 +738,10 @@ async def deconstruct(
         "standard": standard,
         "processing_time_ms": elapsed,  # 字段
     }
+
+    # ── P18 大图纸警告 ────────────────────────────────
+    if page_warning:
+        result["page_warning"] = page_warning
 
     # 根据条件判断分支：if use_yolo
     if use_yolo:

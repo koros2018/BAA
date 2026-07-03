@@ -196,8 +196,12 @@
             <option value="industrial">工业建筑</option>
           </select>
           <label class="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-            <input type="checkbox" id="use-yolo-checkbox" class="rounded" />
-            <span>YOLO图元检测</span>
+            <input type="checkbox" id="use-yolo-checkbox" class="rounded" checked />
+            <span>YOLO</span>
+            <select id="yolo-device-select" class="text-xs border rounded px-1 py-0.5">
+              <option value="cpu">CPU</option>
+              <option value="xpu">GPU(Intel Arc)</option>
+            </select>
           </label>
           <button onclick="uploadAndReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             📤 上传并解析
@@ -348,62 +352,76 @@
       </div>
     </div>
 
-    <!-- ===== 对比重构 ===== -->
+    <!-- ===== 对比重构（Diff） ===== -->
     <div class="page" id="page-compare">
-      <h2 class="text-xl font-bold mb-6">图纸对比重构</h2>
-      <div class="card mb-4">
-        <div class="flex items-center gap-3">
-          <span class="text-sm">选择已审查图纸:</span>
-          <select id="compare-drawing-select" class="text-sm border rounded px-2 py-1 flex-1" onchange="onCompareSelect()">
-            <option value="">— 请先在AI审图完成审查 —</option>
-          </select>
-        </div>
-      </div>
-      <div id="compare-empty" class="card text-center py-8 text-gray-300">
-        选择图纸后显示对比
-      </div>
-      <div id="compare-content" class="hidden">
-        <!-- 概览摘要 -->
-        <div id="compare-summary" class="grid grid-cols-4 gap-3 mb-4"></div>
+      <h2 class="text-xl font-bold mb-6">📐 审查结果对比 (Diff)</h2>
+      <p class="text-sm text-gray-500 mb-4">上传同一图纸的两个版本，自动审查并对比差异，追踪违规变化。</p>
 
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="card">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span>原始图纸解析</h3>
-            <div class="bg-gray-50 rounded-lg p-3 max-h-80 overflow-y-auto">
-              <pre id="compare-original-json" class="text-xs font-mono whitespace-pre-wrap"></pre>
+      <!-- 双文件上传 -->
+      <div class="card mb-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <h3 class="text-sm font-medium mb-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span>版本1（旧图纸）</h3>
+            <input type="file" id="diff-file1" accept=".dxf,.dwg" class="text-sm border rounded px-2 py-1 w-full" />
+            <div id="diff-file1-name" class="text-xs text-gray-400 mt-1"></div>
+          </div>
+          <div>
+            <h3 class="text-sm font-medium mb-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span>版本2（新图纸）</h3>
+            <input type="file" id="diff-file2" accept=".dxf,.dwg" class="text-sm border rounded px-2 py-1 w-full" />
+            <div id="diff-file2-name" class="text-xs text-gray-400 mt-1"></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 mt-3 flex-wrap">
+          <select id="diff-building-type" class="text-sm border rounded px-2 py-1">
+            <option value="civil">民用建筑</option>
+            <option value="industrial">工业建筑</option>
+          </select>
+          <select id="diff-standard" class="text-sm border rounded px-2 py-1">
+            <option value="GB 50016-2014">GB 50016-2014（国标）</option>
+            <option value="NFPA 101-2021">NFPA 101-2021</option>
+            <option value="NFPA 5000-2021">NFPA 5000-2021</option>
+          </select>
+          <button onclick="runDiffComparison()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+            🔄 开始对比
+          </button>
+          <button onclick="clearDiffResults()" class="px-3 py-2 text-xs border rounded hover:bg-gray-100">清空</button>
+        </div>
+        <div id="diff-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查对比...</div>
+      </div>
+
+      <!-- 对比结果 -->
+      <div id="diff-results" class="hidden">
+        <!-- 对比摘要卡片 -->
+        <div id="diff-summary" class="grid grid-cols-5 gap-3 mb-4"></div>
+
+        <!-- 三分类违规详情 -->
+        <div class="card mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-medium">违规变更详情</h3>
+            <div class="flex gap-2 text-xs">
+              <button class="diff-tab-btn px-3 py-1 rounded-lg font-medium bg-blue-100 text-blue-700" data-tab="new" onclick="switchDiffTab('new')">🆕 新增</button>
+              <button class="diff-tab-btn px-3 py-1 rounded-lg font-medium bg-gray-100 text-gray-600" data-tab="fixed" onclick="switchDiffTab('fixed')">✅ 修复</button>
+              <button class="diff-tab-btn px-3 py-1 rounded-lg font-medium bg-gray-100 text-gray-600" data-tab="changed" onclick="switchDiffTab('changed')">🔄 变化</button>
             </div>
           </div>
-          <div class="card">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500"></span>违规标注</h3>
-            <div id="compare-violations" class="space-y-2 max-h-80 overflow-y-auto"></div>
-          </div>
+          <div id="diff-items-new" class="diff-items-panel"></div>
+          <div id="diff-items-fixed" class="diff-items-panel hidden"></div>
+          <div id="diff-items-changed" class="diff-items-panel hidden"></div>
         </div>
 
-        <!-- 违规可视化叠加（SVG Canvas） -->
-        <div class="card mb-4">
-          <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span>违规可视化叠加</h3>
-          <div id="compare-vis-canvas" class="bg-white rounded-lg border" style="min-height:200px;position:relative;overflow:hidden">
-            <canvas id="compare-overlay-canvas" width="600" height="400" class="w-full" style="background:#f8f9fa"></canvas>
-            <div id="compare-vis-empty" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">无位置数据，无法渲染可视化叠加</div>
-          </div>
-          <div class="flex gap-2 mt-2 text-xs text-gray-500">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>严重违规</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>主要违规</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>合规</span>
-          </div>
-        </div>
-
+        <!-- 完整对比报告 JSON -->
         <div class="card">
-          <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span>修正建议 & 重构预览</h3>
-          <div id="compare-corrections" class="space-y-2"></div>
-          <!-- 修正后预览 -->
-          <div class="mt-4 pt-4 border-t">
-            <h4 class="text-sm font-medium mb-2">🔧 修正后效果预览</h4>
-            <div id="compare-after-preview" class="bg-gray-50 rounded p-3 text-xs leading-relaxed"></div>
-          </div>
+          <details>
+            <summary class="text-sm font-medium cursor-pointer">📄 完整对比报告（JSON）</summary>
+            <pre id="diff-raw-json" class="text-xs bg-gray-50 p-3 rounded mt-2 overflow-x-auto max-h-96"></pre>
+          </details>
         </div>
       </div>
-    </div>
+
+      <div id="diff-empty" class="card text-center py-8 text-gray-300">
+        上传两个版本的图纸后开始对比
+      </div>
+    </div
 
     <!-- ===== 结果分析 ===== -->
     <div class="page" id="page-analysis">
@@ -1444,7 +1462,8 @@ async function uploadDrawing() {
   try {
     // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
     const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo});
+    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
     progress.className = 'hidden';
 
     // 缓存文件（用于后续AI审图重新上传）
@@ -1531,6 +1550,7 @@ function renderDrawingList() {
       '<td class="py-2 px-2 text-xs">' + new Date(d.parsedAt).toLocaleTimeString() + '</td>' +
       '<td class="py-2 px-2">' +
       '<button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' +
+      (d.file_id ? '<button onclick="downloadReviewPdf(\'' + d.file_id + '\')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 mr-1" title="下载PDF报告">📄</button>' : '') +
       '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td>';
   });
   updateBatchButton();
@@ -1620,7 +1640,8 @@ async function uploadAndReview() {
   progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
   try {
     const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo});
+    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
     progress.className = 'hidden';
     const fileId = result.file_id || 'drawing_' + Date.now();
     fileCache[fileId] = file;
@@ -1754,6 +1775,14 @@ async function runReview() {
           summary.innerHTML += '<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + type + ': ' + count + '</span>';
         }
         summary.innerHTML += '</div>';
+      }
+
+      // PDF 下载按钮（仅当有 file_id 时可用）
+      const pdfFileId = drawing.file_id;
+      if (pdfFileId) {
+        summary.innerHTML += '<div class="mt-3 flex gap-2">' +
+          '<button onclick="downloadReviewPdf(\'' + pdfFileId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 下载PDF报告</button>' +
+          '</div>';
       }
 
       const details = document.getElementById('review-details');
@@ -1919,7 +1948,6 @@ async function runReview() {
           };
           reviewResults.unshift(reviewResult);
           try { localStorage.setItem('baa_review_results', JSON.stringify(reviewResults.slice(0, 50))); } catch(e) {}
-          refreshCompareDrawingSelect();
         }
       }
     } else {
@@ -2178,7 +2206,234 @@ async function runBatchReview() {
   }
 }
 
-// ── 对比重构 ──────────────────────────────────────────────
+// ── 审查结果对比 Diff ──────────────────────────────────────
+let _diffResult = null;
+
+// 监听文件选择
+function _onDiffFileSelect(inputId, labelId) {
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  if (!input || !label) return;
+  input.addEventListener('change', function() {
+    label.textContent = this.files && this.files[0] ? this.files[0].name : '';
+  });
+}
+_onDiffFileSelect('diff-file1', 'diff-file1-name');
+_onDiffFileSelect('diff-file2', 'diff-file2-name');
+
+async function runDiffComparison() {
+  const file1 = document.getElementById('diff-file1').files[0];
+  const file2 = document.getElementById('diff-file2').files[0];
+  if (!file1 || !file2) { alert('请选择两个版本的图纸文件'); return; }
+
+  const bt = document.getElementById('diff-building-type').value;
+  const std = document.getElementById('diff-standard').value;
+  const loading = document.getElementById('diff-loading');
+  loading.className = 'mt-3 text-sm text-gray-500';
+  loading.innerHTML = '⏳ 正在审查并对比...';
+
+  try {
+    const form = new FormData();
+    form.append('file1', file1);
+    form.append('file2', file2);
+
+    const url = API_BASE() + '/review/compare?building_type=' + encodeURIComponent(bt) + '&standard=' + encodeURIComponent(std);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: HEADERS(),
+      body: form,
+    });
+    const data = await resp.json();
+    loading.className = 'hidden';
+
+    if (resp.status !== 200) {
+      alert('对比失败: ' + (data.detail?.message || JSON.stringify(data)));
+      return;
+    }
+
+    _diffResult = data;
+    renderDiffResults(data);
+  } catch (e) {
+    loading.className = 'mt-3 text-sm text-red-500';
+    loading.innerHTML = '❌ 请求失败: ' + e.message;
+  }
+}
+
+function renderDiffResults(data) {
+  const s = data.summary || {};
+  const empty = document.getElementById('diff-empty');
+  const results = document.getElementById('diff-results');
+  empty.className = 'hidden';
+  results.className = '';
+
+  // 摘要卡片
+  const summaryDiv = document.getElementById('diff-summary');
+  const newC = s.new_violations || 0;
+  const fixedC = s.fixed_violations || 0;
+  const changedC = s.changed_violations || 0;
+  const totalV1 = s.total_v1 || 0;
+  const totalV2 = s.total_v2 || 0;
+
+  summaryDiv.innerHTML = '' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-blue-600">' + totalV1 + ' → ' + totalV2 + '</div>' +
+      '<div class="text-xs text-gray-400">违规数</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-green-600">' + newC + '</div>' +
+      '<div class="text-xs text-gray-400">🆕 新增违规</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-emerald-600">' + fixedC + '</div>' +
+      '<div class="text-xs text-gray-400">✅ 已修复</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold text-yellow-600">' + changedC + '</div>' +
+      '<div class="text-xs text-gray-400">🔄 变化项</div>' +
+    '</div>' +
+    '<div class="card p-3 text-center">' +
+      '<div class="text-lg font-bold ' + (newC === 0 ? 'text-green-600' : 'text-red-600') + '">' + (newC === 0 ? '✓ 合格' : newC + '项') + '</div>' +
+      '<div class="text-xs text-gray-400">综合评估</div>' +
+    '</div>';
+
+  // 按 diff_type 分组渲染
+  const items = data.items || [];
+  const groups = { new: [], fixed: [], changed: [] };
+  items.forEach(item => {
+    const t = item.diff_type || 'new';
+    if (groups[t]) groups[t].push(item);
+  });
+
+  ['new', 'fixed', 'changed'].forEach(type => {
+    renderDiffItemPanel(type, groups[type] || []);
+  });
+
+  // 原始 JSON
+  document.getElementById('diff-raw-json').textContent = JSON.stringify(data, null, 2);
+
+  // 默认选中新增tab
+  switchDiffTab('new');
+}
+
+function renderDiffItemPanel(type, items) {
+  const el = document.getElementById('diff-items-' + type);
+  if (!el) return;
+  if (items.length === 0) {
+    const labels = { new: '🆕 无新增违规', fixed: '✅ 无已修复项', changed: '🔄 无变化项' };
+    el.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">' + (labels[type] || '无差异项') + '</div>';
+    return;
+  }
+
+  const typeLabels = { new: '新增', fixed: '修复', changed: '变化' };
+  const typeColors = { new: 'red', fixed: 'green', changed: 'yellow' };
+  const tc = typeColors[type] || 'gray';
+
+  let html = '<div class="flex items-center gap-2 mb-2">' +
+    '<span class="text-xs text-gray-500">共 ' + items.length + ' 项</span>' +
+    '<span class="text-xs text-gray-400">|</span>' +
+    '<span class="text-xs text-gray-400">严重: ' + items.filter(i => i.severity === 'critical').length + '</span>' +
+    '<span class="text-xs text-gray-400">|</span>' +
+    '<span class="text-xs text-gray-400">一般: ' + items.filter(i => i.severity === 'normal' || !i.severity).length + '</span>' +
+    '</div>';
+
+  html += '<table class="w-full text-xs">' +
+    '<thead><tr class="text-left text-gray-400 border-b">' +
+    '<th class="pb-1 pr-2">条款</th>' +
+    '<th class="pb-1 pr-2">实体</th>' +
+    '<th class="pb-1 pr-2">类型</th>';
+  
+  if (type === 'new') {
+    html += '<th class="pb-1 pr-2">实测值</th><th class="pb-1 pr-2">要求值</th>';
+  } else if (type === 'fixed') {
+    html += '<th class="pb-1 pr-2">原实测值</th><th class="pb-1 pr-2">要求值</th>';
+  } else {
+    html += '<th class="pb-1 pr-2">旧值</th><th class="pb-1 pr-2">新值</th>';
+  }
+  
+  html += '<th class="pb-1">严重度</th></tr></thead><tbody>';
+
+  items.forEach(item => {
+    const sevColor = item.severity === 'critical' ? 'red' : item.severity === 'normal' ? 'orange' : 'gray';
+    const sevLabel = item.severity === 'critical' ? '严重' : item.severity === 'normal' ? '一般' : '轻微';
+    const oldV = item.old_value != null ? Number(item.old_value).toFixed(2) : '-';
+    const newV = item.new_value != null ? Number(item.new_value).toFixed(2) : '-';
+    const reqV = item.old_required != null ? item.old_required : (item.new_required != null ? item.new_required : '-');
+
+    html += '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
+      '<td class="py-1.5 pr-2"><span title="' + (item.clause_title || '') + '" class="cursor-help">' + (item.clause_id || '') + '</span></td>' +
+      '<td class="py-1.5 pr-2 truncate max-w-20" title="' + (item.entity_id || '') + '">' + (item.entity_type || '-') + '</td>' +
+      '<td class="py-1.5 pr-2">' + (item.entity_id ? item.entity_id.slice(0, 16) : '-') + '</td>';
+
+    if (type === 'new') {
+      html += '<td class="py-1.5 pr-2 text-red-600">' + newV + '</td><td class="py-1.5 pr-2">' + reqV + '</td>';
+    } else if (type === 'fixed') {
+      html += '<td class="py-1.5 pr-2 text-green-600 line-through">' + oldV + '</td><td class="py-1.5 pr-2">' + reqV + '</td>';
+    } else {
+      html += '<td class="py-1.5 pr-2 text-gray-400">' + oldV + '</td><td class="py-1.5 pr-2 text-yellow-600">' + newV + '</td>';
+    }
+
+    html += '<td class="py-1.5"><span class="px-1.5 py-0.5 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span></td></tr>';
+
+    // 显示说明
+    if (item.explanation) {
+      html += '<tr class="border-b border-gray-50"><td colspan="7" class="pb-1.5 pl-4 text-gray-400 text-xs">💡 ' + item.explanation.slice(0, 120) + '</td></tr>';
+    }
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function switchDiffTab(tab) {
+  ['new', 'fixed', 'changed'].forEach(t => {
+    const panel = document.getElementById('diff-items-' + t);
+    if (panel) panel.className = 'diff-items-panel' + (t === tab ? '' : ' hidden');
+  });
+  document.querySelectorAll('.diff-tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.className = 'diff-tab-btn px-3 py-1 rounded-lg font-medium ' +
+      (isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600');
+  });
+}
+
+function clearDiffResults() {
+  document.getElementById('diff-file1').value = '';
+  document.getElementById('diff-file2').value = '';
+  document.getElementById('diff-file1-name').textContent = '';
+  document.getElementById('diff-file2-name').textContent = '';
+  document.getElementById('diff-results').className = 'hidden';
+  document.getElementById('diff-empty').className = 'card text-center py-8 text-gray-300';
+  document.getElementById('diff-empty').textContent = '上传两个版本的图纸后开始对比';
+  _diffResult = null;
+}
+
+// ── PDF 下载 ──────────────────────────────────────────────
+function downloadReviewPdf(fileId) {
+  const url = API_BASE() + '/review/' + encodeURIComponent(fileId) + '/pdf';
+  const key = getActiveKeyValue();
+  const headers = key ? { 'Authorization': '***' + key } : {};
+
+  // 用 fetch 触发下载（支持鉴权头）
+  fetch(url, { headers })
+    .then(resp => {
+      if (!resp.ok) {
+        return resp.json().then(d => { throw new Error(d.detail?.message || '下载失败 (' + resp.status + ')'); });
+      }
+      return resp.blob();
+    })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '审查报告_' + fileId + '.pdf';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(err => {
+      alert('❌ ' + err.message);
+    });
+}
+
+// ── 旧的对比函数（保留给其他页面引用） ──────────────────
 let reviewResults = [];
 
 function loadReviewResults() {
@@ -2190,7 +2445,7 @@ function loadReviewResults() {
 
 function refreshCompareDrawingSelect() {
   const select = document.getElementById('compare-drawing-select');
-  if (!select) return;
+  if (!select) { /* 对比页已改用 Diff 模式 */ return; }
   select.innerHTML = '<option value="">— 选择已审查图纸 —</option>';
   reviewResults.forEach(r => {
     const opt = document.createElement('option');
@@ -2734,7 +2989,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDrawingList();
   refreshReviewDrawingSelect();
   loadReviewResults();
-  refreshCompareDrawingSelect();
   loadDashboard();
   loadSpecs();
 
