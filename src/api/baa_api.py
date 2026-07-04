@@ -1137,6 +1137,10 @@ async def batch_review(
         }
 
         all_details.extend(details)
+        # 项目级统计：严重级别 + 实体类型
+        entity_type_counter.update(entity_types)
+        for d in details:
+            severity_counter[d.get("severity", "unknown")] += 1
         all_entities.extend(entities)
         total_violations += len(details)
         total_checks += len(entities) * len(registry_funcs)
@@ -1173,6 +1177,9 @@ async def batch_review(
             "total_checks": total_checks,  # 字段
             "total_entities": len(all_entities),  # 字段
             "processing_time_ms": elapsed,  # 字段
+            # 项目级统计
+            "severity_distribution": dict(severity_counter),  # 字段
+            "entity_type_distribution": dict(entity_type_counter),  # 字段
         },
         "cross_analysis": cross_analysis,  # 字段
         "results": results,  # 字段
