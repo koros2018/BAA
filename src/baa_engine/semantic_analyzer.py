@@ -414,6 +414,22 @@ class SemanticAnalyzer:
 
         return entities
 
+    def _is_near_closed(self, prim: RawPrimitive, gap_threshold_mm: float = 500.0) -> bool:
+        """接近闭合检测：开放多边形首尾点距离 < 阈值 → 视为闭合
+
+        用于处理缺口房间（L 形/U 形房间在墙体断开处形成缺口）
+        """
+        pts = prim.properties.get("points")
+        if not pts or len(pts) < 3:
+            return False
+        # 获取首尾点
+        start = (pts[0][0], pts[0][1])
+        end = (pts[-1][0], pts[-1][1])
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        gap = math.sqrt(dx * dx + dy * dy)
+        return gap < gap_threshold_mm
+
     def _classify_by_layer(self, layer: str) -> str:
         """图层规则归类
 
@@ -487,8 +503,10 @@ class SemanticAnalyzer:
                     return "door"
                 return "other"
             
-            # 闭合多边形判断
+            # 闭合多边形判断（含缺口补全）
             is_closed = props.get("area", 0) > 0 or (pts_count >= 3)
+            if not is_closed and pts_count >= 3:
+                is_closed = self._is_near_closed(prim, gap_threshold_mm=500.0)
             if is_closed:
                 aspect_ratio = max(bw, bh) / max(short_edge, 1)
                 # 图层排除：非建筑图层上的闭合多边形不可能是房间
