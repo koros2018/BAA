@@ -551,9 +551,15 @@ class SemanticAnalyzer:
                     return "door"
             return "corridor"
 
-        # ARC：门弧或窗
+        # ARC：门弧、窗或弧形房间
         if dxf_type == "ARC":
             radius = props.get("radius", 0)
+            # 大半径 ARC（>3000mm）且弧线角度大 → 弧形房间轮廓
+            if radius > 3000:
+                angle_span = abs(props.get("start_angle", 0) - props.get("end_angle", 0)) or 0
+                # 弧线跨度 > 90° 视为房间轮廓
+                if angle_span > 90:
+                    return "room"
             if 100 < radius < 2000:
                 return "door"
             return "window"
