@@ -205,6 +205,9 @@ class SemanticAnalyzer:
             except Exception as e:  # 捕获异常
                 logger.warning(f"YOLO 增强失败: {e}")
 
+        # Step 1.4: 多段线复合房间识别（LINE 链闭合检测）
+        entities = self._merge_line_chains_to_rooms(entities, primitives)
+
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)
 
@@ -429,6 +432,136 @@ class SemanticAnalyzer:
         dy = end[1] - start[1]
         gap = math.sqrt(dx * dx + dy * dy)
         return gap < gap_threshold_mm
+
+    def _merge_line_chains_to_rooms(self, entities: List[SemanticEntity], primitives: List[RawPrimitive]) -> List[SemanticEntity]:
+        """多段线复合房间识别：LINE 链闭合检测
+        
+        将首尾相连的 LINE 图元组合成闭合链，满足条件后合并为 room 实体。
+        处理建筑师用多个 LINE 绘制房间轮廓的情况。
+        """
+        # 收集 LINE 图元（未被分类为 room 的）
+        lines = []
+        for prim in primitives:
+            if prim.dxf_type == "LINE":
+                lines.append(prim)
+        if len(lines) < 3:
+            return entities
+        
+        # 端点匹配阈值（mm）
+        match_threshold = 100.0
+        
+        # 建立邻接表
+        point_to_lines = {}
+        for i, line in enumerate(lines):
+            p1 = (line.properties.get("start_point", {}).get("x", 0), 
+                  line.properties.get("start_point", {}).get("y", 0))
+            p2 = (line.properties.get("end_point", {}).get("x", 0), 
+                  line.properties.get("end_point", {}).get("y", 0))
+            point_to_lines.setdefault(p1, []).append((i, 0))
+            point_to_lines.setdefault(p2, []).append((i, 1))
+        
+        # DFS 找闭合链
+        visited = [False] * len(lines)
+        closed_chains = []
+        
+        for start_i in range(len(lines)):
+            if visited[start_i]:
+                continue
+            chain = [start_i]
+            visited[start_i] = True
+            current = start_i
+            current_end = 1  # 0=start, 1=end
+            
+            # 遍历链
+            max_depth = 50  # 防止无限循环
+            depth = 0
+            while depth < max_depth:
+                depth += 1
+                # 获取当前线的端点
+                line = lines[current]
+                p1 = (line.properties.get("start_point", {}).get("x", 0), 
+                      line.properties.get("start_point", {}).get("y", 0))
+                p2 = (line.properties.get("end_point", {}).get("x", 0), 
+                      line.properties.get("end_point", {}).get("y", 0))
+                
+                # 当前端点
+                end_point = p1 if current_end == 0 else p2
+                
+                # 找下一个线
+                found_next = False
+                for (ni, nend) in point_to_lines.get(end_point, []):
+                    if ni == current:
+                        continue
+                    if visited[ni]:
+                        # 如果回到起点且链长度 >= 3 → 闭合
+                        if ni == start_i and len(chain) >= 3:
+                            closed_chains.append(chain)
+                            break
+                        continue
+                    visited[ni] = True
+                    chain.append(ni)
+                    current = ni
+                    # 确定下一个线的起始端点
+                    current_end = 1 - nend
+                    found_next = True
+                    break
+                if not found_next:
+                    break
+            
+            # 检查是否闭合回到起点
+            if len(chain) >= 3:
+                line = lines[current]
+                p1 = (line.properties.get("start_point", {}).get("x", 0), 
+                      line.properties.get("end_point", {}).get("y", 0))
+                start_line = lines[start_i]
+                sp1 = (start_line.properties.get("start_point", {}).get("x", 0), 
+                       start_line.properties.get("start_point", {}).get("y", 0))
+                sp2 = (start_line.properties.get("end_point", {}).get("x", 0), 
+                       start_line.properties.get("end_point", {}).get("y", 0))
+                # 检查终点是否接近起点
+                if ((abs(end_point[0] - sp1[0]) < match_threshold and abs(end_point[1] - sp1[1]) < match_threshold) or
+                    (abs(end_point[0] - sp2[0]) < match_threshold and abs(end_point[1] - sp2[1]) < match_threshold)):
+                    if chain not in closed_chains:
+                        closed_chains.append(chain)
+        
+        # 对闭合链计算面积，符合条件的合并为 room
+        new_rooms = []
+        for chain in closed_chains:
+            pts = []
+            for idx in chain:
+                line = lines[idx]
+                p1 = (line.properties.get("start_point", {}).get("x", 0), 
+                      line.properties.get("start_point", {}).get("y", 0))
+                pts.append(p1)
+            
+            if len(pts) < 3:
+                continue
+            
+            # 计算面积
+            area = abs(sum(pts[i][0] * pts[(i+1) % len(pts)][1] - pts[(i+1) % len(pts)][0] * pts[i][1] for i in range(len(pts))) / 2)
+            
+            # 面积条件：1m² < area < 500m²
+            if area < 1000000 or area > 500000000:
+                continue
+            
+            # bbox
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            bbox = {"x": min(xs), "y": min(ys), "width": max(xs)-min(xs), "height": max(ys)-min(ys)}
+            
+            # 创建 room 实体
+            room_id = f"line_chain_room_{self._entity_counter}"
+            self._entity_counter += 1
+            room = SemanticEntity(
+                id=room_id,
+                type="room",
+                layer="",
+                properties={"area": area / 1000000},  # 转为 m²
+                bbox=bbox
+            )
+            new_rooms.append(room)
+        
+        return entities + new_rooms
 
     def _classify_by_layer(self, layer: str) -> str:
         """图层规则归类
