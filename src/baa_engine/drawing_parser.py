@@ -531,13 +531,34 @@ except Exception:
     def _try_manual_convert(self, path: Path) -> Optional[Any]:
         """第 2 级：ezdwg Entity.dxf 字典手动逐元素重建
 
-        增强版：增加 INSERT 展开、HATCH、SOLID 实体支持
+        增强版：增加 INSERT 展开（含块定义解析）、HATCH、SOLID 实体支持
         """
         try:
             import ezdwg as _ezdwg
             dwg_doc = _ezdwg.read(str(path))
-            msp_src = dwg_doc.modelspace()
             dxf_doc = ezdxf.new("R2010")
+
+            # ── 块定义缓存：通过 export_dxf 间接获取 ──
+            block_defs: Dict[str, Any] = {}
+            try:
+                tmp_xref = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+                dwg_doc.export_dxf(str(tmp_xref))
+                tmp_xref.close()
+                xref_doc = ezdxf.readfile(tmp_xref)
+                for name, blk in xref_doc.blocks:
+                    if blk.is_xref:
+                        continue
+                    # 缓存块定义的实体列表
+                    entities = list(blk)
+                    if entities:
+                        block_defs[name.upper()] = entities
+                xref_doc.close()
+                os.unlink(tmp_xref.name)
+            except Exception:
+                pass
+
+            # ── 遍历 modelspace 实体 ──
+            msp_src = dwg_doc.modelspace()
             msp_dst = dxf_doc.modelspace()
 
             total = 0
@@ -594,21 +615,35 @@ except Exception:
                             ins_pt = d.get("insert", (0, 0, 0))
                             name = d.get("name", "UNKNOWN")
                             x, y = ins_pt[0], ins_pt[1]
-                            half = 50.0
-                            msp_dst.add_lwpolyline([
-                                (x - half, y - half),
-                                (x + half, y - half),
-                                (x + half, y + half),
-                                (x - half, y + half),
-                                (x - half, y - half),
-                            ], dxfattribs={"color": 1, "layer": layer})
-                            msp_dst.add_text(
-                                name,
-                                dxfattribs={
-                                    "color": 1, "height": 100.0,
-                                    "insert": (x + half + 10, y), "layer": layer,
-                                },
-                            )
+                            scale = d.get("x_scale", d.get("y_scale", 1.0)) or 1.0
+                            rotation = d.get("rotation", 0.0) or 0.0
+                            # 尝试展开块定义
+                            expanded = False
+                            for blk_name, blk_entities in block_defs.items():
+                                if blk_name.lower() == name.lower():
+                                    self._insert_block_expand(
+                                        blk_entities, msp_dst, x, y, scale, rotation,
+                                        color, layer, total_var=None  # 不计数，展开的子实体在 _insert_block_expand 内部计数
+                                    )
+                                    expanded = True
+                                    break
+                            if not expanded:
+                                # 无块定义或解析失败 → 回退到占位框
+                                half = max(50.0, scale * 20.0)
+                                msp_dst.add_lwpolyline([
+                                    (x - half, y - half),
+                                    (x + half, y - half),
+                                    (x + half, y + half),
+                                    (x - half, y + half),
+                                    (x - half, y - half),
+                                ], dxfattribs={"color": 1, "layer": layer})
+                                msp_dst.add_text(
+                                    f"INSERT:{name}",
+                                    dxfattribs={
+                                        "color": 1, "height": 100.0,
+                                        "insert": (x + half + 10, y), "layer": layer,
+                                    },
+                                )
                             total += 1
                         elif dxf_type == "HATCH":
                             try:
@@ -808,6 +843,68 @@ except Exception:
 
         # ── 第 5 级：所有方案都失败 ──
         return None
+
+    def _insert_block_expand(self, block_entities, msp_dst, base_x, base_y,
+                              scale, rotation, color, layer):
+        """将块定义的实体展开到指定位置
+
+        按 INSERT 的插入点 (base_x, base_y)、缩放、旋转应用仿射变换。
+        """
+        try:
+            import math
+            # 旋转变换矩阵
+            cos_r = math.cos(math.radians(rotation))
+            sin_r = math.sin(math.radians(rotation))
+            def transform_point(p):
+                dx = (p[0] - base_x) * scale
+                dy = (p[1] - base_y) * scale
+                rx = dx * cos_r - dy * sin_r + base_x
+                ry = dx * sin_r + dy * cos_r + base_y
+                return (rx, ry)
+            for ent in block_entities:
+                dxf_type = ent.dxftype()
+                try:
+                    ent_color = ent.dxf.get("color", color)
+                    ent_layer = ent.dxf.get("layer", layer)
+                    if dxf_type == "LINE":
+                        start = transform_point(ent.dxf["start"][:2])
+                        end = transform_point(ent.dxf["end"][:2])
+                        msp_dst.add_line(start, end, dxfattribs={"color": ent_color, "layer": ent_layer})
+                    elif dxf_type == "LWPOLYLINE":
+                        pts = [transform_point(p[:2]) for p in ent.dxf["points"]]
+                        if len(pts) >= 2:
+                            msp_dst.add_lwpolyline(pts, dxfattribs={"color": ent_color, "layer": ent_layer})
+                    elif dxf_type == "CIRCLE":
+                        center = transform_point(ent.dxf["center"][:2])
+                        radius = ent.dxf["radius"] * scale
+                        msp_dst.add_circle(center, radius, dxfattribs={"color": ent_color, "layer": ent_layer})
+                    elif dxf_type == "ARC":
+                        center = transform_point(ent.dxf["center"][:2])
+                        radius = ent.dxf["radius"] * scale
+                        start_a = ent.dxf["start_angle"] + rotation
+                        end_a = ent.dxf["end_angle"] + rotation
+                        msp_dst.add_arc(center, radius, start_a, end_a, dxfattribs={"color": ent_color, "layer": ent_layer})
+                    elif dxf_type in ("TEXT", "MTEXT"):
+                        ins = ent.dxf.get("insert", (0, 0, 0))
+                        new_ins = transform_point(ins[:2])
+                        height = (ent.dxf.get("height", 2.5) or 2.5) * scale
+                        msp_dst.add_text(ent.dxf.get("text", ""),
+                                          dxfattribs={"color": ent_color, "height": height,
+                                                      "insert": new_ins, "layer": ent_layer})
+                    elif dxf_type == "SOLID":
+                        pts_2d = [(ent.dxf.get(f"{ax}{i}", 0), ent.dxf.get(f"{ay}{i}", 0))
+                                   for ax, ay, i in [("x", "y", 0), ("x", "y", 1), ("x", "y", 2), ("x", "y", 3)]]
+                        new_pts = [transform_point(p) for p in pts_2d]
+                        if len(new_pts) >= 3:
+                            msp_dst.add_solid(new_pts[:4], dxfattribs={"color": ent_color, "layer": ent_layer})
+                    elif dxf_type == "POINT":
+                        loc = ent.dxf.get("location", (0, 0, 0))
+                        new_loc = transform_point(loc[:2])
+                        msp_dst.add_point(new_loc, dxfattribs={"color": ent_color, "layer": ent_layer})
+                except Exception:
+                    pass  # 单个实体展开失败不影响其他实体
+        except Exception:
+            pass
 
     def clear_cache(self):
         """清除解析缓存"""
