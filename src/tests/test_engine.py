@@ -446,6 +446,46 @@ class TestSpecRepository:
         assert levels.count("L2") >= 10  # 断言
         assert levels.count("L3") == 11  # 断言（GB only）
 
+    def test_get_threshold_strict_single_type(self, repo):
+        """单建筑类型：等同于 get_threshold"""
+        effective_types = ["civil"]
+        def get_strict_threshold(clause_id: str):
+            worst_val, worst_unit, worst_op = None, None, None
+            for bt in effective_types:
+                v, u, o = repo.get_threshold(clause_id, bt)
+                if worst_val is None or v > worst_val:
+                    worst_val, worst_unit, worst_op = v, u, o
+            return worst_val, worst_unit, worst_op
+        val, unit, op = get_strict_threshold("GB50016-6.1.1")
+        assert val == 2500.0
+
+    def test_get_threshold_strict_mixed(self, repo):
+        """混合建筑类型：取最严格（最大）阈值"""
+        effective_types = ["civil", "industrial"]
+        def get_strict_threshold(clause_id: str):
+            worst_val, worst_unit, worst_op = None, None, None
+            for bt in effective_types:
+                v, u, o = repo.get_threshold(clause_id, bt)
+                if worst_val is None or v > worst_val:
+                    worst_val, worst_unit, worst_op = v, u, o
+            return worst_val, worst_unit, worst_op
+        val, unit, op = get_strict_threshold("GB50016-6.1.1")
+        assert val == 4000.0  # industrial 更严格
+
+    def test_get_threshold_strict_dist(self, repo):
+        """混合建筑类型：疏散距离场景"""
+        effective_types = ["civil", "industrial"]
+        def get_strict_threshold(clause_id: str):
+            worst_val, worst_unit, worst_op = None, None, None
+            for bt in effective_types:
+                v, u, o = repo.get_threshold(clause_id, bt)
+                if worst_val is None or v > worst_val:
+                    worst_val, worst_unit, worst_op = v, u, o
+            return worst_val, worst_unit, worst_op
+        val, unit, op = get_strict_threshold("GB50016-5.5.18")
+        assert val == 1.2
+        assert unit == "m"
+
 
 # ═══════════════════════════════════════════════════════════
 # Level 4: 归因分析测试
