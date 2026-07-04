@@ -6,6 +6,11 @@ from typing import Dict, Any, Optional, List
 from enum import Enum
 from dataclasses import dataclass, field
 
+import concurrent.futures
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # ── 类型定义 ──────────────────────────────────────────────
 
@@ -25,6 +30,8 @@ class Severity(Enum):
     MAJOR = "major"
     MINOR = "minor"
     PASS = "pass"
+    DEGRADED = "degraded"   # 超时降级
+    ERROR = "error"         # 执行异常
 
 
 # ── 数据结构 ──────────────────────────────────────────────
@@ -58,6 +65,9 @@ class AtomicFunction:
     threshold: float  # 操作
     unit: str  # 操作
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
+
+    # 原子函数默认超时时间（秒），30s 内应完成
+    DEFAULT_TIMEOUT: int = 30
 
     def matches(self, entity: Dict[str, Any]) -> bool:
         """判断实体类型是否匹配此原子函数"""
@@ -570,14 +580,64 @@ class FuncRegistry:
                        target_entities=["room", "space", "floor"]),
     ]
 
-    def __init__(self):
+    def __init__(self, timeout: int = 30):
         self._funcs: Dict[str, AtomicFunction] = {}
+        self._timeout = timeout
         for func in self.INITIAL_FUNCS + self.RESERVED_FUNCS:  # 循环
             self.register(func)
 
     def register(self, func: AtomicFunction):
         """注册"""
+        func.DEFAULT_TIMEOUT = self._timeout
         self._funcs[func.func_id] = func
+
+    def execute_with_timeout(self, func: AtomicFunction,
+                              entity: Optional[Dict[str, Any]] = None,
+                              timeout: Optional[int] = None) -> Optional[FuncResult]:
+        """带超时控制的原子函数执行
+
+        在独立线程中执行 func.execute(entity)，超时则返回 degraded 结果。
+        超时的函数不影响其他原子函数的执行。
+        """
+        timeout = timeout or func.DEFAULT_TIMEOUT
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(func.execute, entity)
+            try:
+                return future.result(timeout=timeout)
+            except concurrent.futures.TimeoutError:
+                logger.warning(f"原子函数超时: {func.func_id} ({func.name}) 超时{timeout}s, 标记为degraded")
+                return FuncResult(
+                    func_id=func.func_id,
+                    func_name=func.name,
+                    clause_id=func.clause_id,
+                    operator=func.operator,
+                    threshold=func.threshold,
+                    actual=0.0,
+                    result="DEGRADED",
+                    delta=0.0,
+                    severity=Severity.DEGRADED,
+                    entity_id=entity.get("id", "") if entity else "",
+                    entity_type=entity.get("type", "") if entity else "",
+                    params={"extracted_value": 0.0, "unit": func.unit,
+                            "note": f"原子函数执行超时(>{timeout}s)，跳过判定"},
+                )
+            except Exception as exc:
+                logger.error(f"原子函数异常: {func.func_id} ({func.name}): {exc}")
+                return FuncResult(
+                    func_id=func.func_id,
+                    func_name=func.name,
+                    clause_id=func.clause_id,
+                    operator=func.operator,
+                    threshold=func.threshold,
+                    actual=0.0,
+                    result="ERROR",
+                    delta=0.0,
+                    severity=Severity.ERROR,
+                    entity_id=entity.get("id", "") if entity else "",
+                    entity_type=entity.get("type", "") if entity else "",
+                    params={"extracted_value": 0.0, "unit": func.unit,
+                            "note": f"原子函数异常: {exc}"},
+                )
 
     def get(self, func_id: str) -> Optional[AtomicFunction]:
         """获取资源"""
