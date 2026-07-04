@@ -875,16 +875,16 @@ except Exception:
             for ent in block_entities:
                 dxf_type = ent.dxftype()
                 try:
-                    ent_color = ent.dxf.get("color", color)
-                    ent_layer = ent.dxf.get("layer", layer)
+                    ent_color = getattr(ent.dxf, "color", color) if hasattr(ent.dxf, "color") else color
+                    ent_layer = getattr(ent.dxf, "layer", layer) if hasattr(ent.dxf, "layer") else layer
                     # 递归展开嵌套块
                     if dxf_type == "INSERT":
                         if block_defs is not None:
-                            ins_pt = ent.dxf.get("insert", (0, 0, 0))
-                            name = ent.dxf.get("name", "UNKNOWN")
-                            ins_x, ins_y = transform_point(ins_pt[:2])
-                            ins_scale = ent.dxf.get("x_scale", 1.0) or 1.0
-                            ins_rot = ent.dxf.get("rotation", 0.0) or 0.0
+                            ins_pt = getattr(ent.dxf, "insert", (0, 0, 0))
+                            name = getattr(ent.dxf, "name", "UNKNOWN")
+                            ins_x, ins_y = transform_point((ins_pt[0], ins_pt[1]))
+                            ins_scale = getattr(ent.dxf, "x_scale", 1.0) or 1.0
+                            ins_rot = getattr(ent.dxf, "rotation", 0.0) or 0.0
                             # 查找块定义
                             for blk_name, blk_entities in block_defs.items():
                                 if blk_name.lower() == name.lower():
@@ -897,39 +897,39 @@ except Exception:
                                     break
                         continue
                     elif dxf_type == "LINE":
-                        start = transform_point(ent.dxf["start"][:2])
-                        end = transform_point(ent.dxf["end"][:2])
+                        start = transform_point((ent.dxf.start[0], ent.dxf.start[1]))
+                        end = transform_point((ent.dxf.end[0], ent.dxf.end[1]))
                         msp_dst.add_line(start, end, dxfattribs={"color": ent_color, "layer": ent_layer})
                     elif dxf_type == "LWPOLYLINE":
-                        pts = [transform_point(p[:2]) for p in ent.dxf["points"]]
+                        pts = [transform_point((p[0], p[1])) for p in getattr(ent.dxf, "points", [])]
                         if len(pts) >= 2:
                             msp_dst.add_lwpolyline(pts, dxfattribs={"color": ent_color, "layer": ent_layer})
                     elif dxf_type == "CIRCLE":
-                        center = transform_point(ent.dxf["center"][:2])
-                        radius = ent.dxf["radius"] * scale
+                        center = transform_point((ent.dxf.center[0], ent.dxf.center[1]))
+                        radius = ent.dxf.radius * scale
                         msp_dst.add_circle(center, radius, dxfattribs={"color": ent_color, "layer": ent_layer})
                     elif dxf_type == "ARC":
-                        center = transform_point(ent.dxf["center"][:2])
-                        radius = ent.dxf["radius"] * scale
-                        start_a = ent.dxf["start_angle"] + rotation
-                        end_a = ent.dxf["end_angle"] + rotation
+                        center = transform_point((ent.dxf.center[0], ent.dxf.center[1]))
+                        radius = ent.dxf.radius * scale
+                        start_a = ent.dxf.start_angle + rotation
+                        end_a = ent.dxf.end_angle + rotation
                         msp_dst.add_arc(center, radius, start_a, end_a, dxfattribs={"color": ent_color, "layer": ent_layer})
                     elif dxf_type in ("TEXT", "MTEXT"):
-                        ins = ent.dxf.get("insert", (0, 0, 0))
-                        new_ins = transform_point(ins[:2])
-                        height = (ent.dxf.get("height", 2.5) or 2.5) * scale
-                        msp_dst.add_text(ent.dxf.get("text", ""),
+                        ins = getattr(ent.dxf, "insert", (0, 0, 0))
+                        new_ins = transform_point((ins[0], ins[1]))
+                        height = (getattr(ent.dxf, "height", 2.5) or 2.5) * scale
+                        msp_dst.add_text(getattr(ent.dxf, "text", ""),
                                           dxfattribs={"color": ent_color, "height": height,
                                                       "insert": new_ins, "layer": ent_layer})
                     elif dxf_type == "SOLID":
-                        pts_2d = [(ent.dxf.get(f"{ax}{i}", 0), ent.dxf.get(f"{ay}{i}", 0))
+                        pts_2d = [(getattr(ent.dxf, f"{ax}{i}", 0), getattr(ent.dxf, f"{ay}{i}", 0))
                                    for ax, ay, i in [("x", "y", 0), ("x", "y", 1), ("x", "y", 2), ("x", "y", 3)]]
                         new_pts = [transform_point(p) for p in pts_2d]
                         if len(new_pts) >= 3:
                             msp_dst.add_solid(new_pts[:4], dxfattribs={"color": ent_color, "layer": ent_layer})
                     elif dxf_type == "POINT":
-                        loc = ent.dxf.get("location", (0, 0, 0))
-                        new_loc = transform_point(loc[:2])
+                        loc = getattr(ent.dxf, "location", (0, 0, 0))
+                        new_loc = transform_point((loc[0], loc[1]))
                         msp_dst.add_point(new_loc, dxfattribs={"color": ent_color, "layer": ent_layer})
                 except Exception:
                     pass  # 单个实体展开失败不影响其他实体

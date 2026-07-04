@@ -681,6 +681,87 @@ class TestDrawingParser:
         assert r.success  # 断言
         assert len(r.primitives) > 0  # 断言
 
+    def test_insert_block_expand_line(self):
+        """测试 INSERT 块展开：LINE 实体的仿射变换"""
+        import ezdxf
+        parser = DrawingParser()
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        # 创建块定义：一个 100x100 正方形（4 条 LINE）
+        blk = doc.blocks.new("SQUARE")
+        blk.add_line((0, 0), (100, 0))
+        blk.add_line((100, 0), (100, 100))
+        blk.add_line((100, 100), (0, 100))
+        blk.add_line((0, 100), (0, 0))
+        block_entities = list(blk)
+        # 展开到 (200, 200)，scale=2，rot=0
+        parser._insert_block_expand(block_entities, msp, 200, 200, 2.0, 0, 1, "WALL")
+        # 验证 modelspace 中展开了 4 条 LINE
+        lines = list(msp)
+        assert len(lines) == 4
+        # 验证起点 (0,0) → (200 + (0-200)*2, 200 + (0-200)*2) = (200-400, 200-400) = (-200, -200)
+        start = lines[0].dxf.start
+        assert abs(start[0] - (-200)) < 0.01
+        assert abs(start[1] - (-200)) < 0.01
+
+    def test_insert_block_expand_with_rotation(self):
+        """测试 INSERT 块展开：旋转 90°"""
+        import ezdxf
+        parser = DrawingParser()
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        blk = doc.blocks.new("LINE_90")
+        blk.add_line((0, 0), (100, 0))
+        block_entities = list(blk)
+        # 展开到 (0, 0)，scale=1，rot=90°
+        parser._insert_block_expand(block_entities, msp, 0, 0, 1.0, 90, 1, "WALL")
+        lines = list(msp)
+        assert len(lines) == 1
+        # (0,0) → (0,0), (100,0) → (0, 100) 旋转后
+        start = lines[0].dxf.start
+        end = lines[0].dxf.end
+        assert abs(start[0]) < 0.01 and abs(start[1]) < 0.01
+        assert abs(end[0]) < 0.01 and abs(end[1] - 100) < 0.01
+
+    def test_insert_block_expand_circle(self):
+        """测试 INSERT 块展开：CIRCLE 实体的缩放"""
+        import ezdxf
+        parser = DrawingParser()
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        blk = doc.blocks.new("CIRC")
+        blk.add_circle((0, 0), 50)
+        block_entities = list(blk)
+        # 展开到 (100, 100)，scale=3，rot=0
+        parser._insert_block_expand(block_entities, msp, 100, 100, 3.0, 0, 1, "WALL")
+        circles = list(msp)
+        assert len(circles) == 1
+        # 半径 = 50 * 3 = 150
+        assert abs(circles[0].dxf.radius - 150) < 0.01
+
+    def test_insert_block_expand_depth_limit(self):
+        """测试块嵌套展开深度限制（最深 5 层）"""
+        import ezdxf
+        parser = DrawingParser()
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        # 创建块 B（内层）
+        blk_b = doc.blocks.new("BLK_B")
+        blk_b.add_line((0, 0), (10, 0))
+        # 创建块 A，手动构造 INSERT 实体
+        blk_a = doc.blocks.new("BLK_A")
+        # 用 add_auto_blockref 插入块引用
+        blk_a.add_auto_blockref("BLK_B", insert=(0, 0), values={})
+        block_defs = {"BLK_A": list(blk_a), "BLK_B": list(blk_b)}
+        # 展开深度 0 → 应展开 BLK_A → 内部 BLK_B 被限制（depth=1 > max_depth=0）
+        parser._insert_block_expand(
+            list(blk_a), msp, 0, 0, 1.0, 0, 1, "WALL",
+            block_defs=block_defs, depth=0, max_depth=0
+        )
+        # depth=0, max_depth=0 → depth > max_depth → 不展开任何实体
+        lines = list(msp)
+        assert len(lines) == 0
+
 
 class TestSemanticAnalyzer:
 
