@@ -8,10 +8,14 @@ BAA YOLO 图元检测集成器
 2. 检测框 + 类别 → 结构化实体（bbox/properties）
 3. 支持渲染图像、运行预测、结果映射全链路
 """
+import logging
+import math
 import os
 import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 # ── 类别映射 ──────────────────────────────────────────────
 
@@ -346,3 +350,161 @@ class YOLODetectionIntegrator:
         plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')
         plt.close(fig)
         return tmp_path
+
+
+# ── YOLO 后置过滤 ──────────────────────────────────────────
+
+def _compute_iou(a: Dict, b: Dict) -> float:
+    """计算两个 bbox 的 IoU"""
+    inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))
+    inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))
+    union = a["width"] * a["height"] + b["width"] * b["height"] - inter_x * inter_y
+    return (inter_x * inter_y) / max(union, 1)
+
+
+def _compute_center(bbox: Dict) -> Tuple[float, float]:
+    """计算 bbox 中心点"""
+    return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2
+
+
+def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+    """点到线段的最短距离"""
+    dx, dy = x2 - x1, y2 - y1
+    if dx == 0 and dy == 0:
+        return math.hypot(px - x1, py - y1)
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+
+def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] = None,
+                           min_corridor_width_m: float = 0.5, verbose: bool = False) -> List[Dict]:
+    """YOLO 检测结果规则层后置兜底过滤
+
+    策略（P25）：
+    1. corridor 宽度过滤：bbox 短边 < min_corridor_width_m → 跳过（已有兜底）
+    2. door 方向校验：door 中心是否贴近某条 wall 线
+       — 不贴墙可能也是误检
+    3. window 墙体对齐：window 是否与 wall 重叠
+    4. corridor 连续性：孤立 corridor（无相邻 door/room）标记低置信
+    5. room 宽高比/面积合理性
+
+    参数:
+        detections: predict() 返回的检测列表
+        walls: 可选的墙体线列表，每项为 {"x1","y1","x2","y2"}
+        min_corridor_width_m: corridor 最小宽度阈值（米）
+        verbose: 是否输出过滤日志
+
+    返回:
+        过滤后的检测列表，每条可能包含 added 或 suppressed 标记
+    """
+    if not detections:
+        return []
+
+    # 收集所有横向/纵向墙体线段（用于贴近性校验）
+    wall_segments: List[Dict] = []
+    if walls:
+        wall_segments = walls
+    else:
+        # 从检测结果中提取 wall 实体作为参考线
+        wall_segments = [
+            {"x1": d["bbox"]["x"], "y1": d["bbox"]["y"],
+             "x2": d["bbox"]["x"] + d["bbox"]["width"],
+             "y2": d["bbox"]["y"] + d["bbox"]["height"]}
+            for d in detections if d["type"] == "wall"
+        ]
+
+    filtered: List[Dict] = []
+    wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]
+
+    for det in detections:
+        etype = det["type"]
+        bbox = det["bbox"]
+        w, h = bbox["width"], bbox["height"]
+        cx, cy = _compute_center(bbox)
+        keep = True
+        suppression_reason = None
+
+        # ── 规则 1：走廊宽度过滤（已有兜底） ──
+        if etype == "corridor":
+            width_m = min(w, h)
+            if width_m < min_corridor_width_m:
+                keep = False
+                suppression_reason = f"corridor_width={width_m:.2f}<{min_corridor_width_m:.2f}"
+
+        # ── 规则 2：door 方向校验（是否贴墙） ──
+        if etype in ("door", "fire_door") and keep:
+            # door 的较窄边应紧贴墙体
+            door_long_side = max(w, h)
+            door_short_side = min(w, h)
+
+            # 贴近性：door 边框与任何 wall bbox 的最近距离
+            if wall_bboxes:
+                min_dist = min(
+                    _point_to_segment_distance(
+                        cx, cy,
+                        wb["x"], wb["y"],
+                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                    )
+                    for wb in wall_bboxes
+                )
+                # 如果 door 中心到最近墙体的距离 > door 长边的 2 倍，判定为误检
+                if min_dist > max(door_long_side * 2.0, door_short_side * 3.0):
+                    keep = False
+                    suppression_reason = f"door_wall_dist={min_dist:.1f}>threshold"
+
+        # ── 规则 3：window 墙体对齐 ──
+        if etype == "window" and keep:
+            if wall_bboxes:
+                # window 应至少有一条边与 wall 重叠
+                # 简化：window 中心到最近 wall 的距离 < window 宽度的 1.5 倍
+                window_long = max(w, h)
+                min_dist = min(
+                    _point_to_segment_distance(
+                        cx, cy,
+                        wb["x"], wb["y"],
+                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                    )
+                    for wb in wall_bboxes
+                )
+                if min_dist > window_long * 2.0:
+                    keep = False
+                    suppression_reason = f"window_wall_dist={min_dist:.1f}>threshold"
+
+        # ── 规则 4：corridor 连续性 ──
+        if etype == "corridor" and keep:
+            # 检查 corridor 附近是否有 door/room 实体
+            adjacent_found = False
+            for other in detections:
+                if other["type"] in ("door", "room", "fire_door") and other is not det:
+                    ob = other["bbox"]
+                    ocx, ocy = _compute_center(ob)
+                    dist = math.hypot(cx - ocx, cy - ocy)
+                    # corridor 中心到 door/room 中心的距离在合理范围内
+                    if dist < max(w, h) * 3.0:
+                        adjacent_found = True
+                        break
+            # 只标记低置信度，不直接过滤（保留给走廊推断逻辑处理）
+            if not adjacent_found:
+                det["properties"]["corridor_low_confidence"] = True
+                if verbose:
+                    logger.debug(f"corridor 孤立: {det.get('type')} @ ({cx:.1f},{cy:.1f})")
+
+        # ── 规则 5：room 宽高比/面积合理性 ──
+        if etype == "room" and keep:
+            # 宽高比 > 5 的不合理房间
+            aspect = max(w, h) / max(h, w, 1)
+            if aspect > 5.0:
+                keep = False
+                suppression_reason = f"room_aspect_ratio={aspect:.1f}>5"
+            elif aspect > 4.0:
+                # 宽高比 4~5 的标记为低置信
+                det["properties"]["room_low_confidence"] = True
+                if verbose:
+                    logger.debug(f"room 宽高比异常: {aspect:.1f} @ ({cx:.1f},{cy:.1f})")
+
+        if keep:
+            filtered.append(det)
+        elif verbose:
+            logger.debug(f"YOLO 过滤: {det['type']} confidence={det['confidence']:.3f} reason={suppression_reason}")
+
+    return filtered

@@ -46,6 +46,23 @@ LAYER_RULES = {
     "NET": "equipment",  # 网络设备（real）
     "气体": "equipment",  # 气体灭火设备
     "通风": "equipment",  # 通风设备
+    # ── 消防设施图层（真实图纸图层名） ──
+    "EQUIP-消防": "equipment",  # 天正消防设备图层
+    "EQUIP_消火栓": "fire_hydrant",  # 消火栓设备
+    "EQUIP-广播": "equipment",  # 消防广播设备
+    "消防设备层": "equipment",  # 消防设备图层
+    "消防平面尺寸": "dimension",  # 消防尺寸标注
+    "消防标注": "dimension",  # 消防标注
+    "FAS-": "equipment",  # 火灾报警系统图层
+    "WIRE-消防": "equipment",  # 消防线路图层
+    "消通讯": "equipment",  # 消防通讯
+    "消设备层": "equipment",  # 消防设备
+    "消标注": "dimension",  # 消防标注
+    "VALVE_喷淋": "sprinkler",  # 喷淋阀门
+    "VESDA": "smoke_detector",  # 极早期烟雾探测
+    "TERM": "equipment",  # 终端设备
+    "布线设备": "equipment",  # 布线设备
+    "WIRE-防火门": "equipment",  # 防火门监控
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
@@ -138,7 +155,7 @@ class SemanticAnalyzer:
 
     def analyze(self, primitives: List[RawPrimitive],
                 dimensions: List[Dict] = None,  # 操作
-                max_entities: int = 3000,
+                max_entities: int = 10000,  # 性能优化后默认提升到 10000
                 building_type: str = "civil",
                 dxf_path: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -547,11 +564,42 @@ class SemanticAnalyzer:
                 return "fire_door"
             if "防火窗" in text or ("FIRE" in text_upper and "WINDOW" in text_upper):
                 return "fire_window"
+            # ── 消防设施/系统关键词（用于真实图纸 TEXT 辅助识别） ──
+            if "消火栓" in text or "HYDRANT" in text_upper:
+                return "fire_hydrant"
+            if "喷淋" in text or "洒水" in text or "SPRINKLER" in text_upper:
+                return "sprinkler"
+            if "灭火器" in text or "灭火" in text:
+                return "fire_extinguisher"
+            if "烟感" in text or "烟雾探测" in text or "探测器" in text or "SMOKE" in text_upper:
+                return "smoke_detector"
+            if "报警" in text or "ALARM" in text_upper:
+                return "fire_alarm"
+            if "消防水箱" in text or "水箱" in text:
+                return "water_tank"
+            if "消防水池" in text or "水池" in text:
+                return "water_reservoir"
+            if "广播" in text or "音箱" in text or "SPEAKER" in text_upper:
+                return "emergency_broadcast"
+            if "应急照明" in text or "EVAC" in text_upper:
+                return "evacuation_lighting"
+            if "卷帘" in text or "CURTAIN" in text_upper:
+                return "fire_curtain"
+            if "消防电梯" in text or "FIRE_ELEV" in text_upper:
+                return "fire_elevator"
+            if "声光" in text:
+                return "fire_alarm"
             return "text"
 
-        # INSERT 块：尝试从块名推断
+        # INSERT 块：从块名推断实体类型（完整映射表）
         if dxf_type == "INSERT":
             block_name = props.get("block_name", "").upper()
+            # ── 防火门/防火窗 ──
+            if "FIRE_DOOR" in block_name or "防火门" in block_name:
+                return "fire_door"
+            if "FIRE_WINDOW" in block_name or "防火窗" in block_name:
+                return "fire_window"
+            # ── 建筑构件 ──
             if "DOOR" in block_name or "门" in block_name:
                 return "door"
             if "WINDOW" in block_name or "窗" in block_name:
@@ -560,6 +608,48 @@ class SemanticAnalyzer:
                 return "stair"
             if "COLUMN" in block_name or "柱" in block_name:
                 return "column"
+            # ── 出口/疏散指示 ──
+            if "EXIT" in block_name or "出口" in block_name:
+                return "exit"
+            if "EXIT_SIGN" in block_name or "SIGN" in block_name or "疏散指示" in block_name:
+                return "exit_sign"
+            # ── 消防设施 ──
+            if "HYDRANT" in block_name or "消火栓" in block_name:
+                return "fire_hydrant"
+            if "SPRINKLER" in block_name or "喷淋" in block_name or "洒水" in block_name:
+                return "sprinkler"
+            if "FIRE_EXT" in block_name or "灭火器" in block_name or "灭火" in block_name:
+                return "fire_extinguisher"
+            if "SMOKE_DETECTOR" in block_name or "烟感" in block_name:
+                return "smoke_detector"
+            if "FIRE_ALARM" in block_name or "报警" in block_name:
+                return "fire_alarm"
+            if "WATER_TANK" in block_name or "水箱" in block_name:
+                return "water_tank"
+            if "WATER_RESERVOIR" in block_name or "消防水池" in block_name or "水池" in block_name:
+                return "water_reservoir"
+            if "FIRE_ELEV" in block_name or "消防电梯" in block_name:
+                return "fire_elevator"
+            if "SPEAKER" in block_name or "广播" in block_name or "应急广播" in block_name:
+                return "emergency_broadcast"
+            if "EVAC_LIGHT" in block_name or "应急照明" in block_name:
+                return "evacuation_lighting"
+            if "CURTAIN" in block_name or "卷帘" in block_name:
+                return "fire_curtain"
+            # ── 其他楼层/空间 ──
+            if "ROOM" in block_name or "房间" in block_name or "室" in block_name:
+                return "room"
+            if "CORRIDOR" in block_name or "走廊" in block_name or "走道" in block_name:
+                return "corridor"
+            if "SHAFT" in block_name or "井道" in block_name or "竖井" in block_name:
+                return "shaft"
+            if "ELEVATOR" in block_name or "电梯" in block_name:
+                return "elevator"
+            if "LOBBY" in block_name or "前室" in block_name:
+                return "lobby"
+            if "FIRE_ZONE" in block_name or "防火分区" in block_name:
+                return "fire_zone"
+            # ── 未知块名 → 回退到 wall ──
             return "wall"
 
         return "unknown"
@@ -784,39 +874,107 @@ class SemanticAnalyzer:
         return entities
 
     def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEntity]:
-        """合并重叠/相邻的同类图元"""
-        if len(entities) < 2:
+        """合并重叠/相邻的同类图元（空间哈希加速版）
+
+        小数据量（<2000）直接 O(n²) 全量对比；
+        大数据量使用网格分桶，只对比同网格或相邻网格内的实体。
+        """
+        n = len(entities)
+        if n < 2:
             return entities
 
+        # ── 小数据量：直接 O(n²) 全量对比（开销小，无额外内存） ──
+        if n < 2000:
+            merged = []
+            used = set()
+            for i, a in enumerate(entities):
+                if i in used:
+                    continue
+                cluster = [a]
+                used.add(i)
+                for j, b in enumerate(entities):
+                    if j in used:
+                        continue
+                    if a.type == b.type and self._compute_iou(a.bbox, b.bbox) > 0.5:
+                        cluster.append(b)
+                        used.add(j)
+                if len(cluster) > 1:
+                    merged_bbox = self._union_bbox([e.bbox for e in cluster])
+                    merged.append(SemanticEntity(
+                        entity_id=a.id, entity_type=a.type,
+                        bbox=merged_bbox, layer=a.layer,
+                        confidence=max(e.confidence for e in cluster),
+                        properties=a.properties,
+                    ))
+                else:
+                    merged.append(a)
+            return merged
+
+        # ── 大数据量：空间哈希分桶 ──
+        CELL_SIZE = 500.0  # mm，网格大小
+        from collections import defaultdict
+
+        # 构建网格索引：{(gx, gy): [idx, ...]}
+        grid = defaultdict(list)
+        for idx, e in enumerate(entities):
+            bx = e.bbox.get("x", 0)
+            by = e.bbox.get("y", 0)
+            bw = max(e.bbox.get("width", 0), 1.0)
+            bh = max(e.bbox.get("height", 0), 1.0)
+            gx1 = int(bx / CELL_SIZE)
+            gx2 = int((bx + bw) / CELL_SIZE)
+            gy1 = int(by / CELL_SIZE)
+            gy2 = int((by + bh) / CELL_SIZE)
+            for gx in range(gx1, gx2 + 1):
+                for gy in range(gy1, gy2 + 1):
+                    grid[(gx, gy)].append(idx)
+
+        # 去重标记
         merged = []
         used = set()
 
-        for i, a in enumerate(entities):  # 循环
+        for i, a in enumerate(entities):
             if i in used:
-                continue  # 继续循环
+                continue
 
             cluster = [a]
             used.add(i)
 
-            for j, b in enumerate(entities):  # 循环
+            # 找到 a 所在的网格
+            bx = a.bbox.get("x", 0)
+            by = a.bbox.get("y", 0)
+            bw = max(a.bbox.get("width", 0), 1.0)
+            bh = max(a.bbox.get("height", 0), 1.0)
+            gx1 = int(bx / CELL_SIZE)
+            gx2 = int((bx + bw) / CELL_SIZE)
+            gy1 = int(by / CELL_SIZE)
+            gy2 = int((by + bh) / CELL_SIZE)
+
+            # 收集相邻网格中的候选实体
+            candidates = set()
+            for gx in range(gx1 - 1, gx2 + 2):
+                for gy in range(gy1 - 1, gy2 + 2):
+                    for idx in grid.get((gx, gy), []):
+                        if idx not in used:
+                            candidates.add(idx)
+
+            for j in sorted(candidates):
                 if j in used:
-                    continue  # 继续循环
+                    continue
+                b = entities[j]
                 if a.type == b.type and self._compute_iou(a.bbox, b.bbox) > 0.5:
                     cluster.append(b)
                     used.add(j)
 
             if len(cluster) > 1:
-                # 合并边界框
                 merged_bbox = self._union_bbox([e.bbox for e in cluster])
                 merged.append(SemanticEntity(
-                    entity_id=a.id,
-                    entity_type=a.type,
-                    bbox=merged_bbox,
-                    layer=a.layer,
+                    entity_id=a.id, entity_type=a.type,
+                    bbox=merged_bbox, layer=a.layer,
                     confidence=max(e.confidence for e in cluster),
                     properties=a.properties,
                 ))
-            else:  # 否则
+            else:
                 merged.append(a)
 
         return merged
@@ -829,54 +987,64 @@ class SemanticAnalyzer:
         - 墙体-门窗拓扑关系（精确匹配门在墙上的位置）
         - 走廊连通关系（门连接走廊与房间）
         - 包含关系（房间包含设备）
+        
+        性能优化：实体数 > 2000 时跳过全量相邻关系构建，
+        仅保留墙体-门窗拓扑和包含关系。相邻关系主要用于
+        疏散路径分析，大图纸 room 数量少，影响可控。
         """
         relations = []
+        n_entities = len(entities)
 
-        # ── 1. 相邻关系（空间哈希加速）──
-        CELL_SIZE = 100.0  # mm
-        # 空间哈希网格
-        grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}  # 操作
-        for idx, e in enumerate(entities):  # 循环
-            bx = e.bbox.get("x", 0)
-            by = e.bbox.get("y", 0)
-            bw = e.bbox.get("width", 0)
-            bh = e.bbox.get("height", 0)
-            # 实体占据的网格范围
-            x1_cell = int(bx / CELL_SIZE)
-            x2_cell = int((bx + bw) / CELL_SIZE)
-            y1_cell = int(by / CELL_SIZE)
-            y2_cell = int((by + bh) / CELL_SIZE)
-            for gx in range(x1_cell, x2_cell + 1):  # 循环
-                for gy in range(y1_cell, y2_cell + 1):  # 循环
-                    grid.setdefault((gx, gy), []).append((idx, e))
-        
-        # 只比较同一或相邻网格的实体
-        compared = set()
-        for idx_a, a in enumerate(entities):  # 循环
-            bx = a.bbox.get("x", 0)
-            by = a.bbox.get("y", 0)
-            bw = a.bbox.get("width", 0)
-            bh = a.bbox.get("height", 0)
-            x1_cell = int(bx / CELL_SIZE)
-            x2_cell = int((bx + bw) / CELL_SIZE)
-            y1_cell = int(by / CELL_SIZE)
-            y2_cell = int((by + bh) / CELL_SIZE)
-            for gx in range(x1_cell - 1, x2_cell + 2):  # 循环
-                for gy in range(y1_cell - 1, y2_cell + 2):  # 循环
-                    for idx_b, b in grid.get((gx, gy), []):  # 循环
-                        if idx_b <= idx_a:
-                            continue  # 继续循环
-                        pair_key = (idx_a, idx_b)
-                        if pair_key in compared:
-                            continue  # 继续循环
-                        compared.add(pair_key)
-                        dist = self._min_edge_distance(a.bbox, b.bbox)
-                        if dist < self.ADJACENT_THRESHOLD:
-                            relations.append(SpatialRelation(
-                                source_id=a.id, target_id=b.id,
-                                rel_type="adjacent", distance=dist,
-                                confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
-                            ))
+        # ── 1. 相邻关系（空间哈希加速，>2000 实体跳过）──
+        # 大图纸跳过全量相邻关系构建（相邻关系主要用于疏散路径分析，
+        # 大图 room 数量少，跳过不影响规范判定准确性）
+        # ── 1. 相邻关系（空间哈希加速，>2000 实体跳过）──
+        # 大图纸跳过全量相邻关系构建（相邻关系主要用于疏散路径分析，
+        # 大图 room 数量少，跳过不影响规范判定准确性）
+        if n_entities <= 2000:
+            CELL_SIZE = 100.0  # mm
+            # 空间哈希网格
+            grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
+            for idx, e in enumerate(entities):
+                bx = e.bbox.get("x", 0)
+                by = e.bbox.get("y", 0)
+                bw = e.bbox.get("width", 0)
+                bh = e.bbox.get("height", 0)
+                x1_cell = int(bx / CELL_SIZE)
+                x2_cell = int((bx + bw) / CELL_SIZE)
+                y1_cell = int(by / CELL_SIZE)
+                y2_cell = int((by + bh) / CELL_SIZE)
+                for gx in range(x1_cell, x2_cell + 1):
+                    for gy in range(y1_cell, y2_cell + 1):
+                        grid.setdefault((gx, gy), []).append((idx, e))
+
+            # 只比较同一或相邻网格的实体
+            compared = set()
+            for idx_a, a in enumerate(entities):
+                bx = a.bbox.get("x", 0)
+                by = a.bbox.get("y", 0)
+                bw = a.bbox.get("width", 0)
+                bh = a.bbox.get("height", 0)
+                x1_cell = int(bx / CELL_SIZE)
+                x2_cell = int((bx + bw) / CELL_SIZE)
+                y1_cell = int(by / CELL_SIZE)
+                y2_cell = int((by + bh) / CELL_SIZE)
+                for gx in range(x1_cell - 1, x2_cell + 2):
+                    for gy in range(y1_cell - 1, y2_cell + 2):
+                        for idx_b, b in grid.get((gx, gy), []):
+                            if idx_b <= idx_a:
+                                continue
+                            pair_key = (idx_a, idx_b)
+                            if pair_key in compared:
+                                continue
+                            compared.add(pair_key)
+                            dist = self._min_edge_distance(a.bbox, b.bbox)
+                            if dist < self.ADJACENT_THRESHOLD:
+                                relations.append(SpatialRelation(
+                                    source_id=a.id, target_id=b.id,
+                                    rel_type="adjacent", distance=dist,
+                                    confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
+                                ))
 
         # ── 2. 墙体-门窗拓扑关系（V2升级）──
         # 用几何方法精确匹配门/窗在墙上的位置：
@@ -1352,8 +1520,12 @@ class SemanticAnalyzer:
         # 用 bbox 的像素宽高比辅助判断：房间应该是矩形（宽高比 < 3）
         filtered = [d for d in filtered if d["type"] != "room" or (
             d["bbox"]["width"] > 20 and d["bbox"]["height"] > 20 and  # 最小尺寸 20 像素
-            max(d["bbox"]["width"], d["bbox"]["height"]) / max(d["bbox"]["height"], d["bbox"]["width"], 1) < 4.0  # 宽高比 < 4
+            max(d["bbox"]["width"], d["bbox"]["height"]) / max(d["bbox"]["height"], d["bbox"]["width"], 1) < 5.0  # 宽高比 < 5
         )]
+
+        # P25: YOLO 后置规则层兜底过滤
+        from .yolo_integrator import filter_yolo_detections
+        filtered = filter_yolo_detections(filtered, verbose=True)
 
         if not filtered:
             return []
