@@ -98,8 +98,13 @@ class AtomicFunction:
                     severity=Severity.CRITICAL,
                     entity_id="",
                     entity_type="missing",
-                    params={"extracted_value": 0.0, "unit": self.unit,
-                            "note": "未检测到目标实体"},  # 字段
+                    params={
+                        "extracted_value": 0.0,
+                        "unit": self.unit,
+                        "reason": "missing_entity",
+                        "clause_text": self.description,
+                        "note": "未检测到目标实体",
+                    },  # 字段
                 )
             return None
 
@@ -144,7 +149,14 @@ class AtomicFunction:
                 severity=Severity.PASS if passed else Severity.CRITICAL,
                 entity_id=entity.get("id", ""),
                 entity_type=entity.get("type", ""),
-                params={"extracted_value": actual, "unit": self.unit},
+                params={
+                    "extracted_value": actual,
+                    "unit": self.unit,
+                    "comparison_detail": f"{actual} {self.operator} {self.threshold} = {passed}",
+                    "clause_text": self.description,
+                    "entity_layer": entity.get("layer", ""),
+                    "passed": passed,
+                },
             )
         
         actual = self._extract_value(entity)
@@ -190,7 +202,14 @@ class AtomicFunction:
             severity=severity,
             entity_id=entity.get("id", ""),
             entity_type=entity.get("type", ""),
-            params={"extracted_value": actual, "unit": self.unit},
+            params={
+                "extracted_value": actual,
+                "unit": self.unit,
+                "comparison_detail": f"{actual} {self.operator} {self.threshold} = {passed}",
+                "clause_text": self.description,
+                "entity_layer": entity.get("layer", ""),
+                "passed": passed,
+            },
         )
 
     def _extract_value(self, entity: Dict[str, Any]) -> float:
@@ -619,7 +638,9 @@ class FuncRegistry:
                     entity_id=entity.get("id", "") if entity else "",
                     entity_type=entity.get("type", "") if entity else "",
                     params={"extracted_value": 0.0, "unit": func.unit,
-                            "note": f"原子函数执行超时(>{timeout}s)，跳过判定"},
+                            "note": f"原子函数执行超时(>{timeout}s)，跳过判定",
+                            "reason": "timeout",
+                            "clause_text": func.description},
                 )
             except Exception as exc:
                 logger.error(f"原子函数异常: {func.func_id} ({func.name}): {exc}")
@@ -636,7 +657,9 @@ class FuncRegistry:
                     entity_id=entity.get("id", "") if entity else "",
                     entity_type=entity.get("type", "") if entity else "",
                     params={"extracted_value": 0.0, "unit": func.unit,
-                            "note": f"原子函数异常: {exc}"},
+                            "note": f"原子函数异常: {exc}",
+                            "reason": "error",
+                            "clause_text": func.description},
                 )
 
     def get(self, func_id: str) -> Optional[AtomicFunction]:
