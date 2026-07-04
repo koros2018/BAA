@@ -756,6 +756,7 @@ async def review(
     file: UploadFile = File(...),
     full: bool = Query(False, description="返回完整图元列表"),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表（混合建筑场景）"),
     standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),
     request: Request = None,
     api_key: str = Depends(verify_api_key),
@@ -843,6 +844,9 @@ async def review(
         )
         entities = semantic["entities"]
 
+    # 多建筑类型：向后兼容，building_types 为空时使用 building_type
+    effective_types = building_types if building_types else [building_type]
+
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository
     repo = SpecRepository()
@@ -854,10 +858,18 @@ async def review(
     # 收集已出现的实体类型
     found_entity_types = set(e["type"] for e in entities)
 
+    # 多建筑类型并行匹配：取最严格阈值
+    def get_strict_threshold(clause_id: str) -> tuple:
+        worst_val, worst_unit, worst_op = None, None, None
+        for bt in effective_types:
+            v, u, o = repo.get_threshold(clause_id, bt)
+            if worst_val is None or v > worst_val:
+                worst_val, worst_unit, worst_op = v, u, o
+        return worst_val, worst_unit, worst_op
+
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
-            # 根据 building_type 获取实际阈值
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            threshold_val, unit, op = get_strict_threshold(func.clause_id)
             func.threshold = threshold_val
             func.unit = unit
             func.operator = op
@@ -978,6 +990,7 @@ async def review(
 async def batch_review(
     files: List[UploadFile] = File(...),  # 操作
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表（混合建筑场景）"),
     api_key: str = Depends(verify_api_key),
 ):
     """多文件批量审查
@@ -1053,13 +1066,25 @@ async def batch_review(
             )
             entities = semantic["entities"]
 
+        # 多建筑类型：向后兼容，building_types 为空时使用 building_type
+        effective_types = building_types if building_types else [building_type]
+
         # ── 规范判定 ──────────────────────────────────────────
         details = []
         found_entity_types = set(e["type"] for e in entities)
 
+        # 多建筑类型并行匹配：取最严格阈值
+        def get_strict_threshold(clause_id: str) -> tuple:
+            worst_val, worst_unit, worst_op = None, None, None
+            for bt in effective_types:
+                v, u, o = repo.get_threshold(clause_id, bt)
+                if worst_val is None or v > worst_val:
+                    worst_val, worst_unit, worst_op = v, u, o
+            return worst_val, worst_unit, worst_op
+
         for e in entities:  # 循环
             for func in registry_funcs:  # 循环
-                threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+                threshold_val, unit, op = get_strict_threshold(func.clause_id)
                 func.threshold = threshold_val
                 func.unit = unit
                 func.operator = op
@@ -1199,6 +1224,8 @@ async def review_from_data(
     """
     entities = body.get("entities", [])
     building_type = body.get("building_type", "civil")
+    building_types = body.get("building_types")
+    effective_types = building_types if building_types else [building_type]
 
     from src.baa_engine.spec_repository import SpecRepository
     from collections import Counter
@@ -1209,10 +1236,19 @@ async def review_from_data(
 
     start = time.time()
 
+    # 多建筑类型并行匹配：取最严格阈值
+    def get_strict_threshold(clause_id: str) -> tuple:
+        worst_val, worst_unit, worst_op = None, None, None
+        for bt in effective_types:
+            v, u, o = repo.get_threshold(clause_id, bt)
+            if worst_val is None or v > worst_val:
+                worst_val, worst_unit, worst_op = v, u, o
+        return worst_val, worst_unit, worst_op
+
     # ── 逐实体逐函数规范判定 ──────────────────────────────
     for e in entities:  # 循环
         for func in registry_funcs:  # 循环
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type)
+            threshold_val, unit, op = get_strict_threshold(func.clause_id)
             func.threshold = threshold_val
             func.unit = unit
             func.operator = op
