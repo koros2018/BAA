@@ -2,6 +2,7 @@
 BAA 语义识别引擎 - 图元分类 + 空间关系构建（规则版）
 """
 import os
+import math
 from typing import List, Dict, Any, Optional, Tuple
 from .drawing_parser import RawPrimitive  # 导入
 import logging  # 导入
@@ -592,8 +593,8 @@ class SemanticAnalyzer:
             room_id = f"line_chain_room_{self._entity_counter}"
             self._entity_counter += 1
             room = SemanticEntity(
-                id=room_id,
-                type="room",
+                entity_id=room_id,
+                entity_type="room",
                 layer="",
                 properties={"area": area / 1000000},  # 转为 m²
                 bbox=bbox

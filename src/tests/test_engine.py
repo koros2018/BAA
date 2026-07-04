@@ -20,6 +20,7 @@ from src.baa_engine.spec_repository import SpecRepository
 from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.attribution_analyzer import AttributionAnalyzer
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+from src.baa_engine.drawing_parser import RawPrimitive
 
 
 # ═══════════════════════════════════════════════════════════
@@ -657,6 +658,111 @@ class TestSemanticAnalyzer:
         assert len(sem["entities"]) > 0  # 断言
         for e in sem["entities"]:
             assert e["confidence"] >= 0.9  # 断言
+
+    # ── LINE 链闭合检测测试 ────────────────────────────────
+
+    def test_merge_line_chains_empty_returns_entities(self):
+        """无 LINE 图元时返回原实体列表"""
+        analyzer = SemanticAnalyzer()
+        entities = []
+        primitives = []
+        result = analyzer._merge_line_chains_to_rooms(entities, primitives)
+        assert result == entities
+
+    def test_merge_line_chains_too_few_returns_entities(self):
+        """LINE 数量 < 3 时返回原实体列表"""
+        analyzer = SemanticAnalyzer()
+        entities = []
+        primitives = [
+            RawPrimitive("LINE", "0", "h1", {"x": 0, "y": 0, "width": 1000, "height": 0},
+                         {"start_point": {"x": 0, "y": 0}, "end_point": {"x": 1000, "y": 0}}),
+            RawPrimitive("LINE", "0", "h2", {"x": 1000, "y": 0, "width": 1000, "height": 1000},
+                         {"start_point": {"x": 1000, "y": 0}, "end_point": {"x": 1000, "y": 1000}}),
+        ]
+        result = analyzer._merge_line_chains_to_rooms(entities, primitives)
+        assert result == entities
+
+    def test_merge_line_chains_closed_square(self):
+        """4 条 LINE 围成 10m x 10m 正方形 → 检测为 room"""
+        analyzer = SemanticAnalyzer()
+        entities = []
+        # 10m x 10m 正方形（100m² = 100,000,000mm²）
+        primitives = [
+            RawPrimitive("LINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 0},
+                         {"start_point": {"x": 0, "y": 0}, "end_point": {"x": 10000, "y": 0}}),
+            RawPrimitive("LINE", "WALL", "h2", {"x": 10000, "y": 0, "width": 0, "height": 10000},
+                         {"start_point": {"x": 10000, "y": 0}, "end_point": {"x": 10000, "y": 10000}}),
+            RawPrimitive("LINE", "WALL", "h3", {"x": 10000, "y": 10000, "width": 10000, "height": 0},
+                         {"start_point": {"x": 10000, "y": 10000}, "end_point": {"x": 0, "y": 10000}}),
+            RawPrimitive("LINE", "WALL", "h4", {"x": 0, "y": 10000, "width": 0, "height": 10000},
+                         {"start_point": {"x": 0, "y": 10000}, "end_point": {"x": 0, "y": 0}}),
+        ]
+        result = analyzer._merge_line_chains_to_rooms(entities, primitives)
+        assert len(result) == 1
+        assert result[0].type == "room"
+        # 面积 100m²
+        assert abs(result[0].properties["area"] - 100) < 1
+
+    def test_merge_line_chains_non_closed(self):
+        """3 条 LINE 不闭合 → 不检测为 room"""
+        analyzer = SemanticAnalyzer()
+        entities = []
+        primitives = [
+            RawPrimitive("LINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 0},
+                         {"start_point": {"x": 0, "y": 0}, "end_point": {"x": 10000, "y": 0}}),
+            RawPrimitive("LINE", "WALL", "h2", {"x": 10000, "y": 0, "width": 0, "height": 10000},
+                         {"start_point": {"x": 10000, "y": 0}, "end_point": {"x": 10000, "y": 10000}}),
+            RawPrimitive("LINE", "WALL", "h3", {"x": 10000, "y": 10000, "width": 10000, "height": 0},
+                         {"start_point": {"x": 10000, "y": 10000}, "end_point": {"x": 20000, "y": 10000}}),
+        ]
+        result = analyzer._merge_line_chains_to_rooms(entities, primitives)
+        assert len(result) == 0
+
+    def test_merge_line_chains_non_building_layer(self):
+        """LINE 在非建筑图层上 → 不检测为 room"""
+        analyzer = SemanticAnalyzer()
+        entities = []
+        # 标注图层上的 LINE 链
+        primitives = [
+            RawPrimitive("LINE", "DIM", "h1", {"x": 0, "y": 0, "width": 10000, "height": 0},
+                         {"start_point": {"x": 0, "y": 0}, "end_point": {"x": 10000, "y": 0}}),
+            RawPrimitive("LINE", "DIM", "h2", {"x": 10000, "y": 0, "width": 0, "height": 10000},
+                         {"start_point": {"x": 10000, "y": 0}, "end_point": {"x": 10000, "y": 10000}}),
+            RawPrimitive("LINE", "DIM", "h3", {"x": 10000, "y": 10000, "width": 10000, "height": 0},
+                         {"start_point": {"x": 10000, "y": 10000}, "end_point": {"x": 0, "y": 10000}}),
+            RawPrimitive("LINE", "DIM", "h4", {"x": 0, "y": 10000, "width": 0, "height": 10000},
+                         {"start_point": {"x": 0, "y": 10000}, "end_point": {"x": 0, "y": 0}}),
+        ]
+        result = analyzer._merge_line_chains_to_rooms(entities, primitives)
+        assert len(result) == 0
+
+    def test_is_near_closed_gap_under_threshold(self):
+        """缺口距离 < 500mm → 视为闭合"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("LWPOLYLINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 10000},
+                            {"area": 0, "point_count": 4, "points": [(0, 0), (10000, 0), (10000, 10000), (0, 400)]})
+        assert analyzer._is_near_closed(prim, gap_threshold_mm=500.0) is True
+
+    def test_is_near_closed_gap_over_threshold(self):
+        """缺口距离 > 500mm → 不视为闭合"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("LWPOLYLINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 10000},
+                            {"area": 0, "point_count": 4, "points": [(0, 0), (10000, 0), (10000, 10000), (0, 9000)]})
+        assert analyzer._is_near_closed(prim, gap_threshold_mm=500.0) is False
+
+    def test_is_near_closed_few_points(self):
+        """点数 < 3 → 不视为闭合"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("LINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 0},
+                            {"start_point": {"x": 0, "y": 0}, "end_point": {"x": 10000, "y": 0}})
+        assert analyzer._is_near_closed(prim, gap_threshold_mm=500.0) is False
+
+    def test_is_near_closed_malformed_pts(self):
+        """pts 格式异常 → 不抛异常，返回 False"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("LWPOLYLINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 10000},
+                            {"area": 0, "point_count": 4, "points": "invalid"})
+        assert analyzer._is_near_closed(prim, gap_threshold_mm=500.0) is False
 
 
 if __name__ == "__main__":
