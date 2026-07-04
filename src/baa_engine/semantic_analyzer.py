@@ -425,9 +425,17 @@ class SemanticAnalyzer:
         pts = prim.properties.get("points")
         if not pts or len(pts) < 3:
             return False
-        # 获取首尾点
-        start = (pts[0][0], pts[0][1])
-        end = (pts[-1][0], pts[-1][1])
+        # 校验 pts 结构（可能是 [(x,y), ...] 或 [[x,y], ...]）
+        try:
+            first = pts[0]
+            last = pts[-1]
+            if isinstance(first, (list, tuple)) and len(first) >= 2:
+                start = (float(first[0]), float(first[1]))
+                end = (float(last[0]), float(last[1]))
+            else:
+                return False
+        except (TypeError, IndexError, ValueError):
+            return False
         dx = end[0] - start[0]
         dy = end[1] - start[1]
         gap = math.sqrt(dx * dx + dy * dy)
@@ -450,15 +458,20 @@ class SemanticAnalyzer:
         # 端点匹配阈值（mm）
         match_threshold = 100.0
         
-        # 建立邻接表
+        # 建立邻接表（使用坐标四舍五入到 mm 精度，避免浮点误差）
+        def _round_point(p):
+            return (round(p[0], 1), round(p[1], 1))
+        
         point_to_lines = {}
         for i, line in enumerate(lines):
-            p1 = (line.properties.get("start_point", {}).get("x", 0), 
-                  line.properties.get("start_point", {}).get("y", 0))
-            p2 = (line.properties.get("end_point", {}).get("x", 0), 
-                  line.properties.get("end_point", {}).get("y", 0))
-            point_to_lines.setdefault(p1, []).append((i, 0))
-            point_to_lines.setdefault(p2, []).append((i, 1))
+            sp = line.properties.get("start_point", {})
+            ep = line.properties.get("end_point", {})
+            p1 = (sp.get("x", 0), sp.get("y", 0))
+            p2 = (ep.get("x", 0), ep.get("y", 0))
+            rp1 = _round_point(p1)
+            rp2 = _round_point(p2)
+            point_to_lines.setdefault(rp1, []).append((i, 0, p1, p2))
+            point_to_lines.setdefault(rp2, []).append((i, 1, p1, p2))
         
         # DFS 找闭合链
         visited = [False] * len(lines)
@@ -471,6 +484,15 @@ class SemanticAnalyzer:
             visited[start_i] = True
             current = start_i
             current_end = 1  # 0=start, 1=end
+            # 记录遍历路径中的端点（用于面积计算）
+            path_pts = []
+            
+            # 获取起始线的端点
+            sl = lines[start_i]
+            sp = sl.properties.get("start_point", {})
+            ep = sl.properties.get("end_point", {})
+            path_pts.append((sp.get("x", 0), sp.get("y", 0)))
+            path_pts.append((ep.get("x", 0), ep.get("y", 0)))
             
             # 遍历链
             max_depth = 50  # 防止无限循环
@@ -479,27 +501,34 @@ class SemanticAnalyzer:
                 depth += 1
                 # 获取当前线的端点
                 line = lines[current]
-                p1 = (line.properties.get("start_point", {}).get("x", 0), 
-                      line.properties.get("start_point", {}).get("y", 0))
-                p2 = (line.properties.get("end_point", {}).get("x", 0), 
-                      line.properties.get("end_point", {}).get("y", 0))
+                sp = line.properties.get("start_point", {})
+                ep = line.properties.get("end_point", {})
+                p1 = (sp.get("x", 0), sp.get("y", 0))
+                p2 = (ep.get("x", 0), ep.get("y", 0))
+                rp1 = _round_point(p1)
+                rp2 = _round_point(p2)
                 
-                # 当前端点
-                end_point = p1 if current_end == 0 else p2
+                # 当前端点（四舍五入后）
+                current_rp = rp1 if current_end == 0 else rp2
                 
                 # 找下一个线
                 found_next = False
-                for (ni, nend) in point_to_lines.get(end_point, []):
+                for (ni, nend, nsp, nep) in point_to_lines.get(current_rp, []):
                     if ni == current:
                         continue
                     if visited[ni]:
                         # 如果回到起点且链长度 >= 3 → 闭合
                         if ni == start_i and len(chain) >= 3:
-                            closed_chains.append(chain)
+                            closed_chains.append((chain, path_pts))
                             break
                         continue
                     visited[ni] = True
                     chain.append(ni)
+                    # 添加新线的另一个端点（非连接点）到路径
+                    if nend == 0:  # 连接点是 start，新端点是 end
+                        path_pts.append((nep[0], nep[1]))
+                    else:  # 连接点是 end，新端点是 start
+                        path_pts.append((nsp[0], nsp[1]))
                     current = ni
                     # 确定下一个线的起始端点
                     current_end = 1 - nend
@@ -508,36 +537,46 @@ class SemanticAnalyzer:
                 if not found_next:
                     break
             
-            # 检查是否闭合回到起点
+            # 检查是否闭合回到起点（通过距离阈值）
             if len(chain) >= 3:
-                line = lines[current]
-                p1 = (line.properties.get("start_point", {}).get("x", 0), 
-                      line.properties.get("end_point", {}).get("y", 0))
-                start_line = lines[start_i]
-                sp1 = (start_line.properties.get("start_point", {}).get("x", 0), 
-                       start_line.properties.get("start_point", {}).get("y", 0))
-                sp2 = (start_line.properties.get("end_point", {}).get("x", 0), 
-                       start_line.properties.get("end_point", {}).get("y", 0))
-                # 检查终点是否接近起点
-                if ((abs(end_point[0] - sp1[0]) < match_threshold and abs(end_point[1] - sp1[1]) < match_threshold) or
-                    (abs(end_point[0] - sp2[0]) < match_threshold and abs(end_point[1] - sp2[1]) < match_threshold)):
-                    if chain not in closed_chains:
-                        closed_chains.append(chain)
+                # 路径最后一个点
+                last_pt = path_pts[-1] if path_pts else None
+                # 起始线的两个端点
+                sl = lines[start_i]
+                sp = sl.properties.get("start_point", {})
+                ep = sl.properties.get("end_point", {})
+                sp_start = (sp.get("x", 0), sp.get("y", 0))
+                sp_end = (ep.get("x", 0), ep.get("y", 0))
+                if last_pt and (
+                    (abs(last_pt[0] - sp_start[0]) < match_threshold and abs(last_pt[1] - sp_start[1]) < match_threshold) or
+                    (abs(last_pt[0] - sp_end[0]) < match_threshold and abs(last_pt[1] - sp_end[1]) < match_threshold)):
+                    # 检查是否已存在
+                    is_dup = False
+                    for existing_chain, _ in closed_chains:
+                        if set(chain) == set(existing_chain):
+                            is_dup = True
+                            break
+                    if not is_dup:
+                        closed_chains.append((chain, path_pts))
         
         # 对闭合链计算面积，符合条件的合并为 room
+        non_room_layers = ["COLU", "视口", "洞口", "板边", "梁边", "轴", "BASE", "梁", "吊筋", "板层", "文字", "钢筋", "标注", "DIM", "立面看线", "立面", "看线", "园林", "井", "电-", "系统", "设备", "电缆", "Defpoints"]
         new_rooms = []
-        for chain in closed_chains:
-            pts = []
-            for idx in chain:
-                line = lines[idx]
-                p1 = (line.properties.get("start_point", {}).get("x", 0), 
-                      line.properties.get("start_point", {}).get("y", 0))
-                pts.append(p1)
-            
+        for chain, pts in closed_chains:
             if len(pts) < 3:
                 continue
             
-            # 计算面积
+            # 检查链中是否有非建筑图元（任一 LINE 在非建筑图层上）
+            has_non_building = False
+            for idx in chain:
+                prim = lines[idx]
+                if any(kw in prim.layer.upper() for kw in non_room_layers):
+                    has_non_building = True
+                    break
+            if has_non_building:
+                continue
+            
+            # 计算面积（鞋带公式）
             area = abs(sum(pts[i][0] * pts[(i+1) % len(pts)][1] - pts[(i+1) % len(pts)][0] * pts[i][1] for i in range(len(pts))) / 2)
             
             # 面积条件：1m² < area < 500m²
