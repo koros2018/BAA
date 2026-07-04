@@ -818,27 +818,30 @@ async def review(
     start = time.time()
     loop = asyncio.get_event_loop()
 
-    # Step 1: 图纸解析（CPU密集型 → 线程池）
-    result = await loop.run_in_executor(
-        ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
-    )
-    if not result.success:
-        return {
-            "status": "error",  # 字段
-            "error_code": "PARSE_FAILED",  # 字段
-            "message": f"图纸解析失败: {result.error}",  # 字段
-            "file_id": file_id,  # 字段
-        }
 
-    # Step 2: 语义分析（CPU密集型 → 线程池）
-    semantic = await loop.run_in_executor(
-        ENGINE_THREAD_POOL,  # 解包
-        lambda: _semantic_analyzer.analyze(  # 操作
-            result.primitives, result.dimensions,  # 解包
-            building_type=building_type
+    # 并发控制：等待排队（最多 {MAX_CONCURRENT_REVIEWS} 个并发槽位）
+    async with _review_semaphore:
+        # Step 1: 图纸解析（CPU密集型 → 线程池）
+        result = await loop.run_in_executor(
+            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
         )
-    )
-    entities = semantic["entities"]
+        if not result.success:
+            return {{
+                "status": "error",  # 字段
+                "error_code": "PARSE_FAILED",  # 字段
+                "message": f"图纸解析失败: {{result.error}}",  # 字段
+                "file_id": file_id,  # 字段
+            }}
+
+        # Step 2: 语义分析（CPU密集型 → 线程池）
+        semantic = await loop.run_in_executor(
+            ENGINE_THREAD_POOL,  # 解包
+            lambda: _semantic_analyzer.analyze(  # 操作
+                result.primitives, result.dimensions,  # 解包
+                building_type=building_type
+            )
+        )
+        entities = semantic["entities"]
 
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository
@@ -1002,51 +1005,53 @@ async def batch_review(
 
     # ── 遍历每个文件，逐一审查 ──────────────────────────────
     for file in files:  # 循环
-        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-        if ext not in SUPPORTED_FORMATS:
-            results.append({
-                "filename": file.filename,  # 字段
-                "status": "error",  # 字段
-                "error_code": "UNSUPPORTED_FORMAT",  # 字段
-                "message": f"不支持的文件格式: {ext}",  # 字段
-            })
-            continue  # 继续循环
+        # 每个文件独占一个并发槽位（最多 4 个并发）
+        async with _review_semaphore:
+            ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+            if ext not in SUPPORTED_FORMATS:
+                results.append({
+                    "filename": file.filename,  # 字段
+                    "status": "error",  # 字段
+                    "error_code": "UNSUPPORTED_FORMAT",  # 字段
+                    "message": f"不支持的文件格式: {ext}",  # 字段
+                })
+                continue  # 继续循环
 
-        content = await file.read()
-        if len(content) > MAX_FILE_SIZE:
-            results.append({
-                "filename": file.filename,  # 字段
-                "status": "error",  # 字段
-                "error_code": "FILE_TOO_LARGE",  # 字段
-                "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            })
-            continue  # 继续循环
+            content = await file.read()
+            if len(content) > MAX_FILE_SIZE:
+                results.append({
+                    "filename": file.filename,  # 字段
+                    "status": "error",  # 字段
+                    "error_code": "FILE_TOO_LARGE",  # 字段
+                    "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
+                })
+                continue  # 继续循环
 
-        file_id = generate_file_id()
-        file_path = store_file(content, file_id, ext)
+            file_id = generate_file_id()
+            file_path = store_file(content, file_id, ext)
 
-        # ── 解析（CPU密集型 → 线程池） ───────────────────────
-        result = await loop.run_in_executor(
-            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
-        )
-        if not result.success:
-            results.append({
-                "filename": file.filename,  # 字段
-                "status": "error",  # 字段
-                "error_code": "PARSE_FAILED",  # 字段
-                "message": f"图纸解析失败: {result.error}",  # 字段
-            })
-            continue  # 继续循环
-
-        # ── 语义分析（CPU密集型 → 线程池） ───────────────────
-        semantic = await loop.run_in_executor(
-            ENGINE_THREAD_POOL,  # 解包
-            lambda: _semantic_analyzer.analyze(  # 操作
-                result.primitives, result.dimensions,  # 解包
-                building_type=building_type
+            # ── 解析（CPU密集型 → 线程池） ───────────────────────
+            result = await loop.run_in_executor(
+                ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
             )
-        )
-        entities = semantic["entities"]
+            if not result.success:
+                results.append({
+                    "filename": file.filename,  # 字段
+                    "status": "error",  # 字段
+                    "error_code": "PARSE_FAILED",  # 字段
+                    "message": f"图纸解析失败: {result.error}",  # 字段
+                })
+                continue  # 继续循环
+
+            # ── 语义分析（CPU密集型 → 线程池） ───────────────────
+            semantic = await loop.run_in_executor(
+                ENGINE_THREAD_POOL,  # 解包
+                lambda: _semantic_analyzer.analyze(  # 操作
+                    result.primitives, result.dimensions,  # 解包
+                    building_type=building_type
+                )
+            )
+            entities = semantic["entities"]
 
         # ── 规范判定 ──────────────────────────────────────────
         details = []
