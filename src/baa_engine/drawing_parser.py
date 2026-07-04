@@ -629,7 +629,8 @@ except Exception:
                                 if blk_name.lower() == name.lower():
                                     self._insert_block_expand(
                                         blk_entities, msp_dst, x, y, scale, rotation,
-                                        color, layer, total_var=None  # 不计数，展开的子实体在 _insert_block_expand 内部计数
+                                        color, layer,
+                                        block_defs=block_defs, depth=0, max_depth=5
                                     )
                                     expanded = True
                                     break
@@ -851,11 +852,15 @@ except Exception:
         return None
 
     def _insert_block_expand(self, block_entities, msp_dst, base_x, base_y,
-                              scale, rotation, color, layer):
-        """将块定义的实体展开到指定位置
+                              scale, rotation, color, layer,
+                              block_defs=None, depth=0, max_depth=5):
+        """将块定义的实体展开到指定位置（支持递归块嵌套）
 
         按 INSERT 的插入点 (base_x, base_y)、缩放、旋转应用仿射变换。
+        块内嵌 INSERT 实体递归展开，最深 max_depth 层。
         """
+        if depth > max_depth:
+            return
         try:
             import math
             # 旋转变换矩阵
@@ -872,7 +877,26 @@ except Exception:
                 try:
                     ent_color = ent.dxf.get("color", color)
                     ent_layer = ent.dxf.get("layer", layer)
-                    if dxf_type == "LINE":
+                    # 递归展开嵌套块
+                    if dxf_type == "INSERT":
+                        if block_defs is not None:
+                            ins_pt = ent.dxf.get("insert", (0, 0, 0))
+                            name = ent.dxf.get("name", "UNKNOWN")
+                            ins_x, ins_y = transform_point(ins_pt[:2])
+                            ins_scale = ent.dxf.get("x_scale", 1.0) or 1.0
+                            ins_rot = ent.dxf.get("rotation", 0.0) or 0.0
+                            # 查找块定义
+                            for blk_name, blk_entities in block_defs.items():
+                                if blk_name.lower() == name.lower():
+                                    self._insert_block_expand(
+                                        blk_entities, msp_dst, ins_x, ins_y,
+                                        ins_scale * scale, ins_rot + rotation,
+                                        ent_color, ent_layer,
+                                        block_defs=block_defs, depth=depth+1, max_depth=max_depth
+                                    )
+                                    break
+                        continue
+                    elif dxf_type == "LINE":
                         start = transform_point(ent.dxf["start"][:2])
                         end = transform_point(ent.dxf["end"][:2])
                         msp_dst.add_line(start, end, dxfattribs={"color": ent_color, "layer": ent_layer})
