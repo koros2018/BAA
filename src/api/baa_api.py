@@ -743,6 +743,10 @@ async def deconstruct(
     if page_warning:
         result["page_warning"] = page_warning
 
+    # ── xref 外部参照警告 ────────────────────────────────
+    if result.warning:
+        result["xref_warning"] = result.warning
+
     # 根据条件判断分支：if use_yolo
     if use_yolo:
         result["yolo_entities"] = len(yolo_entities)  # 操作

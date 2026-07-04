@@ -66,13 +66,15 @@ class DrawingResult:
     def __init__(self, file_path: str, file_id: str,
                  primitives: List[RawPrimitive] = None,  # 操作
                  dimensions: List[Dict] = None,  # 操作
-                 error: Optional[str] = None):  # 操作
+                 error: Optional[str] = None,
+                 warning: Optional[str] = None):  # 操作
         self.file_path = file_path
         self.file_id = file_id
         self.primitives = primitives or []
         self.dimensions = dimensions or []
         self.error = error
         self.success = error is None
+        self.warning = warning
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -545,13 +547,17 @@ except Exception:
                 dwg_doc.export_dxf(str(tmp_xref))
                 tmp_xref.close()
                 xref_doc = ezdxf.readfile(tmp_xref)
+                xref_names = []
                 for name, blk in xref_doc.blocks:
                     if blk.is_xref:
+                        xref_names.append(name)
                         continue
                     # 缓存块定义的实体列表
                     entities = list(blk)
                     if entities:
                         block_defs[name.upper()] = entities
+                if xref_names:
+                    result.warning = f"图纸含外部参照(xref): {', '.join(xref_names[:5])}（未展开，可能影响审查完整性）"
                 xref_doc.close()
                 os.unlink(tmp_xref.name)
             except Exception:
