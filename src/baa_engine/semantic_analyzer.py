@@ -1186,6 +1186,27 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "evacuation_lighting"  # return
             if "CURTAIN" in block_name or "卷帘" in block_name:  # check: membership test
                 return "fire_curtain"  # return
+            # ── 电气设备（新增） ──
+            if "DISTRIBUTION_BOX" in block_name or "配电箱" in block_name or "配电" in block_name:  # check: membership test
+                return "distribution_box"  # return
+            if "EMERGENCY_LIGHT" in block_name or "应急照明" in block_name or "应急灯" in block_name:  # check: membership test
+                return "emergency_lighting"  # return
+            if "SMOKE_DETECTOR" in block_name or "烟感" in block_name or "烟探测器" in block_name:  # check: membership test
+                return "smoke_detector"  # return
+            if "HEAT_DETECTOR" in block_name or "温感" in block_name or "温探测器" in block_name:  # check: membership test
+                return "heat_detector"  # return
+            if "ALARM_BUTTON" in block_name or "报警按钮" in block_name or "手报" in block_name:  # check: membership test
+                return "alarm_button"  # return
+            if "GAS_SUPPRESSION" in block_name or "气体灭火" in block_name or "气灭" in block_name:  # check: membership test
+                return "gas_suppression"  # return
+            if "BELL" in block_name or "警铃" in block_name or "声光" in block_name:  # check: membership test
+                return "fire_bell"  # return
+            if "CALL_POINT" in block_name or "消火栓按钮" in block_name or "栓" in block_name:  # check: membership test
+                return "hydrant_call_button"  # return
+            if "VESDA" in block_name or "极早期" in block_name or "吸气式" in block_name:  # check: membership test
+                return "vesda_detector"  # return
+            if "EMERGENCY_POWER" in block_name or "应急电源" in block_name or "EPS" in block_name:  # check: membership test
+                return "emergency_power"  # return
             # ── 其他楼层/空间 ──
             if "ROOM" in block_name or "房间" in block_name or "室" in block_name:  # check: membership test
                 return "room"  # return
