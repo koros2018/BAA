@@ -761,7 +761,33 @@ class SemanticAnalyzer:
                 return "stair"
             elif radius > 300:  # 条件分支
                 return "column"
+            # P34: 小半径 CIRCLE 可能是消防设备
+            if 50 <= radius <= 300:
+                # 结合图层判断
+                layer = prim.layer.upper()
+                if any(kw in layer for kw in ["消防", "FIRE", "FAS", "报警", "ALARM", "喷淋", "SPRINKLER"]):
+                    return "sprinkler"
+                if any(kw in layer for kw in ["设备", "EQUIP", "电-", "电气", "ELEC"]):
+                    return "equipment"
+                if any(kw in layer for kw in ["照明", "LIGHT", "应急", "EVAC"]):
+                    return "evacuation_lighting"
+                return "column"
             return "column"
+
+        # P34: SOLID/HATCH 实体可能是消防设备填充
+        if dxf_type == "SOLID":
+            layer = prim.layer.upper()
+            if any(kw in layer for kw in ["消防", "FIRE", "喷淋", "SPRINKLER", "消火栓", "HYDRANT"]):
+                return "sprinkler"
+            if any(kw in layer for kw in ["设备", "EQUIP", "电-", "电气", "ELEC"]):
+                return "equipment"
+            return "other"
+
+        if dxf_type == "HATCH":
+            layer = prim.layer.upper()
+            if any(kw in layer for kw in ["消防", "FIRE", "喷淋", "SPRINKLER"]):
+                return "sprinkler"
+            return "other"
 
         if dxf_type == "TEXT":
             text = props.get("text", "")

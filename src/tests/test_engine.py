@@ -1494,3 +1494,163 @@ class TestEvacuationConnectivity:
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__, "-k", "not slow"])
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 11: P34 设备类实体识别测试
+# ═══════════════════════════════════════════════════════════
+
+class TestEquipmentDetection:
+    """消防/电气设备类实体识别测试"""
+
+    def test_circle_sprinkler_on_fire_layer(self):
+        """消防图层上的 CIRCLE (r=100mm) → sprinkler"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "消防设备层", "H001",
+                            {"x": 0, "y": 0, "width": 200, "height": 200},
+                            {"radius": 100})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "sprinkler"
+
+    def test_circle_sprinkler_on_fas_layer(self):
+        """FAS 图层上的 CIRCLE → sprinkler"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "FAS", "H002",
+                            {"x": 0, "y": 0, "width": 150, "height": 150},
+                            {"radius": 75})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "sprinkler"
+
+    def test_circle_equipment_on_elec_layer(self):
+        """电气图层上的 CIRCLE → equipment"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "电-系统", "H003",
+                            {"x": 0, "y": 0, "width": 100, "height": 100},
+                            {"radius": 50})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "equipment"
+
+    def test_circle_evac_lighting_on_emergency_layer(self):
+        """应急照明图层上的 CIRCLE → evacuation_lighting"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "应急照明", "H004",
+                            {"x": 0, "y": 0, "width": 120, "height": 120},
+                            {"radius": 60})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "evacuation_lighting"
+
+    def test_circle_large_radius_not_equipment(self):
+        """大半径 CIRCLE (>300mm) → stair/column，不是设备"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "消防设备层", "H005",
+                            {"x": 0, "y": 0, "width": 1000, "height": 1000},
+                            {"radius": 500})
+        result = analyzer._classify_by_geometry(prim)
+        assert result in ("stair", "column")
+
+    def test_circle_no_fire_layer_default_column(self):
+        """非消防图层上的小 CIRCLE → column"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("CIRCLE", "WALL", "H006",
+                            {"x": 0, "y": 0, "width": 100, "height": 100},
+                            {"radius": 50})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "column"
+
+    def test_solid_on_fire_layer_sprinkler(self):
+        """消防图层上的 SOLID → sprinkler"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("SOLID", "消防设备层", "H007",
+                            {"x": 0, "y": 0, "width": 50, "height": 50},
+                            {})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "sprinkler"
+
+    def test_solid_on_elec_layer_equipment(self):
+        """电气图层上的 SOLID → equipment"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("SOLID", "电-系统-设备", "H008",
+                            {"x": 0, "y": 0, "width": 100, "height": 100},
+                            {})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "equipment"
+
+    def test_solid_non_fire_layer_other(self):
+        """非消防/电气图层上的 SOLID → other"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("SOLID", "WALL", "H009",
+                            {"x": 0, "y": 0, "width": 50, "height": 50},
+                            {})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "other"
+
+    def test_hatch_on_fire_layer_sprinkler(self):
+        """消防图层上的 HATCH → sprinkler"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("HATCH", "喷淋", "H010",
+                            {"x": 0, "y": 0, "width": 200, "height": 200},
+                            {"area": 10000})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "sprinkler"
+
+    def test_hatch_non_fire_layer_other(self):
+        """非消防图层上的 HATCH → other"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("HATCH", "WALL", "H011",
+                            {"x": 0, "y": 0, "width": 200, "height": 200},
+                            {"area": 10000})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "other"
+
+    def test_insert_fire_hydrant_block(self):
+        """INSERT 消火栓块 → fire_hydrant"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("INSERT", "消防设备层", "H012",
+                            {"x": 0, "y": 0, "width": 500, "height": 500},
+                            {"block_name": "消火栓箱"})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "fire_hydrant"
+
+    def test_insert_smoke_detector_block(self):
+        """INSERT 烟感块 → smoke_detector"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("INSERT", "FAS", "H013",
+                            {"x": 0, "y": 0, "width": 50, "height": 50},
+                            {"block_name": "烟感探测器"})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "smoke_detector"
+
+    def test_text_fire_extinguisher(self):
+        """TEXT "灭火器" → fire_extinguisher"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("TEXT", "消防设备层", "H014",
+                            {"x": 0, "y": 0, "width": 200, "height": 50},
+                            {"text": "灭火器"})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "fire_extinguisher"
+
+    def test_text_emergency_lighting(self):
+        """TEXT "应急照明" → evacuation_lighting"""
+        analyzer = SemanticAnalyzer()
+        prim = RawPrimitive("TEXT", "照明层", "H015",
+                            {"x": 0, "y": 0, "width": 200, "height": 50},
+                            {"text": "应急照明"})
+        result = analyzer._classify_by_geometry(prim)
+        assert result == "evacuation_lighting"
+
+    def test_entity_type_enumeration(self):
+        """验证所有设备类型在语义实体创建时都能正常序列化"""
+        device_types = [
+            "sprinkler", "fire_hydrant", "fire_extinguisher",
+            "smoke_detector", "fire_alarm", "evacuation_lighting",
+            "emergency_broadcast", "fire_curtain", "equipment",
+            "water_tank", "water_reservoir",
+        ]
+        for i, etype in enumerate(device_types):
+            entity = SemanticEntity(f"DEV_{i:03d}", etype,
+                                    {"x": 0, "y": 0, "width": 100, "height": 100},
+                                    "FIRE",
+                                    properties={"source": "test"})
+            d = entity.to_dict()
+            assert d["type"] == etype
+            assert d["id"] == f"DEV_{i:03d}"
