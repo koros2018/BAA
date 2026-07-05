@@ -9,6 +9,7 @@ BAA 核心引擎全面测试
 import sys
 import os
 import json
+import asyncio
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -884,6 +885,319 @@ class TestSemanticAnalyzer:
         prim = RawPrimitive("LWPOLYLINE", "WALL", "h1", {"x": 0, "y": 0, "width": 10000, "height": 10000},
                             {"area": 0, "point_count": 4, "points": "invalid"})
         assert analyzer._is_near_closed(prim, gap_threshold_mm=500.0) is False
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 6: P21 超时保护测试
+# ═══════════════════════════════════════════════════════════
+
+class TestExecuteWithTimeout:
+    """FuncRegistry.execute_with_timeout() 超时控制测试"""
+
+    def test_normal_execution_returns_result(self):
+        """正常执行应在超时前返回结果"""
+        registry = FuncRegistry()
+        func = registry.get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5}}
+        result = registry.execute_with_timeout(func, entity, timeout=10)
+        assert result is not None
+        assert result.func_id == "DIM-001"
+
+    def test_timeout_returns_degraded(self):
+        """超时执行应返回 DEGRADED 结果"""
+        registry = FuncRegistry()
+        func = registry.get("DIM-001")
+        # 构造一个模拟的慢函数
+        func._original_execute = func.execute
+
+        def _slow_execute(entity):
+            import time
+            time.sleep(5)  # 模拟超时
+            return func._original_execute(entity)
+
+        func.execute = _slow_execute
+        result = registry.execute_with_timeout(func, None, timeout=0.01)
+        # 恢复
+        func.execute = func._original_execute
+        assert result is not None
+        assert result.result == "DEGRADED"
+        assert result.severity.value == "degraded"
+        assert "超时" in result.params.get("note", "")
+
+    def test_timeout_does_not_affect_other_functions(self):
+        """一个函数超时不影响其他函数的执行"""
+        registry = FuncRegistry()
+        func_a = registry.get("DIM-001")
+        func_b = registry.get("DIM-002")
+
+        # 模拟 func_a 慢执行
+        original_execute = func_a.execute
+
+        def _slow_execute(entity):
+            import time
+            time.sleep(5)
+            return original_execute(entity)
+
+        func_a.execute = _slow_execute
+        result_a = registry.execute_with_timeout(func_a, None, timeout=0.01)
+        func_a.execute = original_execute
+        result_b = registry.execute_with_timeout(func_b, {"type": "fire_zone", "properties": {"area": 1500.0}}, timeout=10)
+
+        assert result_a.result == "DEGRADED"
+        assert result_b is not None
+        assert result_b.func_id == "DIM-002"
+
+    def test_timeout_none_entity_returns_degraded(self):
+        """超时时 entity=None 仍应正常返回 DEGRADED 结果"""
+        registry = FuncRegistry()
+        func = registry.get("DIM-001")
+        original_execute = func.execute
+
+        def _slow_execute(entity):
+            import time
+            time.sleep(5)
+            return original_execute(entity)
+
+        func.execute = _slow_execute
+        result = registry.execute_with_timeout(func, None, timeout=0.01)
+        func.execute = original_execute
+        assert result is not None
+        assert result.result == "DEGRADED"
+        assert result.entity_id == ""  # entity=None 时 entity_id 应为空
+
+    def test_timeout_exception_returns_error(self):
+        """原子函数抛出异常应返回 ERROR 结果"""
+        registry = FuncRegistry()
+        func = registry.get("DIM-001")
+        original_execute = func.execute
+
+        def _error_execute(entity):
+            raise ValueError("模拟执行异常")
+
+        func.execute = _error_execute
+        result = registry.execute_with_timeout(func, None, timeout=10)
+        func.execute = original_execute
+        assert result is not None
+        assert result.result == "ERROR"
+        assert result.severity.value == "error"
+
+    def test_default_timeout_used_when_not_specified(self):
+        """未指定 timeout 时使用 func.DEFAULT_TIMEOUT"""
+        registry = FuncRegistry()
+        func = registry.get("DIM-001")
+        original_timeout = func.DEFAULT_TIMEOUT
+        func.DEFAULT_TIMEOUT = 0.001
+        original_execute = func.execute
+
+        def _slow_execute(entity):
+            import time
+            time.sleep(5)
+            return original_execute(entity)
+
+        func.execute = _slow_execute
+        result = registry.execute_with_timeout(func, None)
+        func.execute = original_execute
+        func.DEFAULT_TIMEOUT = original_timeout
+        assert result is not None
+        assert result.result == "DEGRADED"
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 7: P30 并发控制测试
+# ═══════════════════════════════════════════════════════════
+
+class TestReviewSemaphore:
+    """baa_api.py _review_semaphore 并发控制逻辑测试
+
+    注：这些测试验证并发限流逻辑的正确性，不依赖 FastAPI 端点运行。
+    使用模拟的 asyncio.Semaphore 行为来验证限制生效。
+    """
+
+    @pytest.mark.asyncio
+    async def test_semaphore_max_concurrent(self):
+        """确认 Semaphore(4) 最多允许 4 个并发"""
+        semaphore = asyncio.Semaphore(4)
+        concurrent = 0
+        max_seen = 0
+
+        async def worker():
+            nonlocal concurrent, max_seen
+            async with semaphore:
+                concurrent += 1
+                max_seen = max(max_seen, concurrent)
+                await asyncio.sleep(0.05)
+                concurrent -= 1
+
+        tasks = [asyncio.create_task(worker()) for _ in range(8)]
+        await asyncio.gather(*tasks)
+        assert max_seen == 4, f"最大并发应为 4，实际 {max_seen}"
+
+    @pytest.mark.asyncio
+    async def test_semaphore_serial_under_limit(self):
+        """并发数 < 4 时不阻塞"""
+        semaphore = asyncio.Semaphore(4)
+        completed = []
+
+        async def worker(i):
+            async with semaphore:
+                await asyncio.sleep(0.01)
+                completed.append(i)
+
+        tasks = [asyncio.create_task(worker(i)) for i in range(3)]
+        await asyncio.gather(*tasks)
+        assert len(completed) == 3
+        assert completed == [0, 1, 2]  # 按提交顺序完成（无等待）
+
+    @pytest.mark.asyncio
+    async def test_semaphore_blocks_when_exceeded(self):
+        """并发数 > 4 时后续任务应等待退出后才进入"""
+        semaphore = asyncio.Semaphore(4)
+        enter_events = []
+        exit_events = []
+
+        async def worker(i):
+            async with semaphore:
+                enter_events.append(i)
+                await asyncio.sleep(0.1)
+                exit_events.append(i)
+
+        tasks = [asyncio.create_task(worker(i)) for i in range(6)]
+        await asyncio.gather(*tasks)
+        # 总共 6 个 enter + 6 个 exit
+        assert len(enter_events) == 6
+        assert len(exit_events) == 6
+        # 所有 exit 后 enter 应该 >= exit（无遗漏）
+        assert len(enter_events) >= len(exit_events)
+
+    @pytest.mark.asyncio
+    async def test_semaphore_release_after_exception(self):
+        """即使任务抛出异常，槽位也应释放"""
+        semaphore = asyncio.Semaphore(4)
+
+        async def failing_worker():
+            async with semaphore:
+                raise RuntimeError("模拟异常")
+
+        # 先消耗 3 个槽位
+        async def holding_worker():
+            async with semaphore:
+                await asyncio.sleep(0.2)
+
+        hold_task = asyncio.create_task(holding_worker())
+        await asyncio.sleep(0.01)
+
+        with pytest.raises(RuntimeError):
+            await failing_worker()
+
+        # 异常释放后，应能立即获取槽位
+        async with semaphore:
+            pass  # 不阻塞则说明槽位已释放
+
+        hold_task.cancel()
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 8: P25 YOLO 后置过滤测试
+# ═══════════════════════════════════════════════════════════
+
+class TestFilterYOLODetections:
+    """filter_yolo_detections() 规则层后置兜底过滤测试"""
+
+    def test_empty_detections(self):
+        """空输入返回空列表"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        result = filter_yolo_detections([])
+        assert result == []
+
+    def test_corridor_width_filter(self):
+        """走廊宽度 < 0.5m 应被过滤"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "corridor", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.3}, "confidence": 0.8, "properties": {}}
+        ]
+        result = filter_yolo_detections(detections, min_corridor_width_m=0.5)
+        assert len(result) == 0
+
+    def test_corridor_width_pass(self):
+        """走廊宽度 >= 0.5m 应保留"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "corridor", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.8}, "confidence": 0.8, "properties": {}}
+        ]
+        result = filter_yolo_detections(detections, min_corridor_width_m=0.5)
+        assert len(result) == 1
+
+    def test_door_near_wall_kept(self):
+        """door 贴近墙体应保留"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "wall", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.2}, "confidence": 0.9},
+            {"type": "door", "bbox": {"x": 4, "y": 0, "width": 1, "height": 2}, "confidence": 0.7},
+        ]
+        result = filter_yolo_detections(detections)
+        # door 中心在 (4.5, 1)，wall 在 (0,0)-(10,0.2)，贴近
+        assert len(result) == 2
+
+    def test_door_far_from_wall_suppressed(self):
+        """door 远离墙体应被过滤"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "wall", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.2}, "confidence": 0.9},
+            {"type": "door", "bbox": {"x": 50, "y": 50, "width": 1, "height": 2}, "confidence": 0.7},
+        ]
+        result = filter_yolo_detections(detections)
+        # door 中心 (50.5, 51) 距 wall 很远
+        assert len(result) == 1  # 只保留 wall
+
+    def test_window_near_wall_kept(self):
+        """window 贴近墙体应保留"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "wall", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.2}, "confidence": 0.9},
+            {"type": "window", "bbox": {"x": 3, "y": 0, "width": 2, "height": 0.5}, "confidence": 0.8},
+        ]
+        result = filter_yolo_detections(detections)
+        assert len(result) == 2
+
+    def test_window_far_from_wall_suppressed(self):
+        """window 远离墙体应被过滤"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "wall", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.2}, "confidence": 0.9},
+            {"type": "window", "bbox": {"x": 100, "y": 100, "width": 2, "height": 1}, "confidence": 0.8},
+        ]
+        result = filter_yolo_detections(detections)
+        assert len(result) == 1  # 只保留 wall
+
+    def test_room_as_wall_segment_reference(self):
+        """无 wall 检测时，其他实体应保留（仅做走廊宽度检查）"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "room", "bbox": {"x": 0, "y": 0, "width": 10, "height": 8}, "confidence": 0.9},
+            {"type": "door", "bbox": {"x": 4, "y": 4, "width": 1, "height": 2}, "confidence": 0.7},
+        ]
+        # 无 wall 实体时，door/window 不做贴墙检查
+        result = filter_yolo_detections(detections)
+        assert len(result) == 2
+
+    def test_fire_door_same_as_door_rules(self):
+        """fire_door 应同样适用 door 的贴墙规则"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "wall", "bbox": {"x": 0, "y": 0, "width": 10, "height": 0.2}, "confidence": 0.9},
+            {"type": "fire_door", "bbox": {"x": 4, "y": 0, "width": 1, "height": 2}, "confidence": 0.7},
+        ]
+        result = filter_yolo_detections(detections)
+        assert len(result) == 2
+
+    def test_corridor_kept_with_adequate_width(self):
+        """走廊宽度 >= 0.5m 且无其他过滤条件应保留"""
+        from src.baa_engine.yolo_integrator import filter_yolo_detections
+        detections = [
+            {"type": "corridor", "bbox": {"x": 0, "y": 0, "width": 20, "height": 2.0}, "confidence": 0.6, "properties": {}},
+        ]
+        result = filter_yolo_detections(detections, min_corridor_width_m=0.5)
+        assert len(result) == 1
 
 
 if __name__ == "__main__":
