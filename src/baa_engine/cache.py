@@ -2,7 +2,7 @@
 BAA 持久化缓存模块
 ===================
 基于 SQLite 的持久化缓存，替代/补充现有内存缓存。
-
+ 
 设计目标：
 1. 服务重启后缓存不丢失
 2. 自动清理过期条目（TTL）
@@ -83,21 +83,21 @@ class PersistentCache:  # persistent cache with SQLite backend
         conn = self._get_conn()  # get thread-local connection
         # SQL: create cache_entries table DDL
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS cache_entries (  # table definition start
-                cache_key TEXT PRIMARY KEY,  # column: unique cache key
-                cache_type TEXT NOT NULL,  # column: cache type classification
-                value TEXT NOT NULL,  # column: serialized JSON value
-                created_at REAL NOT NULL,  # column: creation timestamp
-                expires_at REAL NOT NULL,  # column: expiration timestamp
-                access_count INTEGER DEFAULT 0,  # column: access hit count
-                last_access_at REAL DEFAULT 0  # column: last access timestamp
-            )  # table definition end
+            CREATE TABLE IF NOT EXISTS cache_entries (
+                cache_key TEXT PRIMARY KEY,
+                cache_type TEXT NOT NULL,
+                value TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                access_count INTEGER DEFAULT 0,
+                last_access_at REAL DEFAULT 0
+            )
         """)
         conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cache_type ON cache_entries(cache_type)  # index on cache_type for filtering
+            CREATE INDEX IF NOT EXISTS idx_cache_type ON cache_entries(cache_type)
         """)
         conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_entries(expires_at)  # index on expires_at for cleanup
+            CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_entries(expires_at)
         """)
         conn.commit()  # SQL string end for table creation
   # SQL string end for idx_cache_type
@@ -150,33 +150,33 @@ class PersistentCache:  # persistent cache with SQLite backend
             with self._write_lock:  # exclusive lock for write
                 conn = self._get_conn()  # get thread-local connection
                 conn.execute(  # execute INSERT OR REPLACE
-                    """INSERT OR REPLACE INTO cache_entries  # SQL: upsert cache entry
-                       (cache_key, cache_type, value, created_at, expires_at, access_count, last_access_at)  # params: key, type, value, timestamps
-                       VALUES (?, ?, ?, ?, ?, 0, ?)""",  # execute end
-                    (cache_key, cache_type, serialized, now, now + ttl, now)  # SQL string end
-                )  # param tuple
-  # trim to max entries
-                # 限制条目数：删除最旧的条目
-                max_entries = MAX_ENTRIES_PER_TYPE.get(cache_type, 500)  # count current entries of type
-                count = conn.execute(  # SQL: count by cache_type
-                    "SELECT COUNT(*) as cnt FROM cache_entries WHERE cache_type = ?",  # extract count from result
-                    (cache_type,)  # SQL string end
-                ).fetchone()["cnt"]  # check if exceeds limit
-  # SQL: delete exceeding oldest
-                if count > max_entries:  # keep newest entries within limit
-                    conn.execute(  # SQL subquery: latest by last_access_at
-                        """DELETE FROM cache_entries WHERE cache_type = ? AND cache_key NOT IN  # ORDER BY for latest entries
+                    """INSERT OR REPLACE INTO cache_entries
+                       (cache_key, cache_type, value, created_at, expires_at, access_count, last_access_at)
+                       VALUES (?, ?, ?, ?, ?, 0, ?)""",
+                    (cache_key, cache_type, serialized, now, now + ttl, now)
+                )
+  
+                
+                max_entries = MAX_ENTRIES_PER_TYPE.get(cache_type, 500)
+                count = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM cache_entries WHERE cache_type = ?",
+                    (cache_type,)
+                ).fetchone()["cnt"]
+  
+                if count > max_entries:
+                    conn.execute(
+                        """DELETE FROM cache_entries WHERE cache_type = ? AND cache_key NOT IN
                            (SELECT cache_key FROM cache_entries WHERE cache_type = ?  # LIMIT to max entries
                         # SQL string end for DELETE
                             ORDER BY last_access_at DESC LIMIT ?)""",
-                        (cache_type, cache_type, max_entries)  # params: type, type, max_entries
-                    )  # execute end
-
-                conn.commit()  # commit all writes
-        except Exception as e:  # catch any database error
-            logger.warning(f"缓存写入失败: {e}")  # log warning for write failure
-
-    def delete(self, cache_key: str) -> None:  # delete specified cache entry
+                        (cache_type, cache_type, max_entries)
+                    )
+ 
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"缓存写入失败: {e}")
+ 
+    def delete(self, cache_key: str) -> None:
         """删除指定缓存"""
         try:  # try block for deletion
             conn = self._get_conn()  # get thread-local connection
