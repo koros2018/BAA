@@ -10,247 +10,247 @@ BAA 真实图纸测试基线
   - 新增消防设施实体识别（INSERT 映射 + 图层映射 + TEXT 辅助）
   - 7 张真实图纸全部可解析，EXIST-005/006 在消防图纸上 PASS
 """
-import sys
-import os
-from pathlib import Path
-from collections import Counter
+import sys  # import
+import os  # stdlib: filesystem ops
+from pathlib import Path  # import: path utils
+from collections import Counter  # stdlib: collections
 
-import pytest
+import pytest  # import
 
 # ── 项目根 ──
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # function call
+if str(PROJECT_ROOT) not in sys.path:  # check: membership test
+    sys.path.insert(0, str(PROJECT_ROOT))  # sys path
 
-from src.baa_engine.drawing_parser import DrawingParser
-from src.baa_engine.semantic_analyzer import SemanticAnalyzer
-from src.baa_engine.atomic_functions import FuncRegistry
+from src.baa_engine.drawing_parser import DrawingParser  # import
+from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # import
+from src.baa_engine.atomic_functions import FuncRegistry  # import
 
 # ── 测试数据路径 ──
-DATA_DIR = PROJECT_ROOT / "data"
-REAL_DIR = DATA_DIR / "drawings" / "real"
+DATA_DIR = PROJECT_ROOT / "data"  # assignment
+REAL_DIR = DATA_DIR / "drawings" / "real"  # assignment
 
 
-def get_real_dxf_paths():
+def get_real_dxf_paths():  # function: def get_real_dxf_paths():
     """返回所有可用的真实 DXF 路径（排除 drawings/real/ 下的副本）"""
-    paths = []
+    paths = []  # assignment
     # data/ 下根目录的 t3.dxf
-    for f in sorted(DATA_DIR.glob("*_t3.dxf")):
-        paths.append(f)
+    for f in sorted(DATA_DIR.glob("*_t3.dxf")):  # loop: iterate
+        paths.append(f)  # append to list
     # 东莞通项目目录
-    dgt_dir = DATA_DIR / "1东莞通施工图-报审170823"
-    if dgt_dir.exists():
-        for f in sorted(dgt_dir.glob("*.dxf")):
-            if f not in paths:
-                paths.append(f)
+    dgt_dir = DATA_DIR / "1东莞通施工图-报审170823"  # assignment
+    if dgt_dir.exists():  # condition: dgt_dir.exists():
+        for f in sorted(dgt_dir.glob("*.dxf")):  # loop: iterate
+            if f not in paths:  # check: membership test
+                paths.append(f)  # append to list
     # 只有非 t3 的才从 drawings/real 补充
-    if REAL_DIR.exists():
-        seen_names = {p.name for p in paths}
-        for f in sorted(REAL_DIR.glob("*.dxf")):
-            if f.name not in seen_names:
-                paths.append(f)
-    return paths
+    if REAL_DIR.exists():  # condition: REAL_DIR.exists():
+        seen_names = {p.name for p in paths}  # assignment
+        for f in sorted(REAL_DIR.glob("*.dxf")):  # loop: iterate
+            if f.name not in seen_names:  # check: membership test
+                paths.append(f)  # append to list
+    return paths  # return
 
 
-def _find_dxf(dxf_name):
+def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
     """在多个目录中查找 DXF 文件，优先 data/ 下原始目录（非 drawings/real/ 副本）"""
-    candidates = []
+    candidates = []  # assignment
     # 递归搜索（排除 drawings/real/ 副本目录，避免文件损坏问题）
-    for f in sorted(DATA_DIR.rglob(dxf_name)):
-        if "drawings/real" not in str(f):
-            candidates.append(f)
+    for f in sorted(DATA_DIR.rglob(dxf_name)):  # loop: iterate
+        if "drawings/real" not in str(f):  # check: membership test
+            candidates.append(f)  # append to list
     # 如果没找到，再试 drawings/real/
-    if not candidates and REAL_DIR.exists():
-        candidates.extend(REAL_DIR.glob(dxf_name))
-    candidates = [c for c in candidates if c.exists()]
-    return candidates
+    if not candidates and REAL_DIR.exists():  # check: negated condition
+        candidates.extend(REAL_DIR.glob(dxf_name))  # extend list
+    candidates = [c for c in candidates if c.exists()]  # function call
+    return candidates  # return
 
 
 # ── 实体类型分布基线 ──
 # 格式: {文件名: {实体类型: 数量}}
 # 允许 ±10% 浮动（避免每次 parser 升级导致基线碎掉）
-ENTITY_BASELINE = {
-    "A1云计算中心平面图0405_t3.dxf": {
-        "wall": 696, "door": 22, "window": 261, "stair": 109,
-        "column": 22, "room": 13, "dimension": 402, "text": 37,
-        "other": 1335,
-    },
-    "20210409-3#泵房_t3.dxf": {
-        "wall": 420, "door": 16, "window": 29, "stair": 44,
-        "column": 9, "room": 8, "dimension": 362, "text": 48,
-        "other": 680, "equipment": 6, "fire_zone": 4,
-    },
-    "202109409-2#配电房_t3.dxf": {
-        "wall": 292, "door": 22, "window": 80, "stair": 99,
-        "column": 2, "room": 2, "dimension": 369, "text": 57,
-        "other": 509, "equipment": 23, "fire_zone": 4,
-    },
-    "6.火灾自动报警 （报审）_t3.dxf": {
-        "wall": 282, "door": 88, "window": 20, "stair": 1,
-        "column": 7, "room": 6, "dimension": 270, "text": 25,
-        "other": 915, "equipment": 1337,
-        "fire_hydrant": 17, "sprinkler": 2, "fire_extinguisher": 2,
-        "smoke_detector": 4, "fire_alarm": 7, "water_reservoir": 1,
-        "fire_door": 5,
-    },
-    "9.气体灭火（唯美图框）_t3.dxf": {
-        "wall": 305, "door": 100, "window": 0, "stair": 0,
-        "column": 79, "room": 0, "dimension": 207, "text": 352,
-        "other": 1180, "equipment": 737,
-        "fire_extinguisher": 37,
-    },
-    "A1云计算中心_水消防2017.03.31_t3.dxf": {
-        "wall": 120, "door": 339, "window": 192, "stair": 0,
-        "column": 8, "room": 4, "dimension": 40, "text": 57,
-        "other": 1465,
-        "fire_hydrant": 5, "sprinkler": 2, "fire_extinguisher": 3,
-    },
-}
+ENTITY_BASELINE = {  # assignment
+    "A1云计算中心平面图0405_t3.dxf": {  # code
+        "wall": 696, "door": 22, "window": 261, "stair": 109,  # code
+        "column": 22, "room": 13, "dimension": 402, "text": 37,  # code
+        "other": 1335,  # code
+    },  # code
+    "20210409-3#泵房_t3.dxf": {  # code
+        "wall": 420, "door": 16, "window": 29, "stair": 44,  # code
+        "column": 9, "room": 8, "dimension": 362, "text": 48,  # code
+        "other": 680, "equipment": 6, "fire_zone": 4,  # code
+    },  # code
+    "202109409-2#配电房_t3.dxf": {  # code
+        "wall": 292, "door": 22, "window": 80, "stair": 99,  # code
+        "column": 2, "room": 2, "dimension": 369, "text": 57,  # code
+        "other": 509, "equipment": 23, "fire_zone": 4,  # code
+    },  # code
+    "6.火灾自动报警 （报审）_t3.dxf": {  # code
+        "wall": 282, "door": 88, "window": 20, "stair": 1,  # code
+        "column": 7, "room": 6, "dimension": 270, "text": 25,  # code
+        "other": 915, "equipment": 1337,  # code
+        "fire_hydrant": 17, "sprinkler": 2, "fire_extinguisher": 2,  # code
+        "smoke_detector": 4, "fire_alarm": 7, "water_reservoir": 1,  # code
+        "fire_door": 5,  # code
+    },  # code
+    "9.气体灭火（唯美图框）_t3.dxf": {  # code
+        "wall": 305, "door": 100, "window": 0, "stair": 0,  # code
+        "column": 79, "room": 0, "dimension": 207, "text": 352,  # code
+        "other": 1180, "equipment": 737,  # code
+        "fire_extinguisher": 37,  # code
+    },  # code
+    "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
+        "wall": 120, "door": 339, "window": 192, "stair": 0,  # code
+        "column": 8, "room": 4, "dimension": 40, "text": 57,  # code
+        "other": 1465,  # code
+        "fire_hydrant": 5, "sprinkler": 2, "fire_extinguisher": 3,  # code
+    },  # code
+}  # code
 
 # ── EXIST 函数预期结果 ──
-EXIST_EXPECTED = {
-    "6.火灾自动报警 （报审）_t3.dxf": {
+EXIST_EXPECTED = {  # assignment
+    "6.火灾自动报警 （报审）_t3.dxf": {  # code
         "EXIST-005": "PASS",   # 自动灭火系统
         "EXIST-006": "PASS",   # 火灾报警系统
         "EXIST-009": "PASS",   # 消防水池
-    },
-    "9.气体灭火（唯美图框）_t3.dxf": {
+    },  # code
+    "9.气体灭火（唯美图框）_t3.dxf": {  # code
         "EXIST-005": "PASS",   # 气体灭火→自动灭火系统
-    },
-    "A1云计算中心_水消防2017.03.31_t3.dxf": {
+    },  # code
+    "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
         "EXIST-005": "PASS",   # 水消防→自动灭火系统
-    },
-}
+    },  # code
+}  # code
 
 # ── 夹具 ──
 
 
-@pytest.fixture(scope="module")
-def parser():
-    return DrawingParser()
+@pytest.fixture(scope="module")  # function call
+def parser():  # function: def parser():
+    return DrawingParser()  # return
 
 
-@pytest.fixture(scope="module")
-def analyzer():
-    return SemanticAnalyzer()
+@pytest.fixture(scope="module")  # function call
+def analyzer():  # function: def analyzer():
+    return SemanticAnalyzer()  # return
 
 
-@pytest.fixture(scope="module")
-def registry():
-    return FuncRegistry()
+@pytest.fixture(scope="module")  # function call
+def registry():  # function: def registry():
+    return FuncRegistry()  # return
 
 
 # ── 参数化测试 ──
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("dxf_name", [
-    "A1云计算中心平面图0405_t3.dxf",
-    "20210409-3#泵房_t3.dxf",
-    "202109409-2#配电房_t3.dxf",
-    "6.火灾自动报警 （报审）_t3.dxf",
-    "9.气体灭火（唯美图框）_t3.dxf",
-    "A1云计算中心_水消防2017.03.31_t3.dxf",
-])
-def test_real_parse_and_analyze(dxf_name, parser, analyzer, registry):
-    if dxf_name not in ENTITY_BASELINE:
-        pytest.skip(f"{dxf_name} 不在基线表中")
+@pytest.mark.slow  # code
+@pytest.mark.parametrize("dxf_name", [  # code
+    "A1云计算中心平面图0405_t3.dxf",  # code
+    "20210409-3#泵房_t3.dxf",  # code
+    "202109409-2#配电房_t3.dxf",  # code
+    "6.火灾自动报警 （报审）_t3.dxf",  # code
+    "9.气体灭火（唯美图框）_t3.dxf",  # code
+    "A1云计算中心_水消防2017.03.31_t3.dxf",  # code
+])  # code
+def test_real_parse_and_analyze(dxf_name, parser, analyzer, registry):  # function: def test_real_parse_and_analyze(dxf_name, parser, analyzer, 
+    if dxf_name not in ENTITY_BASELINE:  # check: membership test
+        pytest.skip(f"{dxf_name} 不在基线表中")  # function call
     """真实图纸解析+语义分析+原子函数判定，验证精度不退化"""
     # ── 查找文件 ──
-    candidates = _find_dxf(dxf_name)
-    assert candidates, f"找不到测试图纸: {dxf_name}"
-    path = str(candidates[0])
+    candidates = _find_dxf(dxf_name)  # function call
+    assert candidates, f"找不到测试图纸: {dxf_name}"  # code
+    path = str(candidates[0])  # function call
 
     # ── Step 1: 解析 ──
-    result = parser.parse(path, f"test_{dxf_name}")
-    assert result.success, f"解析失败: {result.error}"
-    assert len(result.primitives) > 0, "解析出 0 个图元"
+    result = parser.parse(path, f"test_{dxf_name}")  # function call
+    assert result.success, f"解析失败: {result.error}"  # code
+    assert len(result.primitives) > 0, "解析出 0 个图元"  # get length
 
     # ── Step 2: 语义分析 ──
-    semantic = analyzer.analyze(result.primitives, result.dimensions)
-    entities = semantic["entities"]
-    assert len(entities) > 0, "语义分析出 0 个实体"
+    semantic = analyzer.analyze(result.primitives, result.dimensions)  # function call
+    entities = semantic["entities"]  # assignment
+    assert len(entities) > 0, "语义分析出 0 个实体"  # get length
 
-    type_counts = Counter(e["type"] for e in entities)
+    type_counts = Counter(e["type"] for e in entities)  # function call
 
     # ── Step 3: 验证实体类型分布不退化 ──
-    baseline = ENTITY_BASELINE.get(dxf_name, {})
-    if baseline:
-        for etype, expected_count in baseline.items():
-            actual_count = type_counts.get(etype, 0)
+    baseline = ENTITY_BASELINE.get(dxf_name, {})  # function call
+    if baseline:  # condition: baseline:
+        for etype, expected_count in baseline.items():  # loop: iterate
+            actual_count = type_counts.get(etype, 0)  # function call
             # 允许 ±20% 浮动（真实图纸解析有一定随机性）
-            tolerance = max(int(expected_count * 0.2), 1)
-            assert abs(actual_count - expected_count) <= tolerance, \
-                f"{dxf_name}: {etype} 预期 {expected_count}±{tolerance}, 实际 {actual_count}"
+            tolerance = max(int(expected_count * 0.2), 1)  # get maximum
+            assert abs(actual_count - expected_count) <= tolerance, \  # function call
+                f"{dxf_name}: {etype} 预期 {expected_count}±{tolerance}, 实际 {actual_count}"  # code
 
     # ── Step 4: 验证关键 EXIST 函数 ──
-    all_findings = []
-    for e in entities:
-        for func in registry.list_all():
-            if func.matches(e):
-                f = func.execute(e)
-                if f:
-                    all_findings.append(f.__dict__ if hasattr(f, '__dict__') else f)
+    all_findings = []  # assignment
+    for e in entities:  # loop: iterate
+        for func in registry.list_all():  # loop: iterate
+            if func.matches(e):  # condition: func.matches(e):
+                f = func.execute(e)  # function call
+                if f:  # condition: f:
+                    all_findings.append(f.__dict__ if hasattr(f, '__dict__') else f)  # append to list
 
-    exist_expected = EXIST_EXPECTED.get(dxf_name, {})
-    for func_id, expected_result in exist_expected.items():
-        matches = [f for f in all_findings if f.get("func_id") == func_id]
-        if expected_result == "PASS":
-            assert any(f.get("result") == "PASS" for f in matches), \
-                f"{dxf_name}: {func_id} 预期 PASS, 但未找到 PASS 结果 (matches={len(matches)})"
-        elif expected_result == "FAIL":
-            assert any(f.get("result") == "FAIL" for f in matches), \
-                f"{dxf_name}: {func_id} 预期 FAIL, 但未找到 FAIL 结果 (matches={len(matches)})"
+    exist_expected = EXIST_EXPECTED.get(dxf_name, {})  # function call
+    for func_id, expected_result in exist_expected.items():  # loop: iterate
+        matches = [f for f in all_findings if f.get("func_id") == func_id]  # function call
+        if expected_result == "PASS":  # condition: expected_result == "PASS":
+            assert any(f.get("result") == "PASS" for f in matches), \  # check any true
+                f"{dxf_name}: {func_id} 预期 PASS, 但未找到 PASS 结果 (matches={len(matches)})"  # get length
+        elif expected_result == "FAIL":  # elif condition
+            assert any(f.get("result") == "FAIL" for f in matches), \  # check any true
+                f"{dxf_name}: {func_id} 预期 FAIL, 但未找到 FAIL 结果 (matches={len(matches)})"  # get length
 
 
-@pytest.mark.slow
-def test_all_real_drawings_parseable(parser):
+@pytest.mark.slow  # code
+def test_all_real_drawings_parseable(parser):  # function: def test_all_real_drawings_parseable(parser):
     """所有真实图纸至少能成功解析（0 图元视为解析失败）"""
-    paths = get_real_dxf_paths()
-    assert len(paths) >= 5, f"至少需要 5 张真实图纸, 找到 {len(paths)}"
+    paths = get_real_dxf_paths()  # function call
+    assert len(paths) >= 5, f"至少需要 5 张真实图纸, 找到 {len(paths)}"  # get length
 
-    failed = []
-    for p in paths:
-        result = parser.parse(str(p), f"test_{p.stem}")
-        if not result.success or len(result.primitives) == 0:
-            failed.append((p.name, result.error or "0 primitives"))
+    failed = []  # assignment
+    for p in paths:  # loop: iterate
+        result = parser.parse(str(p), f"test_{p.stem}")  # function call
+        if not result.success or len(result.primitives) == 0:  # check: negated condition
+            failed.append((p.name, result.error or "0 primitives"))  # append to list
 
     # 电气图纸（2.1电气170825-报审）因图元类型特殊（纯电气符号无建筑几何），允许 0 图元
     # drawings/real/ 下的副本可能已损坏（空格 vs 下划线命名不一致导致文件读取问题）
-    known_empty = {"2.1电气170825-报审.dxf", "4.通风BS170826.dxf",
-                   "东莞通-建筑-外部参照（不打印）.dxf", "东莞通-设备-外部参照（不打印）.dxf",
-                   "A1IDC及通信机楼结构平面图20161227z.dxf",
-                   "6.火灾自动报警_（报审）_t3.dxf"}
-    unexpected = [(n, e) for n, e in failed if n not in known_empty]
+    known_empty = {"2.1电气170825-报审.dxf", "4.通风BS170826.dxf",  # assignment
+                   "东莞通-建筑-外部参照（不打印）.dxf", "东莞通-设备-外部参照（不打印）.dxf",  # code
+                   "A1IDC及通信机楼结构平面图20161227z.dxf",  # code
+                   "6.火灾自动报警_（报审）_t3.dxf"}  # code
+    unexpected = [(n, e) for n, e in failed if n not in known_empty]  # function call
 
-    assert not unexpected, f"以下图纸解析失败:\n" + "\n".join(f"  {n}: {e}" for n, e in unexpected)
+    assert not unexpected, f"以下图纸解析失败:\n" + "\n".join(f"  {n}: {e}" for n, e in unexpected)  # function call
 
 
-@pytest.mark.slow
-def test_fire_equipment_detection(parser, analyzer, registry):
+@pytest.mark.slow  # code
+def test_fire_equipment_detection(parser, analyzer, registry):  # function: def test_fire_equipment_detection(parser, analyzer, registry
     """验证消防图纸正确识别了关键消防设施实体"""
-    fire_drawings = [
-        "6.火灾自动报警 （报审）_t3.dxf",
-        "9.气体灭火（唯美图框）_t3.dxf",
-        "A1云计算中心_水消防2017.03.31_t3.dxf",
-    ]
+    fire_drawings = [  # assignment
+        "6.火灾自动报警 （报审）_t3.dxf",  # code
+        "9.气体灭火（唯美图框）_t3.dxf",  # code
+        "A1云计算中心_水消防2017.03.31_t3.dxf",  # code
+    ]  # code
 
-    for dxf_name in fire_drawings:
-        candidates = _find_dxf(dxf_name)
-        if not candidates:
-            pytest.skip(f"找不到 {dxf_name}")
+    for dxf_name in fire_drawings:  # loop: iterate
+        candidates = _find_dxf(dxf_name)  # function call
+        if not candidates:  # check: negated condition
+            pytest.skip(f"找不到 {dxf_name}")  # function call
 
-        result = parser.parse(str(candidates[0]), f"test_{dxf_name}")
-        assert result.success
-        semantic = analyzer.analyze(result.primitives, result.dimensions)
-        entities = semantic["entities"]
+        result = parser.parse(str(candidates[0]), f"test_{dxf_name}")  # function call
+        assert result.success  # code
+        semantic = analyzer.analyze(result.primitives, result.dimensions)  # function call
+        entities = semantic["entities"]  # assignment
 
-        type_counts = Counter(e["type"] for e in entities)
-        fire_types = {t: c for t, c in type_counts.items() if t in (
-            "fire_hydrant", "sprinkler", "fire_extinguisher",
-            "smoke_detector", "fire_alarm",
-        )}
+        type_counts = Counter(e["type"] for e in entities)  # function call
+        fire_types = {t: c for t, c in type_counts.items() if t in (  # function call
+            "fire_hydrant", "sprinkler", "fire_extinguisher",  # code
+            "smoke_detector", "fire_alarm",  # code
+        )}  # code
 
-        assert len(fire_types) > 0, \
-            f"{dxf_name}: 未识别出任何消防设施实体\n" \
-            f"  types available: {dict(type_counts.most_common(10))}"
+        assert len(fire_types) > 0, \  # get length
+            f"{dxf_name}: 未识别出任何消防设施实体\n" \  # code
+            f"  types available: {dict(type_counts.most_common(10))}"  # function call
