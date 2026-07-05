@@ -1654,3 +1654,161 @@ class TestEquipmentDetection:
             d = entity.to_dict()
             assert d["type"] == etype
             assert d["id"] == f"DEV_{i:03d}"
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 12: P35 多层/多区域图纸解析测试
+# ═══════════════════════════════════════════════════════════
+
+class TestFloorDetection:
+    """_detect_floor_levels() 和 _assign_entities_to_floors() 测试"""
+
+    def _make_prim(self, dxf_type, layer, handle, bbox, props=None):
+        return RawPrimitive(dxf_type, layer, handle, bbox, props or {})
+
+    def test_no_floor_separators_returns_empty(self):
+        """无分隔线/标高文字时返回空列表"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("LINE", "WALL", "H001", {"x": 0, "y": 0, "width": 100, "height": 100}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert result == []
+
+    def test_horizontal_separator_detected(self):
+        """跨越图纸宽度 80% 的水平线 → 识别为楼层分隔线"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("LINE", "WALL", "H001", {"x": 0, "y": 0, "width": 10000, "height": 10000}),
+            self._make_prim("LINE", "WALL", "H002", {"x": 0, "y": 10000, "width": 10000, "height": 5}),
+            self._make_prim("LINE", "WALL", "H003", {"x": 0, "y": 10000, "width": 10000, "height": 20000}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) >= 2
+
+    def test_elevation_text_detected(self):
+        """标高文字 "±0.000" → 识别为 F1"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("TEXT", "TEXT", "H001", {"x": 0, "y": 0, "width": 100, "height": 20},
+                            {"text": "±0.000"}),
+            self._make_prim("TEXT", "TEXT", "H002", {"x": 0, "y": 5000, "width": 100, "height": 20},
+                            {"text": "F2"}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) >= 2
+        assert any(fl["label"] == "F1" for fl in result)
+
+    def test_floor_label_text_detected(self):
+        """"F1", "F2" 文字 → 识别为楼层"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("TEXT", "TEXT", "H001", {"x": 0, "y": 0, "width": 50, "height": 20},
+                            {"text": "F1"}),
+            self._make_prim("TEXT", "TEXT", "H002", {"x": 0, "y": 10000, "width": 50, "height": 20},
+                            {"text": "F2"}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) >= 2
+        labels = [fl["label"] for fl in result]
+        assert "F1" in labels
+        assert "F2" in labels
+
+    def test_chinese_floor_label_detected(self):
+        """"首层", "二层" 文字 → 识别为楼层"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("TEXT", "TEXT", "H001", {"x": 0, "y": 0, "width": 100, "height": 20},
+                            {"text": "首层"}),
+            self._make_prim("TEXT", "TEXT", "H002", {"x": 0, "y": 10000, "width": 100, "height": 20},
+                            {"text": "二层"}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) >= 2
+        labels = [fl["label"] for fl in result]
+        assert "F1" in labels
+        assert "F2" in labels
+
+    def test_basement_label_detected(self):
+        """"B1" 文字 → 识别为地下层"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("TEXT", "TEXT", "H001", {"x": 0, "y": 0, "width": 50, "height": 20},
+                            {"text": "B1"}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) >= 1
+        assert result[0]["label"] == "B1"
+
+    def test_assign_entities_to_floors(self):
+        """实体按 Y 坐标分配到对应楼层"""
+        analyzer = SemanticAnalyzer()
+        floor_levels = [
+            {"level": 1, "label": "F1", "elevation": 0.0, "y_range": [0, 5000], "source": "separator"},
+            {"level": 2, "label": "F2", "elevation": 5.0, "y_range": [5000, 10000], "source": "separator"},
+        ]
+        room1 = SemanticEntity("ROOM_001", "room", {"x": 100, "y": 100, "width": 1000, "height": 1000},
+                                "WALL", properties={"area": 100.0})
+        room2 = SemanticEntity("ROOM_002", "room", {"x": 100, "y": 6000, "width": 1000, "height": 1000},
+                                "WALL", properties={"area": 100.0})
+        entities = [room1, room2]
+        assignments = analyzer._assign_entities_to_floors(entities, [], floor_levels)
+        assert assignments["ROOM_001"] == "F1"
+        assert assignments["ROOM_002"] == "F2"
+        assert room1.properties["floor"] == "F1"
+        assert room2.properties["floor"] == "F2"
+
+    def test_assign_entity_outside_range(self):
+        """超出所有楼层范围的实体分配到最近楼层"""
+        analyzer = SemanticAnalyzer()
+        floor_levels = [
+            {"level": 1, "label": "F1", "elevation": 0.0, "y_range": [0, 5000], "source": "separator"},
+            {"level": 2, "label": "F2", "elevation": 5.0, "y_range": [5000, 10000], "source": "separator"},
+        ]
+        room = SemanticEntity("ROOM_001", "room", {"x": 100, "y": -1000, "width": 1000, "height": 1000},
+                               "WALL", properties={"area": 100.0})
+        assignments = analyzer._assign_entities_to_floors([room], [], floor_levels)
+        assert assignments["ROOM_001"] == "F1"
+
+    def test_analyze_includes_floor_info(self):
+        """analyze() 返回结果中包含楼层信息"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("LINE", "WALL", "H001", {"x": 0, "y": 0, "width": 10000, "height": 5000}),
+            self._make_prim("LINE", "WALL", "H002", {"x": 0, "y": 5000, "width": 10000, "height": 5}),
+            self._make_prim("LINE", "WALL", "H003", {"x": 0, "y": 5000, "width": 10000, "height": 10000}),
+        ]
+        result = analyzer.analyze(prims)
+        assert "floor_levels" in result
+        assert "floor_assignments" in result
+        assert len(result["floor_levels"]) >= 2
+
+    def test_analyze_floor_property_on_entities(self):
+        """analyze() 返回的实体中应包含 floor 属性"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("LINE", "WALL", "H001", {"x": 0, "y": 0, "width": 10000, "height": 5000}),
+            self._make_prim("LINE", "WALL", "H002", {"x": 0, "y": 5000, "width": 10000, "height": 5}),
+            self._make_prim("LINE", "WALL", "H003", {"x": 0, "y": 5000, "width": 10000, "height": 10000}),
+        ]
+        result = analyzer.analyze(prims)
+        entities = result["entities"]
+        for ent in entities:
+            assert "floor" in ent.get("properties", {})
+
+    def test_multiple_floors_with_separators(self):
+        """多条分隔线 → 3 个楼层"""
+        analyzer = SemanticAnalyzer()
+        prims = [
+            self._make_prim("LINE", "WALL", "H001", {"x": 0, "y": 0, "width": 10000, "height": 3000}),
+            self._make_prim("LINE", "WALL", "H002", {"x": 0, "y": 3000, "width": 9000, "height": 5}),
+            self._make_prim("LINE", "WALL", "H003", {"x": 0, "y": 3000, "width": 10000, "height": 6000}),
+            self._make_prim("LINE", "WALL", "H004", {"x": 0, "y": 6000, "width": 9000, "height": 5}),
+            self._make_prim("LINE", "WALL", "H005", {"x": 0, "y": 6000, "width": 10000, "height": 9000}),
+        ]
+        result = analyzer._detect_floor_levels(prims)
+        assert len(result) == 3
+
+
+if __name__ == "__main__":
+    pytest.main(["-v", __file__, "-k", "not slow"])

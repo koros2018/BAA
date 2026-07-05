@@ -196,6 +196,10 @@ class SemanticAnalyzer:
         # Step 1: 图元分类归并
         entities = self._classify_entities(primitives)
 
+        # Step 1.05: 楼层/区域检测（P35新增）
+        floor_levels = self._detect_floor_levels(primitives)
+        floor_assignments = self._assign_entities_to_floors(entities, primitives, floor_levels)
+
         # Step 1.1: YOLO 检测增强（可选，通过 dxf_path 触发）
         if dxf_path:
             try:  # 尝试
@@ -311,6 +315,8 @@ class SemanticAnalyzer:
             "corridor_topology": corridor_topology,  # 字段
             "evacuation_routes": evacuation_routes,  # 字段
             "evacuation_connectivity": connectivity,  # 字段
+            "floor_levels": floor_levels,  # 字段
+            "floor_assignments": floor_assignments,  # 字段
         }
 
         # ── 写入缓存 ──────────────────────────────────────
@@ -321,6 +327,273 @@ class SemanticAnalyzer:
             self._analyze_cache[fingerprint] = result
 
         return result
+
+    def _detect_floor_levels(self, primitives: List[RawPrimitive]) -> List[Dict]:
+        """检测图纸中的楼层分隔线和标高文字（P35）
+
+        策略：
+        1. 寻找跨越图纸宽度 80% 以上的水平 LINE/LWPOLYLINE（楼层分隔线）
+        2. 提取 TEXT 中的标高信息（如 "±0.000", "F1", "第2层", "标高"）
+        3. 返回按 Y 坐标排序的楼层列表
+
+        返回:
+            [
+                {"level": 1, "label": "F1", "elevation": 0.0, "y_range": [y_min, y_max], "source": "separator"},
+                ...
+            ]
+        """
+        import math
+
+        if not primitives:
+            return []
+
+        # 计算图纸总宽度
+        all_x = []
+        all_y = []
+        for p in primitives:
+            bbox = p.bbox
+            if bbox.get("width", 0) > 0:
+                all_x.append(bbox["x"])
+                all_x.append(bbox["x"] + bbox["width"])
+            if bbox.get("height", 0) > 0:
+                all_y.append(bbox["y"])
+                all_y.append(bbox["y"] + bbox["height"])
+
+        if not all_x or not all_y:
+            return []
+
+        drawing_width = max(all_x) - min(all_x) if all_x else 0
+        drawing_height = max(all_y) - min(all_y) if all_y else 0
+        if drawing_width <= 0:
+            return []
+
+        width_threshold = drawing_width * 0.8  # 跨越 80% 以上宽度视为楼层分隔线
+
+        # 1. 收集水平分隔线
+        separators = []
+        for p in primitives:
+            if p.dxf_type not in ("LINE", "LWPOLYLINE"):
+                continue
+            bbox = p.bbox
+            bw = bbox.get("width", 0)
+            bh = bbox.get("height", 0)
+            center_y = bbox.get("y", 0) + bh / 2
+
+            # 水平线：宽度远大于高度
+            if bw > 0 and bh > 0 and bw / max(bh, 1) > 20:
+                if bw >= width_threshold:
+                    separators.append({
+                        "y": center_y,
+                        "width": bw,
+                        "layer": p.layer,
+                    })
+
+        # 2. 提取标高文字
+        elevation_texts = []
+        for p in primitives:
+            if p.dxf_type != "TEXT":
+                continue
+            text = p.properties.get("text", "").strip()
+            if not text:
+                continue
+            bbox = p.bbox
+            center_y = bbox.get("y", 0) + bbox.get("height", 0) / 2
+
+            # 匹配标高模式
+            text_upper = text.upper()
+            level = None
+            label = text
+
+            # "±0.000" 或 "+0.000" 或 "-0.000" 标高
+            if any(c in text for c in ["±", "+", "-"]) and "." in text:
+                try:
+                    # 尝试提取数值
+                    num_str = text.replace("±", "").replace("+", "").strip()
+                    elevation = float(num_str) if num_str else 0.0
+                    if "±" in text:
+                        elevation = 0.0
+                    level = elevation
+                    label = f"F{int(elevation) + 1}" if elevation >= 0 else f"B{abs(int(elevation))}"
+                except ValueError:
+                    pass
+
+            # "F1", "F2", "1F", "2F", "B1", "B2"
+            if level is None:
+                import re
+                m = re.match(r"^[Ff](\d+)$", text)
+                if m:
+                    level = int(m.group(1))
+                    label = f"F{level}"
+                m = re.match(r"^(\d+)[Ff]$", text)
+                if m:
+                    level = int(m.group(1))
+                    label = f"F{level}"
+                m = re.match(r"^[Bb](\d+)$", text)
+                if m:
+                    level = -int(m.group(1))
+                    label = f"B{m.group(1)}"
+
+            # "第1层", "第2层", "首层", "二层"
+            if level is None:
+                if "首层" in text or "一层" in text:
+                    level = 1
+                    label = "F1"
+                elif "二层" in text:
+                    level = 2
+                    label = "F2"
+                elif "三层" in text:
+                    level = 3
+                    label = "F3"
+                elif "层" in text:
+                    import re
+                    m = re.search(r"(\d+)层", text)
+                    if m:
+                        level = int(m.group(1))
+                        label = f"F{level}"
+
+            # "标高" + 数值
+            if level is None and "标高" in text:
+                import re
+                nums = re.findall(r"[-+]?\d+\.?\d*", text)
+                if nums:
+                    try:
+                        level = float(nums[0])
+                        label = f"F{int(level) + 1}" if level >= 0 else f"B{abs(int(level))}"
+                    except ValueError:
+                        pass
+
+            if level is not None:
+                elevation_texts.append({
+                    "y": center_y,
+                    "level": level,
+                    "label": label,
+                    "text": text,
+                })
+
+        # 3. 合并分隔线和标高文字，按 Y 排序生成楼层
+        floor_levels = []
+
+        # 先按分隔线 Y 排序
+        sorted_seps = sorted(separators, key=lambda s: s["y"])
+        sorted_texts = sorted(elevation_texts, key=lambda t: t["y"])
+
+        if not sorted_seps and not sorted_texts:
+            return []
+
+        # 如果有分隔线，用分隔线定义楼层
+        if sorted_seps:
+            # 添加最底层边界
+            prev_y = min(all_y) if all_y else 0
+            for i, sep in enumerate(sorted_seps):
+                floor_levels.append({
+                    "level": i + 1,
+                    "label": f"F{i + 1}",
+                    "elevation": None,
+                    "y_range": [prev_y, sep["y"]],
+                    "source": "separator",
+                })
+                prev_y = sep["y"]
+            # 添加最顶层边界
+            floor_levels.append({
+                "level": len(sorted_seps) + 1,
+                "label": f"F{len(sorted_seps) + 1}",
+                "elevation": None,
+                "y_range": [prev_y, max(all_y) if all_y else prev_y + 1],
+                "source": "separator",
+            })
+
+        # 用标高文字补充楼层标签（仅在分隔线模式下）
+        if sorted_seps and sorted_texts:
+            for fl in floor_levels:
+                y_min, y_max = fl["y_range"]
+                for et in sorted_texts:
+                    if y_min <= et["y"] <= y_max:
+                        fl["label"] = et["label"]
+                        fl["elevation"] = et["level"]
+                        fl["source"] = "text"
+                        break
+
+        # 无分隔线时，按标高文字聚类
+        if not sorted_seps and len(sorted_texts) >= 1:
+                # 按文字 Y 坐标聚类
+                clusters = []
+                current_cluster = [sorted_texts[0]]
+                for i in range(1, len(sorted_texts)):
+                    if abs(sorted_texts[i]["y"] - sorted_texts[i - 1]["y"]) < drawing_height * 0.1:
+                        current_cluster.append(sorted_texts[i])
+                    else:
+                        clusters.append(current_cluster)
+                        current_cluster = [sorted_texts[i]]
+                if current_cluster:
+                    clusters.append(current_cluster)
+
+                # 取每个簇中心 Y 作为楼层分界
+                cluster_centers = []
+                for cluster in clusters:
+                    avg_y = sum(t["y"] for t in cluster) / len(cluster)
+                    cluster_centers.append({"y": avg_y, "label": cluster[0]["label"], "level": cluster[0]["level"]})
+
+                cluster_centers.sort(key=lambda c: c["y"])
+
+                prev_y = min(all_y) if all_y else 0
+                for i, cc in enumerate(cluster_centers):
+                    floor_levels.append({
+                        "level": i + 1,
+                        "label": cc["label"],
+                        "elevation": cc["level"],
+                        "y_range": [prev_y, cc["y"] + drawing_height * 0.05],
+                        "source": "text",
+                    })
+                    prev_y = cc["y"] + drawing_height * 0.05
+
+        if not floor_levels:
+            return []
+
+        # 去重 + 排序
+        seen_labels = set()
+        unique = []
+        for fl in floor_levels:
+            if fl["label"] not in seen_labels:
+                seen_labels.add(fl["label"])
+                unique.append(fl)
+
+        unique.sort(key=lambda f: f["level"])
+        return unique
+
+    def _assign_entities_to_floors(self,
+                                     entities: List[SemanticEntity],
+                                     primitives: List[RawPrimitive],
+                                     floor_levels: List[Dict]) -> Dict[str, str]:
+        """将实体分配到对应楼层
+
+        返回:
+            {entity_id: floor_label}  # e.g. {"ROOM_001": "F1", "DOOR_002": "F2"}
+        """
+        if not floor_levels or not entities:
+            return {}
+
+        assignments = {}
+        for ent in entities:
+            bbox = ent.bbox
+            center_y = bbox.get("y", 0) + bbox.get("height", 0) / 2
+
+            assigned = False
+            for fl in floor_levels:
+                y_min, y_max = fl["y_range"]
+                if y_min <= center_y <= y_max:
+                    assignments[ent.id] = fl["label"]
+                    ent.properties["floor"] = fl["label"]
+                    assigned = True
+                    break
+
+            if not assigned:
+                # 默认归属最近楼层
+                if floor_levels:
+                    closest = min(floor_levels, key=lambda f: abs((f["y_range"][0] + f["y_range"][1]) / 2 - center_y))
+                    assignments[ent.id] = closest["label"]
+                    ent.properties["floor"] = closest["label"]
+
+        return assignments
 
     def _parse_meta_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
         """
