@@ -2003,6 +2003,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
         return routes  # return
 
+
     def verify_evacuation_connectivity(self,  # method: def verify_evacuation_connectivity(self,
                                         entities: List[SemanticEntity],  # code
                                         relations: List[SpatialRelation],  # code

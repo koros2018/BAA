@@ -66,6 +66,7 @@ class AtomicFunction:  # class definition
     threshold: float  # 操作
     unit: str  # 操作
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
+    depends_on: List[str] = field(default_factory=list)  # 依赖的前置函数ID列表
 
     # 原子函数默认超时时间（秒），30s 内应完成
     DEFAULT_TIMEOUT: int = 30  # assignment
@@ -676,6 +677,7 @@ class FuncRegistry:  # class definition
 
     def __init__(self, timeout: int = 30):  # function: def __init__(self, timeout: int = 30):
         self._funcs: Dict[str, AtomicFunction] = {}  # assignment
+        self._dependency_graph: Dict[str, List[str]] = {}  # 依赖图
         self._timeout = timeout  # assignment
         for func in self.INITIAL_FUNCS + self.RESERVED_FUNCS:  # 循环
             self.register(func)  # function call
@@ -684,16 +686,69 @@ class FuncRegistry:  # class definition
         """注册"""
         func.DEFAULT_TIMEOUT = self._timeout  # assignment
         self._funcs[func.func_id] = func  # assignment
+        if func.depends_on:
+            self._dependency_graph[func.func_id] = list(func.depends_on)
 
+
+    def resolve_dependencies(self, func_ids: List[str]) -> List[str]:
+        """拓扑排序：确保依赖函数在目标函数之前执行"""
+
+        all_deps: Dict[str, List[str]] = {}
+        for fid in func_ids:
+            if fid in self._dependency_graph:
+                all_deps[fid] = list(self._dependency_graph[fid])
+            else:
+                all_deps[fid] = []
+
+        in_degree: Dict[str, int] = {fid: 0 for fid in func_ids}
+        for fid in func_ids:
+            if fid in self._dependency_graph:
+                for dep_id in self._dependency_graph[fid]:
+                    if dep_id in in_degree:
+                        in_degree[fid] += 1
+
+        queue = [fid for fid in func_ids if in_degree[fid] == 0]
+        result = []
+        while queue:
+            node = queue.pop(0)
+            result.append(node)
+            for fid in func_ids:
+                if node in all_deps.get(fid, []):
+                    in_degree[fid] -= 1
+                    if in_degree[fid] == 0:
+                        queue.append(fid)
+
+        if len(result) != len(func_ids):
+            return func_ids
+        return result
+
+    def check_dependencies(self, func: AtomicFunction, results: Dict[str, FuncResult]) -> bool:
+        """检查函数的前置依赖是否都已PASS"""
+
+        if not func.depends_on:
+            return True
+
+        for dep_id in func.depends_on:
+            if dep_id not in results:
+                return False
+            if results[dep_id].result != "PASS":
+                return False
+
+        return True
     def execute_with_timeout(self, func: AtomicFunction,  # function: def execute_with_timeout(self, func: AtomicFunction,
                               entity: Optional[Dict[str, Any]] = None,  # assignment
-                              timeout: Optional[int] = None) -> Optional[FuncResult]:  # assignment
+                              timeout: Optional[int] = None,
+                              results: Optional[Dict[str, FuncResult]] = None) -> Optional[FuncResult]:  # assignment
         """带超时控制的原子函数执行
 
         在独立线程中执行 func.execute(entity)，超时则返回 degraded 结果。
         超时的函数不影响其他原子函数的执行。
         """
         timeout = timeout or func.DEFAULT_TIMEOUT  # assignment
+
+        # P32: 依赖检查
+        if results is not None and not self.check_dependencies(func, results):
+            return None
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:  # context manager
             future = pool.submit(func.execute, entity)  # function call
             try:  # try block
