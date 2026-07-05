@@ -22,6 +22,7 @@ from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.attribution_analyzer import AttributionAnalyzer
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 from src.baa_engine.drawing_parser import RawPrimitive
+from src.baa_engine.cache import PersistentCache, make_cache_key, make_drawing_cache_key, make_semantic_cache_key
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1198,6 +1199,128 @@ class TestFilterYOLODetections:
         ]
         result = filter_yolo_detections(detections, min_corridor_width_m=0.5)
         assert len(result) == 1
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 9: P31 持久化缓存测试
+# ═══════════════════════════════════════════════════════════
+
+class TestPersistentCache:
+    """PersistentCache SQLite 持久化缓存测试"""
+
+    @pytest.fixture
+    def tmp_cache(self, tmp_path):
+        """每个测试使用独立的临时数据库"""
+        db_path = str(tmp_path / "test_cache.db")
+        cache = PersistentCache(db_path)
+        yield cache
+        cache.clear()
+        cache.close()
+
+    def test_set_and_get(self, tmp_cache):
+        """写入后能正确读取"""
+        tmp_cache.set("test_key", {"result": "PASS", "score": 95}, "review_result")
+        result = tmp_cache.get("test_key", "review_result")
+        assert result is not None
+        assert result["result"] == "PASS"
+        assert result["score"] == 95
+
+    def test_get_nonexistent(self, tmp_cache):
+        """不存在的 key 返回 None"""
+        result = tmp_cache.get("nonexistent", "review_result")
+        assert result is None
+
+    def test_get_expired(self, tmp_cache):
+        """过期的条目返回 None"""
+        tmp_cache.set("expired_key", {"data": "old"}, "review_result", ttl=-1)
+        result = tmp_cache.get("expired_key", "review_result")
+        assert result is None
+
+    def test_delete(self, tmp_cache):
+        """删除后无法获取"""
+        tmp_cache.set("del_key", {"data": "to_delete"}, "review_result")
+        tmp_cache.delete("del_key")
+        result = tmp_cache.get("del_key", "review_result")
+        assert result is None
+
+    def test_delete_by_type(self, tmp_cache):
+        """按类型删除"""
+        tmp_cache.set("k1", {"data": 1}, "type_a")
+        tmp_cache.set("k2", {"data": 2}, "type_a")
+        tmp_cache.set("k3", {"data": 3}, "type_b")
+        deleted = tmp_cache.delete_by_type("type_a")
+        assert deleted == 2
+        assert tmp_cache.get("k1", "type_a") is None
+        assert tmp_cache.get("k3", "type_b") is not None
+
+    def test_clear(self, tmp_cache):
+        """清空所有缓存"""
+        tmp_cache.set("k1", {"data": 1}, "type_a")
+        tmp_cache.set("k2", {"data": 2}, "type_b")
+        tmp_cache.clear()
+        assert tmp_cache.get("k1", "type_a") is None
+        assert tmp_cache.get("k2", "type_b") is None
+
+    def test_stats(self, tmp_cache):
+        """统计信息正确"""
+        tmp_cache.set("k1", {"data": 1}, "type_a")
+        tmp_cache.set("k2", {"data": 2}, "type_a")
+        stats = tmp_cache.stats()
+        assert stats["total"] == 2
+        assert stats["active"] == 2
+        assert stats["by_type"]["type_a"] == 2
+
+    def test_get_or_compute_hit(self, tmp_cache):
+        """缓存命中时不执行计算函数"""
+        tmp_cache.set("compute_key", {"result": "cached"}, "review_result")
+        compute_called = []
+
+        def compute():
+            compute_called.append(True)
+            return {"result": "fresh"}
+
+        result = tmp_cache.get_or_compute("compute_key", compute, "review_result")
+        assert result["result"] == "cached"
+        assert len(compute_called) == 0
+
+    def test_get_or_compute_miss(self, tmp_cache):
+        """缓存未命中时执行计算函数并缓存"""
+        compute_called = []
+
+        def compute():
+            compute_called.append(True)
+            return {"result": "fresh"}
+
+        result = tmp_cache.get_or_compute("miss_key", compute, "review_result")
+        assert result["result"] == "fresh"
+        assert len(compute_called) == 1
+        # 二次访问命中缓存
+        result2 = tmp_cache.get("miss_key", "review_result")
+        assert result2["result"] == "fresh"
+
+    def test_make_cache_key(self):
+        """缓存键生成格式正确"""
+        key = make_cache_key("abc123", "GB50016", "civil")
+        assert key == "abc123:GB50016:civil"
+
+    def test_make_drawing_cache_key(self):
+        """图纸缓存键生成格式正确"""
+        key = make_drawing_cache_key("abc123")
+        assert key == "drawing:abc123"
+
+    def test_make_semantic_cache_key(self):
+        """语义分析缓存键生成格式正确"""
+        key = make_semantic_cache_key("def456")
+        assert key == "semantic:def456"
+
+    def test_type_isolation(self, tmp_cache):
+        """不同类型的缓存使用不同 key 互不干扰"""
+        tmp_cache.set("key_a", {"type": "drawing"}, "drawing_parse")
+        tmp_cache.set("key_b", {"type": "review"}, "review_result")
+        d = tmp_cache.get("key_a", "drawing_parse")
+        r = tmp_cache.get("key_b", "review_result")
+        assert d["type"] == "drawing"
+        assert r["type"] == "review"
 
 
 if __name__ == "__main__":

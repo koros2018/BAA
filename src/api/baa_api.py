@@ -56,7 +56,11 @@ import hashlib
 _tasks = {}     # task_id -> {status, result, created_at, webhook_url, ...}
 _webhooks = {}  # webhook_id -> {url, events, active, ...}
 
-# 审查结果缓存：file_hash -> response_data
+# 审查结果缓存：持久化 SQLite 缓存（替代内存缓存）
+from src.baa_engine.cache import get_cache, make_cache_key, PersistentCache
+_persistent_cache = get_cache()
+
+# 保留内存缓存用于快速访问（二级缓存：内存→持久化）
 _review_cache: Dict[str, dict] = {}
 _REVIEW_CACHE_MAX = 100
 
@@ -813,12 +817,18 @@ async def review(
 
     # ── 缓存检查：相同文件内容+参数秒级返回 ──────────────────
     file_hash = hashlib.sha256(content).hexdigest()[:32]
-    cache_key = f"{file_hash}:{standard}:{building_type}"
+    cache_key = make_cache_key(file_hash, standard, building_type)
+    # 先查内存缓存（最快）
     cached = _review_cache.get(cache_key)
     if cached is not None:
-        # 更新 file_id 以支持后续 PDF 导出
         cached["file_id"] = file_id
         return cached
+    # 再查持久化缓存（服务重启后恢复）
+    persistent = _persistent_cache.get(cache_key, "review_result")
+    if persistent is not None:
+        _review_cache[cache_key] = persistent
+        persistent["file_id"] = file_id
+        return persistent
 
     start = time.time()
     loop = asyncio.get_event_loop()
@@ -979,13 +989,15 @@ async def review(
             for e in entities  # 循环
         ]
 
-    # ── 写入缓存 ──────────────────────────────────────────
+    # ── 写入缓存（内存 + 持久化） ──────────────────────────
     if file_hash:
-        cache_key = f"{file_hash}:{standard}:{building_type}"
+        cache_key = make_cache_key(file_hash, standard, building_type)
         if len(_review_cache) >= _REVIEW_CACHE_MAX:
             old_key = next(iter(_review_cache))
             del _review_cache[old_key]
         _review_cache[cache_key] = response_data
+        # 异步写入持久化缓存（不阻塞响应）
+        _persistent_cache.set(cache_key, response_data, "review_result")
 
     return response_data
 
