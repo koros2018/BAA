@@ -1810,5 +1810,98 @@ class TestFloorDetection:
         assert len(result) == 3
 
 
+# ═══════════════════════════════════════════════════════════
+# Level 13: P36 审查结果评分与置信度测试
+# ═══════════════════════════════════════════════════════════
+
+class TestReviewScoring:
+    """FuncResult.confidence 和综合评分测试"""
+
+    def test_confidence_perfect(self):
+        """规则解析实体 + 完整属性 → 置信度 1.0"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5, "height": 3.0, "floor": "F1"}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence == 1.0
+
+    def test_confidence_yolo_detected(self):
+        """YOLO 检测的实体 → 置信度降权"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5, "detection_source": "yolo", "floor": "F1"}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence < 1.0
+        assert result.confidence == 0.7  # YOLO 降权 0.7
+
+    def test_confidence_text_detected(self):
+        """TEXT 推断的实体 → 置信度降权"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5, "detection_source": "text", "floor": "F1"}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence == 0.8
+
+    def test_confidence_missing_properties(self):
+        """缺少关键属性 → 置信度降低"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5, "height": None, "area": None}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence < 1.0  # 有缺失属性
+
+    def test_confidence_threshold_edge(self):
+        """结果极度接近阈值 → 置信度降权"""
+        func = FuncRegistry().get("DIM-001")
+        # DIM-001 threshold=1.2, actual=1.19 → ratio 0.008 < 0.05
+        entity = {"type": "staircase", "properties": {"width": 1.19}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence < 1.0
+
+    def test_confidence_no_floor_property(self):
+        """无 floor 属性 → 置信度略微降低"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence == 0.95  # 0.95 (floor 缺失)
+
+    def test_score_perfect(self):
+        """无违规 → 100 分"""
+        score = 100.0
+        assert score == 100.0
+
+    def test_score_with_violations(self):
+        """有违规 → 扣分"""
+        details = [
+            {"severity": "critical"},
+            {"severity": "major"},
+            {"severity": "minor"},
+        ]
+        violation_deduction = len(details) * 5.0
+        critical_count = sum(1 for d in details if d.get("severity") == "critical")
+        major_count = sum(1 for d in details if d.get("severity") == "major")
+        score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)
+        assert score == 100.0 - 15.0 - 10.0 - 3.0  # = 72
+        assert score == 72.0
+
+    def test_score_low_floor(self):
+        """大量违规 → 分数低但不下于 0"""
+        details = [{"severity": "critical"} for _ in range(20)]
+        violation_deduction = len(details) * 5.0
+        critical_count = sum(1 for d in details if d.get("severity") == "critical")
+        score = max(0, 100.0 - violation_deduction - critical_count * 10)
+        assert score == 0.0
+
+    def test_confidence_floor_property_present(self):
+        """有 floor 属性 → 不降权"""
+        func = FuncRegistry().get("DIM-001")
+        entity = {"type": "staircase", "properties": {"width": 1.5, "floor": "F1"}}
+        result = func.execute(entity)
+        assert result is not None
+        assert result.confidence == 1.0
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__, "-k", "not slow"])

@@ -946,6 +946,19 @@ async def review(
     entity_types = Counter(e["type"] for e in entities)        # 各类型实体数量
     violation_count = Counter(d["clause_id"] for d in details)  # 各规范条款违规数
 
+    # ── 计算综合评分（P36） ────────────────────────────────
+    total_score = 100.0
+    if len(entities) > 0 and len(details) > 0:
+        violation_deduction = len(details) * 5.0
+        critical_count = sum(1 for d in details if d.get("severity") == "critical")
+        major_count = sum(1 for d in details if d.get("severity") == "major")
+        total_score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)
+
+    avg_confidence = 1.0
+    confidences = [d.get("confidence", 1.0) for d in details if "confidence" in d]
+    if confidences:
+        avg_confidence = sum(confidences) / len(confidences)
+
     response_data = {
         "status": "success",  # 字段
         "summary": {  # 字段
@@ -954,6 +967,8 @@ async def review(
             "total_checks": len(entities) * len(registry_funcs),  # 字段
             "violations": len(details),  # 字段
             "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
+            "score": total_score,  # 字段
+            "avg_confidence": round(avg_confidence, 2),  # 字段
         },
         "details": details[:100],  # 最多返回100条详情
         "file_id": file_id,  # 字段

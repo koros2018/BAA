@@ -51,6 +51,7 @@ class FuncResult:
     entity_id: str  # 操作
     entity_type: str  # 操作
     params: Dict[str, Any] = field(default_factory=dict)
+    confidence: float = 1.0  # 置信度 0.0~1.0，P36新增
 
 
 @dataclass
@@ -210,7 +211,65 @@ class AtomicFunction:
                 "entity_layer": entity.get("layer", ""),
                 "passed": passed,
             },
+            confidence=self._calculate_confidence(entity, actual),
         )
+
+    def _calculate_confidence(self, entity: Dict[str, Any], actual: float) -> float:
+        """计算审查结果的置信度（P36）
+
+        基于以下因素综合评分：
+        1. 实体识别置信度（YOLO vs 规则解析）
+        2. 属性完整度（关键属性是否缺失）
+        3. 偏差幅度（与阈值越近越可疑）
+
+        返回: 0.0~1.0
+        """
+        props = entity.get("properties", {})
+        confidence = 1.0
+
+        # 1. 检测来源降权
+        detection_source = props.get("detection_source", "")
+        if detection_source == "yolo":
+            confidence *= 0.7  # YOLO 检测的实体置信度较低
+        elif detection_source == "text":
+            confidence *= 0.8  # TEXT 推断的实体
+
+        # 2. 属性完整度（按函数类别智能判断必需属性）
+        missing_keys = 0
+        if self.category == FuncCategory.DIMENSION:
+            required_keys = ["width"]
+        elif self.category == FuncCategory.AREA:
+            required_keys = ["area"]
+        elif self.category == FuncCategory.COUNT:
+            required_keys = ["count"]
+        elif self.category == FuncCategory.ATTR:
+            required_keys = ["fire_rating"]
+        elif self.category == FuncCategory.EVAC:
+            required_keys = ["has_evacuation_route", "evacuation_path_length"]
+        elif self.category == FuncCategory.EXIST:
+            required_keys = []
+        else:
+            required_keys = []
+        for key in required_keys:
+            val = props.get(key, None)
+            if val is None or val == 0:
+                missing_keys += 1
+        if missing_keys > 0:
+            confidence *= max(0.5, 1.0 - missing_keys * 0.1)
+
+        # 3. 偏差幅度（结果越接近阈值越不确定）
+        if self.threshold > 0 and actual > 0:
+            ratio = abs(actual - self.threshold) / max(self.threshold, 1e-6)
+            if ratio < 0.05:
+                confidence *= 0.85  # 极度接近阈值
+            elif ratio < 0.1:
+                confidence *= 0.95  # 接近阈值
+
+        # 4. floor 属性缺失降权
+        if "floor" not in props:
+            confidence *= 0.95
+
+        return round(max(0.1, min(1.0, confidence)), 2)
 
     def _extract_value(self, entity: Dict[str, Any]) -> float:
         """从实体中提取判定所需的值
