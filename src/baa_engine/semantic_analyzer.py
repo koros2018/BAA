@@ -84,7 +84,45 @@ LAYER_RULES = {  # assign
     "焊缝": "other",  # 焊缝标记
     "水池": "other",  # 水池边线
     "外部参照": "other",  # 外部参照
+    # ── 电气设备图层（新增） ──
+    "电设备": "equipment",  # 电气设备
+    "电气": "equipment",  # 电气设备
+    "配电": "equipment",  # 配电设备
+    "配电箱": "equipment",  # 配电箱
+    "动力": "equipment",  # 动力设备
+    "弱电": "equipment",  # 弱电设备
+    "照明": "equipment",  # 照明设备
+    "应急照明": "equipment",  # 应急照明设备
+    # ── 消防设施图层（新增） ──
+    "消防": "fire_equipment",  # 消防设备
+    "消火栓": "fire_hydrant",  # 消火栓设备
+    "灭火器": "fire_extinguisher",  # 灭火器设备
+    "喷淋": "sprinkler",  # 喷淋设备
+    "烟感": "smoke_detector",  # 烟感探测器
+    "温感": "smoke_detector",  # 温感探测器
+    "报警": "alarm_device",  # 报警设备
+    "广播": "alarm_device",  # 广播设备
+    "疏散指示": "alarm_device",  # 疏散指示设备
     "钢夹层": "other",  # 钢结构夹层
+    # ── 电气设备图层（新增） ──
+    "电设备": "equipment",  # 电气设备
+    "电气": "equipment",  # 电气设备
+    "配电": "equipment",  # 配电设备
+    "配电箱": "equipment",  # 配电箱
+    "动力": "equipment",  # 动力设备
+    "弱电": "equipment",  # 弱电设备
+    "照明": "equipment",  # 照明设备
+    "应急照明": "equipment",  # 应急照明设备
+    # ── 消防设施图层（新增） ──
+    "消防": "fire_equipment",  # 消防设备
+    "消火栓": "fire_hydrant",  # 消火栓设备
+    "灭火器": "fire_extinguisher",  # 灭火器设备
+    "喷淋": "sprinkler",  # 喷淋设备
+    "烟感": "smoke_detector",  # 烟感探测器
+    "温感": "smoke_detector",  # 温感探测器
+    "报警": "alarm_device",  # 报警设备
+    "广播": "alarm_device",  # 广播设备
+    "疏散指示": "alarm_device",  # 疏散指示设备
 }  # code
 
 # 短关键字（单字母/2字母）使用全词匹配
