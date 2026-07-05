@@ -468,9 +468,21 @@ class AtomicFunction:
             if area and area > 5000:
                 return None
             return 0.0 if props.get("evacuation_too_far", False) else 1.0
-
-        # 兜底：直接用value或0
-        return props.get("value", 0.0)
+        if func_id == "EVAC-004":  # 疏散路径瓶颈判定
+            if "evacuation_connected" not in props:
+                return None  # 无连通性分析结果，跳过判定
+            # 大面积 room 跳过
+            area = props.get("area", 0.0)
+            if area and area > 5000:
+                return None
+            # 连通性 = 1.0（连通），瓶颈 = 0.0（有瓶颈）
+            connected = props.get("evacuation_connected", False)
+            bottleneck = props.get("evacuation_bottleneck", False)
+            if not connected:
+                return 0.0  # 不连通
+            if bottleneck:
+                return 0.0  # 有瓶颈
+            return 1.0  # 连通且无瓶颈
 
 
 # ── 函数注册表 ────────────────────────────────────────────
@@ -597,6 +609,10 @@ class FuncRegistry:
         AtomicFunction("EVAC-003", "疏散路径合规性判定", FuncCategory.EVAC,
                        "GB50016-5.5.17", "房间到安全出口的疏散路径应满足规范要求", "==", 1.0, "合规/违规",
                        target_entities=["room", "space", "floor"]),
+        # P33: 疏散路径连通性验证
+        AtomicFunction("EVAC-004", "疏散路径瓶颈判定", FuncCategory.EVAC,
+                       "GB50016-5.5.18", "疏散路径上的走廊净宽不应小于1.2m，门净宽不应小于0.8m", "==", 1.0, "通畅/瓶颈",
+                       target_entities=["room", "space", "floor"]),
     ]
 
     def __init__(self, timeout: int = 30):
@@ -682,4 +698,4 @@ class FuncRegistry:
     @property
     def capacity(self) -> int:
         """执行capacity功能"""
-        return 33  # 框架总容量：30 INITIAL + 3 EVAC
+        return 34  # 框架总容量：30 INITIAL + 4 EVAC

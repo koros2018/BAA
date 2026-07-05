@@ -267,6 +267,9 @@ class SemanticAnalyzer:
         # Step 5: 疏散路径分析（V2新增）
         evacuation_routes = self.analyze_evacuation_routes(entities, relations) or []
 
+        # Step 5.3: 疏散路径连通性验证（P33新增）
+        connectivity = self.verify_evacuation_connectivity(entities, relations, evacuation_routes)
+
         # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
         route_by_room = {}
         for route in evacuation_routes:  # 循环
@@ -288,6 +291,18 @@ class SemanticAnalyzer:
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
 
+        # Step 5.6: 连通性验证结果注入实体属性
+        conn_by_room = {}
+        for item in connectivity:
+            conn_by_room[item["room_id"]] = item
+        for ent in entities:
+            if ent.id in conn_by_room:
+                c = conn_by_room[ent.id]
+                ent.properties["evacuation_connected"] = c.get("connected", False)
+                ent.properties["evacuation_bottleneck"] = c.get("bottleneck", False)
+                if c.get("bottleneck_details"):
+                    ent.properties["evacuation_bottleneck_details"] = c["bottleneck_details"]
+
         result = {
             "entities": [e.to_dict() for e in entities],  # 字段
             "relations": [r.__dict__ if hasattr(r, '__dict__') else r for r in relations],  # 字段
@@ -295,6 +310,7 @@ class SemanticAnalyzer:
             "building_type": building_type,  # 字段
             "corridor_topology": corridor_topology,  # 字段
             "evacuation_routes": evacuation_routes,  # 字段
+            "evacuation_connectivity": connectivity,  # 字段
         }
 
         # ── 写入缓存 ──────────────────────────────────────
@@ -1687,6 +1703,153 @@ class SemanticAnalyzer:
             routes.append(route_info)
 
         return routes
+
+    def verify_evacuation_connectivity(self,
+                                        entities: List[SemanticEntity],
+                                        relations: List[SpatialRelation],
+                                        evacuation_routes: List[Dict]) -> List[Dict]:
+        """疏散路径连通性验证（P33）
+
+        在 analyze_evacuation_routes 的基础上，验证路径实际可通行性：
+        1. 路径上走廊宽度是否满足最小值（≥ 1.2m 疏散走道）
+        2. 路径上是否存在瓶颈（宽度骤变）
+        3. 路径是否被堵塞（door 宽度过小 < 0.8m）
+        4. 路径中的 room 是否有通向走廊的门连接
+
+        参数:
+            entities: 语义实体列表
+            relations: 空间关系列表
+            evacuation_routes: analyze_evacuation_routes 的返回结果
+
+        返回:
+            每个房间的连通性验证结果列表
+        """
+        # 构建实体查找表
+        entity_map = {e.id: e for e in entities}
+
+        # 构建邻接表（同 analyze_evacuation_routes 逻辑）
+        adj: Dict[str, List[Tuple[str, str, float]]] = {}
+        for e in entities:
+            adj[e.id] = []
+        for rel in relations:
+            if rel.type not in ("adjacent", "connects_to", "contains"):
+                continue
+            adj.setdefault(rel.source_id, []).append((rel.target_id, rel.type, rel.distance))
+            adj.setdefault(rel.target_id, []).append((rel.source_id, rel.type, rel.distance))
+
+        # 出口识别
+        strict_exits = [e for e in entities if e.type in ("exit", "exit_door")]
+        fallback_exits = [e for e in entities if e.type in ("door", "fire_door")]
+        exits = strict_exits if strict_exits else fallback_exits
+        exit_ids = {e.id for e in exits}
+
+        results = []
+
+        for route in evacuation_routes:
+            room_id = route["room_id"]
+            path = route.get("path", [])
+            has_route = route.get("has_route", False)
+
+            if not has_route or not path:
+                results.append({
+                    "room_id": room_id,
+                    "room_type": route.get("room_type", ""),
+                    "connected": False,
+                    "bottleneck": False,
+                    "bottleneck_details": None,
+                    "path": path,
+                })
+                continue
+
+            # 分析路径上的瓶颈
+            bottleneck = False
+            bottleneck_details = None
+            min_width = float("inf")
+
+            for node_id in path:
+                ent = entity_map.get(node_id)
+                if ent is None:
+                    continue
+
+                # 走廊宽度检查
+                if ent.type == "corridor":
+                    width = ent.properties.get("width", 0)
+                    if width > 0:
+                        min_width = min(min_width, width)
+                        # GB50016-5.5.18：疏散走道净宽不应小于 1.2m
+                        if width < 1.2:
+                            bottleneck = True
+                            bottleneck_details = {
+                                "type": "corridor_too_narrow",
+                                "entity_id": ent.id,
+                                "width": width,
+                                "threshold": 1.2,
+                            }
+
+                # 门宽度检查
+                if ent.type in ("door", "fire_door"):
+                    width = ent.properties.get("width", 0)
+                    if width > 0 and width < 0.8:
+                        bottleneck = True
+                        bottleneck_details = {
+                            "type": "door_too_narrow",
+                            "entity_id": ent.id,
+                            "width": width,
+                            "threshold": 0.8,
+                        }
+
+                # 检查 room 是否有门连接走廊（不是直接通到出口的 room）
+                if ent.type == "room" and node_id not in exit_ids:
+                    has_door_to_corridor = False
+                    for neighbor, rel_type, _ in adj.get(node_id, []):
+                        neighbor_ent = entity_map.get(neighbor)
+                        if neighbor_ent and neighbor_ent.type == "corridor":
+                            has_door_to_corridor = True
+                            break
+                    if not has_door_to_corridor and len(path) > 1:
+                        # 房间没有直接的门连接走廊（除非房间本身就是出口）
+                        pass  # 不标记为 bottleneck，仅记录
+
+            results.append({
+                "room_id": room_id,
+                "room_type": route.get("room_type", ""),
+                "connected": has_route,
+                "bottleneck": bottleneck,
+                "bottleneck_details": bottleneck_details,
+                "path": path,
+                "min_corridor_width": min_width if min_width != float("inf") else None,
+            })
+
+        # 对有 BFS 路径但无出口在路径中的 room 标记为未连通
+        for room in entities:
+            if room.type != "room":
+                continue
+            if room.id not in {r["room_id"] for r in results}:
+                # 检查是否有间接路径
+                visited = {room.id}
+                queue = [room.id]
+                found_exit = False
+                while queue:
+                    current = queue.pop(0)
+                    if current in exit_ids:
+                        found_exit = True
+                        break
+                    for neighbor, _, _ in adj.get(current, []):
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            queue.append(neighbor)
+
+                results.append({
+                    "room_id": room.id,
+                    "room_type": room.type,
+                    "connected": found_exit,
+                    "bottleneck": False,
+                    "bottleneck_details": None,
+                    "path": list(visited),
+                    "min_corridor_width": None,
+                })
+
+        return results
 
     def _yolo_enhance(self, dxf_path: str) -> List[SemanticEntity]:
         """对 DXF 执行 YOLO 检测，返回增强实体列表

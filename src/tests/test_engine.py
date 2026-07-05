@@ -20,7 +20,7 @@ from src.baa_engine.atomic_functions import (
 from src.baa_engine.spec_repository import SpecRepository
 from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.attribution_analyzer import AttributionAnalyzer
-from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+from src.baa_engine.semantic_analyzer import SemanticAnalyzer, SemanticEntity, SpatialRelation
 from src.baa_engine.drawing_parser import RawPrimitive
 from src.baa_engine.cache import PersistentCache, make_cache_key, make_drawing_cache_key, make_semantic_cache_key
 
@@ -32,10 +32,10 @@ from src.baa_engine.cache import PersistentCache, make_cache_key, make_drawing_c
 class TestFuncRegistry:
 
     def test_initial_count(self):
-        """注册表初始数量：30 INITIAL + 3 EVAC"""
+        """注册表初始数量：30 INITIAL + 4 EVAC"""
         registry = FuncRegistry()
-        assert registry.count == 33  # 断言
-        assert registry.capacity == 33  # 断言
+        assert registry.count == 34  # 断言
+        assert registry.capacity == 34  # 断言
 
     def test_get_by_id(self):
         registry = FuncRegistry()
@@ -48,7 +48,7 @@ class TestFuncRegistry:
         """列表包含所有已注册函数"""
         registry = FuncRegistry()
         all_funcs = registry.list_all()
-        assert len(all_funcs) == 33
+        assert len(all_funcs) == 34
         categories = set(f.category for f in all_funcs)
         for cat in [FuncCategory.DIMENSION, FuncCategory.DISTANCE,  # 循环
                      FuncCategory.COUNT, FuncCategory.ATTR,  # 解包
@@ -1321,6 +1321,175 @@ class TestPersistentCache:
         r = tmp_cache.get("key_b", "review_result")
         assert d["type"] == "drawing"
         assert r["type"] == "review"
+
+
+# ═══════════════════════════════════════════════════════════
+# Level 10: P33 疏散路径连通性验证测试
+# ═══════════════════════════════════════════════════════════
+
+class TestEvacuationConnectivity:
+    """verify_evacuation_connectivity() 和 EVAC-004 测试"""
+
+    def test_verify_connectivity_room_with_exit(self):
+        """room 通过走廊连接到 exit → 连通"""
+        analyzer = SemanticAnalyzer()
+        room = SemanticEntity("ROOM_001", "room", {"x": 0, "y": 0, "width": 10, "height": 10},
+                              "WALL", properties={"area": 100.0})
+        corridor = SemanticEntity("CORR_001", "corridor", {"x": 0, "y": 10, "width": 10, "height": 2},
+                                  "WALL", properties={"width": 2.0, "length": 10.0})
+        exit_door = SemanticEntity("EXIT_001", "exit", {"x": 0, "y": 12, "width": 2, "height": 2},
+                                    "DOOR", properties={"width": 1.5})
+        entities = [room, corridor, exit_door]
+        relations = [
+            SpatialRelation("ROOM_001", "CORR_001", "adjacent", 0.5),
+            SpatialRelation("CORR_001", "EXIT_001", "connects_to", 1.0),
+        ]
+        routes = [{
+            "room_id": "ROOM_001",
+            "room_type": "room",
+            "has_route": True,
+            "path_length": 12.0,
+            "path": ["ROOM_001", "CORR_001", "EXIT_001"],
+            "exceeds_max_distance": False,
+        }]
+        results = analyzer.verify_evacuation_connectivity(entities, relations, routes)
+        assert len(results) == 1
+        assert results[0]["connected"] is True
+        assert results[0]["bottleneck"] is False
+        assert results[0]["min_corridor_width"] == 2.0
+
+    def test_verify_connectivity_corridor_too_narrow(self):
+        """走廊宽度 < 1.2m → 标记瓶颈"""
+        analyzer = SemanticAnalyzer()
+        room = SemanticEntity("ROOM_001", "room", {"x": 0, "y": 0, "width": 10, "height": 10},
+                              "WALL", properties={"area": 100.0})
+        corridor = SemanticEntity("CORR_001", "corridor", {"x": 0, "y": 10, "width": 10, "height": 1},
+                                  "WALL", properties={"width": 1.0, "length": 10.0})
+        exit_door = SemanticEntity("EXIT_001", "exit", {"x": 0, "y": 11, "width": 2, "height": 2},
+                                    "DOOR", properties={"width": 1.5})
+        entities = [room, corridor, exit_door]
+        relations = [
+            SpatialRelation("ROOM_001", "CORR_001", "adjacent", 0.5),
+            SpatialRelation("CORR_001", "EXIT_001", "connects_to", 1.0),
+        ]
+        routes = [{
+            "room_id": "ROOM_001",
+            "room_type": "room",
+            "has_route": True,
+            "path_length": 11.0,
+            "path": ["ROOM_001", "CORR_001", "EXIT_001"],
+            "exceeds_max_distance": False,
+        }]
+        results = analyzer.verify_evacuation_connectivity(entities, relations, routes)
+        assert len(results) == 1
+        assert results[0]["connected"] is True
+        assert results[0]["bottleneck"] is True
+        assert results[0]["bottleneck_details"]["type"] == "corridor_too_narrow"
+        assert results[0]["bottleneck_details"]["width"] == 1.0
+
+    def test_verify_connectivity_no_route(self):
+        """无路径 → 未连通"""
+        analyzer = SemanticAnalyzer()
+        room = SemanticEntity("ROOM_001", "room", {"x": 0, "y": 0, "width": 10, "height": 10},
+                              "WALL", properties={"area": 100.0})
+        entities = [room]
+        routes = [{
+            "room_id": "ROOM_001",
+            "room_type": "room",
+            "has_route": False,
+            "path_length": None,
+            "path": [],
+            "exceeds_max_distance": True,
+        }]
+        results = analyzer.verify_evacuation_connectivity(entities, [], routes)
+        assert len(results) == 1
+        assert results[0]["connected"] is False
+
+    def test_evac004_pass(self):
+        """EVAC-004 连通且无瓶颈 → PASS"""
+        registry = FuncRegistry()
+        func = registry.get("EVAC-004")
+        entity = {
+            "type": "room",
+            "properties": {
+                "evacuation_connected": True,
+                "evacuation_bottleneck": False,
+                "area": 100.0,
+            }
+        }
+        result = func.execute(entity)
+        assert result is not None
+        assert result.result == "PASS"
+
+    def test_evac004_not_connected(self):
+        """EVAC-004 不连通 → FAIL"""
+        registry = FuncRegistry()
+        func = registry.get("EVAC-004")
+        entity = {
+            "type": "room",
+            "properties": {
+                "evacuation_connected": False,
+                "evacuation_bottleneck": False,
+                "area": 100.0,
+            }
+        }
+        result = func.execute(entity)
+        assert result is not None
+        assert result.result == "FAIL"
+
+    def test_evac004_has_bottleneck(self):
+        """EVAC-004 有瓶颈 → FAIL"""
+        registry = FuncRegistry()
+        func = registry.get("EVAC-004")
+        entity = {
+            "type": "room",
+            "properties": {
+                "evacuation_connected": True,
+                "evacuation_bottleneck": True,
+                "area": 100.0,
+            }
+        }
+        result = func.execute(entity)
+        assert result is not None
+        assert result.result == "FAIL"
+
+    def test_evac004_missing_props(self):
+        """EVAC-004 无连通性属性 → 跳过（None）"""
+        registry = FuncRegistry()
+        func = registry.get("EVAC-004")
+        entity = {"type": "room", "properties": {"area": 100.0}}
+        result = func.execute(entity)
+        assert result is None
+
+    def test_evac004_large_area_skip(self):
+        """EVAC-004 大面积 room > 5000m² → 跳过"""
+        registry = FuncRegistry()
+        func = registry.get("EVAC-004")
+        entity = {
+            "type": "room",
+            "properties": {
+                "evacuation_connected": False,
+                "area": 6000.0,
+            }
+        }
+        result = func.execute(entity)
+        assert result is None
+
+    def test_verify_connectivity_room_not_in_routes(self):
+        """不在路由表中的 room 应通过 BFS 检查连通性"""
+        analyzer = SemanticAnalyzer()
+        room = SemanticEntity("ROOM_001", "room", {"x": 0, "y": 0, "width": 10, "height": 10},
+                              "WALL", properties={"area": 100.0})
+        exit_ent = SemanticEntity("EXIT_001", "exit", {"x": 5, "y": 5, "width": 2, "height": 2},
+                                   "DOOR", properties={"width": 1.5})
+        entities = [room, exit_ent]
+        relations = [
+            SpatialRelation("ROOM_001", "EXIT_001", "connects_to", 1.0),
+        ]
+        results = analyzer.verify_evacuation_connectivity(entities, relations, [])
+        assert len(results) == 1
+        assert results[0]["room_id"] == "ROOM_001"
+        assert results[0]["connected"] is True
 
 
 if __name__ == "__main__":
