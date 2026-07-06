@@ -1,0 +1,45 @@
+name: Lint & Quality Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: "Lint & Quality"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8 pylint
+
+      - name: Black check
+        run: |
+          black --check --line-length=100 src/
+
+      - name: Flake8
+        run: |
+          flake8 src/ \
+            --max-line-length=100 \
+            --ignore=E203,W503 \
+            --per-file-ignores="__init__.py:F401,conftest.py:F401"
+
+      - name: Pylint
+        run: |
+          pylint src/ \
+            --max-line-length=100 \
+            --disable=C0114,C0115,C0116,R0903,R0913,R0914,R0917,W0621,W0622 \
+            --output-format=colorized \
+            --jobs=1
