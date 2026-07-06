@@ -998,6 +998,51 @@ class FuncRegistry:  # class definition
             target_entities=["room", "space", "floor"],
             depends_on=["EVAC-001"],  # 依赖：路径存在才能测瓶颈
         ),  # assignment
+        # ===== P26 防火规范扩展（V2.5新增，4个）=====
+        AtomicFunction(
+            "LIGHT-002",
+            "楼梯间应急照明照度判定",
+            FuncCategory.DIMENSION,  # code
+            "GB50016-10.3.2",
+            "楼梯间、前室等疏散照明照度不应低于5.0lx",
+            ">=",
+            5.0,
+            "lx",  # assignment
+            target_entities=["staircase", "stair", "lobby", "corridor"],
+        ),  # assignment
+        AtomicFunction(
+            "DIM-011",
+            "消防车道净高判定",
+            FuncCategory.DIMENSION,  # code
+            "GB50016-7.1.8",
+            "消防车道净高不应小于4.0m",
+            ">=",
+            4.0,
+            "m",  # assignment
+            target_entities=["fire_lane", "road", "driveway"],
+        ),  # assignment
+        AtomicFunction(
+            "DIM-012",
+            "避难走道净宽判定",
+            FuncCategory.DIMENSION,  # code
+            "GB50016-6.4.14",
+            "避难走道净宽不应小于任一防火分区疏散总净宽",
+            ">=",
+            1.0,
+            "m",  # assignment
+            target_entities=["exit_passageway", "passage", "corridor"],
+        ),  # assignment
+        AtomicFunction(
+            "DIST-004",
+            "救援窗口间距判定",
+            FuncCategory.DISTANCE,  # code
+            "GB50016-7.2.5",
+            "消防救援窗口间距不应大于20m",
+            "<=",
+            20.0,
+            "m",  # assignment
+            target_entities=["rescue_window", "window"],
+        ),  # assignment
     ]  # code
 
     def __init__(self, timeout: int = 30):  # function: def __init__(self, timeout: int = 30):
@@ -1128,7 +1173,14 @@ class FuncRegistry:  # class definition
                     },  # code
                 )  # code
 
-    def execute_chained(self, func_ids: List[str], entity: Dict[str, Any], results: Optional[Dict[str, FuncResult]] = None) -> Dict[str, FuncResult]:  # function: def execute_chained(self, func_ids: List[str], entity: Dict[str, Any], results: Optional[Dict[str, FuncResult]] = None) -> Dict[str, FuncResult]:
+    def execute_chained(
+        self,
+        func_ids: List[str],
+        entity: Dict[str, Any],
+        results: Optional[Dict[str, FuncResult]] = None,
+    ) -> Dict[
+        str, FuncResult
+    ]:  # function: def execute_chained(self, func_ids: List[str], entity: Dict[str, Any], results: Optional[Dict[str, FuncResult]] = None) -> Dict[str, FuncResult]:
         """按依赖拓扑顺序执行原子函数，结果在函数间共享
 
         核心逻辑：
@@ -1183,4 +1235,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 34  # 框架总容量：30 INITIAL + 4 EVAC
+        return 38  # 框架总容量：34 INITIAL + 4 P26扩展
