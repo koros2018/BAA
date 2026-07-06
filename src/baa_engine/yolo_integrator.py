@@ -55,9 +55,25 @@ WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "cor
 
 
 class YOLODetectionIntegrator:
-    """YOLO 图元检测集成器"""
+    """YOLO 图元检测集成器
+
+    核心职责：
+    1. 加载 YOLOv8 检测模型（ultralytics）
+    2. 对渲染后的图纸图像执行推理
+    3. 将检测结果映射为引擎可消费的实体格式
+    4. 后置规则过滤（filter_yolo_detections）
+
+    使用链路：
+        load_model() → render_and_predict() → detections_to_entities()
+    """
 
     def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):
+        """初始化 YOLO 集成器
+
+        Args:
+            model_path: YOLO 模型权重路径，为 None 时自动查找最新版本
+            device: 推理设备，默认 cpu；预留 "xpu" 用于 Intel Arc GPU
+        """
         self._model = None
         self._model_path = model_path
         self._loaded = False
@@ -106,6 +122,11 @@ class YOLODetectionIntegrator:
             return False
 
     def is_loaded(self) -> bool:
+        """检查 YOLO 模型是否已成功加载
+
+        调用 predict 前应检查此返回值，
+        若为 False 则 predict 会返回空列表。
+        """
         return self._loaded
 
     def predict(self, image_path: str, conf: float = 0.25, iou: float = 0.5) -> List[Dict[str, Any]]:
@@ -384,10 +405,12 @@ class YOLODetectionIntegrator:
 
 
 def _compute_iou(a: Dict, b: Dict) -> float:
-    """计算两个 bbox 的 IoU
+    """计算两个 bbox 的 IoU（交并比）
 
     IoU 用于判断 YOLO 检测框之间的重叠程度，
     后续可用于 NMS 后处理或合并高度重叠的同类型检测框。
+
+    返回值范围 [0, 1]，1 表示完全重合，0 表示无重叠。
     """
     inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))
     inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))
@@ -397,9 +420,10 @@ def _compute_iou(a: Dict, b: Dict) -> float:
 
 
 def _compute_center(bbox: Dict) -> Tuple[float, float]:
-    """计算 bbox 中心点
+    """计算 bbox 中心点坐标
 
     用于距离计算和贴近性校验，比直接用角点更稳定。
+    返回 (cx, cy)。
     """
     return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2
 
@@ -410,6 +434,10 @@ def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: f
     使用向量投影法计算，比点到直线距离更精确：
     当垂足在线段外时，返回点到最近端点的距离。
     用于判断 door/window 中心到墙体的贴近程度。
+
+    参数说明：
+        (px, py): 目标点坐标（如门/窗中心）
+        (x1,y1)-(x2,y2): 线段端点坐标（如墙体线段）
     """
     dx, dy = x2 - x1, y2 - y1
     # 线段退化为点时，直接返回点到点的距离

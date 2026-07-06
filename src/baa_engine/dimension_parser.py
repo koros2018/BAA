@@ -21,12 +21,24 @@ from pathlib import Path
 
 
 class DimensionParser:
-    """尺寸标注解析器"""
+    """尺寸标注解析器
+
+    从 DXF/DWG 图纸中提取 DIMENSION 实体并匹配到附近建筑实体。
+    核心流程：extract → classify → match → inject。
+
+    设计约束：
+    - DIMENSION 是 AutoCAD 中标注尺寸的特殊实体，非几何图元（LINE/CIRCLE）
+    - 一个 DIMENSION 包含 measurement（测量值）、defpoint（定义点）、text_midpoint（文字位置）
+    - 通过 defpoint 方向区分水平/垂直标注，对应实体的 width/height 属性
+    - 单位混乱（mm vs m）是建筑图纸的常见问题，需要双重检查
+    """
 
     # 哪些实体类型需要从 DIMENSION 获取实际尺寸
     # DIMENSIONABLE_TYPES 筛选规则：仅门/窗/走廊/楼梯/房间/墙体/安全出口
     # 需要从 DIMENSION 获取实际尺寸，因为这些实体的宽度/高度
     # 在图纸中通常通过尺寸标注而非几何图元直接给出
+    # 注意：shaft/exit_sign/sprinkler 等设备类实体不在此列，
+    # 因为它们的尺寸由设计规范硬性规定而非图纸标注决定
     DIMENSIONABLE_TYPES = {"door", "window", "fire_door", "fire_window",
                            "corridor", "staircase", "fire_lane", "room",
                            "wall", "exit"}
@@ -34,6 +46,8 @@ class DimensionParser:
     # 尺寸值单位的猜测（mm 还是 m）
     # 真实 DXF 中 DIMENSION 通常是 mm 单位
     # 合成 DXF 中可能是 mm 或 m
+    # 单位判断策略在 match_to_entities 中实现：
+    # 原始值 > 100 且 /1000 后落在 0.3~30m 范围时，推测为 mm→m 转换
 
     def extract_dimensions(self, file_path: str) -> List[Dict]:
         """从图纸中提取 DIMENSION 实体"""
@@ -321,7 +335,12 @@ class DimensionParser:
 
     def inject_into_entities(self, dimensions: List[Dict],
                               entities: List[Dict]) -> List[Dict]:
-        """提取 + 分类 + 匹配 + 注入 一键完成"""
+        """一键完成：提取 → 分类 → 匹配 → 注入
+
+        这是 DimensionParser 对外的统一接口，调用方无需关心内部三步流程。
+        注意：classified["other"] 被丢弃，因为方向不明的标注
+        （如角度标注、直径标注）无法确定注入到实体的哪个属性。
+        """
         classified = self.classify_dimensions(dimensions)
         all_dims = classified["width"] + classified["height"] + classified["length"]
         return self.match_to_entities(all_dims, entities)

@@ -672,6 +672,7 @@ class SpecRepository:  # class definition
     """
 
     def __init__(self):  # function: def __init__(self):
+        """初始化规范知识库，加载 GB 50016 和 NFPA 规范条款"""
         self._clauses: Dict[str, Clause] = {}  # key: "{standard}:{clause_id}"
         # 遍历处理
         for clause in INITIAL_CLAUSES:  # 循环
@@ -683,24 +684,51 @@ class SpecRepository:  # class definition
             self._clauses[key] = clause  # assignment
 
     def get(self, clause_id: str, standard: str = "GB 50016-2014") -> Optional[Clause]:  # function: def get(self, clause_id: str, standard: str = "GB 50016-2014
+        """按 (clause_id, standard) 查询规范条款
+
+        Args:
+            clause_id: 规范条款 ID，如 "GB50016-5.5.18"
+            standard: 标准名称，默认为 GB 50016-2014
+        """
         return self._clauses.get(f"{standard}:{clause_id}")  # return: self
 
     def get_by_func(self, func_id: str, standard: str = None) -> List[Clause]:  # function: def get_by_func(self, func_id: str, standard: str = None) ->
+        """通过原子函数 ID 查询所有关联的规范条款
+
+        一条规范可能对应多个原子函数（如 EXIST-002 同时用于
+        管道井封堵和设备井防火隔墙两个条款）。
+        """
         clauses = list(self._clauses.values())  # function call
         if standard:  # check: AND condition
             clauses = [c for c in clauses if c.standard == standard]  # equality check
         return [c for c in clauses if c.func_id == func_id]  # return: list
 
     def list_all(self, standard: str = None) -> List[Clause]:  # function: def list_all(self, standard: str = None) -> List[Clause]:
+        """列出所有规范条款，可选按标准过滤
+
+        Args:
+            standard: 标准名称，为 None 时返回全部标准
+        """
         if standard:  # check: AND condition
             return [c for c in self._clauses.values() if c.standard == standard]  # return: list
         return list(self._clauses.values())  # return
 
     def list_by_level(self, level: str, standard: str = None) -> List[Clause]:  # function: def list_by_level(self, level: str, standard: str = None) ->
+        """按规范等级（L1/L2/L3）过滤条款
+
+        L1：强制性条文，必须遵守
+        L2：推荐性条文，一般应遵守
+        L3：补充条文，视情况执行
+        """
         clauses = self.list_all(standard)  # check all true
         return [c for c in clauses if c.level == level]  # return: list
 
     def list_by_category(self, category: str, standard: str = None) -> List[Clause]:  # function: def list_by_category(self, category: str, standard: str = No
+        """按规范类别过滤条款
+
+        类别包括：fire_safety（防火）、evacuation（疏散）、
+        structure（结构）、lighting（照明）、hvac（暖通）。
+        """
         clauses = self.list_all(standard)  # check all true
         return [c for c in clauses if c.category == category]  # return: list
 
@@ -777,4 +805,5 @@ class SpecRepository:  # class definition
 
     @property  # code
     def count(self) -> int:  # function: def count(self) -> int:
+        """获取当前加载的规范条款总数"""
         return len(self._clauses)  # return: count

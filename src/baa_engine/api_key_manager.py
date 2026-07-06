@@ -114,6 +114,17 @@ def decrypt_raw_key(encrypted: str) -> Optional[str]:  # function: def decrypt_r
 # ── 权限等级 ──────────────────────────────────────────────
 
 class ApiKeyPermission:  # class definition
+    """API 密钥权限等级定义
+
+    四级权限模型：
+    - admin：完全控制（创建/撤销密钥、管理），仅限运维人员
+    - write：可上传图纸、发起审查，用于集成服务
+    - read：可查询订单/结果，用于监控和前端展示
+    - limited：只读+限制调用频率，用于第三方对接
+
+    权限的校验在 check_rate_limit 和 validate_key 中联动实现，
+    admin 通道不触发频率限制。
+    """
     ADMIN = "admin"       # 完全控制（创建/撤销密钥、管理）
     WRITE = "write"       # 可上传图纸、发起审查
     READ = "read"         # 可查询订单/结果
@@ -123,6 +134,7 @@ class ApiKeyPermission:  # class definition
 
     @classmethod  # code
     def validate(cls, perm: str) -> bool:  # function: def validate(cls, perm: str) -> bool:
+        """校验权限等级是否合法"""
         return perm in cls.ALL  # return
 
 
@@ -141,9 +153,30 @@ DEFAULT_STORAGE_PATH = "data/api_keys.json"  # assignment
 # ── 密钥管理器 ──────────────────────────────────────────────
 
 class ApiKeyManager:  # class definition
-    """API 密钥全生命周期管理"""
+    """API 密钥全生命周期管理
+
+    核心功能：
+    - 生成：自动生成安全密钥（secrets.token_urlsafe），AES-GCM 加密存储
+    - 验证：SHA-256 哈希 + hmac 常量时间比较，防止计时攻击
+    - 过期：可配置 TTL，到期自动禁用
+    - 权限：四级权限模型（admin/write/read/limited）
+    - 用量：调用计数、最后使用时间、每分钟频率限制
+    - 持久化：JSON 文件 + 原子写入（先写 tmp 再 rename）
+
+    安全设计：
+    - raw_key 在创建时返回一次，后续仅存储 AES-GCM 加密密文
+    - 存储的 key_hash 是单向哈希，不可逆向还原
+    - 环境变量 BAA_API_KEY 作为 admin 通道，绕过文件存储
+    - 主密钥 BAA_KEY_ENCRYPTION_KEY 用于 AES-256 加密
+    """
 
     def __init__(self, storage_path: str = None, env_key: str = None):  # function: def __init__(self, storage_path: str = None, env_key: str = 
+        """初始化 API 密钥管理器
+
+        Args:
+            storage_path: JSON 持久化文件路径，默认 data/api_keys.json
+            env_key: 环境变量密钥，用于 admin 通道（绕过文件存储）
+        """
         self._lock = threading.Lock()  # function call
         self._storage_path = storage_path or os.getenv(  # assignment
             "BAA_API_KEYS_PATH",  # code
@@ -157,6 +190,11 @@ class ApiKeyManager:  # class definition
     # ── 持久化 ──────────────────────────────────────────
 
     def _ensure_storage_dir(self):  # function: def _ensure_storage_dir(self):
+        """确保持久化存储目录存在
+
+        在首次写入前调用，避免 FileNotFoundError。
+        使用 parents=True 递归创建多级目录。
+        """
         Path(self._storage_path).parent.mkdir(parents=True, exist_ok=True)  # function call
 
     def _hash_key(self, raw_key: str) -> str:  # function: def _hash_key(self, raw_key: str) -> str:
@@ -164,6 +202,12 @@ class ApiKeyManager:  # class definition
         return hashlib.sha256(raw_key.encode()).hexdigest()  # return
 
     def _verify_key(self, raw_key: str, stored_hash: str) -> bool:  # function: def _verify_key(self, raw_key: str, stored_hash: str) -> boo
+        """使用常量时间比较验证 API Key
+
+        使用 hmac.compare_digest 而非 == 的原因是：
+        防止计时攻击（timing attack），避免攻击者通过
+        比较耗时差异逐位猜测密钥哈希值。
+        """
         return hmac.compare_digest(self._hash_key(raw_key), stored_hash)  # return
 
     def load(self):  # function: def load(self):
@@ -575,6 +619,14 @@ _key_manager = None  # assignment
 
 
 def get_key_manager() -> ApiKeyManager:  # function: def get_key_manager() -> ApiKeyManager:
+    """获取全局单例的 ApiKeyManager
+
+    单例模式确保整个应用生命周期内只维护一份密钥状态。
+    初始化时自动执行：
+    1. load() — 从文件加载持久化密钥
+    2. ensure_env_key_exists() — 注册环境变量密钥
+    3. cleanup_expired() — 清理过期密钥
+    """
     global _key_manager  # 全局变量
     # 条件分支：if _key_manager is None
     if _key_manager is None:  # check: value is None
