@@ -41,7 +41,7 @@ jobs:
             --cov-report=xml \
             --cov-report=term \
             --tb=short \
-            --workers=auto \
+            -n auto \
             --asyncio-mode=auto \
             src/tests/
 
