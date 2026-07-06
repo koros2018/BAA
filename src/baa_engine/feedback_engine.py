@@ -16,19 +16,33 @@ from datetime import datetime  # stdlib: ISO datetime formatting
 from typing import Dict, List, Optional, Any, Tuple  # typing: generic type hints
 from collections import Counter  # stdlib: counter for stats
 
-
 # ── 数据模型 ──────────────────────────────────────────────
+
 
 class FeedbackRecord:  # definition: feedback record dataclass
     """单条申诉记录"""
+
     __slots__ = (  # slots: memory-efficient attribute storage
-        "feedback_id", "task_id", "clause_id", "entity_id", "entity_type",  # 申诉数据字段
-        "status", "reason", "description", "created_at", "updated_at",  # 申诉数据字段
-        "reviewed_by", "review_comment", "severity", "original_value",  # 申诉数据字段
+        "feedback_id",
+        "task_id",
+        "clause_id",
+        "entity_id",
+        "entity_type",  # 申诉数据字段
+        "status",
+        "reason",
+        "description",
+        "created_at",
+        "updated_at",  # 申诉数据字段
+        "reviewed_by",
+        "review_comment",
+        "severity",
+        "original_value",  # 申诉数据字段
     )  # slots end
 
     def __init__(self, data: dict):  # constructor: create from dict
-        self.feedback_id = data.get("feedback_id", str(uuid.uuid4())[:8])  # field: unique feedback identifier
+        self.feedback_id = data.get(
+            "feedback_id", str(uuid.uuid4())[:8]
+        )  # field: unique feedback identifier
         self.task_id = data.get("task_id", "")  # field: associated task ID
         self.clause_id = data.get("clause_id", "")  # field: specification clause ID
         self.entity_id = data.get("entity_id", "")  # field: affected entity ID
@@ -36,12 +50,18 @@ class FeedbackRecord:  # definition: feedback record dataclass
         self.status = data.get("status", "pending")  # pending/accepted/rejected
         self.reason = data.get("reason", "")  # field: reason for feedback
         self.description = data.get("description", "")  # field: detailed description
-        self.created_at = data.get("created_at", datetime.now().isoformat())  # field: creation timestamp
-        self.updated_at = data.get("updated_at", datetime.now().isoformat())  # field: last update timestamp
+        self.created_at = data.get(
+            "created_at", datetime.now().isoformat()
+        )  # field: creation timestamp
+        self.updated_at = data.get(
+            "updated_at", datetime.now().isoformat()
+        )  # field: last update timestamp
         self.reviewed_by = data.get("reviewed_by", "")  # field: reviewer identifier
         self.review_comment = data.get("review_comment", "")  # field: reviewer comment
         self.severity = data.get("severity", "")  # field: severity level
-        self.original_value = data.get("original_value", None)  # field: original value before change
+        self.original_value = data.get(
+            "original_value", None
+        )  # field: original value before change
 
     def to_dict(self) -> dict:  # method: serialize record to dict
         return {  # dict: return record as dictionary
@@ -64,6 +84,7 @@ class FeedbackRecord:  # definition: feedback record dataclass
 
 # ── 反馈管理器 ────────────────────────────────────────────
 
+
 class FeedbackManager:  # definition: feedback persistence manager
     """反馈管理：申诉提交、审核、查询、持久化"""
 
@@ -81,7 +102,9 @@ class FeedbackManager:  # definition: feedback persistence manager
                 # 上下文管理器
                 with open(self.data_file, "r", encoding="utf-8") as f:  # 上下文
                     data = json.load(f)  # parse: deserialize JSON array
-                    self._feedbacks = {r["feedback_id"]: r for r in data}  # index: build dict keyed by feedback_id
+                    self._feedbacks = {
+                        r["feedback_id"]: r for r in data
+                    }  # index: build dict keyed by feedback_id
             # 异常处理
             except (json.JSONDecodeError, IOError):  # 捕获异常
                 self._feedbacks = {}  # fallback: empty index on parse failure
@@ -91,7 +114,9 @@ class FeedbackManager:  # definition: feedback persistence manager
         self.data_file.parent.mkdir(parents=True, exist_ok=True)  # ensure: parent directory exists
         # 上下文管理器
         with open(self.data_file, "w", encoding="utf-8") as f:  # 上下文
-            json.dump(list(self._feedbacks.values()), f, ensure_ascii=False, indent=2)  # dump: write JSON array with formatting
+            json.dump(
+                list(self._feedbacks.values()), f, ensure_ascii=False, indent=2
+            )  # dump: write JSON array with formatting
 
     def submit(  # method: submit new feedback record
         self,  # 解包
@@ -105,21 +130,25 @@ class FeedbackManager:  # definition: feedback persistence manager
         severity: str = "",  # param: severity classification
     ) -> dict:  # return: submitted record dict
         """提交申诉"""
-        record = FeedbackRecord({  # build: create FeedbackRecord from params
-            "task_id": task_id,  # 字段
-            "clause_id": clause_id,  # 字段
-            "entity_id": entity_id,  # 字段
-            "entity_type": entity_type,  # 字段
-            "reason": reason,  # 字段
-            "description": description,  # 字段
-            "original_value": original_value,  # 字段
-            "severity": severity,  # 字段
-        })  # build end
+        record = FeedbackRecord(
+            {  # build: create FeedbackRecord from params
+                "task_id": task_id,  # 字段
+                "clause_id": clause_id,  # 字段
+                "entity_id": entity_id,  # 字段
+                "entity_type": entity_type,  # 字段
+                "reason": reason,  # 字段
+                "description": description,  # 字段
+                "original_value": original_value,  # 字段
+                "severity": severity,  # 字段
+            }
+        )  # build end
         self._feedbacks[record.feedback_id] = record.to_dict()  # 操作
         self._save()  # call: persist after submission
         return record.to_dict()  # return: serialized record
 
-    def review(self, feedback_id: str, status: str, reviewed_by: str, review_comment: str = "") -> Optional[dict]:  # method: review and update feedback status
+    def review(
+        self, feedback_id: str, status: str, reviewed_by: str, review_comment: str = ""
+    ) -> Optional[dict]:  # method: review and update feedback status
         """审核申诉"""
         record = self._feedbacks.get(feedback_id)  # lookup: find record by ID
         # 条件分支：if not record
@@ -149,10 +178,14 @@ class FeedbackManager:  # definition: feedback persistence manager
             items = [r for r in items if r["status"] == status]  # list comp: keep matching status
         # 条件分支：if clause_id
         if clause_id:  # filter: by clause ID if provided
-            items = [r for r in items if r["clause_id"] == clause_id]  # list comp: keep matching clause
+            items = [
+                r for r in items if r["clause_id"] == clause_id
+            ]  # list comp: keep matching clause
         total = len(items)  # calc: total after filtering
-        items.sort(key=lambda r: r.get("created_at", ""), reverse=True)  # sort: newest first by created_at
-        return items[offset:offset + limit], total  # slice: return paginated subset
+        items.sort(
+            key=lambda r: r.get("created_at", ""), reverse=True
+        )  # sort: newest first by created_at
+        return items[offset : offset + limit], total  # slice: return paginated subset
 
     def stats(self) -> dict:  # method: compute aggregate statistics
         """申诉统计"""
@@ -164,14 +197,21 @@ class FeedbackManager:  # definition: feedback persistence manager
             "by_status": dict(status_count),  # 字段
             "by_clause": dict(clause_count.most_common(20)),  # 字段
             "accepted_rate": round(  # 字段
-                status_count.get("accepted", 0) / max(len(items), 1), 3  # calc: acceptance rate rounded to 3 decimals
+                status_count.get("accepted", 0) / max(len(items), 1),
+                3,  # calc: acceptance rate rounded to 3 decimals
             ),  # return end
         }  # dict end
 
-    def get_adjustable_clauses(self, min_samples: int = 3) -> List[dict]:  # method: find clauses adjustable from feedback
+    def get_adjustable_clauses(
+        self, min_samples: int = 3
+    ) -> List[dict]:  # method: find clauses adjustable from feedback
         """获取可调整的规范（基于申诉样本量）"""
-        items = [r for r in self._feedbacks.values() if r["status"] == "accepted"]  # filter: accepted feedbacks only
-        clause_groups = Counter(r["clause_id"] for r in items)  # count: accepted feedbacks per clause
+        items = [
+            r for r in self._feedbacks.values() if r["status"] == "accepted"
+        ]  # filter: accepted feedbacks only
+        clause_groups = Counter(
+            r["clause_id"] for r in items
+        )  # count: accepted feedbacks per clause
         return [  # list comp: build adjustment info
             {"clause_id": cid, "sample_count": n}  # 字面量
             # 遍历处理
@@ -182,6 +222,7 @@ class FeedbackManager:  # definition: feedback persistence manager
 
 
 # ── 学习引擎 ──────────────────────────────────────────────
+
 
 class LearningEngine:  # definition: learning engine for threshold adjustment
     """基于反馈数据的阈值微调引擎"""
@@ -200,7 +241,8 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
         - 如果多数申诉的偏差方向一致，建议调整阈值
         """
         items = [  # list comp: accepted feedbacks for clause
-            r for r in self._fm._feedbacks.values()  # 操作
+            r
+            for r in self._fm._feedbacks.values()  # 操作
             # 条件分支：if r["clause_id"] == clause_id
             if r["clause_id"] == clause_id  # filter: match clause_id
             and r["status"] == "accepted"  # 操作
@@ -216,7 +258,9 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
             }  # return end
 
         # 计算偏差
-        original_values = [float(r["original_value"]) for r in items if r["original_value"]]  # extract: numeric original values from feedbacks
+        original_values = [
+            float(r["original_value"]) for r in items if r["original_value"]
+        ]  # extract: numeric original values from feedbacks
         if not original_values:  # check: need valid original values
             return {  # return: no numeric data response
                 "clause_id": clause_id,  # 字段
@@ -225,7 +269,9 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
                 "sample_count": len(items),  # 字段
             }  # return end
 
-        avg_original = sum(original_values) / len(original_values)  # calc: average of original values
+        avg_original = sum(original_values) / len(
+            original_values
+        )  # calc: average of original values
         diff = avg_original - current_threshold  # calc: difference between average and current
         direction = "increase" if diff > 0 else "decrease"  # calc: adjustment direction
 
@@ -234,7 +280,9 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
         max_adjust = abs(current_threshold * 0.2)  # cap: maximum adjustment is 20% of threshold
         adjustment = min(adjustment, max_adjust)  # clamp: limit adjustment to max
 
-        new_threshold = current_threshold + (adjustment if direction == "increase" else -adjustment)  # apply: adjust threshold in correct direction
+        new_threshold = current_threshold + (
+            adjustment if direction == "increase" else -adjustment
+        )  # apply: adjust threshold in correct direction
         new_threshold = round(max(new_threshold, 0.01), 2)  # clamp: ensure non-negative minimum
 
         return {  # dict: return adjustment recommendation
@@ -250,16 +298,19 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
         }  # dict end
 
     def apply_adjustment(  # method: apply threshold adjustment to spec repo
-        self, clause_id: str, new_threshold: float,  # 操作
-        spec_repo: Any, reason: str = ""  # 操作
+        self, clause_id: str, new_threshold: float, spec_repo: Any, reason: str = ""  # 操作  # 操作
     ) -> bool:  # return: success boolean
         """应用阈值调整到规范仓库"""
         # 异常保护
         try:  # 尝试
             # 更新民用/工业的默认阈值
             for bt in ("civil", "industrial"):  # loop: try both standard branches
-                current, unit, op = spec_repo.get_threshold(clause_id, bt)  # read: current threshold config
-                spec_repo.set_threshold(clause_id, bt, new_threshold)  # write: update threshold in spec repo
+                current, unit, op = spec_repo.get_threshold(
+                    clause_id, bt
+                )  # read: current threshold config
+                spec_repo.set_threshold(
+                    clause_id, bt, new_threshold
+                )  # write: update threshold in spec repo
             return True  # return: success
         except Exception:  # 捕获异常
             return False  # return: failure

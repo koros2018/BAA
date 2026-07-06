@@ -9,6 +9,7 @@ BAA MCP Server - 将BAA图纸解构和BIM重构能力封装为MCP工具
   # Stdio（适用于本地或容器内）
   python src/mcp/baa_mcp_server.py --transport stdio
 """
+
 import json  # stdlib: JSON
 import os  # stdlib: filesystem ops
 import sys  # import
@@ -57,16 +58,16 @@ class BAAMCPServer:  # class definition
                         "properties": {  # 字段
                             "file_path": {  # 字段
                                 "type": "string",  # 字段
-                                "description": "图纸文件路径（支持 dxf/dwg，推荐 dxf）"  # 字段
+                                "description": "图纸文件路径（支持 dxf/dwg，推荐 dxf）",  # 字段
                             },  # code
                             "building_type": {  # 字段
                                 "type": "string",  # 字段
                                 "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",  # 字段
-                                "default": "civil"  # 字段
-                            }  # code
+                                "default": "civil",  # 字段
+                            },  # code
                         },  # code
-                        "required": ["file_path"]  # 字段
-                    }  # code
+                        "required": ["file_path"],  # 字段
+                    },  # code
                 ),  # code
                 Tool(  # code
                     name="baa_reconstruct",  # assignment
@@ -76,29 +77,35 @@ class BAAMCPServer:  # class definition
                         "properties": {  # 字段
                             "file_id": {  # 字段
                                 "type": "string",  # 字段
-                                "description": "解构接口返回的 file_id"  # 字段
+                                "description": "解构接口返回的 file_id",  # 字段
                             },  # code
                             "auth_token": {  # 字段
                                 "type": "string",  # 字段
-                                "description": "授权代收代付点生成的支付授权令牌（JWT格式）"  # 字段
+                                "description": "授权代收代付点生成的支付授权令牌（JWT格式）",  # 字段
                             },  # code
                             "elements": {  # 字段
                                 "type": "array",  # 字段
                                 "description": "构件列表（可选，不传则使用 file_id 关联数据）",  # 字段
-                                "items": {"type": "object"}  # 字段
+                                "items": {"type": "object"},  # 字段
                             },  # code
                             "options": {  # 字段
                                 "type": "object",  # 字段
                                 "description": "重构参数（可选）",  # 字段
                                 "properties": {  # 字段
-                                    "lod": {"type": "integer", "description": "LOD等级: 100/200/300"},  # 字段
-                                    "format": {"type": "string", "description": "输出格式: ifc/obj/fbx"},  # 字段
-                                    "include_reinforcement": {"type": "boolean"}  # 字段
-                                }  # code
-                            }  # code
+                                    "lod": {
+                                        "type": "integer",
+                                        "description": "LOD等级: 100/200/300",
+                                    },  # 字段
+                                    "format": {
+                                        "type": "string",
+                                        "description": "输出格式: ifc/obj/fbx",
+                                    },  # 字段
+                                    "include_reinforcement": {"type": "boolean"},  # 字段
+                                },  # code
+                            },  # code
                         },  # code
-                        "required": ["file_id", "auth_token"]  # 字段
-                    }  # code
+                        "required": ["file_id", "auth_token"],  # 字段
+                    },  # code
                 ),  # code
                 Tool(  # code
                     name="baa_review",  # assignment
@@ -108,16 +115,16 @@ class BAAMCPServer:  # class definition
                         "properties": {  # 字段
                             "file_path": {  # 字段
                                 "type": "string",  # 字段
-                                "description": "图纸文件路径（支持 dxf/dwg）"  # 字段
+                                "description": "图纸文件路径（支持 dxf/dwg）",  # 字段
                             },  # code
                             "building_type": {  # 字段
                                 "type": "string",  # 字段
-                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil"  # 字段
-                            }  # code
+                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",  # 字段
+                            },  # code
                         },  # code
-                        "required": ["file_path"]  # 字段
-                    }  # code
-                )  # code
+                        "required": ["file_path"],  # 字段
+                    },  # code
+                ),  # code
             ]  # code
 
         @self.server.call_tool()  # function call
@@ -137,20 +144,27 @@ class BAAMCPServer:  # class definition
                 else:  # 否则
                     raise ValueError(f"未知工具: {name}")  # 抛出
 
-                return [TextContent(  # return: list
-                    type="text",  # assignment
-                    text=json.dumps(result, ensure_ascii=False, indent=2)  # serialize JSON
-                )]  # code
+                return [
+                    TextContent(  # return: list
+                        type="text",  # assignment
+                        text=json.dumps(result, ensure_ascii=False, indent=2),  # serialize JSON
+                    )
+                ]  # code
             # 异常处理
             except Exception as e:  # 捕获异常
-                return [TextContent(  # return: list
-                    type="text",  # assignment
-                    text=json.dumps({  # assignment
-                        "status": "error",  # 字段
-                        "error_code": type(e).__name__,  # 字段
-                        "message": str(e)  # 字段
-                    }, ensure_ascii=False)  # assignment
-                )]  # code
+                return [
+                    TextContent(  # return: list
+                        type="text",  # assignment
+                        text=json.dumps(
+                            {  # assignment
+                                "status": "error",  # 字段
+                                "error_code": type(e).__name__,  # 字段
+                                "message": str(e),  # 字段
+                            },
+                            ensure_ascii=False,
+                        ),  # assignment
+                    )
+                ]  # code
 
     def _ensure_engine(self):  # function: def _ensure_engine(self):
         """懒加载引擎模块"""
@@ -171,15 +185,21 @@ class BAAMCPServer:  # class definition
 
         # 检查文件存在
         if not os.path.exists(file_path):  # check: negated condition
-            return {"status": "error", "error_code": "FILE_NOT_FOUND",  # return: dict
-                    "message": f"文件不存在: {file_path}"}  # 字段
+            return {
+                "status": "error",
+                "error_code": "FILE_NOT_FOUND",  # return: dict
+                "message": f"文件不存在: {file_path}",
+            }  # 字段
 
         # Step 1: 图纸解析
         file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # path operation
         result = self._drawing_parser.parse(file_path, file_id=file_id)  # function call
         if not result.success:  # check: negated condition
-            return {"status": "error", "error_code": "PARSE_FAILED",  # return: dict
-                    "message": f"图纸解析失败: {result.error}"}  # 字段
+            return {
+                "status": "error",
+                "error_code": "PARSE_FAILED",  # return: dict
+                "message": f"图纸解析失败: {result.error}",
+            }  # 字段
 
         # Step 2: 语义分析
         semantic = self._semantic_analyzer.analyze(  # assignment
@@ -207,7 +227,7 @@ class BAAMCPServer:  # class definition
             total_area = sum(areas) if areas else 0  # aggregate sum
             # 条件分支：if t in ("wall", "corridor", "stair")
             if t in ("wall", "corridor", "stair"):  # check: membership test
-                elem["total_length_m"] = round(total_area ** 0.5, 1)  # 操作
+                elem["total_length_m"] = round(total_area**0.5, 1)  # 操作
             # 条件分支：elif t in ("door", "fire_door", "window")
             elif t in ("door", "fire_door", "window"):  # 分支
                 elem["total_count"] = stats["count"]  # 操作
@@ -235,8 +255,11 @@ class BAAMCPServer:  # class definition
         # 验证授权
         auth_payload = verify_auth_token(auth_token)  # function call
         if auth_payload is None:  # check: value is None
-            return {"status": "error", "error_code": "AUTH_FAILED",  # return: dict
-                    "message": "支付授权验证失败，请确认订单已支付"}  # 字段
+            return {
+                "status": "error",
+                "error_code": "AUTH_FAILED",  # return: dict
+                "message": "支付授权验证失败，请确认订单已支付",
+            }  # 字段
 
         # 生成 mock IFC 输出
         order_id = f"baa-order-mcp-{file_id[-8:]}"  # assignment
@@ -255,7 +278,7 @@ class BAAMCPServer:  # class definition
                 "client_id": auth_payload.get("client_id", "unknown"),  # 字段
                 "service": auth_payload.get("service", "reconstruct"),  # 字段
                 "expires_at": auth_payload.get("expires_at", "unknown"),  # 字段
-            }  # code
+            },  # code
         }  # code
 
     async def _handle_review(self, args: dict) -> dict:  # function call
@@ -266,15 +289,21 @@ class BAAMCPServer:  # class definition
 
         # 条件分支：if not os.path.exists(file_path)
         if not os.path.exists(file_path):  # check: negated condition
-            return {"status": "error", "error_code": "FILE_NOT_FOUND",  # return: dict
-                    "message": f"文件不存在: {file_path}"}  # 字段
+            return {
+                "status": "error",
+                "error_code": "FILE_NOT_FOUND",  # return: dict
+                "message": f"文件不存在: {file_path}",
+            }  # 字段
 
         file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # path operation
         result = self._drawing_parser.parse(file_path, file_id=file_id)  # function call
         # 条件分支：if not result.success
         if not result.success:  # check: negated condition
-            return {"status": "error", "error_code": "PARSE_FAILED",  # return: dict
-                    "message": f"图纸解析失败: {result.error}"}  # 字段
+            return {
+                "status": "error",
+                "error_code": "PARSE_FAILED",  # return: dict
+                "message": f"图纸解析失败: {result.error}",
+            }  # 字段
 
         semantic = self._semantic_analyzer.analyze(  # assignment
             result.primitives, result.dimensions, building_type=building_type  # 解包
@@ -284,6 +313,7 @@ class BAAMCPServer:  # class definition
         # 规范判定
         findings = []  # assignment
         from collections import Counter  # stdlib: collections
+
         clause_results = Counter()  # function call
         registry_funcs = self._func_registry.list_all()  # check all true
         total_checks = 0  # assignment
@@ -316,17 +346,19 @@ class BAAMCPServer:  # class definition
                     f = self._attribution_analyzer.build_finding(  # assignment
                         r, clause, e, entities[:5]  # 操作
                     )  # code
-                    findings.append({  # code
-                        "entity_id": e["id"],  # 字段
-                        "entity_type": e["type"],  # 字段
-                        "clause_id": f.clause.get("clause_id", ""),  # 字段
-                        "clause_title": f.clause.get("title", ""),  # 字段
-                        "result": f.judgement["result"],  # 字段
-                        "extracted_value": r.actual,  # 字段
-                        "required_value": r.threshold,  # 字段
-                        "difference": abs(r.delta),  # 字段
-                        "explanation": f.explanation[:200] if f.explanation else "",  # 字段
-                    })  # code
+                    findings.append(
+                        {  # code
+                            "entity_id": e["id"],  # 字段
+                            "entity_type": e["type"],  # 字段
+                            "clause_id": f.clause.get("clause_id", ""),  # 字段
+                            "clause_title": f.clause.get("title", ""),  # 字段
+                            "result": f.judgement["result"],  # 字段
+                            "extracted_value": r.actual,  # 字段
+                            "required_value": r.threshold,  # 字段
+                            "difference": abs(r.delta),  # 字段
+                            "explanation": f.explanation[:200] if f.explanation else "",  # 字段
+                        }
+                    )  # code
 
         entity_types = Counter(e["type"] for e in entities)  # function call
         violation_count = Counter(f["clause_id"] for f in findings)  # function call
@@ -348,6 +380,7 @@ class BAAMCPServer:  # class definition
     async def run_stdio(self):  # function call
         """通过 stdio 运行 MCP Server"""
         from mcp.server.stdio import stdio_server  # import
+
         async with stdio_server() as (read_stream, write_stream):  # 操作
             await self.server.run(  # 操作
                 read_stream,  # 解包
@@ -365,14 +398,17 @@ class BAAMCPServer:  # class definition
     async def run_http(self, host: str = "0.0.0.0", port: int = 8080):  # function call
         """通过 Streamable HTTP 运行 MCP Server"""
         from mcp.server.http import run_server  # import
+
         await run_server(self.server, host=host, port=port)  # function call
 
 
 def main():  # function: def main():
     import argparse  # import
+
     parser = argparse.ArgumentParser(description="BAA MCP Server")  # function call
-    parser.add_argument("--transport", choices=["stdio", "streamable-http"],  # assignment
-                        default="stdio")  # assignment
+    parser.add_argument(
+        "--transport", choices=["stdio", "streamable-http"], default="stdio"  # assignment
+    )  # assignment
     parser.add_argument("--port", type=int, default=8080)  # function call
     parser.add_argument("--host", default="0.0.0.0")  # function call
     args = parser.parse_args()  # function call

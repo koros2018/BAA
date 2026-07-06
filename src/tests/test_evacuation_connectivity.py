@@ -1,6 +1,7 @@
 """
 疏散路径连通性验证测试 - P33
 """
+
 import pytest
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer, SemanticEntity, SpatialRelation
 
@@ -19,23 +20,22 @@ class TestEvacuationConnectivity:
             bbox=bbox or {"x1": 0, "y1": 0, "x2": 10, "y2": 10},
             layer="general",
             confidence=1.0,
-            properties=props or {}
+            properties=props or {},
         )
 
     def _make_relation(self, source_id, target_id, rel_type="adjacent", distance=0.0):
         """辅助方法：创建SpatialRelation"""
         return SpatialRelation(
-            source_id=source_id,
-            target_id=target_id,
-            rel_type=rel_type,
-            distance=distance
+            source_id=source_id, target_id=target_id, rel_type=rel_type, distance=distance
         )
 
     def test_single_room_connected_to_exit(self):
         """测试单个房间通过走廊连接到出口"""
         room = self._make_entity("room1", "room", {"x1": 0, "y1": 0, "x2": 10, "y2": 10})
         exit_ent = self._make_entity("exit1", "exit", {"x1": 10, "y1": 0, "x2": 20, "y2": 10})
-        corridor = self._make_entity("corr1", "corridor", {"x1": 5, "y1": 5, "x2": 15, "y2": 10}, {"width": 1.5})
+        corridor = self._make_entity(
+            "corr1", "corridor", {"x1": 5, "y1": 5, "x2": 15, "y2": 10}, {"width": 1.5}
+        )
 
         # 构建空间关系
         relations = [
@@ -51,7 +51,7 @@ class TestEvacuationConnectivity:
         results = self.analyzer.verify_evacuation_connectivity(
             entities=[room, exit_ent, corridor],
             relations=relations,
-            evacuation_routes=evacuation_routes
+            evacuation_routes=evacuation_routes,
         )
 
         assert len(results) >= 1
@@ -65,14 +65,10 @@ class TestEvacuationConnectivity:
         exit_ent = self._make_entity("exit1", "exit", {"x1": 100, "y1": 100, "x2": 110, "y2": 110})
 
         relations = []
-        evacuation_routes = [
-            {"room_id": "room1", "path": [], "has_route": False}
-        ]
+        evacuation_routes = [{"room_id": "room1", "path": [], "has_route": False}]
 
         results = self.analyzer.verify_evacuation_connectivity(
-            entities=[room, exit_ent],
-            relations=relations,
-            evacuation_routes=evacuation_routes
+            entities=[room, exit_ent], relations=relations, evacuation_routes=evacuation_routes
         )
 
         room_result = next((r for r in results if r.get("room_id") == "room1"), None)
@@ -83,7 +79,9 @@ class TestEvacuationConnectivity:
         """测试走廊瓶颈检测（宽度<1.2m）"""
         room = self._make_entity("room1", "room", {"x1": 0, "y1": 0, "x2": 10, "y2": 10})
         exit_ent = self._make_entity("exit1", "exit", {"x1": 10, "y1": 0, "x2": 20, "y2": 10})
-        narrow_corridor = self._make_entity("corr1", "corridor", {"x1": 5, "y1": 5, "x2": 15, "y2": 10}, {"width": 0.8})
+        narrow_corridor = self._make_entity(
+            "corr1", "corridor", {"x1": 5, "y1": 5, "x2": 15, "y2": 10}, {"width": 0.8}
+        )
 
         relations = [
             self._make_relation("room1", "corr1"),
@@ -97,7 +95,7 @@ class TestEvacuationConnectivity:
         results = self.analyzer.verify_evacuation_connectivity(
             entities=[room, exit_ent, narrow_corridor],
             relations=relations,
-            evacuation_routes=evacuation_routes
+            evacuation_routes=evacuation_routes,
         )
 
         room_result = next((r for r in results if r.get("room_id") == "room1"), None)
@@ -116,14 +114,10 @@ class TestEvacuationConnectivity:
             self._make_relation("room1", "exit2"),
         ]
 
-        evacuation_routes = [
-            {"room_id": "room1", "path": ["room1", "exit1"], "has_route": True}
-        ]
+        evacuation_routes = [{"room_id": "room1", "path": ["room1", "exit1"], "has_route": True}]
 
         results = self.analyzer.verify_evacuation_connectivity(
-            entities=[room, exit1, exit2],
-            relations=relations,
-            evacuation_routes=evacuation_routes
+            entities=[room, exit1, exit2], relations=relations, evacuation_routes=evacuation_routes
         )
 
         room_result = next((r for r in results if r.get("room_id") == "room1"), None)

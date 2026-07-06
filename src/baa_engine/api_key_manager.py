@@ -24,13 +24,11 @@ from pathlib import Path  # import: path utils
 from datetime import datetime, timezone  # import
 from typing import Optional, Dict, List, Set  # typing: type hints
 
-
 # ── AES-GCM 加密（密钥可恢复，用于前端展示） ──────────────
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # import
 from cryptography.hazmat.primitives import hashes  # import
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF  # import
-
 
 # 用于加密 raw_key 的主密钥（从环境变量派生，或自动生成一个持久化的）
 _ENCRYPTION_MASTER_KEY = None  # assignment
@@ -39,7 +37,7 @@ _ENCRYPTION_KEY_LOCK = threading.Lock()  # function call
 
 def _get_encryption_key() -> bytes:  # function: def _get_encryption_key() -> bytes:
     """获取/初始化 AES-256 主密钥（32 bytes）
-    
+
     优先级：
     1. 环境变量 BAA_KEY_ENCRYPTION_KEY（32字节 hex）
     2. 持久化存储的密钥文件 data/.key_encryption.key
@@ -49,13 +47,13 @@ def _get_encryption_key() -> bytes:  # function: def _get_encryption_key() -> by
     # 条件分支：if _ENCRYPTION_MASTER_KEY is not None
     if _ENCRYPTION_MASTER_KEY is not None:  # check: value is not None
         return _ENCRYPTION_MASTER_KEY  # return
-    
+
     # 上下文管理器
     with _ENCRYPTION_KEY_LOCK:  # 上下文管理
         # 条件分支：if _ENCRYPTION_MASTER_KEY is not None
         if _ENCRYPTION_MASTER_KEY is not None:  # check: value is not None
             return _ENCRYPTION_MASTER_KEY  # return
-        
+
         # 1. 环境变量
         env_key = os.getenv("BAA_KEY_ENCRYPTION_KEY", "")  # function call
         if env_key:  # condition: env_key:
@@ -66,7 +64,7 @@ def _get_encryption_key() -> bytes:  # function: def _get_encryption_key() -> by
             # 异常处理
             except ValueError:  # 捕获异常
                 pass  # 占位
-        
+
         # 2. 持久化密钥文件
         storage_dir = Path(__file__).resolve().parent.parent.parent / "data"  # function call
         key_file = storage_dir / ".key_encryption.key"  # assignment
@@ -75,7 +73,7 @@ def _get_encryption_key() -> bytes:  # function: def _get_encryption_key() -> by
             if len(raw) == 32:  # check: length
                 _ENCRYPTION_MASTER_KEY = raw  # assignment
                 return _ENCRYPTION_MASTER_KEY  # return
-        
+
         # 3. 自动生成
         storage_dir.mkdir(parents=True, exist_ok=True)  # function call
         new_key = AESGCM.generate_key(bit_length=256)  # function call
@@ -95,7 +93,9 @@ def encrypt_raw_key(raw_key: str) -> str:  # function: def encrypt_raw_key(raw_k
     return base64.b64encode(nonce + ciphertext).decode("ascii")  # return
 
 
-def decrypt_raw_key(encrypted: str) -> Optional[str]:  # function: def decrypt_raw_key(encrypted: str) -> Optional[str]:
+def decrypt_raw_key(
+    encrypted: str,
+) -> Optional[str]:  # function: def decrypt_raw_key(encrypted: str) -> Optional[str]:
     """解密 raw_key，失败返回 None"""
     # 异常保护
     try:  # 尝试
@@ -113,6 +113,7 @@ def decrypt_raw_key(encrypted: str) -> Optional[str]:  # function: def decrypt_r
 
 # ── 权限等级 ──────────────────────────────────────────────
 
+
 class ApiKeyPermission:  # class definition
     """API 密钥权限等级定义
 
@@ -125,10 +126,11 @@ class ApiKeyPermission:  # class definition
     权限的校验在 check_rate_limit 和 validate_key 中联动实现，
     admin 通道不触发频率限制。
     """
-    ADMIN = "admin"       # 完全控制（创建/撤销密钥、管理）
-    WRITE = "write"       # 可上传图纸、发起审查
-    READ = "read"         # 可查询订单/结果
-    LIMITED = "limited"   # 只读+限制调用频率
+
+    ADMIN = "admin"  # 完全控制（创建/撤销密钥、管理）
+    WRITE = "write"  # 可上传图纸、发起审查
+    READ = "read"  # 可查询订单/结果
+    LIMITED = "limited"  # 只读+限制调用频率
 
     ALL = (ADMIN, WRITE, READ, LIMITED)  # function call
 
@@ -140,8 +142,8 @@ class ApiKeyPermission:  # class definition
 
 # ── 默认配置 ──────────────────────────────────────────────
 
-DEFAULT_KEY_TTL_DAYS = 90          # 密钥默认有效期90天
-DEFAULT_RATE_LIMIT = {             # 每密钥每分钟限制
+DEFAULT_KEY_TTL_DAYS = 90  # 密钥默认有效期90天
+DEFAULT_RATE_LIMIT = {  # 每密钥每分钟限制
     "admin": 1000,  # 字段
     "write": 100,  # 字段
     "read": 60,  # 字段
@@ -151,6 +153,7 @@ DEFAULT_STORAGE_PATH = "data/api_keys.json"  # assignment
 
 
 # ── 密钥管理器 ──────────────────────────────────────────────
+
 
 class ApiKeyManager:  # class definition
     """API 密钥全生命周期管理
@@ -170,7 +173,9 @@ class ApiKeyManager:  # class definition
     - 主密钥 BAA_KEY_ENCRYPTION_KEY 用于 AES-256 加密
     """
 
-    def __init__(self, storage_path: str = None, env_key: str = None):  # function: def __init__(self, storage_path: str = None, env_key: str = 
+    def __init__(
+        self, storage_path: str = None, env_key: str = None
+    ):  # function: def __init__(self, storage_path: str = None, env_key: str =
         """初始化 API 密钥管理器
 
         Args:
@@ -180,7 +185,9 @@ class ApiKeyManager:  # class definition
         self._lock = threading.Lock()  # function call
         self._storage_path = storage_path or os.getenv(  # assignment
             "BAA_API_KEYS_PATH",  # code
-            str(Path(__file__).resolve().parent.parent.parent / DEFAULT_STORAGE_PATH)  # function call
+            str(
+                Path(__file__).resolve().parent.parent.parent / DEFAULT_STORAGE_PATH
+            ),  # function call
         )  # code
         self._keys: Dict[str, dict] = {}  # key_id → key_info
         self._usage: Dict[str, dict] = {}  # key_id → {calls, last_used, per_minute}
@@ -201,7 +208,9 @@ class ApiKeyManager:  # class definition
         """对API Key做单向哈希存储"""
         return hashlib.sha256(raw_key.encode()).hexdigest()  # return
 
-    def _verify_key(self, raw_key: str, stored_hash: str) -> bool:  # function: def _verify_key(self, raw_key: str, stored_hash: str) -> boo
+    def _verify_key(
+        self, raw_key: str, stored_hash: str
+    ) -> bool:  # function: def _verify_key(self, raw_key: str, stored_hash: str) -> boo
         """使用常量时间比较验证 API Key
 
         使用 hmac.compare_digest 而非 == 的原因是：
@@ -311,10 +320,12 @@ class ApiKeyManager:  # class definition
         self.save()  # function call
 
         # 返回时不包含hash和encrypted_raw
-        return_info = {k: v for k, v in key_info.items() if k not in ("hash", "encrypted_raw")}  # assignment
+        return_info = {
+            k: v for k, v in key_info.items() if k not in ("hash", "encrypted_raw")
+        }  # assignment
         return {  # return: dict
             "key_id": key_id,  # 字段
-            "raw_key": raw_key,   # 创建时返回，后续可通过 decrypt 恢复
+            "raw_key": raw_key,  # 创建时返回，后续可通过 decrypt 恢复
             "info": return_info,  # 字段
         }  # code
 
@@ -324,12 +335,14 @@ class ApiKeyManager:  # class definition
             permission="admin",  # assignment
             ttl_days=365,  # assignment
             label="admin-initial",  # assignment
-            created_by="system"  # assignment
+            created_by="system",  # assignment
         )  # code
 
     # ── 密钥验证 ──────────────────────────────────────────
 
-    def validate_key(self, raw_key: str) -> Optional[dict]:  # function: def validate_key(self, raw_key: str) -> Optional[dict]:
+    def validate_key(
+        self, raw_key: str
+    ) -> Optional[dict]:  # function: def validate_key(self, raw_key: str) -> Optional[dict]:
         """验证API Key，返回key_info（无hash）或None"""
         self.load()  # function call
 
@@ -349,7 +362,9 @@ class ApiKeyManager:  # class definition
             if not info.get("enabled", True):  # check: negated condition
                 continue  # 继续循环
             # 条件分支：if self._verify_key(raw_key, info["hash"])
-            if self._verify_key(raw_key, info["hash"]):  # condition: self._verify_key(raw_key, info["hash"]):
+            if self._verify_key(
+                raw_key, info["hash"]
+            ):  # condition: self._verify_key(raw_key, info["hash"]):
                 # 检查过期
                 expires = info.get("expires_at")  # function call
                 if expires:  # condition: expires:
@@ -364,7 +379,9 @@ class ApiKeyManager:  # class definition
 
     # ── 密钥管理 ──────────────────────────────────────────
 
-    def list_keys(self, include_disabled: bool = False, include_raw: bool = False) -> List[dict]:  # function: def list_keys(self, include_disabled: bool = False, include_
+    def list_keys(
+        self, include_disabled: bool = False, include_raw: bool = False
+    ) -> List[dict]:  # function: def list_keys(self, include_disabled: bool = False, include_
         """列出所有密钥
 
         Args:
@@ -393,9 +410,13 @@ class ApiKeyManager:  # class definition
             else:  # 否则
                 entry["has_raw_key"] = bool(encrypted)  # 操作
             result.append(entry)  # append to list
-        return sorted(result, key=lambda x: x.get("created_at", ""), reverse=True)  # return: sorted list
+        return sorted(
+            result, key=lambda x: x.get("created_at", ""), reverse=True
+        )  # return: sorted list
 
-    def revoke_key(self, key_id: str) -> bool:  # function: def revoke_key(self, key_id: str) -> bool:
+    def revoke_key(
+        self, key_id: str
+    ) -> bool:  # function: def revoke_key(self, key_id: str) -> bool:
         """撤销密钥"""
         self._reload()  # function call
         # 上下文管理器
@@ -407,7 +428,9 @@ class ApiKeyManager:  # class definition
         self.save()  # function call
         return True  # return: boolean
 
-    def rotate_key(self, key_id: str, new_ttl_days: int = None) -> Optional[dict]:  # function: def rotate_key(self, key_id: str, new_ttl_days: int = None) 
+    def rotate_key(
+        self, key_id: str, new_ttl_days: int = None
+    ) -> Optional[dict]:  # function: def rotate_key(self, key_id: str, new_ttl_days: int = None)
         """轮换密钥：保留key_id和权限，生成新密钥值
 
         旧密钥立即失效，新密钥开始使用。
@@ -445,10 +468,14 @@ class ApiKeyManager:  # class definition
         return {  # return: dict
             "key_id": key_id,  # 字段
             "raw_key": raw_key,  # 字段
-            "info": {k: v for k, v in self._keys[key_id].items() if k not in ("hash", "encrypted_raw")},  # 字段
+            "info": {
+                k: v for k, v in self._keys[key_id].items() if k not in ("hash", "encrypted_raw")
+            },  # 字段
         }  # code
 
-    def delete_key(self, key_id: str) -> bool:  # function: def delete_key(self, key_id: str) -> bool:
+    def delete_key(
+        self, key_id: str
+    ) -> bool:  # function: def delete_key(self, key_id: str) -> bool:
         """删除密钥（不可恢复）"""
         self._reload()  # function call
         # 上下文管理器
@@ -473,7 +500,9 @@ class ApiKeyManager:  # class definition
         key_id = None  # assignment
         for kid, info in self._keys.items():  # 循环
             # 条件分支：if self._verify_key(raw_key, info["hash"])
-            if self._verify_key(raw_key, info["hash"]):  # condition: self._verify_key(raw_key, info["hash"]):
+            if self._verify_key(
+                raw_key, info["hash"]
+            ):  # condition: self._verify_key(raw_key, info["hash"]):
                 key_id = kid  # assignment
                 break  # 跳出循环
 
@@ -484,16 +513,21 @@ class ApiKeyManager:  # class definition
         now = time.time()  # function call
         # 上下文管理器
         with self._lock:  # 上下文管理
-            usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # function call
+            usage = self._usage.setdefault(
+                key_id, {"calls": 0, "last_used": None, "per_minute": []}
+            )  # function call
             usage["calls"] += 1  # 操作
             usage["last_used"] = datetime.now(timezone.utc).isoformat()  # 操作
             # 每分钟计数（保留最近5分钟）
             minute_bucket = int(now // 60)  # function call
-            usage["per_minute"] = [b for b in usage.get("per_minute", [])  # 操作
-                                   if b[0] > minute_bucket - 5]  # check: numeric comparison
+            usage["per_minute"] = [
+                b for b in usage.get("per_minute", []) if b[0] > minute_bucket - 5  # 操作
+            ]  # check: numeric comparison
             usage["per_minute"].append((minute_bucket, now))  # 操作
 
-    def get_usage_stats(self, key_id: str = None) -> dict:  # function: def get_usage_stats(self, key_id: str = None) -> dict:
+    def get_usage_stats(
+        self, key_id: str = None
+    ) -> dict:  # function: def get_usage_stats(self, key_id: str = None) -> dict:
         """获取用量统计"""
         self.load()  # function call
         # 条件分支：if key_id
@@ -520,7 +554,9 @@ class ApiKeyManager:  # class definition
             stats[kid] = self.get_usage_stats(kid)  # function call
         return stats  # return
 
-    def check_rate_limit(self, raw_key: str) -> bool:  # function: def check_rate_limit(self, raw_key: str) -> bool:
+    def check_rate_limit(
+        self, raw_key: str
+    ) -> bool:  # function: def check_rate_limit(self, raw_key: str) -> bool:
         """检查是否超限（返回False表示超出限制）"""
         self.load()  # function call
         # 环境变量key不限制
@@ -540,10 +576,13 @@ class ApiKeyManager:  # class definition
 
         # 上下文管理器
         with self._lock:  # 上下文管理
-            usage = self._usage.setdefault(key_id, {"calls": 0, "last_used": None, "per_minute": []})  # function call
+            usage = self._usage.setdefault(
+                key_id, {"calls": 0, "last_used": None, "per_minute": []}
+            )  # function call
             # 清理旧bucket
-            usage["per_minute"] = [b for b in usage.get("per_minute", [])  # 操作
-                                   if b[0] == minute_bucket]  # condition: b[0] == minute_bucket]
+            usage["per_minute"] = [
+                b for b in usage.get("per_minute", []) if b[0] == minute_bucket  # 操作
+            ]  # condition: b[0] == minute_bucket]
             return len(usage["per_minute"]) < limit  # return: count
 
     # ── 清理过期密钥 ──────────────────────────────────────────

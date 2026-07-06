@@ -11,6 +11,7 @@ BAA API 服务层 - FastAPI 实现
 - /api/v1/*: EMA2 第三方对接接口
 - /api/v1/feedbacks/*: 用户反馈闭环
 """
+
 # ── 标准库导入 ──────────────────────────────────────────────
 import uuid  # 生成唯一标识符（文件ID、任务ID等）
 import os  # 环境变量、路径操作
@@ -22,11 +23,20 @@ from typing import Optional, List, Dict  # 类型注解
 from datetime import datetime, timedelta  # 日期时间处理
 
 # ── FastAPI 及依赖 ──────────────────────────────────────────
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Security, Query, Request, Response  # fastapi: HTTP framework
+from fastapi import (
+    FastAPI,
+    File,
+    UploadFile,
+    HTTPException,
+    Depends,
+    Security,
+    Query,
+    Request,
+    Response,
+)  # fastapi: HTTP framework
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # import
 from fastapi.middleware.cors import CORSMiddleware  # import
 from fastapi.staticfiles import StaticFiles  # import
-
 
 # ═══════════════════════════════════════════════════════════════
 # 配置区
@@ -37,13 +47,14 @@ from fastapi.staticfiles import StaticFiles  # import
 # 计算项目根目录（src/../）并加入 sys.path，确保模块可导入
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # src/../
 import sys  # import
+
 if str(PROJECT_ROOT) not in sys.path:  # check: membership test
     sys.path.insert(0, str(PROJECT_ROOT))  # sys path
 
 # 数据目录：优先使用环境变量 BAA_DATA_DIR，否则默认为 data/
 DATA_DIR = Path(os.getenv("BAA_DATA_DIR", str(PROJECT_ROOT / "data")))  # function call
-FILES_DIR = DATA_DIR / "files"       # 上传的图纸文件存储目录
-MODELS_DIR = DATA_DIR / "models"     # YOLO 模型文件目录
+FILES_DIR = DATA_DIR / "files"  # 上传的图纸文件存储目录
+MODELS_DIR = DATA_DIR / "models"  # YOLO 模型文件目录
 DATA_DIR.mkdir(parents=True, exist_ok=True)  # function call
 FILES_DIR.mkdir(parents=True, exist_ok=True)  # function call
 MODELS_DIR.mkdir(parents=True, exist_ok=True)  # function call
@@ -53,11 +64,12 @@ from collections import Counter  # stdlib: collections
 import hashlib  # stdlib: hashing
 
 # EMA2 第三方对接用：异步审查任务 + Webhook 回调的全局存储
-_tasks = {}     # task_id -> {status, result, created_at, webhook_url, ...}
+_tasks = {}  # task_id -> {status, result, created_at, webhook_url, ...}
 _webhooks = {}  # webhook_id -> {url, events, active, ...}
 
 # 审查结果缓存：持久化 SQLite 缓存（替代内存缓存）
 from src.baa_engine.cache import get_cache, make_cache_key, PersistentCache  # import
+
 _persistent_cache = get_cache()  # function call
 
 # 保留内存缓存用于快速访问（二级缓存：内存→持久化）
@@ -77,7 +89,9 @@ if _api_key:  # condition: _api_key:
 
 # ── 共享密钥（用于 auth_token 验证，支持多密钥宽限期） ──
 # 格式：逗号分隔，第一个为最新密钥，后续为旧密钥（48h宽限期）
-AUTH_SECRETS = [s.strip() for s in os.getenv("BAA_AUTH_SECRET", "").split(",") if s.strip()]  # function call
+AUTH_SECRETS = [
+    s.strip() for s in os.getenv("BAA_AUTH_SECRET", "").split(",") if s.strip()
+]  # function call
 if not AUTH_SECRETS:  # check: negated condition
     # 开发模式默认密钥（生产环境必须通过环境变量设置）
     AUTH_SECRETS = ["baa-dev-secret-change-in-production"]  # assignment
@@ -91,7 +105,7 @@ from concurrent.futures import ThreadPoolExecutor  # import
 # 避免阻塞 FastAPI 的异步事件循环
 ENGINE_THREAD_POOL = ThreadPoolExecutor(  # assignment
     max_workers=min(8, (os.cpu_count() or 4) * 2),  # get minimum
-    thread_name_prefix="baa-engine"  # assignment
+    thread_name_prefix="baa-engine",  # assignment
 )  # code
 
 
@@ -102,16 +116,18 @@ import hmac  # import
 import hashlib  # stdlib: hashing
 import base64  # stdlib: base64
 
-
 # ── API密钥管理 ──────────────────────────────────────────
 
 # 密钥管理器：支持 API Key 的创建、轮换、撤销、权限验证
 from src.baa_engine.api_key_manager import get_key_manager, ApiKeyPermission  # import
+
 # 反馈引擎：用户违规申诉 → 模型微调的学习闭环
 from src.baa_engine.feedback_engine import FeedbackManager, LearningEngine  # import
 
 
-def generate_auth_token(payload: dict, secret: str = None) -> str:  # function: def generate_auth_token(payload: dict, secret: str = None) -
+def generate_auth_token(
+    payload: dict, secret: str = None
+) -> str:  # function: def generate_auth_token(payload: dict, secret: str = None) -
     """生成 auth_token（JWT格式，HMAC-SHA256）
     默认使用最新密钥
     """
@@ -119,11 +135,17 @@ def generate_auth_token(payload: dict, secret: str = None) -> str:  # function: 
         secret = AUTH_SECRETS[0]  # 使用最新密钥
     # ── 构造 JWT Header（算法 + 类型） ──────────────────────
     header = {"alg": "HS256", "typ": "JWT"}  # assignment
-    header_b64 = base64.urlsafe_b64encode(  # assignment
-        json.dumps(header, separators=(",", ":")).encode()).rstrip(b"=").decode()  # serialize JSON
+    header_b64 = (
+        base64.urlsafe_b64encode(json.dumps(header, separators=(",", ":")).encode())  # assignment
+        .rstrip(b"=")
+        .decode()
+    )  # serialize JSON
     # ── Base64 编码 Payload ─────────────────────────────────
-    payload_b64 = base64.urlsafe_b64encode(  # assignment
-        json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()  # serialize JSON
+    payload_b64 = (
+        base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode())  # assignment
+        .rstrip(b"=")
+        .decode()
+    )  # serialize JSON
     # ── HMAC-SHA256 签名 ────────────────────────────────────
     signing_input = f"{header_b64}.{payload_b64}"  # assignment
     sig = hmac.new(  # assignment
@@ -133,9 +155,11 @@ def generate_auth_token(payload: dict, secret: str = None) -> str:  # function: 
     return f"{header_b64}.{payload_b64}.{sig_b64}"  # return
 
 
-def verify_auth_token(token: str) -> Optional[dict]:  # function: def verify_auth_token(token: str) -> Optional[dict]:
+def verify_auth_token(
+    token: str,
+) -> Optional[dict]:  # function: def verify_auth_token(token: str) -> Optional[dict]:
     """验证 auth_token，使用所有活跃密钥（支持密钥宽限期）
-    
+
     遍历 AUTH_SECRETS 列表，依次尝试用每个密钥验证签名。
     旧密钥在 48h 宽限期内仍有效，确保密钥轮换期间不影响已有 token。
     """
@@ -146,13 +170,15 @@ def verify_auth_token(token: str) -> Optional[dict]:  # function: def verify_aut
     return None  # return: None
 
 
-def _verify_with_secret(token: str, secret: str) -> Optional[dict]:  # function: def _verify_with_secret(token: str, secret: str) -> Optional
+def _verify_with_secret(
+    token: str, secret: str
+) -> Optional[dict]:  # function: def _verify_with_secret(token: str, secret: str) -> Optional
     """用单个密钥验证 token
-    
+
     Args:
         token: 待验证的 JWT 格式 token
         secret: HMAC 签名密钥
-    
+
     Returns:
         验证通过返回 payload 字典，失败返回 None
     """
@@ -185,6 +211,7 @@ def _verify_with_secret(token: str, secret: str) -> Optional[dict]:  # function:
         expires = payload.get("expires_at")  # function call
         if expires:  # condition: expires:
             from datetime import timezone  # stdlib: timing
+
             exp_time = datetime.fromisoformat(expires)  # function call
             if exp_time.tzinfo is None:  # check: value is None
                 exp_time = exp_time.replace(tzinfo=timezone.utc)  # function call
@@ -205,6 +232,7 @@ FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"  # assignment
 
 # ── 引擎预热（app启动时加载） ──────────────────────────────
 
+
 def _load_engine():  # function: def _load_engine():
     """预热加载引擎模块，每个 worker 启动时执行一次"""
     from src.baa_engine.drawing_parser import DrawingParser  # import
@@ -212,6 +240,7 @@ def _load_engine():  # function: def _load_engine():
     from src.baa_engine.atomic_functions import FuncRegistry  # import
     from src.baa_engine.attribution_analyzer import AttributionAnalyzer  # import
     from src.baa_engine.spec_repository import SpecRepository  # import
+
     global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine  # 全局变量
     _drawing_parser = DrawingParser()  # function call
     _semantic_analyzer = SemanticAnalyzer()  # function call
@@ -220,7 +249,9 @@ def _load_engine():  # function: def _load_engine():
     _spec_repo = SpecRepository()  # function call
     _feedback_manager = FeedbackManager(DATA_DIR)  # function call
     _learning_engine = LearningEngine(_feedback_manager)  # function call
-    print(f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范")  # print output
+    print(
+        f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
+    )  # print output
     print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")  # print output
 
 
@@ -251,7 +282,7 @@ _review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)  # function call
 @asynccontextmanager  # code
 async def lifespan(app: FastAPI):  # function call
     """应用生命周期管理
-    
+
     启动时：在线程池中异步预热引擎各模块，避免阻塞事件循环
     关闭时：优雅关闭线程池
     """
@@ -268,17 +299,20 @@ security = HTTPBearer(auto_error=False)  # function call
 
 # ── 挂载前端静态文件 ──────────────────────────────────────
 if FRONTEND_DIR.exists():  # condition: FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")  # function call
+    app.mount(
+        "/static", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend"
+    )  # function call
 
 
 @app.get("/")  # function call
 async def root():  # function call
     """返回前端 UI 页面
-    
+
     优先返回静态 HTML 页面（前端 SPA）；
     如果前端文件不存在，降级返回 JSON 格式的 API 信息。
     """
     from fastapi.responses import HTMLResponse  # fastapi: response types
+
     index_path = FRONTEND_DIR / "index.html"  # assignment
     if index_path.exists():  # condition: index_path.exists():
         content = index_path.read_text(encoding="utf-8")  # function call
@@ -295,24 +329,29 @@ async def root():  # function call
             "/reconstruct": "图纸重构",  # 字段
             "/order/{order_id}": "查询订单/任务状态",  # 字段
         },  # code
-        "note": "前端 UI 文件未找到，请检查 src/frontend/index.html"  # 字段
+        "note": "前端 UI 文件未找到，请检查 src/frontend/index.html",  # 字段
     }  # code
+
 
 # ── CORS 中间件（允许跨域访问） ────────────────────────────
 app.add_middleware(  # code
     CORSMiddleware,  # 解包
-    allow_origins=["*"],        # 允许所有来源（开发阶段）
+    allow_origins=["*"],  # 允许所有来源（开发阶段）
     allow_credentials=True,  # assignment
     allow_methods=["*"],  # assignment
     allow_headers=["*"],  # assignment
 )  # code
 
 
-def get_api_key(authorization: str = Query("", description="Bearer API Key")):  # function: def get_api_key(authorization: str = Query("", description="
+def get_api_key(
+    authorization: str = Query("", description="Bearer API Key")
+):  # function: def get_api_key(authorization: str = Query("", description="
     """从 Query 参数中获取 API Key（兼容 Swagger UI 调试）"""
+
+
 def verify_api_key(request: Request):  # function: def verify_api_key(request: Request):
     """验证 API Key（使用 ApiKeyManager）
-    
+
     验证流程：
     1. 如果未配置 API_KEYS（开发模式），跳过验证，返回 anonymous
     2. 从 Authorization Header 提取 Bearer token
@@ -323,31 +362,33 @@ def verify_api_key(request: Request):  # function: def verify_api_key(request: R
     if not API_KEYS:  # check: negated condition
         return "anonymous"  # return
     auth_header = request.headers.get("authorization", "")  # function call
-    
+
     # 根据条件判断分支：if auth_header.startswith("Bearer ")
     if auth_header.startswith("Bearer "):  # condition: auth_header.startswith("Bearer "):
         token = auth_header[7:]  # assignment
     else:  # 否则
         return "anonymous"  # 开发模式：没传key也放行
-    
+
     # 使用 ApiKeyManager 验证（数据库中的密钥）
     km = get_key_manager()  # function call
     key_info = km.validate_key(token)  # function call
     if key_info:  # condition: key_info:
         km.record_usage(token)  # function call
         return token  # return
-    
+
     # 环境变量密钥也放行
     if token in API_KEYS:  # check: membership test
         return token  # return
-    
+
     # 开发模式：没传有效key也放行
     return "anonymous"  # return
 
 
-def require_admin(request: Request, api_key: str = ""):  # function: def require_admin(request: Request, api_key: str = ""):
+def require_admin(
+    request: Request, api_key: str = ""
+):  # function: def require_admin(request: Request, api_key: str = ""):
     """验证 admin 权限（用于 admin 端点）
-    
+
     验证逻辑：
     1. 开发模式（API_KEYS 为空）时不校验，直接放行
     2. 使用 ApiKeyManager 验证密钥是否具有 admin 权限
@@ -362,27 +403,34 @@ def require_admin(request: Request, api_key: str = ""):  # function: def require
     # 环境变量key也视为admin
     if api_key and api_key in API_KEYS:  # check: membership test
         return api_key  # return
-    raise HTTPException(status_code=403, detail={  # 抛出异常
-        "status": "error", "error_code": "FORBIDDEN",  # 字段
-        "message": "需要admin权限"  # 字段
-    })  # code
+    raise HTTPException(
+        status_code=403,
+        detail={  # 抛出异常
+            "status": "error",
+            "error_code": "FORBIDDEN",  # 字段
+            "message": "需要admin权限",  # 字段
+        },
+    )  # code
 
 
 # ── 文件管理 ──────────────────────────────────────────────
+
 
 def generate_file_id() -> str:  # function: def generate_file_id() -> str:
     """生成唯一文件标识符（UUID 前 12 位）"""
     return f"baa-file-{uuid.uuid4().hex[:12]}"  # return
 
 
-def store_file(content: bytes, file_id: str, extension: str) -> Path:  # function: def store_file(content: bytes, file_id: str, extension: str)
+def store_file(
+    content: bytes, file_id: str, extension: str
+) -> Path:  # function: def store_file(content: bytes, file_id: str, extension: str)
     """将上传文件保存到磁盘
-    
+
     Args:
         content: 文件二进制内容
         file_id: 文件唯一标识符
         extension: 文件扩展名（dwg/dxf）
-    
+
     Returns:
         保存后的文件路径
     """
@@ -391,14 +439,16 @@ def store_file(content: bytes, file_id: str, extension: str) -> Path:  # functio
     return path  # return
 
 
-def get_file_path(file_id: str) -> Optional[Path]:  # function: def get_file_path(file_id: str) -> Optional[Path]:
+def get_file_path(
+    file_id: str,
+) -> Optional[Path]:  # function: def get_file_path(file_id: str) -> Optional[Path]:
     """根据文件 ID 查找已存储的图纸文件
-    
+
     遍历所有支持的文件格式，找到匹配的文件。
-    
+
     Args:
         file_id: 文件唯一标识符
-    
+
     Returns:
         文件路径（如果存在），否则 None
     """
@@ -414,11 +464,11 @@ def get_file_path(file_id: str) -> Optional[Path]:  # function: def get_file_pat
 # ── 引擎引用（由 lifespan 预热加载） ──────────────────────
 
 # 各引擎模块的全局引用，在 app 启动时通过 _load_engine() 初始化
-_drawing_parser = None         # 图纸解析器
-_semantic_analyzer = None       # 语义分析器
-_func_registry = None           # 原子函数注册表
-_attribution_analyzer = None    # 属性推断引擎
-_spec_repo = None               # 规范知识库
+_drawing_parser = None  # 图纸解析器
+_semantic_analyzer = None  # 语义分析器
+_func_registry = None  # 原子函数注册表
+_attribution_analyzer = None  # 属性推断引擎
+_spec_repo = None  # 规范知识库
 
 # ── 反馈闭环引擎（P10） ────────────────────────────────────
 _feedback_manager: Optional[FeedbackManager] = None  # assignment
@@ -428,10 +478,10 @@ _learning_engine: Optional[LearningEngine] = None  # 操作
 @app.get("/health")  # function call
 async def health():  # function call
     """增强型健康检查接口
-    
+
     返回服务状态及各子系统（引擎、规范库、解析器、YOLO）的运行状态。
     用于 Docker 健康检查、负载均衡心跳检测。
-    
+
     Returns:
         dict: {
             status: "ok" | "degraded",
@@ -447,14 +497,16 @@ async def health():  # function call
     yolo_info = "未加载"  # assignment
     try:  # 尝试
         from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import
+
         yolo = YOLODetectionIntegrator()  # function call
         if yolo.load_model():  # condition: yolo.load_model():
             yolo_ok = True  # assignment
             yolo_info = "就绪"  # assignment
     except Exception:  # 捕获异常
         yolo_info = "不可用"  # assignment
-    
+
     import psutil  # psutil: system memory
+
     process = psutil.Process()  # function call
     mem_info = process.memory_info()  # function call
 
@@ -470,7 +522,10 @@ async def health():  # function call
             "engine": {"status": "ok" if engine_ok else "down"},  # 字段
             "spec_repository": {"status": "ok" if spec_ok else "down"},  # 字段
             "drawing_parser": {"status": "ok" if parser_ok else "down"},  # 字段
-            "yolo_integrator": {"status": "ok" if yolo_ok else "unavailable", "info": yolo_info},  # 字段
+            "yolo_integrator": {
+                "status": "ok" if yolo_ok else "unavailable",
+                "info": yolo_info,
+            },  # 字段
         },  # code
         "data_dir": str(DATA_DIR),  # 字段
         "memory": {  # 字段
@@ -479,6 +534,7 @@ async def health():  # function call
         },  # code
     }  # code
 
+
 # ── 记录服务启动时间 ───────────────────────────────────────
 _start_time = time.time()  # get current time
 
@@ -486,10 +542,16 @@ _start_time = time.time()  # get current time
 @app.post("/deconstruct")  # function call
 async def deconstruct(  # code
     file: UploadFile = File(...),  # function call
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # function call
-    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),  # function call
+    building_type: str = Query(
+        "civil", description="建筑类型: civil(民用) / industrial(工业)"
+    ),  # function call
+    standard: str = Query(
+        "GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
+    ),  # function call
     use_yolo: bool = Query(True, description="是否使用 YOLO 图元检测增强"),  # function call
-    yolo_device: str = Query("cpu", description="YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"),  # function call
+    yolo_device: str = Query(
+        "cpu", description="YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"
+    ),  # function call
     request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
@@ -517,7 +579,7 @@ async def deconstruct(  # code
                 "status": "error",  # 字段
                 "error_code": "UNSUPPORTED_FORMAT",  # 字段
                 "message": f"不支持的文件格式: {ext}。支持: {', '.join(SUPPORTED_FORMATS)}",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 检查文件大小 ────────────────────────────────────────
@@ -529,7 +591,7 @@ async def deconstruct(  # code
                 "status": "error",  # 字段
                 "error_code": "FILE_TOO_LARGE",  # 字段
                 "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 存储文件到磁盘 ──────────────────────────────────────
@@ -548,7 +610,7 @@ async def deconstruct(  # code
 
     # ── P18 截断警告（部分解析成功） ─────────────────────
     page_warning = None  # assignment
-    if result.error and '截断' in result.error:  # check: membership test
+    if result.error and "截断" in result.error:  # check: membership test
         page_warning = result.error  # assignment
         result.success = True  # assignment
         result.error = None  # assignment
@@ -566,9 +628,8 @@ async def deconstruct(  # code
     semantic = await loop.run_in_executor(  # assignment
         ENGINE_THREAD_POOL,  # 解包
         lambda: _semantic_analyzer.analyze(  # 操作
-            result.primitives, result.dimensions,  # 解包
-            building_type=building_type  # assignment
-        )  # code
+            result.primitives, result.dimensions, building_type=building_type  # 解包  # assignment
+        ),  # code
     )  # code
     entities = semantic["entities"]  # assignment
     relations = semantic["relations"]  # assignment
@@ -578,6 +639,7 @@ async def deconstruct(  # code
     if use_yolo:  # condition: use_yolo:
         try:  # 尝试
             from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import
+
             yolo = YOLODetectionIntegrator(device=yolo_device)  # function call
             if yolo.load_model():  # condition: yolo.load_model():
                 _, dets = yolo.render_and_predict(str(file_path))  # function call
@@ -594,6 +656,7 @@ async def deconstruct(  # code
     # Step 2.75: DIMENSION 尺寸标注注入（自动反推实体属性）
     try:  # 尝试
         from src.baa_engine.dimension_parser import DimensionParser  # import
+
         dp = DimensionParser()  # function call
         dims = dp.extract_dimensions(str(file_path))  # function call
         if dims:  # condition: dims:
@@ -604,6 +667,7 @@ async def deconstruct(  # code
     # Step 3: 规范判定（使用 building_type 确定阈值，含去重）
     # 遍历所有实体和所有原子函数，逐项检查合规性
     from src.baa_engine.spec_repository import SpecRepository  # import
+
     repo = SpecRepository()  # function call
     findings = []  # assignment
     registry_funcs = _func_registry.list_all()  # check all true
@@ -615,7 +679,9 @@ async def deconstruct(  # code
         for func in registry_funcs:  # 循环
             total_checks += 1  # accumulate
             # 根据建筑类型和规范标准获取阈值参数
-            threshold_val, unit, op = repo.get_threshold(func.clause_id, building_type, standard)  # function call
+            threshold_val, unit, op = repo.get_threshold(
+                func.clause_id, building_type, standard
+            )  # function call
             func.threshold = threshold_val  # assignment
             func.unit = unit  # assignment
             func.operator = op  # assignment
@@ -627,7 +693,7 @@ async def deconstruct(  # code
                 is_dup = dedup_key in seen_violations  # assignment
                 if r.result == "FAIL":  # condition: r.result == "FAIL":
                     seen_violations.add(dedup_key)  # function call
-                
+
                 clause = {  # assignment
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
@@ -644,10 +710,14 @@ async def deconstruct(  # code
                     "description": func.description,  # 字段
                     "entity_type": etype,  # 字段
                     "result": r.result,  # 字段
-                    "severity": getattr(r, 'severity', 'major'),  # 字段
-                    "extracted_value": getattr(r, 'extracted_value', getattr(r, 'value', 0)),  # 字段
+                    "severity": getattr(r, "severity", "major"),  # 字段
+                    "extracted_value": getattr(
+                        r, "extracted_value", getattr(r, "value", 0)
+                    ),  # 字段
                     "required_value": threshold_val,  # 字段
-                    "explanation": getattr(f, 'explanation', f.description[:100] if hasattr(f, 'description') else ''),  # 字段
+                    "explanation": getattr(
+                        f, "explanation", f.description[:100] if hasattr(f, "description") else ""
+                    ),  # 字段
                     "is_duplicate": is_dup,  # 字段
                 }  # code
                 findings.append(finding_detail)  # append to list
@@ -666,7 +736,7 @@ async def deconstruct(  # code
                 is_dup = dedup_key in seen_violations  # assignment
                 if r.result == "FAIL":  # condition: r.result == "FAIL":
                     seen_violations.add(dedup_key)  # function call
-                
+
                 clause = {  # assignment
                     "standard": "GB50016",  # 字段
                     "clause_id": func.clause_id,  # 字段
@@ -674,7 +744,9 @@ async def deconstruct(  # code
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
+                f = _attribution_analyzer.build_finding(
+                    r, clause, {}, entities[:5]
+                )  # function call
                 finding_detail = {  # assignment
                     "finding_id": f.finding_id,  # 字段
                     "clause_id": func.clause_id,  # 字段
@@ -682,7 +754,7 @@ async def deconstruct(  # code
                     "description": func.description,  # 字段
                     "entity_type": "missing",  # 字段
                     "result": r.result,  # 字段
-                    "severity": 'critical',  # 字段
+                    "severity": "critical",  # 字段
                     "extracted_value": 0,  # 字段
                     "required_value": 1,  # 字段
                     "explanation": f"缺少{func.name}相关实体（{func.description}）",  # 字段
@@ -706,7 +778,7 @@ async def deconstruct(  # code
         total_area = sum(areas) if areas else 0  # aggregate sum
         elem = {"type": t, "count": stats["count"]}  # assignment
         if t in ("wall", "corridor", "stair"):  # check: membership test
-            elem["total_length_m"] = round(total_area ** 0.5, 1)  # 操作
+            elem["total_length_m"] = round(total_area**0.5, 1)  # 操作
         elif t in ("door", "fire_door", "window"):  # 分支
             elem["total_count"] = stats["count"]  # 操作
         elif t == "fire_zone":  # 分支
@@ -720,16 +792,22 @@ async def deconstruct(  # code
     elapsed = int((time.time() - start) * 1000)  # get current time
 
     # ── 统计违规严重度分布（去重后） ────────────────────────
-    fail_count = len([f for f in findings if f["result"] == "FAIL" and not f["is_duplicate"]])  # get length
-    warn_count = len([f for f in findings if f["result"] == "WARN" and not f["is_duplicate"]])  # get length
-    critical_count = len([f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]])  # get length
+    fail_count = len(
+        [f for f in findings if f["result"] == "FAIL" and not f["is_duplicate"]]
+    )  # get length
+    warn_count = len(
+        [f for f in findings if f["result"] == "WARN" and not f["is_duplicate"]]
+    )  # get length
+    critical_count = len(
+        [f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]]
+    )  # get length
 
     result = {  # assignment
         "status": "success",  # 字段
-        "elements": elements,              # 实体类型统计
-        "relations": len(relations),       # 实体间关系数量
-        "findings": findings,              # 完整违规详情（含去重标记）
-        "total_checks": total_checks,      # 总检查项数
+        "elements": elements,  # 实体类型统计
+        "relations": len(relations),  # 实体间关系数量
+        "findings": findings,  # 完整违规详情（含去重标记）
+        "total_checks": total_checks,  # 总检查项数
         "summary": {  # 字段
             "total_violations": fail_count,  # 字段
             "warnings": warn_count,  # 字段
@@ -763,9 +841,15 @@ async def deconstruct(  # code
 async def review(  # code
     file: UploadFile = File(...),  # function call
     full: bool = Query(False, description="返回完整图元列表"),  # function call
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # function call
-    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表（混合建筑场景）"),  # function call
-    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),  # function call
+    building_type: str = Query(
+        "civil", description="建筑类型: civil(民用) / industrial(工业)"
+    ),  # function call
+    building_types: Optional[List[str]] = Query(
+        None, description="多建筑类型列表（混合建筑场景）"
+    ),  # function call
+    standard: str = Query(
+        "GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
+    ),  # function call
     request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
@@ -796,7 +880,7 @@ async def review(  # code
                 "status": "error",  # 字段
                 "error_code": "UNSUPPORTED_FORMAT",  # 字段
                 "message": f"不支持的文件格式: {ext}",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 检查文件大小 ────────────────────────────────────────
@@ -808,7 +892,7 @@ async def review(  # code
                 "status": "error",  # 字段
                 "error_code": "FILE_TOO_LARGE",  # 字段
                 "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 存储文件到磁盘 ──────────────────────────────────────
@@ -833,7 +917,6 @@ async def review(  # code
     start = time.time()  # get current time
     loop = asyncio.get_event_loop()  # function call
 
-
     # 并发控制：等待排队（最多 {MAX_CONCURRENT_REVIEWS} 个并发槽位）
     async with _review_semaphore:  # code
         # Step 1: 图纸解析（CPU密集型 → 线程池）
@@ -852,9 +935,10 @@ async def review(  # code
         semantic = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL,  # 解包
             lambda: _semantic_analyzer.analyze(  # 操作
-                result.primitives, result.dimensions,  # 解包
-                building_type=building_type  # assignment
-            )  # code
+                result.primitives,
+                result.dimensions,  # 解包
+                building_type=building_type,  # assignment
+            ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
 
@@ -863,8 +947,10 @@ async def review(  # code
 
     # Step 3: 规范判定（使用 building_type 确定阈值）
     from src.baa_engine.spec_repository import SpecRepository  # import
+
     repo = SpecRepository()  # function call
     from collections import Counter  # stdlib: collections
+
     clause_results = Counter()  # function call
     details = []  # assignment
     registry_funcs = _func_registry.list_all()  # check all true
@@ -873,7 +959,9 @@ async def review(  # code
     found_entity_types = set(e["type"] for e in entities)  # function call
 
     # 多建筑类型并行匹配：取最严格阈值
-    def get_strict_threshold(clause_id: str) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+    def get_strict_threshold(
+        clause_id: str,
+    ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
         worst_val, worst_unit, worst_op = None, None, None  # assignment
         for bt in effective_types:  # loop: iterate
             v, u, o = repo.get_threshold(clause_id, bt)  # function call
@@ -900,17 +988,19 @@ async def review(  # code
                     "category": func.category.value,  # 字段
                 }  # code
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": e.get("id", e.get("type", "")),  # 字段
-                    "entity_type": e["type"],  # 字段
-                    "clause_id": f.clause.get("clause_id", ""),  # 字段
-                    "clause_title": f.clause.get("title", ""),  # 字段
-                    "result": f.judgement["result"],  # 字段
-                    "extracted_value": f.extracted_params["extracted_value"],  # 字段
-                    "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
-                    "difference": f.extracted_params.get("difference", 0),  # 字段
-                    "explanation": f.explanation[:120],  # 字段
-                })  # code
+                details.append(
+                    {  # code
+                        "entity_id": e.get("id", e.get("type", "")),  # 字段
+                        "entity_type": e["type"],  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "extracted_value": f.extracted_params["extracted_value"],  # 字段
+                        "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
+                        "difference": f.extracted_params.get("difference", 0),  # 字段
+                        "explanation": f.explanation[:120],  # 字段
+                    }
+                )  # code
 
     # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
     for func in registry_funcs:  # 循环
@@ -927,23 +1017,27 @@ async def review(  # code
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": "",  # 字段
-                    "entity_type": "missing",  # 字段
-                    "clause_id": f.clause.get("clause_id", ""),  # 字段
-                    "clause_title": f.clause.get("title", ""),  # 字段
-                    "result": f.judgement["result"],  # 字段
-                    "extracted_value": 0.0,  # 字段
-                    "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
-                    "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
-                    "explanation": f.explanation[:120],  # 字段
-                })  # code
+                f = _attribution_analyzer.build_finding(
+                    r, clause, {}, entities[:5]
+                )  # function call
+                details.append(
+                    {  # code
+                        "entity_id": "",  # 字段
+                        "entity_type": "missing",  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "extracted_value": 0.0,  # 字段
+                        "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
+                        "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
+                        "explanation": f.explanation[:120],  # 字段
+                    }
+                )  # code
 
     elapsed = int((time.time() - start) * 1000)  # get current time
 
     # ── 统计 ─────────────────────────────────────────────────
-    entity_types = Counter(e["type"] for e in entities)        # 各类型实体数量
+    entity_types = Counter(e["type"] for e in entities)  # 各类型实体数量
     violation_count = Counter(d["clause_id"] for d in details)  # 各规范条款违规数
 
     # ── 计算综合评分（P36） ────────────────────────────────
@@ -952,7 +1046,9 @@ async def review(  # code
         violation_deduction = len(details) * 5.0  # get length
         critical_count = sum(1 for d in details if d.get("severity") == "critical")  # aggregate sum
         major_count = sum(1 for d in details if d.get("severity") == "major")  # aggregate sum
-        total_score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)  # get maximum
+        total_score = max(
+            0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3
+        )  # get maximum
 
     avg_confidence = 1.0  # assignment
     confidences = [d.get("confidence", 1.0) for d in details if "confidence" in d]  # function call
@@ -980,19 +1076,25 @@ async def review(  # code
     # ── 生成修正建议（基于 CorrectionEngine） ────────────────
     try:  # 尝试
         from src.baa_engine.correction_engine import CorrectionEngine  # import
+
         correction_engine = CorrectionEngine()  # function call
         review_result_for_correction = {  # assignment
-            "findings": [{  # 字段
-                "entity_id": d["entity_id"],  # 字段
-                "entity_type": d["entity_type"],  # 字段
-                "clause_id": d["clause_id"],  # 字段
-                "clause_title": d["clause_title"],  # 字段
-                "extracted_value": d["extracted_value"],  # 字段
-                "required_value": d["required_value"],  # 字段
-                "difference": d["difference"],  # 字段
-            } for d in details]  # code
+            "findings": [
+                {  # 字段
+                    "entity_id": d["entity_id"],  # 字段
+                    "entity_type": d["entity_type"],  # 字段
+                    "clause_id": d["clause_id"],  # 字段
+                    "clause_title": d["clause_title"],  # 字段
+                    "extracted_value": d["extracted_value"],  # 字段
+                    "required_value": d["required_value"],  # 字段
+                    "difference": d["difference"],  # 字段
+                }
+                for d in details
+            ]  # code
         }  # code
-        corrections = correction_engine.generate_for_result(review_result_for_correction)  # function call
+        corrections = correction_engine.generate_for_result(
+            review_result_for_correction
+        )  # function call
         response_data["corrections"] = corrections  # 操作
     except Exception as e:  # 捕获异常
         response_data["corrections"] = []  # 操作
@@ -1020,8 +1122,12 @@ async def review(  # code
 @app.post("/batch-review")  # function call
 async def batch_review(  # code
     files: List[UploadFile] = File(...),  # 操作
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # function call
-    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表（混合建筑场景）"),  # function call
+    building_type: str = Query(
+        "civil", description="建筑类型: civil(民用) / industrial(工业)"
+    ),  # function call
+    building_types: Optional[List[str]] = Query(
+        None, description="多建筑类型列表（混合建筑场景）"
+    ),  # function call
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """多文件批量审查
@@ -1030,14 +1136,19 @@ async def batch_review(  # code
     以及跨文件的交叉分析（同一违规类别在多少文件中出现）。
     """
     if len(files) < 1:  # check: numeric comparison
-        raise HTTPException(status_code=400, detail={"status": "error", "message": "请至少上传一个文件"})  # 抛出异常
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": "请至少上传一个文件"}
+        )  # 抛出异常
     if len(files) > 20:  # check: numeric comparison
-        raise HTTPException(status_code=400, detail={"status": "error", "message": "单次最多审查20个文件"})  # 抛出异常
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": "单次最多审查20个文件"}
+        )  # 抛出异常
 
     start = time.time()  # get current time
     loop = asyncio.get_event_loop()  # function call
     from src.baa_engine.spec_repository import SpecRepository  # import
     from collections import Counter  # stdlib: collections
+
     repo = SpecRepository()  # function call
     registry_funcs = _func_registry.list_all()  # check all true
 
@@ -1054,7 +1165,9 @@ async def batch_review(  # code
         """单个文件审查（独立执行）"""
         nonlocal completed_files  # code
         async with _review_semaphore:  # code
-            ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""  # function call
+            ext = (
+                file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+            )  # function call
             if ext not in SUPPORTED_FORMATS:  # check: membership test
                 completed_files += 1  # accumulate
                 return {  # return: dict
@@ -1094,9 +1207,10 @@ async def batch_review(  # code
             semantic = await loop.run_in_executor(  # assignment
                 ENGINE_THREAD_POOL,  # code
                 lambda: _semantic_analyzer.analyze(  # code
-                    result.primitives, result.dimensions,  # code
-                    building_type=building_type  # assignment
-                )  # code
+                    result.primitives,
+                    result.dimensions,  # code
+                    building_type=building_type,  # assignment
+                ),  # code
             )  # code
             entities = semantic["entities"]  # assignment
 
@@ -1107,7 +1221,9 @@ async def batch_review(  # code
             details = []  # assignment
             found_entity_types = set(e["type"] for e in entities)  # function call
 
-            def get_strict_threshold(clause_id: str) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+            def get_strict_threshold(
+                clause_id: str,
+            ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
                 worst_val, worst_unit, worst_op = None, None, None  # assignment
                 for bt in effective_types:  # loop: iterate
                     v, u, o = repo.get_threshold(clause_id, bt)  # function call
@@ -1132,20 +1248,28 @@ async def batch_review(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                        details.append({  # code
-                            "entity_id": e.get("id", e.get("type", "")),  # function call
-                            "entity_type": e["type"],  # code
-                            "clause_id": f.clause.get("clause_id", ""),  # function call
-                            "clause_title": f.clause.get("title", ""),  # function call
-                            "result": f.judgement["result"],  # code
-                            "extracted_value": f.extracted_params["extracted_value"],  # code
-                            "required_value": f.extracted_params.get("required_value", 1.2),  # function call
-                            "difference": f.extracted_params.get("difference", 0),  # function call
-                            "explanation": f.explanation[:120],  # code
-                            "confidence": r.confidence,  # code
-                            "severity": r.severity.value,  # code
-                        })  # code
+                        f = _attribution_analyzer.build_finding(
+                            r, clause, e, entities[:5]
+                        )  # function call
+                        details.append(
+                            {  # code
+                                "entity_id": e.get("id", e.get("type", "")),  # function call
+                                "entity_type": e["type"],  # code
+                                "clause_id": f.clause.get("clause_id", ""),  # function call
+                                "clause_title": f.clause.get("title", ""),  # function call
+                                "result": f.judgement["result"],  # code
+                                "extracted_value": f.extracted_params["extracted_value"],  # code
+                                "required_value": f.extracted_params.get(
+                                    "required_value", 1.2
+                                ),  # function call
+                                "difference": f.extracted_params.get(
+                                    "difference", 0
+                                ),  # function call
+                                "explanation": f.explanation[:120],  # code
+                                "confidence": r.confidence,  # code
+                                "severity": r.severity.value,  # code
+                            }
+                        )  # code
 
             # ── 缺失检查 ──────────────────────────────────────
             for func in registry_funcs:  # loop: iterate
@@ -1162,18 +1286,26 @@ async def batch_review(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                        details.append({  # code
-                            "entity_id": "",  # code
-                            "entity_type": "missing",  # code
-                            "clause_id": f.clause.get("clause_id", ""),  # function call
-                            "clause_title": f.clause.get("title", ""),  # function call
-                            "result": f.judgement["result"],  # code
-                            "extracted_value": 0.0,  # code
-                            "required_value": f.extracted_params.get("required_value", 1.0),  # function call
-                            "difference": -f.extracted_params.get("required_value", 1.0),  # function call
-                            "explanation": f.explanation[:120],  # code
-                        })  # code
+                        f = _attribution_analyzer.build_finding(
+                            r, clause, {}, entities[:5]
+                        )  # function call
+                        details.append(
+                            {  # code
+                                "entity_id": "",  # code
+                                "entity_type": "missing",  # code
+                                "clause_id": f.clause.get("clause_id", ""),  # function call
+                                "clause_title": f.clause.get("title", ""),  # function call
+                                "result": f.judgement["result"],  # code
+                                "extracted_value": 0.0,  # code
+                                "required_value": f.extracted_params.get(
+                                    "required_value", 1.0
+                                ),  # function call
+                                "difference": -f.extracted_params.get(
+                                    "required_value", 1.0
+                                ),  # function call
+                                "explanation": f.explanation[:120],  # code
+                            }
+                        )  # code
 
             # ── 单文件统计 ────────────────────────────────────
             entity_types = Counter(e["type"] for e in entities)  # function call
@@ -1183,9 +1315,15 @@ async def batch_review(  # code
             score = 100.0  # assignment
             if details:  # condition: details:
                 violation_deduction = len(details) * 5.0  # get length
-                critical_count = sum(1 for d in details if d.get("severity") == "critical")  # aggregate sum
-                major_count = sum(1 for d in details if d.get("severity") == "major")  # aggregate sum
-                score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)  # get maximum
+                critical_count = sum(
+                    1 for d in details if d.get("severity") == "critical"
+                )  # aggregate sum
+                major_count = sum(
+                    1 for d in details if d.get("severity") == "major"
+                )  # aggregate sum
+                score = max(
+                    0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3
+                )  # get maximum
 
             completed_files += 1  # accumulate
             return {  # return: dict
@@ -1202,7 +1340,11 @@ async def batch_review(  # code
                 },  # code
                 "details": details[:100],  # code
                 "entities": [  # code
-                    {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}  # function call
+                    {
+                        "id": e.get("id", e.get("type", "")),
+                        "type": e["type"],
+                        "bbox": e["bbox"],
+                    }  # function call
                     for e in entities  # loop: iterate
                 ],  # code
             }  # code
@@ -1227,7 +1369,9 @@ async def batch_review(  # code
             all_entities_list.extend(file_result.get("entities", []))  # extend list
             for d in file_result["details"]:  # loop: iterate
                 severity_counter[d.get("severity", "major")] += 1  # function call
-            for etype, count in file_result["summary"].get("entity_types", {}).items():  # loop: iterate
+            for etype, count in (
+                file_result["summary"].get("entity_types", {}).items()
+            ):  # loop: iterate
                 entity_type_counter[etype] += count  # accumulate
 
     # ── 交叉分析：跨图纸找出同一违规类别 ─────────────────────
@@ -1242,12 +1386,14 @@ async def batch_review(  # code
                 if d["clause_id"] == clause_id:  # condition: d["clause_id"] == clause_id:
                     involved_files.add(r["filename"])  # function call
                     break  # code
-        cross_analysis.append({  # code
-            "clause_id": clause_id,  # code
-            "violations": count,  # code
-            "files": len(involved_files),  # get length
-            "file_names": list(involved_files)[:5],  # function call
-        })  # code
+        cross_analysis.append(
+            {  # code
+                "clause_id": clause_id,  # code
+                "violations": count,  # code
+                "files": len(involved_files),  # get length
+                "file_names": list(involved_files)[:5],  # function call
+            }
+        )  # code
 
     elapsed = int((time.time() - start) * 1000)  # get current time
 
@@ -1255,8 +1401,12 @@ async def batch_review(  # code
         "status": "success",  # code
         "batch_summary": {  # code
             "total_files": len(files),  # get length
-            "success_files": sum(1 for r in file_results if r["status"] == "success"),  # aggregate sum
-            "failed_files": sum(1 for r in file_results if r["status"] != "success"),  # aggregate sum
+            "success_files": sum(
+                1 for r in file_results if r["status"] == "success"
+            ),  # aggregate sum
+            "failed_files": sum(
+                1 for r in file_results if r["status"] != "success"
+            ),  # aggregate sum
             "total_violations": total_violations,  # code
             "total_checks": total_checks,  # code
             "total_entities": len(all_entities_list),  # get length
@@ -1288,6 +1438,7 @@ async def review_from_data(  # code
 
     from src.baa_engine.spec_repository import SpecRepository  # import
     from collections import Counter  # stdlib: collections
+
     repo = SpecRepository()  # function call
     clause_results = Counter()  # function call
     details = []  # assignment
@@ -1296,7 +1447,9 @@ async def review_from_data(  # code
     start = time.time()  # get current time
 
     # 多建筑类型并行匹配：取最严格阈值
-    def get_strict_threshold(clause_id: str) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+    def get_strict_threshold(
+        clause_id: str,
+    ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
         worst_val, worst_unit, worst_op = None, None, None  # assignment
         for bt in effective_types:  # loop: iterate
             v, u, o = repo.get_threshold(clause_id, bt)  # function call
@@ -1324,18 +1477,20 @@ async def review_from_data(  # code
                     "category": func.category.value,  # 字段
                 }  # code
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": e.get("id", e.get("type", "")),  # 字段
-                    "entity_type": e["type"],  # 字段
-                    "clause_id": f.clause.get("clause_id", ""),  # 字段
-                    "clause_title": f.clause.get("title", ""),  # 字段
-                    "result": f.judgement["result"],  # 字段
-                    "extracted_value": f.extracted_params["extracted_value"],  # 字段
-                    "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
-                    "difference": f.extracted_params.get("difference", 0),  # 字段
-                    "severity": f.judgement.get("severity", "major"),  # 字段
-                    "explanation": f.explanation[:120],  # 字段
-                })  # code
+                details.append(
+                    {  # code
+                        "entity_id": e.get("id", e.get("type", "")),  # 字段
+                        "entity_type": e["type"],  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "extracted_value": f.extracted_params["extracted_value"],  # 字段
+                        "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
+                        "difference": f.extracted_params.get("difference", 0),  # 字段
+                        "severity": f.judgement.get("severity", "major"),  # 字段
+                        "explanation": f.explanation[:120],  # 字段
+                    }
+                )  # code
 
     # ── 缺失检查 ──────────────────────────────────────────
     for func in registry_funcs:  # 循环
@@ -1352,19 +1507,23 @@ async def review_from_data(  # code
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": "",  # 字段
-                    "entity_type": "missing",  # 字段
-                    "clause_id": f.clause.get("clause_id", ""),  # 字段
-                    "clause_title": f.clause.get("title", ""),  # 字段
-                    "result": f.judgement["result"],  # 字段
-                    "severity": "critical",  # 字段
-                    "extracted_value": 0.0,  # 字段
-                    "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
-                    "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
-                    "explanation": f.explanation[:120],  # 字段
-                })  # code
+                f = _attribution_analyzer.build_finding(
+                    r, clause, {}, entities[:5]
+                )  # function call
+                details.append(
+                    {  # code
+                        "entity_id": "",  # 字段
+                        "entity_type": "missing",  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "severity": "critical",  # 字段
+                        "extracted_value": 0.0,  # 字段
+                        "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
+                        "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
+                        "explanation": f.explanation[:120],  # 字段
+                    }
+                )  # code
 
     elapsed = int((time.time() - start) * 1000)  # get current time
     entity_types = Counter(e["type"] for e in entities)  # function call
@@ -1387,17 +1546,21 @@ async def review_from_data(  # code
     # ── 生成修正建议 ──────────────────────────────────────
     try:  # 尝试
         from src.baa_engine.correction_engine import CorrectionEngine  # import
+
         ce = CorrectionEngine()  # function call
         review_result_for_correction = {  # assignment
-            "findings": [{  # 字段
-                "entity_id": d["entity_id"],  # 字段
-                "entity_type": d["entity_type"],  # 字段
-                "clause_id": d["clause_id"],  # 字段
-                "clause_title": d["clause_title"],  # 字段
-                "extracted_value": d["extracted_value"],  # 字段
-                "required_value": d["required_value"],  # 字段
-                "difference": d["difference"],  # 字段
-            } for d in details]  # code
+            "findings": [
+                {  # 字段
+                    "entity_id": d["entity_id"],  # 字段
+                    "entity_type": d["entity_type"],  # 字段
+                    "clause_id": d["clause_id"],  # 字段
+                    "clause_title": d["clause_title"],  # 字段
+                    "extracted_value": d["extracted_value"],  # 字段
+                    "required_value": d["required_value"],  # 字段
+                    "difference": d["difference"],  # 字段
+                }
+                for d in details
+            ]  # code
         }  # code
         corrections = ce.generate_for_result(review_result_for_correction)  # function call
         response_data["corrections"] = corrections  # 操作
@@ -1438,7 +1601,7 @@ async def reconstruct(  # code
                 "status": "error",  # 字段
                 "error_code": "AUTH_FAILED",  # 字段
                 "message": "支付授权验证失败，请确认订单已支付",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 检查 file_id 是否存在 ───────────────────────────────
@@ -1450,7 +1613,7 @@ async def reconstruct(  # code
                 "status": "error",  # 字段
                 "error_code": "FILE_NOT_FOUND",  # 字段
                 "message": f"文件不存在: {file_id}",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     # ── 执行重构（暂返回 mock 数据） ─────────────────────────
@@ -1494,7 +1657,7 @@ async def get_order(  # code
                 "status": "error",  # 字段
                 "error_code": "ORDER_NOT_FOUND",  # 字段
                 "message": "订单不存在",  # 字段
-            }  # code
+            },  # code
         )  # code
 
     model_file = order_dir / "model.ifc"  # assignment
@@ -1532,7 +1695,9 @@ async def render_drawing(  # code
     """
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
-        raise HTTPException(status_code=404, detail={"status": "error", "message": "文件不存在"})  # 抛出异常
+        raise HTTPException(
+            status_code=404, detail={"status": "error", "message": "文件不存在"}
+        )  # 抛出异常
 
     import ezdxf  # import
     from io import StringIO  # import
@@ -1542,7 +1707,9 @@ async def render_drawing(  # code
         doc = ezdxf.readfile(str(file_path))  # function call
         msp = doc.modelspace()  # function call
     except Exception:  # 捕获异常
-        raise HTTPException(status_code=400, detail={"status": "error", "message": "无法解析图纸文件"})  # 抛出异常
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": "无法解析图纸文件"}
+        )  # 抛出异常
 
     # ── 计算图元边界（用于 SVG viewBox 适配） ────────────────
     all_x, all_y = [], []  # assignment
@@ -1578,15 +1745,17 @@ async def render_drawing(  # code
     y_min, y_max = min(all_y) - margin, max(all_y) + margin  # 解包
     w, h = x_max - x_min, y_max - y_min  # assignment
 
-    svg_w = min(max(w * 0.5, 400), 1200)    # SVG 输出宽度
-    svg_h = min(max(h * 0.5, 300), 800)      # SVG 输出高度
+    svg_w = min(max(w * 0.5, 400), 1200)  # SVG 输出宽度
+    svg_h = min(max(h * 0.5, 300), 800)  # SVG 输出高度
 
     # ── 构建 SVG 字符串 ──────────────────────────────────────
     buf = StringIO()  # function call
-    buf.write(f'<svg xmlns="http://www.w3.org/2000/svg" '  # assignment
-              f'viewBox="{x_min} {-y_max} {w} {h}" '  # 操作
-              f'width="{svg_w}" height="{svg_h}" '  # 操作
-              f'style="background:#fff">\n')  # assignment
+    buf.write(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '  # assignment
+        f'viewBox="{x_min} {-y_max} {w} {h}" '  # 操作
+        f'width="{svg_w}" height="{svg_h}" '  # 操作
+        f'style="background:#fff">\n'
+    )  # assignment
 
     max_entities = 2000  # 渲染上限，避免大图纸超时
     drawn = 0  # assignment
@@ -1599,32 +1768,40 @@ async def render_drawing(  # code
         try:  # 尝试
             if dxftype == "LINE":  # condition: dxftype == "LINE":
                 s, e = entity.dxf.start, entity.dxf.end  # assignment
-                buf.write(f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '  # assignment
-                          f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '  # 操作
-                          f'stroke="#333" stroke-width="0.5" />\n')  # assignment
+                buf.write(
+                    f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '  # assignment
+                    f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '  # 操作
+                    f'stroke="#333" stroke-width="0.5" />\n'
+                )  # assignment
                 drawn += 1  # accumulate
             elif dxftype == "LWPOLYLINE":  # 分支
                 pts = [(v[0], -v[1]) for v in entity.get_points()]  # function call
                 d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)  # function call
-                buf.write(f'<path d="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n')  # function call
+                buf.write(
+                    f'<path d="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )  # function call
                 drawn += 1  # accumulate
             elif dxftype == "CIRCLE":  # 分支
                 cx, cy = entity.dxf.center[:2]  # assignment
                 r = entity.dxf.radius  # assignment
-                buf.write(f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '  # assignment
-                          f'fill="none" stroke="#333" stroke-width="0.5" />\n')  # assignment
+                buf.write(
+                    f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '  # assignment
+                    f'fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )  # assignment
                 drawn += 1  # accumulate
             elif dxftype in ("TEXT", "MTEXT"):  # 分支
                 ins = entity.dxf.insert[:2]  # assignment
-                txt = entity.dxf.text if hasattr(entity.dxf, 'text') else ''  # attribute check
-                ht = entity.dxf.height if hasattr(entity.dxf, 'height') else 2.5  # attribute check
-                buf.write(f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '  # assignment
-                          f'font-size="{ht}" fill="#666">{txt[:30]}</text>\n')  # assignment
+                txt = entity.dxf.text if hasattr(entity.dxf, "text") else ""  # attribute check
+                ht = entity.dxf.height if hasattr(entity.dxf, "height") else 2.5  # attribute check
+                buf.write(
+                    f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '  # assignment
+                    f'font-size="{ht}" fill="#666">{txt[:30]}</text>\n'
+                )  # assignment
                 drawn += 1  # accumulate
         except Exception:  # 捕获异常
             continue  # 继续循环
 
-    buf.write('</svg>')  # function call
+    buf.write("</svg>")  # function call
     svg_content = buf.getvalue()  # function call
 
     return Response(content=svg_content, media_type="image/svg+xml")  # return
@@ -1649,26 +1826,34 @@ async def review_pdf(  # code
     # 获取文件路径
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
-        raise HTTPException(status_code=404, detail={"status": "error", "message": "文件不存在"})  # function call
+        raise HTTPException(
+            status_code=404, detail={"status": "error", "message": "文件不存在"}
+        )  # function call
 
     # 重新审查（保证使用最新引擎版本）
     import asyncio  # stdlib: async
+
     loop = asyncio.get_event_loop()  # function call
 
     result = await loop.run_in_executor(  # assignment
         ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
     )  # code
     if not result.success:  # check: negated condition
-        raise HTTPException(status_code=400, detail={"status": "error", "message": f"图纸解析失败: {result.error}"})  # function call
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": f"图纸解析失败: {result.error}"}
+        )  # function call
 
     semantic = await loop.run_in_executor(  # assignment
         ENGINE_THREAD_POOL,  # code
-        lambda: _semantic_analyzer.analyze(result.primitives, result.dimensions, dxf_path=str(file_path))  # function call
+        lambda: _semantic_analyzer.analyze(
+            result.primitives, result.dimensions, dxf_path=str(file_path)
+        ),  # function call
     )  # code
     entities = semantic["entities"]  # assignment
 
     from src.baa_engine.spec_repository import SpecRepository  # import
     from collections import Counter  # stdlib: collections
+
     repo = SpecRepository()  # function call
     details = []  # assignment
     registry_funcs = _func_registry.list_all()  # check all true
@@ -1690,19 +1875,23 @@ async def review_pdf(  # code
                     "text": func.description,  # code
                     "category": func.category.value,  # code
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
+                f = _attribution_analyzer.build_finding(
+                    r, clause, {}, entities[:5]
+                )  # function call
                 if f.judgement["result"] != "PASS":  # condition: f.judgement["result"] != "PASS":
-                    details.append({  # code
-                        "entity_id": e.get("id", ""),  # function call
-                        "entity_type": e.get("type", ""),  # function call
-                        "clause_id": f.clause.get("clause_id", ""),  # function call
-                        "clause_title": f.clause.get("title", ""),  # function call
-                        "result": f.judgement["result"],  # code
-                        "extracted_value": r.actual,  # code
-                        "required_value": threshold_val,  # code
-                        "difference": (r.actual or 0) - threshold_val,  # function call
-                        "explanation": f.explanation[:120],  # code
-                    })  # code
+                    details.append(
+                        {  # code
+                            "entity_id": e.get("id", ""),  # function call
+                            "entity_type": e.get("type", ""),  # function call
+                            "clause_id": f.clause.get("clause_id", ""),  # function call
+                            "clause_title": f.clause.get("title", ""),  # function call
+                            "result": f.judgement["result"],  # code
+                            "extracted_value": r.actual,  # code
+                            "required_value": threshold_val,  # code
+                            "difference": (r.actual or 0) - threshold_val,  # function call
+                            "explanation": f.explanation[:120],  # code
+                        }
+                    )  # code
             except Exception:  # catch exception
                 continue  # code
 
@@ -1721,18 +1910,26 @@ async def review_pdf(  # code
                     "text": func.description,  # code
                     "category": func.category.value,  # code
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": "",  # code
-                    "entity_type": "missing",  # code
-                    "clause_id": f.clause.get("clause_id", ""),  # function call
-                    "clause_title": f.clause.get("title", ""),  # function call
-                    "result": f.judgement["result"],  # code
-                    "extracted_value": 0.0,  # code
-                    "required_value": f.extracted_params.get("required_value", 1.0),  # function call
-                    "difference": -f.extracted_params.get("required_value", 1.0),  # function call
-                    "explanation": f.explanation[:120],  # code
-                })  # code
+                f = _attribution_analyzer.build_finding(
+                    r, clause, {}, entities[:5]
+                )  # function call
+                details.append(
+                    {  # code
+                        "entity_id": "",  # code
+                        "entity_type": "missing",  # code
+                        "clause_id": f.clause.get("clause_id", ""),  # function call
+                        "clause_title": f.clause.get("title", ""),  # function call
+                        "result": f.judgement["result"],  # code
+                        "extracted_value": 0.0,  # code
+                        "required_value": f.extracted_params.get(
+                            "required_value", 1.0
+                        ),  # function call
+                        "difference": -f.extracted_params.get(
+                            "required_value", 1.0
+                        ),  # function call
+                        "explanation": f.explanation[:120],  # code
+                    }
+                )  # code
 
     elapsed = int((time.time() - start) * 1000)  # get current time
     entity_types = Counter(e["type"] for e in entities)  # function call
@@ -1752,17 +1949,21 @@ async def review_pdf(  # code
     corrections = []  # assignment
     try:  # try block
         from src.baa_engine.correction_engine import CorrectionEngine  # import
+
         correction_engine = CorrectionEngine()  # function call
         review_result = {  # assignment
-            "findings": [{  # code
-                "entity_id": d["entity_id"],  # code
-                "entity_type": d["entity_type"],  # code
-                "clause_id": d["clause_id"],  # code
-                "clause_title": d["clause_title"],  # code
-                "extracted_value": d["extracted_value"],  # code
-                "required_value": d["required_value"],  # code
-                "difference": d["difference"],  # code
-            } for d in details]  # code
+            "findings": [
+                {  # code
+                    "entity_id": d["entity_id"],  # code
+                    "entity_type": d["entity_type"],  # code
+                    "clause_id": d["clause_id"],  # code
+                    "clause_title": d["clause_title"],  # code
+                    "extracted_value": d["extracted_value"],  # code
+                    "required_value": d["required_value"],  # code
+                    "difference": d["difference"],  # code
+                }
+                for d in details
+            ]  # code
         }  # code
         corrections = correction_engine.generate_for_result(review_result)  # function call
     except Exception:  # catch exception
@@ -1781,7 +1982,7 @@ async def review_pdf(  # code
         content=pdf_bytes,  # assignment
         media_type="application/pdf",  # assignment
         headers={  # assignment
-            "Content-Disposition": f"attachment; filename=\"{file_path.stem}_report.pdf\"",  # assignment
+            "Content-Disposition": f'attachment; filename="{file_path.stem}_report.pdf"',  # assignment
             "Content-Length": str(len(pdf_bytes)),  # get length
         },  # code
     )  # code
@@ -1822,13 +2023,17 @@ async def create_api_key(  # code
             permission=permission,  # assignment
             ttl_days=ttl_days,  # assignment
             label=label,  # assignment
-            created_by=api_key or "anonymous"  # assignment
+            created_by=api_key or "anonymous",  # assignment
         )  # code
     except ValueError as e:  # 捕获异常
-        raise HTTPException(status_code=400, detail={  # 抛出异常
-            "status": "error", "error_code": "INVALID_PARAM",  # 字段
-            "message": str(e)  # 字段
-        })  # code
+        raise HTTPException(
+            status_code=400,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "INVALID_PARAM",  # 字段
+                "message": str(e),  # 字段
+            },
+        )  # code
 
     return {  # return: dict
         "status": "success",  # 字段
@@ -1840,7 +2045,9 @@ async def create_api_key(  # code
 @app.get("/admin/keys", tags=["admin"])  # function call
 async def list_api_keys(  # code
     include_disabled: bool = Query(False),  # function call
-    include_raw: bool = Query(False, description="是否返回解密后的 raw_key（密钥详情时使用）"),  # function call
+    include_raw: bool = Query(
+        False, description="是否返回解密后的 raw_key（密钥详情时使用）"
+    ),  # function call
     request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
     _admin: str = Depends(require_admin),  # function call
@@ -1884,8 +2091,8 @@ async def api_key_stats(  # code
                 "active": len([k for k in keys if k.get("enabled")]),  # 字段
                 "disabled": len([k for k in keys if not k.get("enabled")]),  # 字段
                 "total_calls": sum(s.get("total_calls", 0) for s in stats.values()),  # 字段
-            }  # code
-        }  # code
+            },  # code
+        },  # code
     }  # code
 
 
@@ -1904,10 +2111,14 @@ async def get_api_key_detail(  # code
             stats = km.get_usage_stats(key_id)  # function call
             k["usage"] = stats  # 操作
             return {"status": "success", "data": k}  # return: dict
-    raise HTTPException(status_code=404, detail={  # 抛出异常
-        "status": "error", "error_code": "NOT_FOUND",  # 字段
-        "message": f"密钥不存在: {key_id}"  # 字段
-    })  # code
+    raise HTTPException(
+        status_code=404,
+        detail={  # 抛出异常
+            "status": "error",
+            "error_code": "NOT_FOUND",  # 字段
+            "message": f"密钥不存在: {key_id}",  # 字段
+        },
+    )  # code
 
 
 @app.post("/admin/keys/{key_id}/revoke", tags=["admin"])  # function call
@@ -1923,10 +2134,14 @@ async def revoke_api_key(  # code
     # 根据条件判断分支：if km.revoke_key(key_id)
     if km.revoke_key(key_id):  # condition: km.revoke_key(key_id):
         return {"status": "success", "message": f"密钥 {key_id} 已撤销"}  # return: dict
-    raise HTTPException(status_code=404, detail={  # 抛出异常
-        "status": "error", "error_code": "NOT_FOUND",  # 字段
-        "message": f"密钥不存在: {key_id}"  # 字段
-    })  # code
+    raise HTTPException(
+        status_code=404,
+        detail={  # 抛出异常
+            "status": "error",
+            "error_code": "NOT_FOUND",  # 字段
+            "message": f"密钥不存在: {key_id}",  # 字段
+        },
+    )  # code
 
 
 @app.post("/admin/keys/{key_id}/rotate", tags=["admin"])  # function call
@@ -1946,10 +2161,14 @@ async def rotate_api_key(  # code
             "data": result,  # 字段
             "warning": "旧密钥已失效，请立即保存新 raw_key",  # 字段
         }  # code
-    raise HTTPException(status_code=404, detail={  # 抛出异常
-        "status": "error", "error_code": "NOT_FOUND",  # 字段
-        "message": f"密钥不存在或已禁用: {key_id}"  # 字段
-    })  # code
+    raise HTTPException(
+        status_code=404,
+        detail={  # 抛出异常
+            "status": "error",
+            "error_code": "NOT_FOUND",  # 字段
+            "message": f"密钥不存在或已禁用: {key_id}",  # 字段
+        },
+    )  # code
 
 
 @app.delete("/admin/keys/{key_id}", tags=["admin"])  # function call
@@ -1963,10 +2182,14 @@ async def delete_api_key(  # code
     km = get_key_manager()  # function call
     if km.delete_key(key_id):  # condition: km.delete_key(key_id):
         return {"status": "success", "message": f"密钥 {key_id} 已永久删除"}  # return: dict
-    raise HTTPException(status_code=404, detail={  # 抛出异常
-        "status": "error", "error_code": "NOT_FOUND",  # 字段
-        "message": f"密钥不存在: {key_id}"  # 字段
-    })  # code
+    raise HTTPException(
+        status_code=404,
+        detail={  # 抛出异常
+            "status": "error",
+            "error_code": "NOT_FOUND",  # 字段
+            "message": f"密钥不存在: {key_id}",  # 字段
+        },
+    )  # code
 
 
 @app.post("/admin/keys/verify", tags=["admin"])  # function call
@@ -1991,20 +2214,20 @@ async def verify_api_key_raw(  # code
                 "permission": key_info.get("permission"),  # 字段
                 "expires_at": key_info.get("expires_at"),  # 字段
                 "created_at": key_info.get("created_at"),  # 字段
-            }  # code
+            },  # code
         }  # code
     else:  # 否则
         return {  # return: dict
             "status": "success",  # 字段
             "valid": False,  # 字段
-            "message": "密钥无效或已过期/撤销"  # 字段
+            "message": "密钥无效或已过期/撤销",  # 字段
         }  # code
 
 
 @app.get("/admin/bootstrap-key", tags=["admin"])  # function call
 async def bootstrap_admin_key():  # function call
     """获取前端密钥管理页使用的管理令牌（免认证）
-    
+
     开发模式（BAA_API_KEY 未设置）时返回空字符串，
     此时后端 require_admin 不校验令牌，前端直接发请求即可。
     生产模式时返回环境变量中的 admin key。
@@ -2019,6 +2242,7 @@ async def bootstrap_admin_key():  # function call
 
 # ── EMA2 第三方对接 API ───────────────────────────────────
 
+
 async def _fire_webhook(webhook_url: str, payload: dict) -> bool:  # function call
     """发送 Webhook 回调通知（异步，不阻塞主流程）
 
@@ -2030,6 +2254,7 @@ async def _fire_webhook(webhook_url: str, payload: dict) -> bool:  # function ca
         bool: 是否发送成功
     """
     import httpx  # import
+
     try:  # 尝试
         async with httpx.AsyncClient(timeout=10.0) as client:  # function call
             resp = await client.post(webhook_url, json=payload)  # function call
@@ -2039,7 +2264,9 @@ async def _fire_webhook(webhook_url: str, payload: dict) -> bool:  # function ca
         return False  # return: boolean
 
 
-async def _run_review_task(task_id: str, file_path: str, building_type: str, webhook_url: str = None):  # function call
+async def _run_review_task(
+    task_id: str, file_path: str, building_type: str, webhook_url: str = None
+):  # function call
     """后台执行异步审查任务
 
     在后台线程中执行完整的审查流程：解析→语义分析→规范判定→缺失检查。
@@ -2047,12 +2274,12 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
     """
     _tasks[task_id]["status"] = "running"  # 操作
     _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
-    
+
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
         start = time.time()  # get current time
         loop = asyncio.get_event_loop()  # function call
-        
+
         # ── Step 1: 图纸解析 ─────────────────────────────────
         result = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), task_id  # 操作
@@ -2062,25 +2289,32 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
             _tasks[task_id]["error"] = f"解析失败: {result.error}"  # 操作
             _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
             if webhook_url:  # condition: webhook_url:
-                await _fire_webhook(webhook_url, {  # 操作
-                    "task_id": task_id, "status": "failed", "error": _tasks[task_id]["error"]  # 字段
-                })  # code
+                await _fire_webhook(
+                    webhook_url,
+                    {  # 操作
+                        "task_id": task_id,
+                        "status": "failed",
+                        "error": _tasks[task_id]["error"],  # 字段
+                    },
+                )  # code
             return  # code
-        
+
         # ── Step 2: 语义分析 ─────────────────────────────────
         semantic = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL,  # 解包
             lambda: _semantic_analyzer.analyze(  # 操作
                 result.primitives, result.dimensions, building_type=building_type  # 解包
-            )  # code
+            ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
-        
+
         # ── Step 3: 规范判定 ─────────────────────────────────
         details = []  # assignment
         for e in entities:  # 循环
             for func in _func_registry.list_all():  # 循环
-                threshold_val, unit, op = _spec_repo.get_threshold(func.clause_id, building_type)  # function call
+                threshold_val, unit, op = _spec_repo.get_threshold(
+                    func.clause_id, building_type
+                )  # function call
                 func.threshold = threshold_val  # assignment
                 func.unit = unit  # assignment
                 func.operator = op  # assignment
@@ -2095,19 +2329,21 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                     "category": func.category.value,  # 字段
                 }  # code
                 f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                details.append({  # code
-                    "entity_id": e.get("id", e.get("type", "")),  # 字段
-                    "entity_type": e["type"],  # 字段
-                    "clause_id": f.clause.get("clause_id", ""),  # 字段
-                    "clause_title": f.clause.get("title", ""),  # 字段
-                    "result": f.judgement["result"],  # 字段
-                    "extracted_value": f.extracted_params["extracted_value"],  # 字段
-                    "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
-                    "difference": f.extracted_params.get("difference", 0),  # 字段
-                    "explanation": f.explanation[:120],  # 字段
-                    "severity": f.judgement.get("severity", "major"),  # 字段
-                })  # code
-        
+                details.append(
+                    {  # code
+                        "entity_id": e.get("id", e.get("type", "")),  # 字段
+                        "entity_type": e["type"],  # 字段
+                        "clause_id": f.clause.get("clause_id", ""),  # 字段
+                        "clause_title": f.clause.get("title", ""),  # 字段
+                        "result": f.judgement["result"],  # 字段
+                        "extracted_value": f.extracted_params["extracted_value"],  # 字段
+                        "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
+                        "difference": f.extracted_params.get("difference", 0),  # 字段
+                        "explanation": f.explanation[:120],  # 字段
+                        "severity": f.judgement.get("severity", "major"),  # 字段
+                    }
+                )  # code
+
         # ── Step 4: 缺失检查 ─────────────────────────────────
         for func in _func_registry.list_all():  # 循环
             if func.category.value != "exist":  # check: OR condition
@@ -2122,22 +2358,26 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
                     }  # code
-                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                    details.append({  # code
-                        "entity_id": "",  # 字段
-                        "entity_type": "missing",  # 字段
-                        "clause_id": f.clause.get("clause_id", ""),  # 字段
-                        "clause_title": f.clause.get("title", ""),  # 字段
-                        "result": f.judgement["result"],  # 字段
-                        "extracted_value": 0.0,  # 字段
-                        "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
-                        "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
-                        "explanation": f.explanation[:120],  # 字段
-                        "severity": f.judgement.get("severity", "major"),  # 字段
-                    })  # code
-        
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, {}, entities[:5]
+                    )  # function call
+                    details.append(
+                        {  # code
+                            "entity_id": "",  # 字段
+                            "entity_type": "missing",  # 字段
+                            "clause_id": f.clause.get("clause_id", ""),  # 字段
+                            "clause_title": f.clause.get("title", ""),  # 字段
+                            "result": f.judgement["result"],  # 字段
+                            "extracted_value": 0.0,  # 字段
+                            "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
+                            "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
+                            "explanation": f.explanation[:120],  # 字段
+                            "severity": f.judgement.get("severity", "major"),  # 字段
+                        }
+                    )  # code
+
         elapsed = int((time.time() - start) * 1000)  # get current time
-        
+
         # ── 存储结果 ────────────────────────────────────────
         _tasks[task_id]["status"] = "completed"  # 操作
         _tasks[task_id]["result"] = {  # 操作
@@ -2150,24 +2390,30 @@ async def _run_review_task(task_id: str, file_path: str, building_type: str, web
             "processing_time_ms": elapsed,  # 字段
         }  # code
         _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
-        
+
         # ── Webhook 回调通知 ─────────────────────────────────
         if webhook_url:  # condition: webhook_url:
-            await _fire_webhook(webhook_url, {  # 操作
-                "task_id": task_id, "status": "completed",  # 字段
-                "violations": len(details), "entities": len(entities),  # 字段
-                "processing_time_ms": elapsed,  # 字段
-            })  # code
-    
+            await _fire_webhook(
+                webhook_url,
+                {  # 操作
+                    "task_id": task_id,
+                    "status": "completed",  # 字段
+                    "violations": len(details),
+                    "entities": len(entities),  # 字段
+                    "processing_time_ms": elapsed,  # 字段
+                },
+            )  # code
+
     # 异常处理
     except Exception as e:  # 捕获异常
         _tasks[task_id]["status"] = "failed"  # 操作
         _tasks[task_id]["error"] = str(e)  # 操作
         _tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
         if webhook_url:  # condition: webhook_url:
-            await _fire_webhook(webhook_url, {  # 操作
-                "task_id": task_id, "status": "failed", "error": str(e)  # 字段
-            })  # code
+            await _fire_webhook(
+                webhook_url,
+                {"task_id": task_id, "status": "failed", "error": str(e)},  # 操作  # 字段
+            )  # code
 
 
 @app.post("/api/v1/tasks", tags=["EMA2"])  # function call
@@ -2178,27 +2424,35 @@ async def create_review_task(  # code
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """创建异步审查任务（EMA2 对接）
-    
+
     上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。
     """
     filename = file.filename or "unknown"  # assignment
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # function call
     if ext not in SUPPORTED_FORMATS:  # check: membership test
-        raise HTTPException(status_code=400, detail={  # 抛出异常
-            "status": "error", "error_code": "UNSUPPORTED_FORMAT",  # 字段
-            "message": f"不支持的文件格式: {ext}",  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=400,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "UNSUPPORTED_FORMAT",  # 字段
+                "message": f"不支持的文件格式: {ext}",  # 字段
+            },
+        )  # code
+
     content = await file.read()  # function call
     if len(content) > MAX_FILE_SIZE:  # check: numeric comparison
-        raise HTTPException(status_code=400, detail={  # 抛出异常
-            "status": "error", "error_code": "FILE_TOO_LARGE",  # 字段
-            "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=400,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "FILE_TOO_LARGE",  # 字段
+                "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",  # 字段
+            },
+        )  # code
+
     file_id = generate_file_id()  # function call
     file_path = store_file(content, file_id, ext)  # function call
-    
+
     # 创建任务
     task_id = str(uuid.uuid4())[:8]  # function call
     _tasks[task_id] = {  # assignment
@@ -2214,10 +2468,12 @@ async def create_review_task(  # code
         "result": None,  # 字段
         "error": None,  # 字段
     }  # code
-    
+
     # 启动后台任务
-    asyncio.create_task(_run_review_task(task_id, str(file_path), building_type, webhook_url))  # function call
-    
+    asyncio.create_task(
+        _run_review_task(task_id, str(file_path), building_type, webhook_url)
+    )  # function call
+
     return {  # return: dict
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
@@ -2231,11 +2487,15 @@ async def get_task_status(task_id: str, api_key: str = Depends(verify_api_key)):
     """查询任务状态（EMA2 对接）"""
     task = _tasks.get(task_id)  # function call
     if not task:  # check: negated condition
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "TASK_NOT_FOUND",  # 字段
-            "message": f"任务不存在: {task_id}",  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "TASK_NOT_FOUND",  # 字段
+                "message": f"任务不存在: {task_id}",  # 字段
+            },
+        )  # code
+
     return {  # return: dict
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
@@ -2252,25 +2512,36 @@ async def get_task_result(task_id: str, api_key: str = Depends(verify_api_key)):
     """获取审查结果（EMA2 对接）"""
     task = _tasks.get(task_id)  # function call
     if not task:  # check: negated condition
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "TASK_NOT_FOUND",  # 字段
-            "message": f"任务不存在: {task_id}",  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "TASK_NOT_FOUND",  # 字段
+                "message": f"任务不存在: {task_id}",  # 字段
+            },
+        )  # code
+
     # 根据条件判断分支：if task["status"] == "pending"
     if task["status"] == "pending":  # condition: task["status"] == "pending":
-        raise HTTPException(status_code=409, detail={  # 抛出异常
-            "status": "pending",  # 字段
-            "message": "任务仍在处理中，请稍后查询",  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=409,
+            detail={  # 抛出异常
+                "status": "pending",  # 字段
+                "message": "任务仍在处理中，请稍后查询",  # 字段
+            },
+        )  # code
+
     # 根据条件判断分支：if task["status"] == "failed"
     if task["status"] == "failed":  # condition: task["status"] == "failed":
-        raise HTTPException(status_code=500, detail={  # 抛出异常
-            "status": "error", "error_code": "TASK_FAILED",  # 字段
-            "message": task.get("error", "任务执行失败"),  # 字段
-        })  # code
-    
+        raise HTTPException(
+            status_code=500,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "TASK_FAILED",  # 字段
+                "message": task.get("error", "任务执行失败"),  # 字段
+            },
+        )  # code
+
     return {  # return: dict
         "status": "success",  # 字段
         "task_id": task_id,  # 字段
@@ -2317,15 +2588,20 @@ async def list_webhooks(api_key: str = Depends(verify_api_key)):  # function cal
 async def delete_webhook(webhook_id: str, api_key: str = Depends(verify_api_key)):  # function call
     """删除 Webhook（EMA2 对接）"""
     if webhook_id not in _webhooks:  # check: membership test
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "WEBHOOK_NOT_FOUND",  # 字段
-            "message": f"Webhook 不存在: {webhook_id}",  # 字段
-        })  # code
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "WEBHOOK_NOT_FOUND",  # 字段
+                "message": f"Webhook 不存在: {webhook_id}",  # 字段
+            },
+        )  # code
     del _webhooks[webhook_id]  # 删除
     return {"status": "success", "message": "Webhook 已删除"}  # return: dict
 
 
 # ── P10 反馈闭环 API ───────────────────────────────────────
+
 
 @app.post("/api/v1/feedbacks", tags=["Feedback"])  # function call
 async def submit_feedback(body: dict):  # function call
@@ -2373,10 +2649,14 @@ async def get_feedback(feedback_id: str):  # function call
     """查询单条申诉详情"""
     record = _feedback_manager.get(feedback_id)  # function call
     if not record:  # check: negated condition
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "FEEDBACK_NOT_FOUND",  # 字段
-            "message": f"申诉不存在: {feedback_id}",  # 字段
-        })  # code
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "FEEDBACK_NOT_FOUND",  # 字段
+                "message": f"申诉不存在: {feedback_id}",  # 字段
+            },
+        )  # code
     return {"status": "success", "feedback": record}  # return: dict
 
 
@@ -2391,14 +2671,20 @@ async def review_feedback(  # code
     Body: {status: accepted/rejected, reviewed_by, review_comment?}
     """
     record = _feedback_manager.review(  # assignment
-        feedback_id, body.get("status", ""), body.get("reviewed_by", ""),  # 操作
-        body.get("review_comment", "")  # function call
+        feedback_id,
+        body.get("status", ""),
+        body.get("reviewed_by", ""),  # 操作
+        body.get("review_comment", ""),  # function call
     )  # code
     if not record:  # check: negated condition
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "FEEDBACK_NOT_FOUND",  # 字段
-            "message": f"申诉不存在: {feedback_id}",  # 字段
-        })  # code
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "FEEDBACK_NOT_FOUND",  # 字段
+                "message": f"申诉不存在: {feedback_id}",  # 字段
+            },
+        )  # code
     return {"status": "success", "feedback": record}  # return: dict
 
 
@@ -2415,23 +2701,29 @@ async def adjust_threshold(  # code
     """
     clause_id = body.get("clause_id", "")  # function call
     apply = body.get("apply", False)  # function call
-    
+
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
         current, unit, op = _spec_repo.get_threshold(clause_id, "civil")  # 操作
     except ValueError:  # 捕获异常
-        raise HTTPException(status_code=404, detail={  # 抛出异常
-            "status": "error", "error_code": "CLAUSE_NOT_FOUND",  # 字段
-            "message": f"规范不存在: {clause_id}",  # 字段
-        })  # code
+        raise HTTPException(
+            status_code=404,
+            detail={  # 抛出异常
+                "status": "error",
+                "error_code": "CLAUSE_NOT_FOUND",  # 字段
+                "message": f"规范不存在: {clause_id}",  # 字段
+            },
+        )  # code
 
     adjustment = _learning_engine.compute_adjustment(clause_id, current)  # function call
 
     # 根据条件判断分支：if apply and adjustment.get("adjustable")
     if apply and adjustment.get("adjustable"):  # check: AND condition
         success = _learning_engine.apply_adjustment(  # assignment
-            clause_id, adjustment["suggested_threshold"], _spec_repo,  # 操作
-            reason=f"基于申诉 {feedback_id} 的自动微调"  # assignment
+            clause_id,
+            adjustment["suggested_threshold"],
+            _spec_repo,  # 操作
+            reason=f"基于申诉 {feedback_id} 的自动微调",  # assignment
         )  # code
         adjustment["applied"] = success  # 操作
 
@@ -2445,8 +2737,12 @@ async def adjust_threshold(  # code
 async def review_compare(  # code
     file1: UploadFile = File(..., description="版本1（旧图纸）"),  # function call
     file2: UploadFile = File(..., description="版本2（新图纸）"),  # function call
-    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),  # function call
-    standard: str = Query("GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"),  # function call
+    building_type: str = Query(
+        "civil", description="建筑类型: civil(民用) / industrial(工业)"
+    ),  # function call
+    standard: str = Query(
+        "GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
+    ),  # function call
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """审查结果对比（Diff）
@@ -2468,10 +2764,14 @@ async def review_compare(  # code
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # function call
 
         if ext not in SUPPORTED_FORMATS:  # check: membership test
-            raise HTTPException(status_code=400, detail={  # assignment
-                "status": "error", "error_code": "UNSUPPORTED_FORMAT",  # code
-                "message": f"不支持的文件格式: {ext}",  # code
-            })  # code
+            raise HTTPException(
+                status_code=400,
+                detail={  # assignment
+                    "status": "error",
+                    "error_code": "UNSUPPORTED_FORMAT",  # code
+                    "message": f"不支持的文件格式: {ext}",  # code
+                },
+            )  # code
 
         file_id = generate_file_id()  # function call
         file_path = store_file(content, file_id, ext)  # function call
@@ -2480,21 +2780,28 @@ async def review_compare(  # code
             ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
         )  # code
         if not result.success:  # check: negated condition
-            raise HTTPException(status_code=400, detail={  # assignment
-                "status": "error", "message": f"图纸解析失败: {result.error}",  # code
-            })  # code
+            raise HTTPException(
+                status_code=400,
+                detail={  # assignment
+                    "status": "error",
+                    "message": f"图纸解析失败: {result.error}",  # code
+                },
+            )  # code
 
         semantic = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL,  # code
             lambda: _semantic_analyzer.analyze(  # code
-                result.primitives, result.dimensions,  # code
-                building_type=building_type, dxf_path=str(file_path)  # function call
-            )  # code
+                result.primitives,
+                result.dimensions,  # code
+                building_type=building_type,
+                dxf_path=str(file_path),  # function call
+            ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
 
         from src.baa_engine.spec_repository import SpecRepository  # import
         from collections import Counter  # stdlib: collections
+
         repo = SpecRepository()  # function call
         details = []  # assignment
         registry_funcs = _func_registry.list_all()  # check all true
@@ -2517,18 +2824,22 @@ async def review_compare(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                        details.append({  # code
-                            "entity_id": e.get("id", ""),  # function call
-                            "entity_type": e.get("type", ""),  # function call
-                            "clause_id": f.clause.get("clause_id", ""),  # function call
-                            "clause_title": f.clause.get("title", ""),  # function call
-                            "result": f.judgement["result"],  # code
-                            "extracted_value": r.actual,  # code
-                            "required_value": threshold_val,  # code
-                            "difference": (r.actual or 0) - threshold_val,  # function call
-                            "explanation": f.explanation[:120],  # code
-                        })  # code
+                        f = _attribution_analyzer.build_finding(
+                            r, clause, e, entities[:5]
+                        )  # function call
+                        details.append(
+                            {  # code
+                                "entity_id": e.get("id", ""),  # function call
+                                "entity_type": e.get("type", ""),  # function call
+                                "clause_id": f.clause.get("clause_id", ""),  # function call
+                                "clause_title": f.clause.get("title", ""),  # function call
+                                "result": f.judgement["result"],  # code
+                                "extracted_value": r.actual,  # code
+                                "required_value": threshold_val,  # code
+                                "difference": (r.actual or 0) - threshold_val,  # function call
+                                "explanation": f.explanation[:120],  # code
+                            }
+                        )  # code
                 except Exception:  # catch exception
                     continue  # code
 
@@ -2547,18 +2858,26 @@ async def review_compare(  # code
                         "text": func.description,  # code
                         "category": func.category.value,  # code
                     }  # code
-                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])  # function call
-                    details.append({  # code
-                        "entity_id": "",  # code
-                        "entity_type": "missing",  # code
-                        "clause_id": f.clause.get("clause_id", ""),  # function call
-                        "clause_title": f.clause.get("title", ""),  # function call
-                        "result": f.judgement["result"],  # code
-                        "extracted_value": 0.0,  # code
-                        "required_value": f.extracted_params.get("required_value", 1.0),  # function call
-                        "difference": -f.extracted_params.get("required_value", 1.0),  # function call
-                        "explanation": f.explanation[:120],  # code
-                    })  # code
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, {}, entities[:5]
+                    )  # function call
+                    details.append(
+                        {  # code
+                            "entity_id": "",  # code
+                            "entity_type": "missing",  # code
+                            "clause_id": f.clause.get("clause_id", ""),  # function call
+                            "clause_title": f.clause.get("title", ""),  # function call
+                            "result": f.judgement["result"],  # code
+                            "extracted_value": 0.0,  # code
+                            "required_value": f.extracted_params.get(
+                                "required_value", 1.0
+                            ),  # function call
+                            "difference": -f.extracted_params.get(
+                                "required_value", 1.0
+                            ),  # function call
+                            "explanation": f.explanation[:120],  # code
+                        }
+                    )  # code
 
         return filename, details  # return
 
@@ -2567,7 +2886,8 @@ async def review_compare(  # code
 
     engine = ReviewDiffEngine()  # function call
     report = engine.compare(  # assignment
-        details1, details2,  # code
+        details1,
+        details2,  # code
         v1_file=name1,  # assignment
         v2_file=name2,  # assignment
         v1_building_type=building_type,  # assignment
@@ -2589,8 +2909,9 @@ if __name__ == "__main__":  # condition: __name__ == "__main__":
     import uvicorn  # import
     import sys  # import
     import os  # stdlib: filesystem ops
-    port = int(os.getenv("BAA_PORT", "8000"))       # 服务端口
-    workers = int(os.getenv("BAA_WORKERS", "4"))    # 默认4 worker
+
+    port = int(os.getenv("BAA_PORT", "8000"))  # 服务端口
+    workers = int(os.getenv("BAA_WORKERS", "4"))  # 默认4 worker
 
     # 日志输出到项目 data/logs/ 下
     log_dir = DATA_DIR / "logs"  # assignment
@@ -2606,5 +2927,5 @@ if __name__ == "__main__":  # condition: __name__ == "__main__":
         workers=workers,  # assignment
         log_config=None,  # assignment
         access_log=False,  # assignment
-        log_level="info"  # assignment
+        log_level="info",  # assignment
     )  # code

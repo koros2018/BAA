@@ -8,6 +8,7 @@ BAA YOLO 图元检测集成器
 2. 检测框 + 类别 → 结构化实体（bbox/properties）
 3. 支持渲染图像、运行预测、结果映射全链路
 """
+
 import logging
 import math
 import os
@@ -22,24 +23,24 @@ logger = logging.getLogger(__name__)
 # YOLO 类别索引 → 语义类型名称
 # 顺序必须与训练时的 data.yaml 一致，否则 cls_id 会映射到错误类型
 YOLO_CLASSES = [
-    "wall",           # 0
-    "door",           # 1
-    "window",         # 2
-    "staircase",      # 3
-    "corridor",       # 4
-    "fire_door",      # 5
-    "exit",           # 6
-    "fire_lane",      # 7
-    "fire_zone",      # 8
-    "fire_window",    # 9
-    "shaft",          # 10
-    "room",           # 11
-    "exit_sign",      # 12
-    "sprinkler_system", # 13
-    "fire_alarm",     # 14
-    "insulation",     # 15
-    "evacuation_lighting", # 16
-    "refuge_floor",   # 17
+    "wall",  # 0
+    "door",  # 1
+    "window",  # 2
+    "staircase",  # 3
+    "corridor",  # 4
+    "fire_door",  # 5
+    "exit",  # 6
+    "fire_lane",  # 7
+    "fire_zone",  # 8
+    "fire_window",  # 9
+    "shaft",  # 10
+    "room",  # 11
+    "exit_sign",  # 12
+    "sprinkler_system",  # 13
+    "fire_alarm",  # 14
+    "insulation",  # 15
+    "evacuation_lighting",  # 16
+    "refuge_floor",  # 17
 ]
 
 # 需要面积估算的类别：这些实体的面积属性在后续消防规范校验中至关重要
@@ -51,7 +52,6 @@ AREA_CLASSES = {"room", "fire_zone", "wall"}
 # 需要宽度属性的类别：这些实体的净宽是消防通道/疏散出口的核心参数
 # 门/窗/楼梯/走廊/消防车道 的宽度直接影响《建筑设计防火规范》合规性
 WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "corridor", "fire_lane"}
-
 
 
 class YOLODetectionIntegrator:
@@ -98,7 +98,14 @@ class YOLODetectionIntegrator:
             candidates = [
                 project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",
                 project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",
-                project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",
+                project_root
+                / "runs"
+                / "detect"
+                / "data"
+                / "models"
+                / "baa_yolov8n_v2-3"
+                / "weights"
+                / "best.pt",
                 project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",
             ]
             for c in candidates:
@@ -111,10 +118,11 @@ class YOLODetectionIntegrator:
 
         try:
             from ultralytics import YOLO
+
             # 禁用 CUDA：当前环境（WSL2）无物理 GPU 且 PyTorch CUDA 版本与 Intel Arc 不兼容
             # CUDA_VISIBLE_DEVICES='-1' 强制 YOLO 使用 CPU 推理，避免 CUDA OOM 或驱动错误
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-            self._model = YOLO(str(path), task='detect')
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+            self._model = YOLO(str(path), task="detect")
             self._model_path = str(path)
             self._loaded = True
             return True
@@ -129,7 +137,9 @@ class YOLODetectionIntegrator:
         """
         return self._loaded
 
-    def predict(self, image_path: str, conf: float = 0.25, iou: float = 0.5) -> List[Dict[str, Any]]:
+    def predict(
+        self, image_path: str, conf: float = 0.25, iou: float = 0.5
+    ) -> List[Dict[str, Any]]:
         """对单张图纸图像执行 YOLO 预测
 
         参数说明：
@@ -198,12 +208,14 @@ class YOLODetectionIntegrator:
                     props["width"] = min(bbox["width"], bbox["height"])
                     props["clear_width"] = props["width"]
 
-                detections.append({
-                    "type": entity_type,
-                    "confidence": confidence,
-                    "bbox": bbox,
-                    "properties": props,
-                })
+                detections.append(
+                    {
+                        "type": entity_type,
+                        "confidence": confidence,
+                        "bbox": bbox,
+                        "properties": props,
+                    }
+                )
 
         return detections
 
@@ -223,9 +235,12 @@ class YOLODetectionIntegrator:
         detections = self.predict(image_path)
         return image_path, detections
 
-    def detections_to_entities(self, detections: List[Dict],
-                                world_bbox: Optional[Dict] = None,
-                                image_size: Tuple[int, int] = (640, 640)) -> List[Dict]:
+    def detections_to_entities(
+        self,
+        detections: List[Dict],
+        world_bbox: Optional[Dict] = None,
+        image_size: Tuple[int, int] = (640, 640),
+    ) -> List[Dict]:
         """将 YOLO 检测结果映射为引擎实体格式
 
         像素坐标到世界坐标的映射原理：
@@ -283,7 +298,10 @@ class YOLODetectionIntegrator:
             # 这样前端可以展示"3 个 door"而不是三个独立的 door 条目
             existing = None
             for e in entities:
-                if e["type"] == det["type"] and e.get("properties", {}).get("detection_source") == "yolo":
+                if (
+                    e["type"] == det["type"]
+                    and e.get("properties", {}).get("detection_source") == "yolo"
+                ):
                     existing = e
                     break
 
@@ -307,7 +325,8 @@ class YOLODetectionIntegrator:
         """
         import ezdxf
         import matplotlib
-        matplotlib.use('Agg')
+
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import tempfile
 
@@ -362,11 +381,11 @@ class YOLODetectionIntegrator:
         fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
-        ax.set_aspect('equal')
-        ax.axis('off')
+        ax.set_aspect("equal")
+        ax.axis("off")
 
         for entity in msp:
-            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''
+            layer = entity.dxf.layer if hasattr(entity.dxf, "layer") else ""
             # 跳过 META 图层：该层包含尺寸辅助线等对 YOLO 检测无意义的元素
             if layer.upper() == "META":
                 continue
@@ -374,29 +393,37 @@ class YOLODetectionIntegrator:
             try:
                 if dxftype == "LINE":
                     s, e = entity.dxf.start, entity.dxf.end
-                    ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)
+                    ax.plot([s[0], e[0]], [s[1], e[1]], "k-", linewidth=0.3)
                 elif dxftype == "LWPOLYLINE":
                     pts = [(v[0], v[1]) for v in entity.get_points()]
                     xs, ys = zip(*pts)
-                    ax.plot(xs, ys, 'k-', linewidth=0.3)
+                    ax.plot(xs, ys, "k-", linewidth=0.3)
                 elif dxftype == "CIRCLE":
                     cx, cy = entity.dxf.center[:2]
                     r = entity.dxf.radius
-                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))
+                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color="k", linewidth=0.3))
                 elif dxftype == "ARC":
                     cx, cy = entity.dxf.center[:2]
                     r = entity.dxf.radius
-                    ax.add_patch(plt.Arc((cx, cy), r*2, r*2, angle=0,
-                                          theta1=entity.dxf.start_angle,
-                                          theta2=entity.dxf.end_angle,
-                                          color='k', linewidth=0.3))
+                    ax.add_patch(
+                        plt.Arc(
+                            (cx, cy),
+                            r * 2,
+                            r * 2,
+                            angle=0,
+                            theta1=entity.dxf.start_angle,
+                            theta2=entity.dxf.end_angle,
+                            color="k",
+                            linewidth=0.3,
+                        )
+                    )
             except Exception:
                 continue
 
         tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
         tmp_path = tmp.name
         tmp.close()
-        plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')
+        plt.savefig(tmp_path, dpi=dpi, bbox_inches="tight", pad_inches=0.05, facecolor="white")
         plt.close(fig)
         return tmp_path
 
@@ -428,7 +455,9 @@ def _compute_center(bbox: Dict) -> Tuple[float, float]:
     return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2
 
 
-def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+def _point_to_segment_distance(
+    px: float, py: float, x1: float, y1: float, x2: float, y2: float
+) -> float:
     """点到线段的最短距离
 
     使用向量投影法计算，比点到直线距离更精确：
@@ -448,8 +477,12 @@ def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: f
     return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
-def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] = None,
-                           min_corridor_width_m: float = 0.5, verbose: bool = False) -> List[Dict]:
+def filter_yolo_detections(
+    detections: List[Dict],
+    walls: Optional[List[Dict]] = None,
+    min_corridor_width_m: float = 0.5,
+    verbose: bool = False,
+) -> List[Dict]:
     """YOLO 检测结果规则层后置兜底过滤
 
     策略（P25）：基于建筑规范常识的 5 条规则
@@ -479,10 +512,14 @@ def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] =
         # 从检测结果中提取 wall 实体作为参考线
         # 如果 walls 参数未提供，则 fallback 到检测结果中的 wall 实体
         wall_segments = [
-            {"x1": d["bbox"]["x"], "y1": d["bbox"]["y"],
-             "x2": d["bbox"]["x"] + d["bbox"]["width"],
-             "y2": d["bbox"]["y"] + d["bbox"]["height"]}
-            for d in detections if d["type"] == "wall"
+            {
+                "x1": d["bbox"]["x"],
+                "y1": d["bbox"]["y"],
+                "x2": d["bbox"]["x"] + d["bbox"]["width"],
+                "y2": d["bbox"]["y"] + d["bbox"]["height"],
+            }
+            for d in detections
+            if d["type"] == "wall"
         ]
 
     filtered: List[Dict] = []
@@ -517,9 +554,7 @@ def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] =
             if wall_bboxes:
                 min_dist = min(
                     _point_to_segment_distance(
-                        cx, cy,
-                        wb["x"], wb["y"],
-                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                        cx, cy, wb["x"], wb["y"], wb["x"] + wb["width"], wb["y"] + wb["height"]
                     )
                     for wb in wall_bboxes
                 )
@@ -535,9 +570,7 @@ def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] =
                 window_long = max(w, h)
                 min_dist = min(
                     _point_to_segment_distance(
-                        cx, cy,
-                        wb["x"], wb["y"],
-                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                        cx, cy, wb["x"], wb["y"], wb["x"] + wb["width"], wb["y"] + wb["height"]
                     )
                     for wb in wall_bboxes
                 )
@@ -581,7 +614,8 @@ def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] =
         if keep:
             filtered.append(det)
         elif verbose:
-            logger.debug(f"YOLO 过滤: {det["type"]} confidence={det["confidence"]:.3f} reason={suppression_reason}")
+            logger.debug(
+                f"YOLO 过滤: {det["type"]} confidence={det["confidence"]:.3f} reason={suppression_reason}"
+            )
 
     return filtered
-

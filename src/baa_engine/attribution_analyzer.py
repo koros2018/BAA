@@ -1,6 +1,7 @@
 """
 BAA 归因分析模块 - 三要素 + 注意力热力图（规则版）
 """
+
 from typing import Dict, Any, Optional, List  # typing: generic type hints
 from dataclasses import dataclass, field  # dataclasses: @dataclass decorator
 import uuid  # uuid: unique ID generation
@@ -9,13 +10,14 @@ import uuid  # uuid: unique ID generation
 @dataclass  # definition: immutable dataclass
 class Finding:  # definition: violation finding record
     """违规判定（完整归因）"""
+
     finding_id: str  # 操作
-    clause: Dict[str, Any]          # 规范依据
-    extracted_params: Dict[str, Any] # 参数证据
-    judgement: Dict[str, Any]       # 判定逻辑
-    attention_map: Dict[str, Any]   # 注意力热力图
-    explanation: str                # 说明
-    suggestion: str                 # 修改建议
+    clause: Dict[str, Any]  # 规范依据
+    extracted_params: Dict[str, Any]  # 参数证据
+    judgement: Dict[str, Any]  # 判定逻辑
+    attention_map: Dict[str, Any]  # 注意力热力图
+    explanation: str  # 说明
+    suggestion: str  # 修改建议
 
 
 class AttributionAnalyzer:  # definition: attribution analysis engine
@@ -66,8 +68,12 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
         )  # call end: _compute_attention
 
         # 生成说明+建议
-        explanation = self._build_explanation(clause_info, params, judgement)  # call: build explanation text
-        suggestion = self._build_suggestion(clause_info, params, judgement)  # call: build suggestion text
+        explanation = self._build_explanation(
+            clause_info, params, judgement
+        )  # call: build explanation text
+        suggestion = self._build_suggestion(
+            clause_info, params, judgement
+        )  # call: build suggestion text
 
         return Finding(  # return: construct Finding object
             finding_id=f"BAA-{uuid.uuid4().hex[:8].upper()}",  # field: unique finding ID
@@ -88,22 +94,28 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
         focus_areas = []  # init: collect focus areas
 
         # 目标实体权重最高
-        focus_areas.append({  # dict: add target entity with highest weight
-            "entity_id": target_entity.get("id", ""),  # 字段
-            "entity_type": target_entity.get("type", ""),  # 字段
-            "weight": 0.87,  # 字段
-            "reason": "目标实体（判定对象）",  # 字段
-        })  # dict end: target focus area
+        focus_areas.append(
+            {  # dict: add target entity with highest weight
+                "entity_id": target_entity.get("id", ""),  # 字段
+                "entity_type": target_entity.get("type", ""),  # 字段
+                "weight": 0.87,  # 字段
+                "reason": "目标实体（判定对象）",  # 字段
+            }
+        )  # dict end: target focus area
 
         # 直接关联实体
         for entity in related_entities:  # 循环
-            weight = 0.12 / max(len(related_entities), 1)  # calc: distribute remaining weight across related entities
-            focus_areas.append({  # dict: add related entity focus area
-                "entity_id": entity.get("id", ""),  # 字段
-                "entity_type": entity.get("type", ""),  # 字段
-                "weight": round(weight, 2),  # 字段
-                "reason": f"关联实体（{entity.get('type', '')}）",  # 字段
-            })  # dict end: related focus area
+            weight = 0.12 / max(
+                len(related_entities), 1
+            )  # calc: distribute remaining weight across related entities
+            focus_areas.append(
+                {  # dict: add related entity focus area
+                    "entity_id": entity.get("id", ""),  # 字段
+                    "entity_type": entity.get("type", ""),  # 字段
+                    "weight": round(weight, 2),  # 字段
+                    "reason": f"关联实体（{entity.get('type', '')}）",  # 字段
+                }
+            )  # dict end: related focus area
 
         # 归一化
         total = sum(a["weight"] for a in focus_areas)  # calc: sum all weights for normalization
@@ -124,18 +136,22 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
     ) -> str:  # return type: explanation string
         """生成说明"""
         if judgement["result"] == "PASS":  # branch: pass case returns positive explanation
-            return (f"{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build pass explanation
-                    f"{params.get('property_name', '')}为{params.get('extracted_value', '')}"  # 操作
-                    f"{params.get('unit', '')}，"  # 操作
-                    f"满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
-                    f"（{clause.get('text', '')}），判定通过。")  # 操作
-
-        return (f"{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build failure explanation with delta
+            return (
+                f"{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build pass explanation
                 f"{params.get('property_name', '')}为{params.get('extracted_value', '')}"  # 操作
                 f"{params.get('unit', '')}，"  # 操作
-                f"不满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
-                f"（{clause.get('text', '')}），"  # 操作
-                f"差值为{abs(judgement.get('delta', 0)):.2f}{params.get('unit', '')}。")  # 操作
+                f"满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
+                f"（{clause.get('text', '')}），判定通过。"
+            )  # 操作
+
+        return (
+            f"{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build failure explanation with delta
+            f"{params.get('property_name', '')}为{params.get('extracted_value', '')}"  # 操作
+            f"{params.get('unit', '')}，"  # 操作
+            f"不满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
+            f"（{clause.get('text', '')}），"  # 操作
+            f"差值为{abs(judgement.get('delta', 0)):.2f}{params.get('unit', '')}。"
+        )  # 操作
 
     def _build_suggestion(  # method: build actionable fix suggestion
         self,  # 解包
@@ -152,12 +168,18 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
         unit = params.get("unit", "")  # extract: measurement unit from params
 
         if operator in (">=", ">"):  # branch: >= or > requires increase
-            return (f"建议将{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build increase suggestion
-                    f"{params.get('property_name', '')}增加至≥{threshold}{unit}，"  # 操作
-                    f"或调整布局以满足要求。")  # 操作
+            return (
+                f"建议将{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build increase suggestion
+                f"{params.get('property_name', '')}增加至≥{threshold}{unit}，"  # 操作
+                f"或调整布局以满足要求。"
+            )  # 操作
         elif operator in ("<=", "<"):  # 分支
-            return (f"建议将{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build decrease suggestion
-                    f"{params.get('property_name', '')}减少至≤{threshold}{unit}。")  # 操作
+            return (
+                f"建议将{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build decrease suggestion
+                f"{params.get('property_name', '')}减少至≤{threshold}{unit}。"
+            )  # 操作
         else:  # 否则
-            return (f"请检查{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build generic check suggestion
-                    f"{params.get('property_name', '')}设置，确保符合规范要求。")  # 操作
+            return (
+                f"请检查{params.get('entity_type', '')}{params.get('entity_id', '')}的"  # string: build generic check suggestion
+                f"{params.get('property_name', '')}设置，确保符合规范要求。"
+            )  # 操作

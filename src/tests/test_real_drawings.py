@@ -10,6 +10,7 @@ BAA 真实图纸测试基线
   - 新增消防设施实体识别（INSERT 映射 + 图层映射 + TEXT 辅助）
   - 7 张真实图纸全部可解析，EXIST-005/006 在消防图纸上 PASS
 """
+
 import sys  # import
 import os  # stdlib: filesystem ops
 from pathlib import Path  # import: path utils
@@ -71,54 +72,102 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 # 允许 ±10% 浮动（避免每次 parser 升级导致基线碎掉）
 ENTITY_BASELINE = {  # assignment
     "A1云计算中心平面图0405_t3.dxf": {  # code
-        "wall": 696, "door": 22, "window": 261, "stair": 109,  # code
-        "column": 22, "room": 13, "dimension": 402, "text": 37,  # code
+        "wall": 696,
+        "door": 22,
+        "window": 261,
+        "stair": 109,  # code
+        "column": 22,
+        "room": 13,
+        "dimension": 402,
+        "text": 37,  # code
         "other": 1335,  # code
     },  # code
     "20210409-3#泵房_t3.dxf": {  # code
-        "wall": 420, "door": 16, "window": 29, "stair": 44,  # code
-        "column": 9, "room": 8, "dimension": 362, "text": 48,  # code
-        "other": 680, "equipment": 6, "fire_zone": 4,  # code
+        "wall": 420,
+        "door": 16,
+        "window": 29,
+        "stair": 44,  # code
+        "column": 9,
+        "room": 8,
+        "dimension": 362,
+        "text": 48,  # code
+        "other": 680,
+        "equipment": 6,
+        "fire_zone": 4,  # code
     },  # code
     "202109409-2#配电房_t3.dxf": {  # code
-        "wall": 292, "door": 22, "window": 80, "stair": 99,  # code
-        "column": 2, "room": 2, "dimension": 369, "text": 57,  # code
-        "other": 509, "equipment": 23, "fire_zone": 4,  # code
+        "wall": 292,
+        "door": 22,
+        "window": 80,
+        "stair": 99,  # code
+        "column": 2,
+        "room": 2,
+        "dimension": 369,
+        "text": 57,  # code
+        "other": 509,
+        "equipment": 23,
+        "fire_zone": 4,  # code
     },  # code
     "6.火灾自动报警 （报审）_t3.dxf": {  # code
-        "wall": 282, "door": 88, "window": 20, "stair": 1,  # code
-        "column": 7, "room": 6, "dimension": 270, "text": 25,  # code
-        "other": 915, "equipment": 1337,  # code
-        "fire_hydrant": 17, "sprinkler": 2, "fire_extinguisher": 2,  # code
-        "smoke_detector": 4, "fire_alarm": 7, "water_reservoir": 1,  # code
+        "wall": 282,
+        "door": 88,
+        "window": 20,
+        "stair": 1,  # code
+        "column": 7,
+        "room": 6,
+        "dimension": 270,
+        "text": 25,  # code
+        "other": 915,
+        "equipment": 1337,  # code
+        "fire_hydrant": 17,
+        "sprinkler": 2,
+        "fire_extinguisher": 2,  # code
+        "smoke_detector": 4,
+        "fire_alarm": 7,
+        "water_reservoir": 1,  # code
         "fire_door": 5,  # code
     },  # code
     "9.气体灭火（唯美图框）_t3.dxf": {  # code
-        "wall": 305, "door": 100, "window": 0, "stair": 0,  # code
-        "column": 79, "room": 0, "dimension": 207, "text": 352,  # code
-        "other": 1180, "equipment": 737,  # code
+        "wall": 305,
+        "door": 100,
+        "window": 0,
+        "stair": 0,  # code
+        "column": 79,
+        "room": 0,
+        "dimension": 207,
+        "text": 352,  # code
+        "other": 1180,
+        "equipment": 737,  # code
         "fire_extinguisher": 37,  # code
     },  # code
     "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
-        "wall": 120, "door": 339, "window": 192, "stair": 0,  # code
-        "column": 8, "room": 4, "dimension": 40, "text": 57,  # code
+        "wall": 120,
+        "door": 339,
+        "window": 192,
+        "stair": 0,  # code
+        "column": 8,
+        "room": 4,
+        "dimension": 40,
+        "text": 57,  # code
         "other": 1465,  # code
-        "fire_hydrant": 5, "sprinkler": 2, "fire_extinguisher": 3,  # code
+        "fire_hydrant": 5,
+        "sprinkler": 2,
+        "fire_extinguisher": 3,  # code
     },  # code
 }  # code
 
 # ── EXIST 函数预期结果 ──
 EXIST_EXPECTED = {  # assignment
     "6.火灾自动报警 （报审）_t3.dxf": {  # code
-        "EXIST-005": "PASS",   # 自动灭火系统
-        "EXIST-006": "PASS",   # 火灾报警系统
-        "EXIST-009": "PASS",   # 消防水池
+        "EXIST-005": "PASS",  # 自动灭火系统
+        "EXIST-006": "PASS",  # 火灾报警系统
+        "EXIST-009": "PASS",  # 消防水池
     },  # code
     "9.气体灭火（唯美图框）_t3.dxf": {  # code
-        "EXIST-005": "PASS",   # 气体灭火→自动灭火系统
+        "EXIST-005": "PASS",  # 气体灭火→自动灭火系统
     },  # code
     "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
-        "EXIST-005": "PASS",   # 水消防→自动灭火系统
+        "EXIST-005": "PASS",  # 水消防→自动灭火系统
     },  # code
 }  # code
 
@@ -144,15 +193,20 @@ def registry():  # function: def registry():
 
 
 @pytest.mark.slow  # code
-@pytest.mark.parametrize("dxf_name", [  # code
-    "A1云计算中心平面图0405_t3.dxf",  # code
-    "20210409-3#泵房_t3.dxf",  # code
-    "202109409-2#配电房_t3.dxf",  # code
-    "6.火灾自动报警 （报审）_t3.dxf",  # code
-    "9.气体灭火（唯美图框）_t3.dxf",  # code
-    "A1云计算中心_水消防2017.03.31_t3.dxf",  # code
-])  # code
-def test_real_parse_and_analyze(dxf_name, parser, analyzer, registry):  # function: def test_real_parse_and_analyze(dxf_name, parser, analyzer, 
+@pytest.mark.parametrize(
+    "dxf_name",
+    [  # code
+        "A1云计算中心平面图0405_t3.dxf",  # code
+        "20210409-3#泵房_t3.dxf",  # code
+        "202109409-2#配电房_t3.dxf",  # code
+        "6.火灾自动报警 （报审）_t3.dxf",  # code
+        "9.气体灭火（唯美图框）_t3.dxf",  # code
+        "A1云计算中心_水消防2017.03.31_t3.dxf",  # code
+    ],
+)  # code
+def test_real_parse_and_analyze(
+    dxf_name, parser, analyzer, registry
+):  # function: def test_real_parse_and_analyze(dxf_name, parser, analyzer,
     if dxf_name not in ENTITY_BASELINE:  # check: membership test
         pytest.skip(f"{dxf_name} 不在基线表中")  # function call
     """真实图纸解析+语义分析+原子函数判定，验证精度不退化"""
@@ -180,8 +234,9 @@ def test_real_parse_and_analyze(dxf_name, parser, analyzer, registry):  # functi
             actual_count = type_counts.get(etype, 0)  # function call
             # 允许 ±20% 浮动（真实图纸解析有一定随机性）
             tolerance = max(int(expected_count * 0.2), 1)  # get maximum
-            assert abs(actual_count - expected_count) <= tolerance, \  # function call
-                f"{dxf_name}: {etype} 预期 {expected_count}±{tolerance}, 实际 {actual_count}"  # code
+            assert (
+                abs(actual_count - expected_count) <= tolerance
+            ), f"{dxf_name}: {etype} expected {expected_count} ± {tolerance}, actual {actual_count}"
 
     # ── Step 4: 验证关键 EXIST 函数 ──
     all_findings = []  # assignment
@@ -190,21 +245,27 @@ def test_real_parse_and_analyze(dxf_name, parser, analyzer, registry):  # functi
             if func.matches(e):  # condition: func.matches(e):
                 f = func.execute(e)  # function call
                 if f:  # condition: f:
-                    all_findings.append(f.__dict__ if hasattr(f, '__dict__') else f)  # append to list
+                    all_findings.append(
+                        f.__dict__ if hasattr(f, "__dict__") else f
+                    )  # append to list
 
     exist_expected = EXIST_EXPECTED.get(dxf_name, {})  # function call
     for func_id, expected_result in exist_expected.items():  # loop: iterate
         matches = [f for f in all_findings if f.get("func_id") == func_id]  # function call
         if expected_result == "PASS":  # condition: expected_result == "PASS":
-            assert any(f.get("result") == "PASS" for f in matches), \  # check any true
-                f"{dxf_name}: {func_id} 预期 PASS, 但未找到 PASS 结果 (matches={len(matches)})"  # get length
+            assert any(
+                f.get("result") == "PASS" for f in matches
+            ), f"{dxf_name}: {func_id} 预期 PASS, 但未找到 PASS 结果 (matches={len(matches)})"  # 断言: 至少有一个 PASS
         elif expected_result == "FAIL":  # elif condition
-            assert any(f.get("result") == "FAIL" for f in matches), \  # check any true
-                f"{dxf_name}: {func_id} 预期 FAIL, 但未找到 FAIL 结果 (matches={len(matches)})"  # get length
+            assert any(
+                f.get("result") == "FAIL" for f in matches
+            ), f"{dxf_name}: {func_id} 预期 FAIL, 但未找到 FAIL 结果 (matches={len(matches)})"  # 断言: 至少有一个 FAIL
 
 
 @pytest.mark.slow  # code
-def test_all_real_drawings_parseable(parser):  # function: def test_all_real_drawings_parseable(parser):
+def test_all_real_drawings_parseable(
+    parser,
+):  # function: def test_all_real_drawings_parseable(parser):
     """所有真实图纸至少能成功解析（0 图元视为解析失败）"""
     paths = get_real_dxf_paths()  # function call
     assert len(paths) >= 5, f"至少需要 5 张真实图纸, 找到 {len(paths)}"  # get length
@@ -217,17 +278,25 @@ def test_all_real_drawings_parseable(parser):  # function: def test_all_real_dra
 
     # 电气图纸（2.1电气170825-报审）因图元类型特殊（纯电气符号无建筑几何），允许 0 图元
     # drawings/real/ 下的副本可能已损坏（空格 vs 下划线命名不一致导致文件读取问题）
-    known_empty = {"2.1电气170825-报审.dxf", "4.通风BS170826.dxf",  # assignment
-                   "东莞通-建筑-外部参照（不打印）.dxf", "东莞通-设备-外部参照（不打印）.dxf",  # code
-                   "A1IDC及通信机楼结构平面图20161227z.dxf",  # code
-                   "6.火灾自动报警_（报审）_t3.dxf"}  # code
+    known_empty = {
+        "2.1电气170825-报审.dxf",
+        "4.通风BS170826.dxf",  # assignment
+        "东莞通-建筑-外部参照（不打印）.dxf",
+        "东莞通-设备-外部参照（不打印）.dxf",  # code
+        "A1IDC及通信机楼结构平面图20161227z.dxf",  # code
+        "6.火灾自动报警_（报审）_t3.dxf",
+    }  # code
     unexpected = [(n, e) for n, e in failed if n not in known_empty]  # function call
 
-    assert not unexpected, f"以下图纸解析失败:\n" + "\n".join(f"  {n}: {e}" for n, e in unexpected)  # function call
+    assert not unexpected, f"以下图纸解析失败:\n" + "\n".join(
+        f"  {n}: {e}" for n, e in unexpected
+    )  # function call
 
 
 @pytest.mark.slow  # code
-def test_fire_equipment_detection(parser, analyzer, registry):  # function: def test_fire_equipment_detection(parser, analyzer, registry
+def test_fire_equipment_detection(
+    parser, analyzer, registry
+):  # function: def test_fire_equipment_detection(parser, analyzer, registry
     """验证消防图纸正确识别了关键消防设施实体"""
     fire_drawings = [  # assignment
         "6.火灾自动报警 （报审）_t3.dxf",  # code
@@ -246,11 +315,20 @@ def test_fire_equipment_detection(parser, analyzer, registry):  # function: def 
         entities = semantic["entities"]  # assignment
 
         type_counts = Counter(e["type"] for e in entities)  # function call
-        fire_types = {t: c for t, c in type_counts.items() if t in (  # function call
-            "fire_hydrant", "sprinkler", "fire_extinguisher",  # code
-            "smoke_detector", "fire_alarm",  # code
-        )}  # code
+        fire_types = {
+            t: c
+            for t, c in type_counts.items()
+            if t
+            in (  # function call
+                "fire_hydrant",
+                "sprinkler",
+                "fire_extinguisher",  # code
+                "smoke_detector",
+                "fire_alarm",  # code
+            )
+        }  # code
 
-        assert len(fire_types) > 0, \  # get length
-            f"{dxf_name}: 未识别出任何消防设施实体\n" \  # code
-            f"  types available: {dict(type_counts.most_common(10))}"  # function call
+        assert len(fire_types) > 0, (  # 断言: 至少识别出一种消防设施
+            f"{dxf_name}: 未识别出任何消防设施实体\n"
+            f"  types available: {dict(type_counts.most_common(10))}"
+        )

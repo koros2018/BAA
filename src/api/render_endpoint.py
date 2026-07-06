@@ -6,6 +6,7 @@
 # ── 图纸渲染 ──────────────────────────────────────────────
 # 将以下代码插入到 `get_order` 的 return 之后、静态文件挂载之前
 
+
 @app.get("/render/{file_id}")
 async def render_drawing(
     file_id: str,  # 操作
@@ -16,7 +17,9 @@ async def render_drawing(
     file_path = get_file_path(file_id)
     # 条件分支：if not file_path
     if not file_path:
-        raise HTTPException(status_code=404, detail={"status": "error", "message": "文件不存在"})  # 抛出异常
+        raise HTTPException(
+            status_code=404, detail={"status": "error", "message": "文件不存在"}
+        )  # 抛出异常
 
     import ezdxf
     from io import StringIO
@@ -27,7 +30,9 @@ async def render_drawing(
         msp = doc.modelspace()
     # 异常处理
     except Exception:  # 捕获异常
-        raise HTTPException(status_code=400, detail={"status": "error", "message": "无法解析图纸文件"})  # 抛出异常
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": "无法解析图纸文件"}
+        )  # 抛出异常
 
     # 计算边界
     all_x, all_y = [], []
@@ -71,10 +76,12 @@ async def render_drawing(
     svg_h = min(max(h * 0.5, 300), 800)
 
     buf = StringIO()
-    buf.write(f'<svg xmlns="http://www.w3.org/2000/svg" '
-              f'viewBox="{x_min} {-y_max} {w} {h}" '  # 操作
-              f'width="{svg_w}" height="{svg_h}" '  # 操作
-              f'style="background:#fff">\n')
+    buf.write(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="{x_min} {-y_max} {w} {h}" '  # 操作
+        f'width="{svg_w}" height="{svg_h}" '  # 操作
+        f'style="background:#fff">\n'
+    )
 
     max_entities = 2000
     drawn = 0
@@ -90,9 +97,11 @@ async def render_drawing(
             # 条件分支：if dxftype == "LINE"
             if dxftype == "LINE":
                 s, e = entity.dxf.start, entity.dxf.end
-                buf.write(f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '
-                          f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '  # 操作
-                          f'stroke="#333" stroke-width="0.5" />\n')
+                buf.write(
+                    f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '
+                    f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '  # 操作
+                    f'stroke="#333" stroke-width="0.5" />\n'
+                )
                 drawn += 1
             # 条件分支：elif dxftype == "LWPOLYLINE"
             elif dxftype == "LWPOLYLINE":  # 分支
@@ -104,22 +113,26 @@ async def render_drawing(
             elif dxftype == "CIRCLE":  # 分支
                 cx, cy = entity.dxf.center[:2]
                 r = entity.dxf.radius
-                buf.write(f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '
-                          f'fill="none" stroke="#333" stroke-width="0.5" />\n')
+                buf.write(
+                    f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '
+                    f'fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )
                 drawn += 1
             # 条件分支：elif dxftype in ("TEXT", "MTEXT")
             elif dxftype in ("TEXT", "MTEXT"):  # 分支
                 ins = entity.dxf.insert[:2]
-                txt = entity.dxf.text if hasattr(entity.dxf, 'text') else ''
-                h = entity.dxf.height if hasattr(entity.dxf, 'height') else 2.5
-                buf.write(f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '
-                          f'font-size="{h}" fill="#666">{txt[:30]}</text>\n')
+                txt = entity.dxf.text if hasattr(entity.dxf, "text") else ""
+                h = entity.dxf.height if hasattr(entity.dxf, "height") else 2.5
+                buf.write(
+                    f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '
+                    f'font-size="{h}" fill="#666">{txt[:30]}</text>\n'
+                )
                 drawn += 1
         # 异常处理
         except Exception:  # 捕获异常
             continue  # 继续循环
 
-    buf.write('</svg>')
+    buf.write("</svg>")
     svg_content = buf.getvalue()
 
     return Response(content=svg_content, media_type="image/svg+xml")

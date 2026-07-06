@@ -12,10 +12,11 @@ BAA 尺寸标注解析器
     parser = DimensionParser()
     dims = parser.extract_dimensions(file_path)
     # dims 是 [{handle, layer, measurement, text, position, ...}, ...]
-    
+
     # 注入到实体：
     enriched = parser.inject_into_entities(dims, entities)
 """
+
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 
@@ -39,9 +40,18 @@ class DimensionParser:
     # 在图纸中通常通过尺寸标注而非几何图元直接给出
     # 注意：shaft/exit_sign/sprinkler 等设备类实体不在此列，
     # 因为它们的尺寸由设计规范硬性规定而非图纸标注决定
-    DIMENSIONABLE_TYPES = {"door", "window", "fire_door", "fire_window",
-                           "corridor", "staircase", "fire_lane", "room",
-                           "wall", "exit"}
+    DIMENSIONABLE_TYPES = {
+        "door",
+        "window",
+        "fire_door",
+        "fire_window",
+        "corridor",
+        "staircase",
+        "fire_lane",
+        "room",
+        "wall",
+        "exit",
+    }
 
     # 尺寸值单位的猜测（mm 还是 m）
     # 真实 DXF 中 DIMENSION 通常是 mm 单位
@@ -60,6 +70,7 @@ class DimensionParser:
             # 与 DXF 不同，DWG 的 DIMENSION 实体字段名可能为 actual_measurement（ezdwg 特有别名）
             try:
                 import ezdwg
+
                 dwg_doc = ezdwg.read(file_path)
                 msp = dwg_doc.modelspace()
                 # ezdwg 不同版本的 query API 签名不一致，需兼容两种传参形式
@@ -67,7 +78,7 @@ class DimensionParser:
                     dim_ents = list(msp.query(types="DIMENSION"))
                 except Exception:
                     try:
-                        dim_ents = list(msp.query(types=['DIMENSION']))
+                        dim_ents = list(msp.query(types=["DIMENSION"]))
                     except Exception:
                         dim_ents = []
                 for ent in dim_ents:
@@ -84,17 +95,19 @@ class DimensionParser:
                         defp2 = d.get("defpoint2", (0, 0, 0))
                         defp3 = d.get("defpoint3", (0, 0, 0))
                         text_mid = d.get("text_midpoint", (0, 0, 0))
-                        dimensions.append({
-                            "handle": d.get("handle", ""),
-                            "layer": d.get("layer", "0"),
-                            "measurement": float(meas),
-                            "text": d.get("text", ""),
-                            "dimtype": d.get("dimtype", 0),
-                            # defpoint2/defpoint3 仅保留 xy 平面坐标，z 轴在建筑平面图中无需关心
-                            "defpoint2": {"x": defp2[0], "y": defp2[1]},
-                            "defpoint3": {"x": defp3[0], "y": defp3[1]},
-                            "text_midpoint": {"x": text_mid[0], "y": text_mid[1]},
-                        })
+                        dimensions.append(
+                            {
+                                "handle": d.get("handle", ""),
+                                "layer": d.get("layer", "0"),
+                                "measurement": float(meas),
+                                "text": d.get("text", ""),
+                                "dimtype": d.get("dimtype", 0),
+                                # defpoint2/defpoint3 仅保留 xy 平面坐标，z 轴在建筑平面图中无需关心
+                                "defpoint2": {"x": defp2[0], "y": defp2[1]},
+                                "defpoint3": {"x": defp3[0], "y": defp3[1]},
+                                "text_midpoint": {"x": text_mid[0], "y": text_mid[1]},
+                            }
+                        )
                     except Exception:
                         # 单个实体解析失败不影响其他标注，跳过继续
                         continue
@@ -106,6 +119,7 @@ class DimensionParser:
             # DXF 是 AutoCAD 公开格式，ezdxf 社区支持优于 ezdwg
             try:
                 import ezdxf
+
                 doc = ezdxf.readfile(file_path)
                 msp = doc.modelspace()
                 for entity in msp:
@@ -119,23 +133,67 @@ class DimensionParser:
                         # AutoCAD 中实际尺寸不可能小于 0.1mm
                         if meas is None or meas <= 0.1:
                             continue
-                        dimensions.append({
-                            "handle": entity.dxf.handle if hasattr(entity.dxf, 'handle') else '',
-                            "layer": entity.dxf.layer if hasattr(entity.dxf, 'layer') else '0',
-                            "measurement": float(meas),
-                            # get_measurement_text() 返回用户自定义标注文本（含前缀/后缀）
-                            # 当无自定义文本时返回 str(meas) 作为 fallback
-                            "text": entity.get_measurement_text() if hasattr(entity, 'get_measurement_text') else str(meas),
-                            "dimtype": str(entity.dxf.dimtype) if hasattr(entity.dxf, 'dimtype') else 'LINEAR',
-                            # defpoint2/defpoint3 的 x/y 属性需要 hasattr 保护：
-                            # ezdxf 不同版本对 Vec2 对象的行为有差异，部分版本返回元组而非 Vec2
-                            "defpoint2": {"x": entity.dxf.defpoint2.x if hasattr(entity.dxf.defpoint2, 'x') else 0,
-                                          "y": entity.dxf.defpoint2.y if hasattr(entity.dxf.defpoint2, 'y') else 0},
-                            "defpoint3": {"x": entity.dxf.defpoint3.x if hasattr(entity.dxf.defpoint3, 'x') else 0,
-                                          "y": entity.dxf.defpoint3.y if hasattr(entity.dxf.defpoint3, 'y') else 0},
-                            "text_midpoint": {"x": entity.dxf.text_midpoint.x if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'x') else 0,
-                                              "y": entity.dxf.text_midpoint.y if hasattr(entity.dxf, 'text_midpoint') and hasattr(entity.dxf.text_midpoint, 'y') else 0},
-                        })
+                        dimensions.append(
+                            {
+                                "handle": (
+                                    entity.dxf.handle if hasattr(entity.dxf, "handle") else ""
+                                ),
+                                "layer": entity.dxf.layer if hasattr(entity.dxf, "layer") else "0",
+                                "measurement": float(meas),
+                                # get_measurement_text() 返回用户自定义标注文本（含前缀/后缀）
+                                # 当无自定义文本时返回 str(meas) 作为 fallback
+                                "text": (
+                                    entity.get_measurement_text()
+                                    if hasattr(entity, "get_measurement_text")
+                                    else str(meas)
+                                ),
+                                "dimtype": (
+                                    str(entity.dxf.dimtype)
+                                    if hasattr(entity.dxf, "dimtype")
+                                    else "LINEAR"
+                                ),
+                                # defpoint2/defpoint3 的 x/y 属性需要 hasattr 保护：
+                                # ezdxf 不同版本对 Vec2 对象的行为有差异，部分版本返回元组而非 Vec2
+                                "defpoint2": {
+                                    "x": (
+                                        entity.dxf.defpoint2.x
+                                        if hasattr(entity.dxf.defpoint2, "x")
+                                        else 0
+                                    ),
+                                    "y": (
+                                        entity.dxf.defpoint2.y
+                                        if hasattr(entity.dxf.defpoint2, "y")
+                                        else 0
+                                    ),
+                                },
+                                "defpoint3": {
+                                    "x": (
+                                        entity.dxf.defpoint3.x
+                                        if hasattr(entity.dxf.defpoint3, "x")
+                                        else 0
+                                    ),
+                                    "y": (
+                                        entity.dxf.defpoint3.y
+                                        if hasattr(entity.dxf.defpoint3, "y")
+                                        else 0
+                                    ),
+                                },
+                                "text_midpoint": {
+                                    "x": (
+                                        entity.dxf.text_midpoint.x
+                                        if hasattr(entity.dxf, "text_midpoint")
+                                        and hasattr(entity.dxf.text_midpoint, "x")
+                                        else 0
+                                    ),
+                                    "y": (
+                                        entity.dxf.text_midpoint.y
+                                        if hasattr(entity.dxf, "text_midpoint")
+                                        and hasattr(entity.dxf.text_midpoint, "y")
+                                        else 0
+                                    ),
+                                },
+                            }
+                        )
                     except Exception:
                         continue
             except Exception:
@@ -172,9 +230,9 @@ class DimensionParser:
 
         return classified
 
-    def match_to_entities(self, dimensions: List[Dict],
-                          entities: List[Dict],
-                          max_distance: float = 5.0) -> List[Dict]:
+    def match_to_entities(
+        self, dimensions: List[Dict], entities: List[Dict], max_distance: float = 5.0
+    ) -> List[Dict]:
         """将 DIMENSION 匹配到附近的实体（V2增强版）
 
         策略（V2）：
@@ -204,12 +262,17 @@ class DimensionParser:
             y1 = bbox.get("y", 0)
             x2 = x1 + bbox.get("width", 0)
             y2 = y1 + bbox.get("height", 0)
-            entity_info.append({
-                "idx": i,
-                "cx": cx, "cy": cy,
-                "x1": x1, "y1": y1,
-                "x2": x2, "y2": y2,
-            })
+            entity_info.append(
+                {
+                    "idx": i,
+                    "cx": cx,
+                    "cy": cy,
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2,
+                }
+            )
 
         matched_dims = set()
 
@@ -281,7 +344,9 @@ class DimensionParser:
                 score = dist * (1.5 - min(proj_ratio, 1.0))
 
                 # 评分接近（差 < 1）时选投影重叠度更高的实体
-                if score < best_dist or (abs(score - best_dist) < 1 and proj_ratio > best_projection):
+                if score < best_dist or (
+                    abs(score - best_dist) < 1 and proj_ratio > best_projection
+                ):
                     best_dist = score
                     best_idx = info["idx"]
                     best_projection = proj_ratio
@@ -333,8 +398,7 @@ class DimensionParser:
 
         return entities
 
-    def inject_into_entities(self, dimensions: List[Dict],
-                              entities: List[Dict]) -> List[Dict]:
+    def inject_into_entities(self, dimensions: List[Dict], entities: List[Dict]) -> List[Dict]:
         """一键完成：提取 → 分类 → 匹配 → 注入
 
         这是 DimensionParser 对外的统一接口，调用方无需关心内部三步流程。

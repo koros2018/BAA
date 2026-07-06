@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional  # typing: type hints
 @dataclass  # code
 class DiffItem:  # class definition
     """一条差异项"""
+
     diff_type: str  # "new" | "fixed" | "changed"
     clause_id: str  # code
     clause_title: str  # code
@@ -33,13 +34,16 @@ class DiffItem:  # class definition
 @dataclass  # code
 class DiffReport:  # class definition
     """完整的对比报告"""
-    summary: Dict[str, Any] = field(default_factory=lambda: {  # assignment
-        "new_violations": 0,  # code
-        "fixed_violations": 0,  # code
-        "changed_violations": 0,  # code
-        "total_v1": 0,  # code
-        "total_v2": 0,  # code
-    })  # code
+
+    summary: Dict[str, Any] = field(
+        default_factory=lambda: {  # assignment
+            "new_violations": 0,  # code
+            "fixed_violations": 0,  # code
+            "changed_violations": 0,  # code
+            "total_v1": 0,  # code
+            "total_v2": 0,  # code
+        }
+    )  # code
     items: List[DiffItem] = field(default_factory=list)  # function call
     v1_file: str = ""  # assignment
     v2_file: str = ""  # assignment
@@ -161,7 +165,9 @@ class ReviewDiffEngine:  # class definition
         report.summary = {  # assignment
             "new_violations": len(new_keys),  # get length
             "fixed_violations": len(fixed_keys),  # get length
-            "changed_violations": len([i for i in report.items if i.diff_type == "changed"]),  # get length
+            "changed_violations": len(
+                [i for i in report.items if i.diff_type == "changed"]
+            ),  # get length
             "total_v1": len(v1_details),  # get length
             "total_v2": len(v2_details),  # get length
         }  # code
@@ -172,7 +178,9 @@ class ReviewDiffEngine:  # class definition
 
         return report  # return
 
-    def _build_index(self, details: List[Dict[str, Any]]) -> Dict[str, Dict]:  # function: def _build_index(self, details: List[Dict[str, Any]]) -> Dic
+    def _build_index(
+        self, details: List[Dict[str, Any]]
+    ) -> Dict[str, Dict]:  # function: def _build_index(self, details: List[Dict[str, Any]]) -> Dic
         """构建 (clause_id, entity_id) -> detail 索引"""
         index = {}  # assignment
         for d in details:  # loop: iterate
@@ -186,7 +194,9 @@ class ReviewDiffEngine:  # class definition
             # 新增违规：EXIST 类比较严重，尺寸类较轻微
             if item.clause_id.startswith("EXIST"):  # condition: item.clause_id.startswith("EXIST"):
                 item.severity = "critical"  # assignment
-            elif item.clause_id.startswith("DIM") or item.clause_id.startswith("DIST"):  # elif condition
+            elif item.clause_id.startswith("DIM") or item.clause_id.startswith(
+                "DIST"
+            ):  # elif condition
                 item.severity = "normal"  # assignment
             else:  # else: default case
                 item.severity = "normal"  # assignment
@@ -200,7 +210,9 @@ class ReviewDiffEngine:  # class definition
             # 变化违规：看变化幅度
             if item.old_value and item.new_value:  # check: AND condition
                 if item.old_value != 0:  # condition: item.old_value != 0:
-                    ratio = abs(item.new_value - item.old_value) / abs(item.old_value)  # function call
+                    ratio = abs(item.new_value - item.old_value) / abs(
+                        item.old_value
+                    )  # function call
                     if ratio > 0.5:  # check: numeric comparison
                         item.severity = "critical"  # assignment
                     elif ratio > 0.1:  # elif condition
@@ -210,7 +222,9 @@ class ReviewDiffEngine:  # class definition
                 else:  # else: default case
                     item.severity = "normal"  # assignment
 
-    def to_json(self, report: DiffReport) -> Dict:  # function: def to_json(self, report: DiffReport) -> Dict:
+    def to_json(
+        self, report: DiffReport
+    ) -> Dict:  # function: def to_json(self, report: DiffReport) -> Dict:
         """序列化为 JSON"""
         return {  # return: dict
             "summary": report.summary,  # code

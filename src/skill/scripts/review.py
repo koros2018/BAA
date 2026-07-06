@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """BAA 图纸合规审查（命令行工具）"""
+
 import sys
 import json
 from baa_client import BAAClient

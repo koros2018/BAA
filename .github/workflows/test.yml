@@ -42,6 +42,7 @@ jobs:
             --cov-report=term \
             --tb=short \
             --workers=auto \
+            --asyncio-mode=auto \
             src/tests/
 
       - name: Upload coverage report

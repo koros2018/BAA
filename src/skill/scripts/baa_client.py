@@ -23,7 +23,9 @@ class BAAClient:
         with open(file_path, "rb") as f:  # 上下文
             files = {"file": (os.path.basename(file_path), f, self._detect_mime(file_path))}
             params = {"building_type": building_type}
-            with httpx.Client(base_url=self.api_base, headers=headers, timeout=120) as client:  # 上下文管理
+            with httpx.Client(
+                base_url=self.api_base, headers=headers, timeout=120
+            ) as client:  # 上下文管理
                 response = client.post("/deconstruct", files=files, params=params)
                 response.raise_for_status()
                 return response.json()
@@ -37,13 +39,16 @@ class BAAClient:
         with open(file_path, "rb") as f:  # 上下文
             files = {"file": (os.path.basename(file_path), f, self._detect_mime(file_path))}
             params = {"building_type": building_type, "full": str(full).lower()}
-            with httpx.Client(base_url=self.api_base, headers=headers, timeout=120) as client:  # 上下文管理
+            with httpx.Client(
+                base_url=self.api_base, headers=headers, timeout=120
+            ) as client:  # 上下文管理
                 response = client.post("/review", files=files, params=params)
                 response.raise_for_status()
                 return response.json()
 
-    def reconstruct(self, file_id: str, auth_token: str,
-                    elements: list = None, options: dict = None) -> dict:
+    def reconstruct(
+        self, file_id: str, auth_token: str, elements: list = None, options: dict = None
+    ) -> dict:
         """BIM 重构（同步调用）"""
         headers = {}
         if self.api_key:
@@ -55,7 +60,9 @@ class BAAClient:
         if options:
             payload["options"] = options  # 操作
 
-        with httpx.Client(base_url=self.api_base, headers=headers, timeout=120) as client:  # 上下文管理
+        with httpx.Client(
+            base_url=self.api_base, headers=headers, timeout=120
+        ) as client:  # 上下文管理
             response = client.post("/reconstruct", json=payload)
             response.raise_for_status()
             return response.json()
@@ -65,7 +72,9 @@ class BAAClient:
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"  # 操作
-        with httpx.Client(base_url=self.api_base, headers=headers, timeout=30) as client:  # 上下文管理
+        with httpx.Client(
+            base_url=self.api_base, headers=headers, timeout=30
+        ) as client:  # 上下文管理
             response = client.get(f"/order/{order_id}")
             response.raise_for_status()
             return response.json()

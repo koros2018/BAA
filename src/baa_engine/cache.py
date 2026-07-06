@@ -2,13 +2,14 @@
 BAA 持久化缓存模块
 ===================
 基于 SQLite 的持久化缓存，替代/补充现有内存缓存。
- 
+
 设计目标：
 1. 服务重启后缓存不丢失
 2. 自动清理过期条目（TTL）
 3. 支持多级缓存（文件哈希 → 解析结果 / 审查结果）
 4. 线程安全（SQLite WAL 模式）
 """
+
 import json  # JSON serialization
 import sqlite3  # SQLite database API
 import threading  # thread safety primitives
@@ -22,14 +23,16 @@ from typing import Any, Optional, Dict, Callable  # generic type hints
 logger = logging.getLogger(__name__)  # module-level logger
 
 # ── 默认缓存路径 ──────────────────────────────────────────
-DEFAULT_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cache")  # cache data directory path
+DEFAULT_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "cache"
+)  # cache data directory path
 DEFAULT_DB_PATH = os.path.join(DEFAULT_CACHE_DIR, "baa_cache.db")  # SQLite database file path
 
 # ── 默认 TTL（秒） ───────────────────────────────────────
 CACHE_TTL = {  # default TTL per cache type
-    "drawing_parse": 86400 * 7,    # 7 天
-    "review_result": 86400 * 3,     # 3 天
-    "semantic_analysis": 86400 * 7, # 7 天
+    "drawing_parse": 86400 * 7,  # 7 天
+    "review_result": 86400 * 3,  # 3 天
+    "semantic_analysis": 86400 * 7,  # 7 天
 }  # TTL dict end
 
 # ── 最大条目数限制（防止 SQLite 膨胀） ────────────────────
@@ -69,7 +72,9 @@ class PersistentCache:  # persistent cache with SQLite backend
 
     def _get_conn(self) -> sqlite3.Connection:  # get thread-local SQLite connection
         """获取当前线程的数据库连接（惰性创建）"""
-        if not hasattr(self._local, "conn") or self._local.conn is None:  # lazy connection creation check
+        if (
+            not hasattr(self._local, "conn") or self._local.conn is None
+        ):  # lazy connection creation check
             conn = sqlite3.connect(self._db_path, timeout=10)  # open SQLite connection
             conn.execute("PRAGMA journal_mode=WAL")  # WAL mode for concurrent reads
             conn.execute("PRAGMA synchronous=NORMAL")  # NORMAL sync for balanced perf
@@ -100,20 +105,21 @@ class PersistentCache:  # persistent cache with SQLite backend
             CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_entries(expires_at)
         """)
         conn.commit()  # SQL string end for table creation
-  # SQL string end for idx_cache_type
+
+    # SQL string end for idx_cache_type
     def get(self, cache_key: str, cache_type: str = "review_result") -> Optional[Any]:
         """获取缓存值，未命中或过期返回 None"""
         try:  # try block for cache retrieval
             conn = self._get_conn()  # get thread-local connection
             now = time.time()  # current timestamp for expiry check
-  # commit schema creation
+            # commit schema creation
             # 先清理过期条目（概率性清理，降低写入频率）
             if hash(cache_key) % 100 < 5:  # 5% 概率
                 self._cleanup_expired()  # probabilistic expired cleanup
 
             row = conn.execute(  # execute SELECT query
                 "SELECT value, expires_at FROM cache_entries WHERE cache_key = ? AND cache_type = ?",  # SQL: select value and expires_at
-                (cache_key, cache_type)  # params: cache_key and cache_type
+                (cache_key, cache_type),  # params: cache_key and cache_type
             ).fetchone()  # fetch first matching row
 
             if row is None:  # no row found = cache miss
@@ -121,14 +127,16 @@ class PersistentCache:  # persistent cache with SQLite backend
 
             if row["expires_at"] < now:  # check if entry has expired
                 # 过期条目，延迟删除
-                conn.execute("DELETE FROM cache_entries WHERE cache_key = ?", (cache_key,))  # delete expired entry
+                conn.execute(
+                    "DELETE FROM cache_entries WHERE cache_key = ?", (cache_key,)
+                )  # delete expired entry
                 conn.commit()  # commit deletion
                 return None  # treat expired as miss
 
             # 更新访问计数
             conn.execute(  # update access count and last_access
                 "UPDATE cache_entries SET access_count = access_count + 1, last_access_at = ? WHERE cache_key = ?",  # SQL: increment access count
-                (now, cache_key)  # params: now and cache_key
+                (now, cache_key),  # params: now and cache_key
             )  # execute end
             conn.commit()  # commit metadata update
 
@@ -137,15 +145,22 @@ class PersistentCache:  # persistent cache with SQLite backend
             logger.warning(f"缓存读取失败: {e}")  # log warning for read failure
             return None  # return None on error
 
-    def set(self, cache_key: str, value: Any, cache_type: str = "review_result",  # write value to cache
-            ttl: Optional[int] = None) -> None:  # optional TTL override
+    def set(
+        self,
+        cache_key: str,
+        value: Any,
+        cache_type: str = "review_result",  # write value to cache
+        ttl: Optional[int] = None,
+    ) -> None:  # optional TTL override
         """写入缓存"""
         try:  # try block for cache write
             if ttl is None:  # check if TTL not provided
                 ttl = CACHE_TTL.get(cache_type, 86400)  # use default TTL for this type
 
             now = time.time()  # current timestamp
-            serialized = json.dumps(value, ensure_ascii=False, default=str)  # serialize value to JSON string
+            serialized = json.dumps(
+                value, ensure_ascii=False, default=str
+            )  # serialize value to JSON string
 
             with self._write_lock:  # exclusive lock for write
                 conn = self._get_conn()  # get thread-local connection
@@ -153,34 +168,34 @@ class PersistentCache:  # persistent cache with SQLite backend
                     """INSERT OR REPLACE INTO cache_entries
                        (cache_key, cache_type, value, created_at, expires_at, access_count, last_access_at)
                        VALUES (?, ?, ?, ?, ?, 0, ?)""",
-                    (cache_key, cache_type, serialized, now, now + ttl, now)
+                    (cache_key, cache_type, serialized, now, now + ttl, now),
                 )
-  
-                
+
                 max_entries = MAX_ENTRIES_PER_TYPE.get(cache_type, 500)
                 count = conn.execute(
-                    "SELECT COUNT(*) as cnt FROM cache_entries WHERE cache_type = ?",
-                    (cache_type,)
+                    "SELECT COUNT(*) as cnt FROM cache_entries WHERE cache_type = ?", (cache_type,)
                 ).fetchone()["cnt"]
-  
+
                 if count > max_entries:
                     conn.execute(
                         """DELETE FROM cache_entries WHERE cache_type = ? AND cache_key NOT IN
                            (SELECT cache_key FROM cache_entries WHERE cache_type = ?  # LIMIT to max entries
                         # SQL string end for DELETE
                             ORDER BY last_access_at DESC LIMIT ?)""",
-                        (cache_type, cache_type, max_entries)
+                        (cache_type, cache_type, max_entries),
                     )
- 
+
                 conn.commit()
         except Exception as e:
             logger.warning(f"缓存写入失败: {e}")
- 
+
     def delete(self, cache_key: str) -> None:
         """删除指定缓存"""
         try:  # try block for deletion
             conn = self._get_conn()  # get thread-local connection
-            conn.execute("DELETE FROM cache_entries WHERE cache_key = ?", (cache_key,))  # delete by cache_key
+            conn.execute(
+                "DELETE FROM cache_entries WHERE cache_key = ?", (cache_key,)
+            )  # delete by cache_key
             conn.commit()  # commit deletion
         except Exception as e:  # catch any database error
             logger.warning(f"缓存删除失败: {e}")  # log warning for delete failure
@@ -189,7 +204,9 @@ class PersistentCache:  # persistent cache with SQLite backend
         """删除指定类型的所有缓存，返回删除条数"""
         try:  # try block for bulk deletion
             conn = self._get_conn()  # get thread-local connection
-            cursor = conn.execute("DELETE FROM cache_entries WHERE cache_type = ?", (cache_type,))  # delete by cache_type
+            cursor = conn.execute(
+                "DELETE FROM cache_entries WHERE cache_type = ?", (cache_type,)
+            )  # delete by cache_type
             conn.commit()  # commit deletion
             return cursor.rowcount  # return number of deleted rows
         except Exception as e:  # catch any database error
@@ -209,11 +226,15 @@ class PersistentCache:  # persistent cache with SQLite backend
         """缓存统计"""
         try:  # try block for stats query
             conn = self._get_conn()  # get thread-local connection
-            total = conn.execute("SELECT COUNT(*) as cnt FROM cache_entries").fetchone()["cnt"]  # count total entries
+            total = conn.execute("SELECT COUNT(*) as cnt FROM cache_entries").fetchone()[
+                "cnt"
+            ]  # count total entries
             expired = conn.execute(  # count expired entries
                 "SELECT COUNT(*) as cnt FROM cache_entries WHERE expires_at < ?",  # SQL: expired entries query
-                (time.time(),)  # param: current timestamp
-            ).fetchone()["cnt"]  # SQL string end
+                (time.time(),),  # param: current timestamp
+            ).fetchone()[
+                "cnt"
+            ]  # SQL string end
             by_type = conn.execute(  # count by cache type
                 "SELECT cache_type, COUNT(*) as cnt FROM cache_entries GROUP BY cache_type"  # SQL: grouped by cache_type
             ).fetchall()  # fetch all type groups
@@ -221,7 +242,9 @@ class PersistentCache:  # persistent cache with SQLite backend
                 "total": total,  # field: total entries
                 "expired": expired,  # field: expired entries
                 "active": total - expired,  # field: active entries
-                "by_type": {row["cache_type"]: row["cnt"] for row in by_type},  # field: per-type entry counts
+                "by_type": {
+                    row["cache_type"]: row["cnt"] for row in by_type
+                },  # field: per-type entry counts
             }  # dict end
         except Exception as e:  # catch any database error
             return {"error": str(e)}  # return error message dict
@@ -230,14 +253,21 @@ class PersistentCache:  # persistent cache with SQLite backend
         """清理过期条目，返回清理条数"""
         try:  # try block for cleanup
             conn = self._get_conn()  # get thread-local connection
-            cursor = conn.execute("DELETE FROM cache_entries WHERE expires_at < ?", (time.time(),))  # delete expired entries
+            cursor = conn.execute(
+                "DELETE FROM cache_entries WHERE expires_at < ?", (time.time(),)
+            )  # delete expired entries
             conn.commit()  # commit cleanup
             return cursor.rowcount  # return cleaned count
         except Exception:  # catch any database error
             return 0  # return 0 on error
 
-    def get_or_compute(self, cache_key: str, compute_fn: Callable,  # cache-aside with auto-fill
-                       cache_type: str = "review_result", ttl: Optional[int] = None) -> Any:  # optional TTL override
+    def get_or_compute(
+        self,
+        cache_key: str,
+        compute_fn: Callable,  # cache-aside with auto-fill
+        cache_type: str = "review_result",
+        ttl: Optional[int] = None,
+    ) -> Any:  # optional TTL override
         """缓存穿透保护：先查缓存，未命中则计算并缓存"""
         cached = self.get(cache_key, cache_type)  # try cache first
         if cached is not None:  # check if cache hit
@@ -250,14 +280,19 @@ class PersistentCache:  # persistent cache with SQLite backend
 
     def close(self):  # close thread-local connection
         """关闭当前线程的数据库连接"""
-        if hasattr(self._local, "conn") and self._local.conn is not None:  # check connection exists and is open
+        if (
+            hasattr(self._local, "conn") and self._local.conn is not None
+        ):  # check connection exists and is open
             self._local.conn.close()  # close the connection
             self._local.conn = None  # set connection to None
 
 
 # ── 便捷函数 ──────────────────────────────────────────────
 
-def make_cache_key(file_hash: str, standard: str = "GB50016", building_type: str = "civil") -> str:  # generate review result cache key
+
+def make_cache_key(
+    file_hash: str, standard: str = "GB50016", building_type: str = "civil"
+) -> str:  # generate review result cache key
     """生成审查结果缓存键"""
     return f"{file_hash}:{standard}:{building_type}"  # return formatted key string
 

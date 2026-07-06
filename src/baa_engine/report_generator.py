@@ -20,9 +20,18 @@ from reportlab.lib.units import mm, cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate, Table, TableStyle,
-    Paragraph, Spacer, PageBreak, KeepTogether, HRFlowable,
-    ListFlowable, ListItem,
+    BaseDocTemplate,
+    Frame,
+    PageTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer,
+    PageBreak,
+    KeepTogether,
+    HRFlowable,
+    ListFlowable,
+    ListItem,
 )
 from reportlab.platypus.flowables import Flowable
 
@@ -120,56 +129,103 @@ class ReviewReport:
         ss = getSampleStyleSheet()
         styles = {
             "cover-title": ParagraphStyle(
-                "CoverTitle", fontName="WQY", fontSize=28,
-                textColor=C_PRIMARY, leading=36, spaceAfter=12,
+                "CoverTitle",
+                fontName="WQY",
+                fontSize=28,
+                textColor=C_PRIMARY,
+                leading=36,
+                spaceAfter=12,
             ),
             "cover-sub": ParagraphStyle(
-                "CoverSub", fontName="WQY", fontSize=14,
-                textColor=C_TEXT, leading=20, spaceAfter=6,
+                "CoverSub",
+                fontName="WQY",
+                fontSize=14,
+                textColor=C_TEXT,
+                leading=20,
+                spaceAfter=6,
             ),
             "cover-info": ParagraphStyle(
-                "CoverInfo", fontName="WQY", fontSize=11,
-                textColor=C_TEXT_LIGHT, leading=16, spaceAfter=4,
+                "CoverInfo",
+                fontName="WQY",
+                fontSize=11,
+                textColor=C_TEXT_LIGHT,
+                leading=16,
+                spaceAfter=4,
             ),
             "section-title": ParagraphStyle(
-                "SectionTitle", fontName="WQY", fontSize=16,
-                textColor=C_PRIMARY, leading=22, spaceAfter=10,
+                "SectionTitle",
+                fontName="WQY",
+                fontSize=16,
+                textColor=C_PRIMARY,
+                leading=22,
+                spaceAfter=10,
             ),
             "subsection-title": ParagraphStyle(
-                "SubsectionTitle", fontName="WQY", fontSize=13,
-                textColor=C_SECONDARY, leading=18, spaceAfter=8,
+                "SubsectionTitle",
+                fontName="WQY",
+                fontSize=13,
+                textColor=C_SECONDARY,
+                leading=18,
+                spaceAfter=8,
             ),
             "body": ParagraphStyle(
-                "Body", fontName="WQY", fontSize=9,
-                textColor=C_TEXT, leading=13, spaceAfter=6,
+                "Body",
+                fontName="WQY",
+                fontSize=9,
+                textColor=C_TEXT,
+                leading=13,
+                spaceAfter=6,
             ),
             "body-small": ParagraphStyle(
-                "BodySmall", fontName="WQY", fontSize=8,
-                textColor=C_TEXT_LIGHT, leading=11, spaceAfter=3,
+                "BodySmall",
+                fontName="WQY",
+                fontSize=8,
+                textColor=C_TEXT_LIGHT,
+                leading=11,
+                spaceAfter=3,
             ),
             "table-header": ParagraphStyle(
-                "TableHeader", fontName="WQY", fontSize=9,
-                textColor=C_WHITE, leading=13,
+                "TableHeader",
+                fontName="WQY",
+                fontSize=9,
+                textColor=C_WHITE,
+                leading=13,
             ),
             "table-cell": ParagraphStyle(
-                "TableCell", fontName="WQY", fontSize=9,
-                textColor=C_TEXT, leading=13,
+                "TableCell",
+                fontName="WQY",
+                fontSize=9,
+                textColor=C_TEXT,
+                leading=13,
             ),
             "violation-title": ParagraphStyle(
-                "ViolationTitle", fontName="WQY", fontSize=10,
-                textColor=C_TEXT, leading=14, spaceAfter=3,
+                "ViolationTitle",
+                fontName="WQY",
+                fontSize=10,
+                textColor=C_TEXT,
+                leading=14,
+                spaceAfter=3,
             ),
             "violation-detail": ParagraphStyle(
-                "ViolationDetail", fontName="WQY", fontSize=8,
-                textColor=C_TEXT_LIGHT, leading=11,
+                "ViolationDetail",
+                fontName="WQY",
+                fontSize=8,
+                textColor=C_TEXT_LIGHT,
+                leading=11,
             ),
             "correction-text": ParagraphStyle(
-                "CorrectionText", fontName="WQY", fontSize=9,
-                textColor=C_ACCENT, leading=13,
+                "CorrectionText",
+                fontName="WQY",
+                fontSize=9,
+                textColor=C_ACCENT,
+                leading=13,
             ),
             "footer": ParagraphStyle(
-                "Footer", fontName="WQY", fontSize=7,
-                textColor=C_TEXT_LIGHT, leading=9,
+                "Footer",
+                fontName="WQY",
+                fontSize=7,
+                textColor=C_TEXT_LIGHT,
+                leading=9,
             ),
         }
         return styles
@@ -205,12 +261,13 @@ class ReviewReport:
             bottomMargin=self.margin,
         )
         frame = Frame(
-            self.margin, self.margin,
+            self.margin,
+            self.margin,
             self.page_w - 2 * self.margin,
             self.page_h - 2 * self.margin,
-            id='normal',
+            id="normal",
         )
-        doc.addPageTemplates([PageTemplate(id='main', frames=frame)])
+        doc.addPageTemplates([PageTemplate(id="main", frames=frame)])
         doc.build(buf)
 
         if not output_path:
@@ -265,7 +322,9 @@ class ReviewReport:
             card_flowables.append(Spacer(1, 8))
 
         # 用表格布局卡片
-        card_table_data = [[StatCard(label, value, color, card_w)] for label, value, color in card_data]
+        card_table_data = [
+            [StatCard(label, value, color, card_w)] for label, value, color in card_data
+        ]
         card_table = Table(
             [[card_data[0], card_data[1], card_data[2], card_data[3]]],
             colWidths=[card_w] * 4,
@@ -285,16 +344,20 @@ class ReviewReport:
             buf.append(Spacer(1, 6))
 
         buf.append(Spacer(1, 60))
-        buf.append(Paragraph(
-            "本报告由 BAA（Blueprint AI Agent）自动生成，仅供参考。",
-            s["footer"],
-        ))
+        buf.append(
+            Paragraph(
+                "本报告由 BAA（Blueprint AI Agent）自动生成，仅供参考。",
+                s["footer"],
+            )
+        )
 
     # ══════════════════════════════════════════════════════
     # 统计摘要页
     # ══════════════════════════════════════════════════════
 
-    def _build_summary_page(self, buf, filename: str, summary: Dict[str, Any], details: List[Dict[str, Any]]):
+    def _build_summary_page(
+        self, buf, filename: str, summary: Dict[str, Any], details: List[Dict[str, Any]]
+    ):
         s = self.styles
         cw = self.page_w - 2 * self.margin
 
@@ -321,20 +384,20 @@ class ReviewReport:
         violation_by_clause = summary.get("violation_by_clause", {})
         if violation_by_clause:
             rows = []
-            for clause_id, count in sorted(
-                violation_by_clause.items(), key=lambda x: -x[1]
-            ):
+            for clause_id, count in sorted(violation_by_clause.items(), key=lambda x: -x[1]):
                 title = ""
                 for d in details:
                     if d.get("clause_id") == clause_id:
                         title = d.get("clause_title", "")
                         break
                 rows.append([clause_id, title[:50], str(count)])
-            buf.append(self._make_table(
-                rows,
-                col_widths=[70, cw - 130, 60],
-                headers=["条款编号", "条款名称", "违规数"],
-            ))
+            buf.append(
+                self._make_table(
+                    rows,
+                    col_widths=[70, cw - 130, 60],
+                    headers=["条款编号", "条款名称", "违规数"],
+                )
+            )
         else:
             buf.append(Paragraph("无违规项", s["body"]))
 
@@ -346,17 +409,21 @@ class ReviewReport:
             buf.append(Paragraph("实体类型分布", s["subsection-title"]))
             buf.append(Spacer(1, 6))
             rows = sorted(entity_types.items(), key=lambda x: -x[1])
-            buf.append(self._make_table(
-                [list(r) for r in rows],
-                col_widths=[cw - 80, 80],
-                headers=["实体类型", "数量"],
-            ))
+            buf.append(
+                self._make_table(
+                    [list(r) for r in rows],
+                    col_widths=[cw - 80, 80],
+                    headers=["实体类型", "数量"],
+                )
+            )
 
     # ══════════════════════════════════════════════════════
     # 违规详情页
     # ══════════════════════════════════════════════════════
 
-    def _build_violation_pages(self, buf, details: List[Dict[str, Any]], corrections: List[Dict[str, Any]]):
+    def _build_violation_pages(
+        self, buf, details: List[Dict[str, Any]], corrections: List[Dict[str, Any]]
+    ):
         if not details:
             return
 
@@ -390,11 +457,13 @@ class ReviewReport:
                 result_label = "❌ 不合规" if "FAIL" in str(result) else "⚠️ 警告"
                 result_color = C_DANGER if "FAIL" in str(result) else C_WARNING
 
-                buf.append(Paragraph(
-                    f'#{num}  [{entity_type}] {entity_id} '
-                    f'<font color="{result_color.hexval()}">{result_label}</font>',
-                    s["violation-title"],
-                ))
+                buf.append(
+                    Paragraph(
+                        f"#{num}  [{entity_type}] {entity_id} "
+                        f'<font color="{result_color.hexval()}">{result_label}</font>',
+                        s["violation-title"],
+                    )
+                )
 
                 if extracted_value is not None and required_value is not None:
                     diff = item.get("difference", "?")
@@ -410,22 +479,29 @@ class ReviewReport:
 
                 # 匹配修正建议
                 matched = [
-                    c for c in corrections
+                    c
+                    for c in corrections
                     if c.get("entity_id") == entity_id or c.get("clause_id") == clause_id
                 ]
                 for c in matched[:2]:
                     suggestion = c.get("suggestion", c.get("description", ""))
                     if suggestion:
-                        buf.append(Paragraph(
-                            f"  💡 建议: {suggestion[:100]}",
-                            s["correction-text"],
-                        ))
+                        buf.append(
+                            Paragraph(
+                                f"  💡 建议: {suggestion[:100]}",
+                                s["correction-text"],
+                            )
+                        )
 
                 buf.append(Spacer(1, 4))
                 if idx < len(items) - 1:
-                    buf.append(HRFlowable(
-                        width="100%", color=C_BORDER, thickness=0.3,
-                    ))
+                    buf.append(
+                        HRFlowable(
+                            width="100%",
+                            color=C_BORDER,
+                            thickness=0.3,
+                        )
+                    )
                     buf.append(Spacer(1, 4))
 
             page_count += 1
@@ -442,9 +518,7 @@ class ReviewReport:
         buf.append(PageBreak())
         buf.append(Paragraph("修正建议", s["section-title"]))
         buf.append(Spacer(1, 4))
-        buf.append(Paragraph(
-            f"共 {len(corrections)} 条修正建议", s["body"]
-        ))
+        buf.append(Paragraph(f"共 {len(corrections)} 条修正建议", s["body"]))
         buf.append(Spacer(1, 12))
 
         for idx, c in enumerate(corrections):
@@ -452,14 +526,16 @@ class ReviewReport:
             clause_id = c.get("clause_id", "")
             suggestion = c.get("suggestion", c.get("description", ""))
 
-            buf.append(Paragraph(
-                f'#{idx + 1}  {clause_id} | {entity_id}', s["violation-title"]
-            ))
+            buf.append(Paragraph(f"#{idx + 1}  {clause_id} | {entity_id}", s["violation-title"]))
             buf.append(Paragraph(suggestion, s["correction-text"]))
             buf.append(Spacer(1, 6))
-            buf.append(HRFlowable(
-                width="100%", color=C_BORDER, thickness=0.3,
-            ))
+            buf.append(
+                HRFlowable(
+                    width="100%",
+                    color=C_BORDER,
+                    thickness=0.3,
+                )
+            )
             buf.append(Spacer(1, 6))
 
     # ══════════════════════════════════════════════════════

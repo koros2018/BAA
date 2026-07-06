@@ -1,6 +1,7 @@
 """
 设备类实体识别测试 - P34
 """
+
 import pytest
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 

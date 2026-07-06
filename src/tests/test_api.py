@@ -1,9 +1,11 @@
 """
 BAA API 测试
 """
+
 import sys  # import
 import os  # stdlib: filesystem ops
 import json  # stdlib: JSON
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # path operation
 
 from fastapi.testclient import TestClient  # import
@@ -11,7 +13,6 @@ from src.api.baa_api import app, generate_auth_token, verify_auth_token, AUTH_SE
 
 
 from src.baa_engine.api_key_manager import ApiKeyManager, get_key_manager  # import
-
 
 client = TestClient(app)  # function call
 
@@ -22,6 +23,7 @@ os.environ["BAA_AUTH_SECRET"] = "test-secret"  # 操作
 # 重新加载模块使配置生效
 import importlib  # import
 import src.api.baa_api  # import
+
 importlib.reload(src.api.baa_api)  # function call
 from src.api.baa_api import app, API_KEYS, AUTH_SECRETS  # import
 
@@ -116,8 +118,8 @@ def test_api_key_manager_generate_and_validate():  # function: def test_api_key_
     # 错误密钥
     assert km.validate_key("wrong-key") is None  # 断言
 
-
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys.json", "/tmp/test_baa_keys.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -138,6 +140,7 @@ def test_api_key_manager_revoke():  # function: def test_api_key_manager_revoke(
     assert km.validate_key(raw) is None  # 断言
 
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys2.json", "/tmp/test_baa_keys2.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -154,10 +157,12 @@ def test_api_key_manager_expiry():  # function: def test_api_key_manager_expiry(
 
     # 模拟过期：手动修改expires_at
     import time  # stdlib: timing
+
     km._keys[r["key_id"]]["expires_at"] = "2020-01-01T00:00:00+00:00"  # 操作
     assert km.validate_key(r["raw_key"]) is None  # 断言
 
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys3.json", "/tmp/test_baa_keys3.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -183,6 +188,7 @@ def test_api_key_manager_rotate():  # function: def test_api_key_manager_rotate(
     assert km.validate_key(new_raw) is not None  # 断言
 
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys4.json", "/tmp/test_baa_keys4.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -204,6 +210,7 @@ def test_api_key_manager_usage():  # function: def test_api_key_manager_usage():
     assert stats["last_used"] is not None  # 断言
 
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys5.json", "/tmp/test_baa_keys5.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -222,6 +229,7 @@ def test_api_key_manager_list_keys():  # function: def test_api_key_manager_list
     assert keys[0]["label"] == "k2" or keys[0]["label"] == "k1"  # sorted desc
 
     import os  # stdlib: filesystem ops
+
     for f in ["/tmp/test_baa_keys6.json", "/tmp/test_baa_keys6.json.tmp"]:  # loop: iterate
         if os.path.exists(f):  # condition: os.path.exists(f):
             os.remove(f)  # remove item
@@ -230,6 +238,7 @@ def test_api_key_manager_list_keys():  # function: def test_api_key_manager_list
 def test_api_key_manager_permission_validation():  # function: def test_api_key_manager_permission_validation():
     """测试权限验证"""
     from src.baa_engine.api_key_manager import ApiKeyPermission  # import
+
     assert ApiKeyPermission.validate("admin")  # 断言
     assert ApiKeyPermission.validate("write")  # 断言
     assert ApiKeyPermission.validate("read")  # 断言
