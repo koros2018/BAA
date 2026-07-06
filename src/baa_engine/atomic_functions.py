@@ -971,6 +971,7 @@ class FuncRegistry:  # class definition
             30.0,
             "m",  # assignment
             target_entities=["room", "space", "floor"],
+            depends_on=["EVAC-001"],  # 依赖：路径存在才能测长度
         ),  # assignment
         AtomicFunction(
             "EVAC-003",
@@ -982,6 +983,7 @@ class FuncRegistry:  # class definition
             1.0,
             "合规/违规",  # assignment
             target_entities=["room", "space", "floor"],
+            depends_on=["EVAC-001"],  # 依赖：路径存在才能测合规性
         ),  # assignment
         # P33: 疏散路径连通性验证
         AtomicFunction(
@@ -994,6 +996,7 @@ class FuncRegistry:  # class definition
             1.0,
             "通畅/瓶颈",  # assignment
             target_entities=["room", "space", "floor"],
+            depends_on=["EVAC-001"],  # 依赖：路径存在才能测瓶颈
         ),  # assignment
     ]  # code
 
@@ -1124,6 +1127,31 @@ class FuncRegistry:  # class definition
                         "clause_text": func.description,
                     },  # code
                 )  # code
+
+    def execute_chained(self, func_ids: List[str], entity: Dict[str, Any], results: Optional[Dict[str, FuncResult]] = None) -> Dict[str, FuncResult]:  # function: def execute_chained(self, func_ids: List[str], entity: Dict[str, Any], results: Optional[Dict[str, FuncResult]] = None) -> Dict[str, FuncResult]:
+        """按依赖拓扑顺序执行原子函数，结果在函数间共享
+
+        核心逻辑：
+        1. 拓扑排序确定执行顺序（依赖者先于被依赖者）
+        2. 按顺序执行，每个函数可以访问已完成的函数结果
+        3. 依赖不满足时跳过该函数（返回 None），不影响后续函数
+
+        """
+        if results is None:
+            results = {}
+        # 拓扑排序：确保依赖函数先执行
+        ordered_ids = self.resolve_dependencies(func_ids)  # function call
+        for fid in ordered_ids:  # 循环
+            func = self._funcs.get(fid)  # function call
+            if func is None:  # condition: func is None:
+                continue  # 跳过
+            # P32: 依赖检查 - 前置函数必须已执行且结果为 PASS
+            if not self.check_dependencies(func, results):  # function call
+                continue  # 依赖不满足，跳过
+            r = self.execute_with_timeout(func, entity, results=results)  # function call
+            if r is not None:  # condition: r is not None:
+                results[fid] = r  # 缓存结果
+        return results
 
     def get(
         self, func_id: str

@@ -969,13 +969,18 @@ async def review(  # code
                 worst_val, worst_unit, worst_op = v, u, o  # assignment
         return worst_val, worst_unit, worst_op  # return
 
+    # P32: 链式依赖执行 — 按依赖拓扑顺序，结果在函数间共享
+    # 对每个实体，按依赖拓扑顺序执行所有原子函数
+    func_ids = [f.func_id for f in registry_funcs]  # 提取所有函数ID
     for e in entities:  # 循环
-        for func in registry_funcs:  # 循环
+        # 使用链式执行：依赖函数先执行，结果缓存后传递给后续函数
+        chained_results = _func_registry.execute_chained(func_ids, e)  # function call
+        for fid, r in chained_results.items():  # 循环
+            func = _func_registry.get(fid)  # function call
+            if func is None:  # condition: func is None:
+                continue  # 跳过
             threshold_val, unit, op = get_strict_threshold(func.clause_id)  # function call
-            func.threshold = threshold_val  # assignment
-            func.unit = unit  # assignment
-            func.operator = op  # assignment
-            r = _func_registry.execute_with_timeout(func, e)  # function call
+            # 使用链式执行结果，无需重复设置阈值（已在chained_results中）
             if r is None:  # check: value is None
                 continue  # 继续循环
             clause_results[func.clause_id] += 1  # accumulate
