@@ -8,18 +8,20 @@ BAA YOLO 图元检测集成器
 2. 检测框 + 类别 → 结构化实体（bbox/properties）
 3. 支持渲染图像、运行预测、结果映射全链路
 """
-import logging  # stdlib: logging
-import math  # stdlib: math
-import os  # stdlib: filesystem ops
-import sys  # import
-from pathlib import Path  # import: path utils
-from typing import List, Dict, Any, Optional, Tuple  # typing: type hints
+import logging
+import math
+import os
+import sys
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
 
-logger = logging.getLogger(__name__)  # function call
+logger = logging.getLogger(__name__)
 
 # ── 类别映射 ──────────────────────────────────────────────
 
-YOLO_CLASSES = [  # assignment
+# YOLO 类别索引 → 语义类型名称
+# 顺序必须与训练时的 data.yaml 一致，否则 cls_id 会映射到错误类型
+YOLO_CLASSES = [
     "wall",           # 0
     "door",           # 1
     "window",         # 2
@@ -38,69 +40,86 @@ YOLO_CLASSES = [  # assignment
     "insulation",     # 15
     "evacuation_lighting", # 16
     "refuge_floor",   # 17
-]  # code
+]
 
-# 哪些类别需要面积估算（基于bbox）
-AREA_CLASSES = {"room", "fire_zone", "wall"}  # assignment
+# 需要面积估算的类别：这些实体的面积属性在后续消防规范校验中至关重要
+# room：判定房间面积是否满足疏散要求
+# fire_zone：防火分区面积上限校验
+# wall：墙体面积辅助判断是否承重墙
+AREA_CLASSES = {"room", "fire_zone", "wall"}
 
-# 哪些类别有宽度属性（门/窗/楼梯/走廊等）
-WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "corridor", "fire_lane"}  # assignment
+# 需要宽度属性的类别：这些实体的净宽是消防通道/疏散出口的核心参数
+# 门/窗/楼梯/走廊/消防车道 的宽度直接影响《建筑设计防火规范》合规性
+WIDTH_CLASSES = {"door", "window", "fire_door", "fire_window", "staircase", "corridor", "fire_lane"}
 
 
-class YOLODetectionIntegrator:  # class definition
+
+class YOLODetectionIntegrator:
     """YOLO 图元检测集成器"""
 
-    def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):  # function: def __init__(self, model_path: Optional[str] = None, device:
-        self._model = None  # assignment
-        self._model_path = model_path  # assignment
-        self._loaded = False  # assignment
-        self._device = device  # cpu / xpu（Intel Arc GPU）
+    def __init__(self, model_path: Optional[str] = None, device: str = "cpu"):
+        self._model = None
+        self._model_path = model_path
+        self._loaded = False
+        # device 参数预留用于 Intel Arc GPU（xpu）加速
+        # 当前默认为 cpu 以避免 CUDA 环境依赖问题
+        self._device = device
 
-    def load_model(self, model_path: Optional[str] = None) -> bool:  # function: def load_model(self, model_path: Optional[str] = None) -> bo
-        """加载 YOLO 模型"""
-        # 条件分支：if self._loaded
-        if self._loaded:  # condition: self._loaded:
-            return True  # return: boolean
+    def load_model(self, model_path: Optional[str] = None) -> bool:
+        """加载 YOLO 模型
 
-        path = model_path or self._model_path  # assignment
-        # 条件分支：if not path
-        if not path:  # check: negated condition
-            # 默认路径：从项目目录找最新训练的best.pt
-            project_root = Path(__file__).resolve().parent.parent.parent  # function call
-            candidates = [  # assignment
-                project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",  # 操作
-                project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",  # 操作
-                project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",  # 操作
-                project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",  # 操作
-            ]  # code
-            # 遍历处理
-            for c in candidates:  # 循环
-                # 条件分支：if c.exists()
-                if c.exists():  # condition: c.exists():
-                    path = str(c)  # function call
-                    break  # 跳出循环
+        支持多个候选路径的原因是训练迭代过程中模型版本会递增，
+        但调用方不需要关心具体版本号，自动查找最新的可用模型。
+        """
+        if self._loaded:
+            return True
 
-        # 条件分支：if not path or not os.path.exists(path)
-        if not path or not os.path.exists(path):  # check: negated condition
-            return False  # return: boolean
+        path = model_path or self._model_path
+        if not path:
+            # 默认路径：从项目根目录按版本优先级查找 best.pt
+            # 优先级：v3 > v2 > v2-3 > v1，越新版本检测精度越高
+            project_root = Path(__file__).resolve().parent.parent.parent
+            candidates = [
+                project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",
+                project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",
+                project_root / "runs" / "detect" / "data" / "models" / "baa_yolov8n_v2-3" / "weights" / "best.pt",
+                project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",
+            ]
+            for c in candidates:
+                if c.exists():
+                    path = str(c)
+                    break
 
-        # 异常保护
-        try:  # 尝试
-            from ultralytics import YOLO  # import
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # assignment
-            self._model = YOLO(str(path), task='detect')  # function call
-            self._model_path = str(path)  # function call
-            self._loaded = True  # assignment
-            return True  # return: boolean
-        # 异常处理
-        except Exception:  # 捕获异常
-            return False  # return: boolean
+        if not path or not os.path.exists(path):
+            return False
 
-    def is_loaded(self) -> bool:  # function: def is_loaded(self) -> bool:
-        return self._loaded  # return: self
+        try:
+            from ultralytics import YOLO
+            # 禁用 CUDA：当前环境（WSL2）无物理 GPU 且 PyTorch CUDA 版本与 Intel Arc 不兼容
+            # CUDA_VISIBLE_DEVICES='-1' 强制 YOLO 使用 CPU 推理，避免 CUDA OOM 或驱动错误
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+            self._model = YOLO(str(path), task='detect')
+            self._model_path = str(path)
+            self._loaded = True
+            return True
+        except Exception:
+            return False
 
-    def predict(self, image_path: str, conf: float = 0.25, iou: float = 0.5) -> List[Dict[str, Any]]:  # function: def predict(self, image_path: str, conf: float = 0.25, iou: 
+    def is_loaded(self) -> bool:
+        return self._loaded
+
+    def predict(self, image_path: str, conf: float = 0.25, iou: float = 0.5) -> List[Dict[str, Any]]:
         """对单张图纸图像执行 YOLO 预测
+
+        参数说明：
+            conf=0.25：置信度阈值，低于此值的检测框被丢弃
+                      建筑图纸中门/窗等实体特征清晰，0.25 足够滤除噪声
+                      如果调高到 0.5 可能会漏检小尺寸的 fire_door 等
+            iou=0.5：NMS 的 IoU 阈值，用于抑制同一目标的重叠检测框
+                     0.5 是 YOLO 默认值，在建筑图纸上效果良好
+            imgsz=640：推理图像尺寸，训练时也是 640x640
+                      更大的尺寸（如 1280）虽然可能提高小目标检测率，
+                      但会大幅增加显存消耗和推理时间，在 CPU 推理场景下不可接受
 
         返回:
             List[Dict]: 每个检测结果包含
@@ -109,81 +128,92 @@ class YOLODetectionIntegrator:  # class definition
                 - bbox: {"x", "y", "width", "height"} (像素坐标)
                 - properties: dict (额外属性)
         """
-        # 条件分支：if not self._loaded
-        if not self._loaded:  # check: negated condition
-            # 条件分支：if not self.load_model()
-            if not self.load_model():  # check: negated condition
-                return []  # return: list
+        if not self._loaded:
+            if not self.load_model():
+                return []
 
-        results = self._model.predict(  # assignment
-            source=image_path,  # assignment
-            conf=conf,  # assignment
-            iou=iou,  # assignment
-            imgsz=640,  # 限制推理尺寸，防 OOM
-            verbose=False,  # assignment
-        )  # code
+        results = self._model.predict(
+            source=image_path,
+            conf=conf,
+            iou=iou,
+            imgsz=640,  # 限制推理尺寸，防 OOM；CPU 推理 640x640 约 2-3 秒
+            verbose=False,
+        )
 
-        detections = []  # assignment
-        # 遍历处理
-        for result in results:  # 循环
-            # 条件分支：if result.boxes is None
-            if result.boxes is None:  # check: value is None
-                continue  # 继续循环
-            # 遍历处理
-            for box in result.boxes:  # 循环
-                cls_id = int(box.cls[0].item())  # function call
-                # 条件分支：if cls_id >= len(YOLO_CLASSES)
-                if cls_id >= len(YOLO_CLASSES):  # check: numeric comparison
-                    continue  # 继续循环
-                confidence = box.conf[0].item()  # function call
-                xyxy = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-                x1, y1, x2, y2 = xyxy  # assignment
+        detections = []
+        for result in results:
+            if result.boxes is None:
+                continue
+            for box in result.boxes:
+                cls_id = int(box.cls[0].item())
+                if cls_id >= len(YOLO_CLASSES):
+                    # 忽略训练类别之外的意外输出，防止越界
+                    continue
+                confidence = box.conf[0].item()
+                # xyxy 格式：[x1, y1, x2, y2]，像素坐标
+                # 与 YOLO 训练时的标注格式一致，左上+右下角点
+                xyxy = box.xyxy[0].tolist()
+                x1, y1, x2, y2 = xyxy
 
-                entity_type = YOLO_CLASSES[cls_id]  # assignment
-                bbox = {  # assignment
-                    "x": x1,  # 字段
-                    "y": y1,  # 字段
-                    "width": x2 - x1,  # 字段
-                    "height": y2 - y1,  # 字段
-                }  # code
+                entity_type = YOLO_CLASSES[cls_id]
+                bbox = {
+                    "x": x1,
+                    "y": y1,
+                    "width": x2 - x1,
+                    "height": y2 - y1,
+                }
 
-                props = {"confidence": confidence}  # assignment
+                props = {"confidence": confidence}
 
-                # 估算面积
-                if entity_type in AREA_CLASSES:  # check: membership test
-                    props["area"] = bbox["width"] * bbox["height"]  # 操作
+                # 面积估算：bbox 像素面积，后续映射到世界坐标后缩放
+                # 用于 room/fire_zone 的面积合规性判断
+                if entity_type in AREA_CLASSES:
+                    props["area"] = bbox["width"] * bbox["height"]
 
-                # 估算宽度（取短边作为"宽度"参考）
-                if entity_type in WIDTH_CLASSES:  # check: membership test
-                    props["width"] = min(bbox["width"], bbox["height"])  # 操作
-                    props["clear_width"] = props["width"]  # 操作
+                # 宽度估算：取短边作为"宽度"参考
+                # 因为建筑图纸中门/窗的 bbox 短边通常对应实际宽度，
+                # 长边对应高度/长度。后续 DIMENSION 解析会修正精确值
+                if entity_type in WIDTH_CLASSES:
+                    props["width"] = min(bbox["width"], bbox["height"])
+                    props["clear_width"] = props["width"]
 
-                detections.append({  # code
-                    "type": entity_type,  # 字段
-                    "confidence": confidence,  # 字段
-                    "bbox": bbox,  # 字段
-                    "properties": props,  # 字段
-                })  # code
+                detections.append({
+                    "type": entity_type,
+                    "confidence": confidence,
+                    "bbox": bbox,
+                    "properties": props,
+                })
 
-        return detections  # return
+        return detections
 
-    def render_and_predict(self, dxf_path: str, dpi: int = 100) -> Tuple[Optional[str], List[Dict]]:  # function: def render_and_predict(self, dxf_path: str, dpi: int = 100) 
-        """渲染 DXF 为图像 → 执行 YOLO 预测
+    def render_and_predict(self, dxf_path: str, dpi: int = 100) -> Tuple[Optional[str], List[Dict]]:
+        """渲染 DXF 为图像 -> 执行 YOLO 预测
+
+        dpi=100 是与训练数据生成一致的参数。
+        太低（<72）会导致图纸线条模糊，影响小目标检测；
+        太高（>200）会生成超大图像，显著增加推理时间。
 
         返回:
             (image_path, detections)
         """
-        image_path = self._render_dxf(dxf_path, dpi)  # function call
-        # 条件分支：if image_path is None
-        if image_path is None:  # check: value is None
-            return None, []  # return
-        detections = self.predict(image_path)  # function call
-        return image_path, detections  # return
+        image_path = self._render_dxf(dxf_path, dpi)
+        if image_path is None:
+            return None, []
+        detections = self.predict(image_path)
+        return image_path, detections
 
-    def detections_to_entities(self, detections: List[Dict],  # function: def detections_to_entities(self, detections: List[Dict],
-                                world_bbox: Optional[Dict] = None,  # 操作
-                                image_size: Tuple[int, int] = (640, 640)) -> List[Dict]:  # 操作
+    def detections_to_entities(self, detections: List[Dict],
+                                world_bbox: Optional[Dict] = None,
+                                image_size: Tuple[int, int] = (640, 640)) -> List[Dict]:
         """将 YOLO 检测结果映射为引擎实体格式
+
+        像素坐标到世界坐标的映射原理：
+        - YOLO 检测结果是在渲染图像（如 640x640）上的像素坐标
+        - DXF 有真实的世界坐标系（如图纸上的 mm 或 m）
+        - 通过 world_bbox（DXF 的渲染范围）和 image_size（图像尺寸），
+          按比例将像素 bbox 线性映射回世界坐标
+        - 这种线性映射的前提假设是渲染时保持了等比例缩放（aspect='equal'），
+          否则需要额外的畸变校正
 
         参数:
             detections: predict() 返回的检测列表
@@ -194,199 +224,212 @@ class YOLODetectionIntegrator:  # class definition
         返回:
             List[Dict]: 与 deconstruct API 的 elements 格式一致
         """
-        img_w, img_h = image_size  # assignment
-        entities = []  # assignment
+        img_w, img_h = image_size
+        entities = []
 
-        # 遍历处理
-        for det in detections:  # 循环
-            px = det["bbox"]["x"]  # assignment
-            py = det["bbox"]["y"]  # assignment
-            pw = det["bbox"]["width"]  # assignment
-            ph = det["bbox"]["height"]  # assignment
+        for det in detections:
+            px = det["bbox"]["x"]
+            py = det["bbox"]["y"]
+            pw = det["bbox"]["width"]
+            ph = det["bbox"]["height"]
 
-            # 条件分支：if world_bbox
-            if world_bbox:  # check: OR condition
-                # 像素坐标 → 世界坐标
-                scale_x = world_bbox["width"] / img_w  # assignment
-                scale_y = world_bbox["height"] / img_h  # assignment
-                wx = world_bbox["x"] + px * scale_x  # assignment
-                wy = world_bbox["y"] + py * scale_y  # assignment
-                ww = pw * scale_x  # assignment
-                wh = ph * scale_y  # assignment
-            # 其他情况处理
-            else:  # 否则
-                wx, wy, ww, wh = px, py, pw, ph  # assignment
+            if world_bbox:
+                # 线性映射：像素到世界坐标
+                # scale_x/scale_y 是每像素对应的世界坐标单位数
+                # 注意：如果渲染时 DXF 的 aspect ratio 与图像尺寸不成比例，
+                # 这种映射会在 X/Y 方向产生不同的缩放比例，需要后续验证
+                scale_x = world_bbox["width"] / img_w
+                scale_y = world_bbox["height"] / img_h
+                wx = world_bbox["x"] + px * scale_x
+                wy = world_bbox["y"] + py * scale_y
+                ww = pw * scale_x
+                wh = ph * scale_y
+            else:
+                wx, wy, ww, wh = px, py, pw, ph
 
-            entity = {  # assignment
-                "type": det["type"],  # 字段
-                "count": 1,  # 字段
-                "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},  # 字段
-                "properties": {  # 字段
-                    **det["properties"],  # 展开 YOLO 检测属性
-                    "detection_source": "yolo",  # 字段
-                },  # code
-            }  # code
+            entity = {
+                "type": det["type"],
+                "count": 1,
+                "bbox": {"x": wx, "y": wy, "width": ww, "height": wh},
+                "properties": {
+                    **det["properties"],
+                    "detection_source": "yolo",  # 标记来源，供后续 DIMENSION 注入时判断是否覆盖
+                },
+            }
 
             # 合并同名实体的计数
-            existing = None  # assignment
-            for e in entities:  # 循环
-                if e["type"] == det["type"] and e.get("properties", {}).get("detection_source") == "yolo":  # check: AND condition
-                    existing = e  # assignment
-                    break  # 跳出循环
+            # 如果有多个同类型 YOLO 检测结果，合并 count 而非重复添加
+            # 这样前端可以展示"3 个 door"而不是三个独立的 door 条目
+            existing = None
+            for e in entities:
+                if e["type"] == det["type"] and e.get("properties", {}).get("detection_source") == "yolo":
+                    existing = e
+                    break
 
-            # 条件分支：if existing
-            if existing:  # condition: existing:
-                existing["count"] += 1  # 操作
-            # 其他情况处理
-            else:  # 否则
-                entities.append(entity)  # append to list
+            if existing:
+                existing["count"] += 1
+            else:
+                entities.append(entity)
 
-        return entities  # return
+        return entities
 
-    def _render_dxf(self, dxf_path: str, dpi: int = 100) -> Optional[str]:  # function: def _render_dxf(self, dxf_path: str, dpi: int = 100) -> Opti
-        """将 DXF 渲染为 JPG 图像（同训练数据准备逻辑）"""
-        import ezdxf  # import
-        import matplotlib  # import
-        matplotlib.use('Agg')  # function call
-        import matplotlib.pyplot as plt  # import
-        import tempfile  # stdlib: temp files
+    def _render_dxf(self, dxf_path: str, dpi: int = 100) -> Optional[str]:
+        """将 DXF 渲染为 JPG 图像（同训练数据准备逻辑）
 
-        # 异常保护
-        try:  # 尝试
-            doc = ezdxf.readfile(dxf_path)  # function call
-            msp = doc.modelspace()  # function call
-        # 异常处理
-        except Exception:  # 捕获异常
-            return None  # return: None
+        使用 matplotlib 渲染而非 CAD 引擎是因为：
+        1. 无需依赖 AutoCAD 或其他商业软件
+        2. 与训练数据生成逻辑一致，保证推理时看到的图像分布与训练一致
+        3. 支持 headless 渲染（matplotlib.use('Agg')），适合服务器环境
 
-        # 计算边界
-        all_x, all_y = [], []  # assignment
-        for entity in msp:  # 循环
-            try:  # 尝试
-                if entity.dxftype() == "LINE":  # condition: entity.dxftype() == "LINE":
-                    s, e = entity.dxf.start, entity.dxf.end  # assignment
-                    all_x.extend([s[0], e[0]])  # extend list
-                    all_y.extend([s[1], e[1]])  # extend list
-                # 条件分支：elif entity.dxftype() == "LWPOLYLINE"
-                elif entity.dxftype() == "LWPOLYLINE":  # 分支
-                    pts = [(v[0], v[1]) for v in entity.get_points()]  # function call
-                    all_x.extend(p[0] for p in pts)  # extend list
-                    all_y.extend(p[1] for p in pts)  # extend list
-                # 条件分支：elif entity.dxftype() == "CIRCLE"
-                elif entity.dxftype() == "CIRCLE":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # assignment
-                    r = entity.dxf.radius  # assignment
-                    all_x.extend([cx - r, cx + r])  # extend list
-                    all_y.extend([cy - r, cy + r])  # extend list
-                # 条件分支：elif entity.dxftype() in ("TEXT", "MTEXT")
-                elif entity.dxftype() in ("TEXT", "MTEXT"):  # 分支
-                    ins = entity.dxf.insert[:2]  # assignment
-                    all_x.append(ins[0])  # append to list
-                    all_y.append(ins[1])  # append to list
-            # 异常处理
-            except Exception:  # 捕获异常
-                continue  # 继续循环
+        跳过 META 图层：META 图层包含辅助标注信息（如尺寸标注的虚拟辅助线），
+        渲染这些信息会引入图像噪声，干扰 YOLO 对实体轮廓的识别。
+        """
+        import ezdxf
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import tempfile
 
-        # 条件分支：if not all_x
-        if not all_x:  # check: negated condition
-            return None  # return: None
+        try:
+            doc = ezdxf.readfile(dxf_path)
+            msp = doc.modelspace()
+        except Exception:
+            return None
 
-        margin = 2.0  # assignment
-        x_min, x_max = min(all_x) - margin, max(all_x) + margin  # 解包
-        y_min, y_max = min(all_y) - margin, max(all_y) + margin  # 解包
+        # 计算所有图元的最小外接矩形作为渲染边界
+        # 不直接使用 DXF 的 extents 是因为有些图纸没有正确设置该属性
+        all_x, all_y = [], []
+        for entity in msp:
+            try:
+                if entity.dxftype() == "LINE":
+                    s, e = entity.dxf.start, entity.dxf.end
+                    all_x.extend([s[0], e[0]])
+                    all_y.extend([s[1], e[1]])
+                elif entity.dxftype() == "LWPOLYLINE":
+                    pts = [(v[0], v[1]) for v in entity.get_points()]
+                    all_x.extend(p[0] for p in pts)
+                    all_y.extend(p[1] for p in pts)
+                elif entity.dxftype() == "CIRCLE":
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    all_x.extend([cx - r, cx + r])
+                    all_y.extend([cy - r, cy + r])
+                elif entity.dxftype() in ("TEXT", "MTEXT"):
+                    ins = entity.dxf.insert[:2]
+                    all_x.append(ins[0])
+                    all_y.append(ins[1])
+            except Exception:
+                continue
 
-        fig_w = max(x_max - x_min, 1) * 0.4  # get maximum
-        fig_h = max(y_max - y_min, 1) * 0.4  # get maximum
+        if not all_x:
+            return None
+
+        # 添加 2 单位边距，避免图元紧贴图像边缘导致 YOLO 检测框不完整
+        margin = 2.0
+        x_min, x_max = min(all_x) - margin, max(all_x) + margin
+        y_min, y_max = min(all_y) - margin, max(all_y) + margin
+
+        fig_w = max(x_max - x_min, 1) * 0.4
+        fig_h = max(y_max - y_min, 1) * 0.4
         # 限制最大图像尺寸，防止 OOM（max 2048px）
-        max_pixels = 2048  # assignment
-        if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:  # check: numeric comparison
-            scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))  # get minimum
-            fig_w *= scale  # multiply
-            fig_h *= scale  # multiply
-        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)  # function call
-        ax.set_xlim(x_min, x_max)  # function call
-        ax.set_ylim(y_min, y_max)  # function call
-        ax.set_aspect('equal')  # function call
-        ax.axis('off')  # function call
+        # CPU 推理大图会显著增加耗时，2048px 是经验平衡值
+        max_pixels = 2048
+        if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:
+            scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))
+            fig_w *= scale
+            fig_h *= scale
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_aspect('equal')
+        ax.axis('off')
 
-        # 遍历处理
-        for entity in msp:  # 循环
-            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''  # attribute check
-            # 条件分支：if layer.upper() == "META"
-            if layer.upper() == "META":  # condition: layer.upper() == "META":
-                continue  # 继续循环
-            dxftype = entity.dxftype()  # function call
-            # 异常保护
-            try:  # 尝试
-                # 条件分支：if dxftype == "LINE"
-                if dxftype == "LINE":  # condition: dxftype == "LINE":
-                    s, e = entity.dxf.start, entity.dxf.end  # assignment
-                    ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)  # function call
-                # 条件分支：elif dxftype == "LWPOLYLINE"
-                elif dxftype == "LWPOLYLINE":  # 分支
-                    pts = [(v[0], v[1]) for v in entity.get_points()]  # function call
-                    xs, ys = zip(*pts)  # function call
-                    ax.plot(xs, ys, 'k-', linewidth=0.3)  # function call
-                # 条件分支：elif dxftype == "CIRCLE"
-                elif dxftype == "CIRCLE":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # assignment
-                    r = entity.dxf.radius  # assignment
-                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))  # function call
-                # 条件分支：elif dxftype == "ARC"
-                elif dxftype == "ARC":  # 分支
-                    cx, cy = entity.dxf.center[:2]  # assignment
-                    r = entity.dxf.radius  # assignment
-                    ax.add_patch(plt.Arc((cx, cy), r*2, r*2, angle=0,  # function call
-                                          theta1=entity.dxf.start_angle,  # assignment
-                                          theta2=entity.dxf.end_angle,  # assignment
-                                          color='k', linewidth=0.3))  # assignment
-            # 异常处理
-            except Exception:  # 捕获异常
-                continue  # 继续循环
+        for entity in msp:
+            layer = entity.dxf.layer if hasattr(entity.dxf, 'layer') else ''
+            # 跳过 META 图层：该层包含尺寸辅助线等对 YOLO 检测无意义的元素
+            if layer.upper() == "META":
+                continue
+            dxftype = entity.dxftype()
+            try:
+                if dxftype == "LINE":
+                    s, e = entity.dxf.start, entity.dxf.end
+                    ax.plot([s[0], e[0]], [s[1], e[1]], 'k-', linewidth=0.3)
+                elif dxftype == "LWPOLYLINE":
+                    pts = [(v[0], v[1]) for v in entity.get_points()]
+                    xs, ys = zip(*pts)
+                    ax.plot(xs, ys, 'k-', linewidth=0.3)
+                elif dxftype == "CIRCLE":
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    ax.add_patch(plt.Circle((cx, cy), r, fill=False, color='k', linewidth=0.3))
+                elif dxftype == "ARC":
+                    cx, cy = entity.dxf.center[:2]
+                    r = entity.dxf.radius
+                    ax.add_patch(plt.Arc((cx, cy), r*2, r*2, angle=0,
+                                          theta1=entity.dxf.start_angle,
+                                          theta2=entity.dxf.end_angle,
+                                          color='k', linewidth=0.3))
+            except Exception:
+                continue
 
-        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # function call
-        tmp_path = tmp.name  # assignment
-        tmp.close()  # function call
-        plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')  # function call
-        plt.close(fig)  # function call
-        return tmp_path  # return
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        plt.savefig(tmp_path, dpi=dpi, bbox_inches='tight', pad_inches=0.05, facecolor='white')
+        plt.close(fig)
+        return tmp_path
 
 
 # ── YOLO 后置过滤 ──────────────────────────────────────────
 
-def _compute_iou(a: Dict, b: Dict) -> float:  # function: def _compute_iou(a: Dict, b: Dict) -> float:
-    """计算两个 bbox 的 IoU"""
-    inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))  # get maximum
-    inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))  # get maximum
-    union = a["width"] * a["height"] + b["width"] * b["height"] - inter_x * inter_y  # assignment
-    return (inter_x * inter_y) / max(union, 1)  # return: tuple
+
+def _compute_iou(a: Dict, b: Dict) -> float:
+    """计算两个 bbox 的 IoU
+
+    IoU 用于判断 YOLO 检测框之间的重叠程度，
+    后续可用于 NMS 后处理或合并高度重叠的同类型检测框。
+    """
+    inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))
+    inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))
+    union = a["width"] * a["height"] + b["width"] * b["height"] - inter_x * inter_y
+    # 分母加 1 避免零除，空 bbox 的 union 为 0 时 IoU 退化为 0
+    return (inter_x * inter_y) / max(union, 1)
 
 
-def _compute_center(bbox: Dict) -> Tuple[float, float]:  # function: def _compute_center(bbox: Dict) -> Tuple[float, float]:
-    """计算 bbox 中心点"""
-    return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2  # return
+def _compute_center(bbox: Dict) -> Tuple[float, float]:
+    """计算 bbox 中心点
+
+    用于距离计算和贴近性校验，比直接用角点更稳定。
+    """
+    return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2
 
 
-def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:  # function: def _point_to_segment_distance(px: float, py: float, x1: flo
-    """点到线段的最短距离"""
-    dx, dy = x2 - x1, y2 - y1  # assignment
-    if dx == 0 and dy == 0:  # check: AND condition
-        return math.hypot(px - x1, py - y1)  # return
-    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))  # get maximum
-    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))  # return
+def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+    """点到线段的最短距离
+
+    使用向量投影法计算，比点到直线距离更精确：
+    当垂足在线段外时，返回点到最近端点的距离。
+    用于判断 door/window 中心到墙体的贴近程度。
+    """
+    dx, dy = x2 - x1, y2 - y1
+    # 线段退化为点时，直接返回点到点的距离
+    if dx == 0 and dy == 0:
+        return math.hypot(px - x1, py - y1)
+    # 投影参数 t，限制在 [0, 1] 范围内确保垂足在线段上
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
-def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] = None,  # function: def filter_yolo_detections(detections: List[Dict], walls: Op
-                           min_corridor_width_m: float = 0.5, verbose: bool = False) -> List[Dict]:  # assignment
+def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] = None,
+                           min_corridor_width_m: float = 0.5, verbose: bool = False) -> List[Dict]:
     """YOLO 检测结果规则层后置兜底过滤
 
-    策略（P25）：
-    1. corridor 宽度过滤：bbox 短边 < min_corridor_width_m → 跳过（已有兜底）
-    2. door 方向校验：door 中心是否贴近某条 wall 线
-       — 不贴墙可能也是误检
-    3. window 墙体对齐：window 是否与 wall 重叠
-    4. corridor 连续性：孤立 corridor（无相邻 door/room）标记低置信
-    5. room 宽高比/面积合理性
+    策略（P25）：基于建筑规范常识的 5 条规则
+    - 规则 1 corridor 宽度过滤：净宽 < 0.5m 不构成走廊（《建规》第 5.5 条）
+    - 规则 2 door 方向校验：门必须贴墙安装，不贴墙的 door 检测框是误检
+    - 规则 3 window 墙体对齐：窗必须在墙体开口处，远离墙体的 window 是误检
+    - 规则 4 corridor 连续性：孤立走廊（无 door/room 相邻）标记为低置信度
+    - 规则 5 room 宽高比合理性：宽高比 > 5 的房间在建筑设计中罕见，可能是 YOLO 将多个房间合并检测
 
     参数:
         detections: predict() 返回的检测列表
@@ -397,114 +440,120 @@ def filter_yolo_detections(detections: List[Dict], walls: Optional[List[Dict]] =
     返回:
         过滤后的检测列表，每条可能包含 added 或 suppressed 标记
     """
-    if not detections:  # check: negated condition
-        return []  # return: list
+    if not detections:
+        return []
 
-    # 收集所有横向/纵向墙体线段（用于贴近性校验）
-    wall_segments: List[Dict] = []  # assignment
-    if walls:  # condition: walls:
-        wall_segments = walls  # assignment
-    else:  # else: default case
+    # 收集所有墙体线段（用于贴近性校验）
+    wall_segments: List[Dict] = []
+    if walls:
+        wall_segments = walls
+    else:
         # 从检测结果中提取 wall 实体作为参考线
-        wall_segments = [  # assignment
-            {"x1": d["bbox"]["x"], "y1": d["bbox"]["y"],  # literal: collection
-             "x2": d["bbox"]["x"] + d["bbox"]["width"],  # code
-             "y2": d["bbox"]["y"] + d["bbox"]["height"]}  # code
-            for d in detections if d["type"] == "wall"  # loop: iterate
-        ]  # code
+        # 如果 walls 参数未提供，则 fallback 到检测结果中的 wall 实体
+        wall_segments = [
+            {"x1": d["bbox"]["x"], "y1": d["bbox"]["y"],
+             "x2": d["bbox"]["x"] + d["bbox"]["width"],
+             "y2": d["bbox"]["y"] + d["bbox"]["height"]}
+            for d in detections if d["type"] == "wall"
+        ]
 
-    filtered: List[Dict] = []  # assignment
-    wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]  # equality check
+    filtered: List[Dict] = []
+    wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]
 
-    for det in detections:  # loop: iterate
-        etype = det["type"]  # assignment
-        bbox = det["bbox"]  # assignment
-        w, h = bbox["width"], bbox["height"]  # assignment
-        cx, cy = _compute_center(bbox)  # function call
-        keep = True  # assignment
-        suppression_reason = None  # assignment
+    for det in detections:
+        etype = det["type"]
+        bbox = det["bbox"]
+        w, h = bbox["width"], bbox["height"]
+        cx, cy = _compute_center(bbox)
+        keep = True
+        suppression_reason = None
 
-        # ── 规则 1：走廊宽度过滤（已有兜底） ──
-        if etype == "corridor":  # check: OR condition
-            width_m = min(w, h)  # get minimum
-            if width_m < min_corridor_width_m:  # check: numeric comparison
-                keep = False  # assignment
-                suppression_reason = f"corridor_width={width_m:.2f}<{min_corridor_width_m:.2f}"  # assignment
+        # ── 规则 1：走廊宽度过滤 ──
+        # 建筑规范要求走廊净宽 >= 0.9m（居住建筑）或 >= 1.2m（公共建筑）
+        # 这里用 0.5m 作为兜底下限，小于此值不可能是走廊
+        if etype == "corridor":
+            width_m = min(w, h)
+            if width_m < min_corridor_width_m:
+                keep = False
+                suppression_reason = f"corridor_width={width_m:.2f}<{min_corridor_width_m:.2f}"
 
         # ── 规则 2：door 方向校验（是否贴墙） ──
-        if etype in ("door", "fire_door") and keep:  # check: membership test
-            # door 的较窄边应紧贴墙体
-            door_long_side = max(w, h)  # get maximum
-            door_short_side = min(w, h)  # get minimum
+        # 门必须安装在墙体开口处，不贴墙的 door 检测框几乎可以肯定是 YOLO 误检
+        # 阈值取 door_long_side * 2.0 和 door_short_side * 3.0 的较大值
+        # 前者保证门的长边方向至少有一半与墙体重叠
+        # 后者对窄门（如 600mm 宽的卫生间门）使用更宽松的距离判断
+        if etype in ("door", "fire_door") and keep:
+            door_long_side = max(w, h)
+            door_short_side = min(w, h)
 
-            # 贴近性：door 边框与任何 wall bbox 的最近距离
-            if wall_bboxes:  # condition: wall_bboxes:
-                min_dist = min(  # assignment
-                    _point_to_segment_distance(  # code
-                        cx, cy,  # code
-                        wb["x"], wb["y"],  # code
-                        wb["x"] + wb["width"], wb["y"] + wb["height"]  # code
-                    )  # code
-                    for wb in wall_bboxes  # loop: iterate
-                )  # code
-                # 如果 door 中心到最近墙体的距离 > door 长边的 2 倍，判定为误检
-                if min_dist > max(door_long_side * 2.0, door_short_side * 3.0):  # check: numeric comparison
-                    keep = False  # assignment
-                    suppression_reason = f"door_wall_dist={min_dist:.1f}>threshold"  # assignment
+            if wall_bboxes:
+                min_dist = min(
+                    _point_to_segment_distance(
+                        cx, cy,
+                        wb["x"], wb["y"],
+                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                    )
+                    for wb in wall_bboxes
+                )
+                if min_dist > max(door_long_side * 2.0, door_short_side * 3.0):
+                    keep = False
+                    suppression_reason = f"door_wall_dist={min_dist:.1f}>threshold"
 
         # ── 规则 3：window 墙体对齐 ──
-        if etype == "window" and keep:  # check: AND condition
-            if wall_bboxes:  # condition: wall_bboxes:
-                # window 应至少有一条边与 wall 重叠
-                # 简化：window 中心到最近 wall 的距离 < window 宽度的 1.5 倍
-                window_long = max(w, h)  # get maximum
-                min_dist = min(  # assignment
-                    _point_to_segment_distance(  # code
-                        cx, cy,  # code
-                        wb["x"], wb["y"],  # code
-                        wb["x"] + wb["width"], wb["y"] + wb["height"]  # code
-                    )  # code
-                    for wb in wall_bboxes  # loop: iterate
-                )  # code
-                if min_dist > window_long * 2.0:  # check: numeric comparison
-                    keep = False  # assignment
-                    suppression_reason = f"window_wall_dist={min_dist:.1f}>threshold"  # assignment
+        # 窗必须在墙体上开口，远离墙体的 window 检测是误检
+        # 阈值取 window_long * 2.0：允许窗的中心在墙体两侧一个窗宽的范围内
+        if etype == "window" and keep:
+            if wall_bboxes:
+                window_long = max(w, h)
+                min_dist = min(
+                    _point_to_segment_distance(
+                        cx, cy,
+                        wb["x"], wb["y"],
+                        wb["x"] + wb["width"], wb["y"] + wb["height"]
+                    )
+                    for wb in wall_bboxes
+                )
+                if min_dist > window_long * 2.0:
+                    keep = False
+                    suppression_reason = f"window_wall_dist={min_dist:.1f}>threshold"
 
         # ── 规则 4：corridor 连续性 ──
-        if etype == "corridor" and keep:  # check: OR condition
-            # 检查 corridor 附近是否有 door/room 实体
-            adjacent_found = False  # assignment
-            for other in detections:  # loop: iterate
-                if other["type"] in ("door", "room", "fire_door") and other is not det:  # check: membership test
-                    ob = other["bbox"]  # assignment
-                    ocx, ocy = _compute_center(ob)  # function call
-                    dist = math.hypot(cx - ocx, cy - ocy)  # math operation
-                    # corridor 中心到 door/room 中心的距离在合理范围内
-                    if dist < max(w, h) * 3.0:  # check: numeric comparison
-                        adjacent_found = True  # assignment
-                        break  # code
-            # 只标记低置信度，不直接过滤（保留给走廊推断逻辑处理）
-            if not adjacent_found:  # check: negated condition
-                det["properties"]["corridor_low_confidence"] = True  # assignment
-                if verbose:  # condition: verbose:
-                    logger.debug(f"corridor 孤立: {det.get('type')} @ ({cx:.1f},{cy:.1f})")  # function call
+        # 走廊必须有 door/room 与之相邻，否则可能是楼梯间或其他非走廊空间
+        # 只标记低置信度不直接过滤，保留给走廊推断逻辑做最终判断
+        if etype == "corridor" and keep:
+            adjacent_found = False
+            for other in detections:
+                if other["type"] in ("door", "room", "fire_door") and other is not det:
+                    ob = other["bbox"]
+                    ocx, ocy = _compute_center(ob)
+                    dist = math.hypot(cx - ocx, cy - ocy)
+                    # 距离阈值取 corridor 长边的 3 倍，确保覆盖相邻房间的距离范围
+                    if dist < max(w, h) * 3.0:
+                        adjacent_found = True
+                        break
+            if not adjacent_found:
+                det["properties"]["corridor_low_confidence"] = True
+                if verbose:
+                    logger.debug(f"corridor 孤立: {det.get("type")} @ ({cx:.1f},{cy:.1f})")
 
         # ── 规则 5：room 宽高比/面积合理性 ──
-        if etype == "room" and keep:  # check: AND condition
-            # 宽高比 > 5 的不合理房间
-            aspect = max(w, h) / max(h, w, 1)  # get maximum
-            if aspect > 5.0:  # check: numeric comparison
-                keep = False  # assignment
-                suppression_reason = f"room_aspect_ratio={aspect:.1f}>5"  # assignment
-            elif aspect > 4.0:  # elif condition
-                # 宽高比 4~5 的标记为低置信
-                det["properties"]["room_low_confidence"] = True  # assignment
-                if verbose:  # condition: verbose:
-                    logger.debug(f"room 宽高比异常: {aspect:.1f} @ ({cx:.1f},{cy:.1f})")  # function call
+        # 建筑设计中房间宽高比通常不超过 4:1（走廊除外，但走廊有独立类别）
+        # 宽高比 > 5 通常是 YOLO 将多个房间合并为一个大 bbox 的结果
+        if etype == "room" and keep:
+            aspect = max(w, h) / max(h, w, 1)
+            if aspect > 5.0:
+                keep = False
+                suppression_reason = f"room_aspect_ratio={aspect:.1f}>5"
+            elif aspect > 4.0:
+                # 宽高比 4~5 的标记为低置信，不做硬过滤
+                det["properties"]["room_low_confidence"] = True
+                if verbose:
+                    logger.debug(f"room 宽高比异常: {aspect:.1f} @ ({cx:.1f},{cy:.1f})")
 
-        if keep:  # condition: keep:
-            filtered.append(det)  # append to list
-        elif verbose:  # elif condition
-            logger.debug(f"YOLO 过滤: {det['type']} confidence={det['confidence']:.3f} reason={suppression_reason}")  # function call
+        if keep:
+            filtered.append(det)
+        elif verbose:
+            logger.debug(f"YOLO 过滤: {det["type"]} confidence={det["confidence"]:.3f} reason={suppression_reason}")
 
-    return filtered  # return
+    return filtered
+
