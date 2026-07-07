@@ -108,25 +108,25 @@ class YOLODetectionIntegrator:
                 / "best.pt",
                 project_root / "data" / "models" / "baa_yolov8n" / "weights" / "best.pt",
             ]
-            for c in candidates:
+            for c in candidates:  # 遍历候选路径，取第一个存在的
                 if c.exists():
                     path = str(c)
                     break
 
-        if not path or not os.path.exists(path):
+        if not path or not os.path.exists(path):  # 无可用模型文件
             return False
 
-        try:
+        try:  # 延迟导入，避免启动时依赖失败
             from ultralytics import YOLO
 
             # 禁用 CUDA：当前环境（WSL2）无物理 GPU 且 PyTorch CUDA 版本与 Intel Arc 不兼容
             # CUDA_VISIBLE_DEVICES='-1' 强制 YOLO 使用 CPU 推理，避免 CUDA OOM 或驱动错误
-            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-            self._model = YOLO(str(path), task="detect")
-            self._model_path = str(path)
-            self._loaded = True
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # 强制 CPU 推理，避免 CUDA 兼容问题
+            self._model = YOLO(str(path), task="detect")  # 创建 YOLO 模型实例
+            self._model_path = str(path)  # 记录实际加载的路径
+            self._loaded = True  # 标记加载成功
             return True
-        except Exception:
+        except Exception:  # 加载失败静默返回
             return False
 
     def is_loaded(self) -> bool:
@@ -159,7 +159,7 @@ class YOLODetectionIntegrator:
                 - bbox: {"x", "y", "width", "height"} (像素坐标)
                 - properties: dict (额外属性)
         """
-        if not self._loaded:
+        if not self._loaded:  # 懒加载检查
             if not self.load_model():
                 return []
 
@@ -172,18 +172,18 @@ class YOLODetectionIntegrator:
         )
 
         detections = []
-        for result in results:
+        for result in results:  # 无检测框则跳过
             if result.boxes is None:
                 continue
-            for box in result.boxes:
-                cls_id = int(box.cls[0].item())
+            for box in result.boxes:  # 提取类别索引
+                cls_id = int(box.cls[0].item())  # 越界检查
                 if cls_id >= len(YOLO_CLASSES):
                     # 忽略训练类别之外的意外输出，防止越界
                     continue
                 confidence = box.conf[0].item()
                 # xyxy 格式：[x1, y1, x2, y2]，像素坐标
                 # 与 YOLO 训练时的标注格式一致，左上+右下角点
-                xyxy = box.xyxy[0].tolist()
+                xyxy = box.xyxy[0].tolist()  # 索引映射为语义类型
                 x1, y1, x2, y2 = xyxy
 
                 entity_type = YOLO_CLASSES[cls_id]
@@ -195,7 +195,7 @@ class YOLODetectionIntegrator:
                 }
 
                 props = {"confidence": confidence}
-
+                # 需要面积估算的类别
                 # 面积估算：bbox 像素面积，后续映射到世界坐标后缩放
                 # 用于 room/fire_zone 的面积合规性判断
                 if entity_type in AREA_CLASSES:
@@ -229,10 +229,10 @@ class YOLODetectionIntegrator:
         返回:
             (image_path, detections)
         """
-        image_path = self._render_dxf(dxf_path, dpi)
+        image_path = self._render_dxf(dxf_path, dpi)  # 渲染 DXF 为图像
         if image_path is None:
-            return None, []
-        detections = self.predict(image_path)
+            return None, []  # 渲染失败则返回空
+        detections = self.predict(image_path)  # YOLO 推理
         return image_path, detections
 
     def detections_to_entities(
@@ -260,7 +260,7 @@ class YOLODetectionIntegrator:
         返回:
             List[Dict]: 与 deconstruct API 的 elements 格式一致
         """
-        img_w, img_h = image_size
+        img_w, img_h = image_size  # 初始化输出列表
         entities = []
 
         for det in detections:
@@ -275,13 +275,13 @@ class YOLODetectionIntegrator:
                 # 注意：如果渲染时 DXF 的 aspect ratio 与图像尺寸不成比例，
                 # 这种映射会在 X/Y 方向产生不同的缩放比例，需要后续验证
                 scale_x = world_bbox["width"] / img_w
-                scale_y = world_bbox["height"] / img_h
+                scale_y = world_bbox["height"] / img_h  # 有 world_bbox 时映射到世界坐标
                 wx = world_bbox["x"] + px * scale_x
                 wy = world_bbox["y"] + py * scale_y
                 ww = pw * scale_x
                 wh = ph * scale_y
-            else:
-                wx, wy, ww, wh = px, py, pw, ph
+            else:  # X 方向缩放比
+                wx, wy, ww, wh = px, py, pw, ph  # Y 方向缩放比
 
             entity = {
                 "type": det["type"],
@@ -302,9 +302,9 @@ class YOLODetectionIntegrator:
                     e["type"] == det["type"]
                     and e.get("properties", {}).get("detection_source") == "yolo"
                 ):
-                    existing = e
+                    existing = e  # 同类型累加计数
                     break
-
+            # 新类型追加到列表
             if existing:
                 existing["count"] += 1
             else:
@@ -330,8 +330,8 @@ class YOLODetectionIntegrator:
         import matplotlib.pyplot as plt
         import tempfile
 
-        try:
-            doc = ezdxf.readfile(dxf_path)
+        try:  # 读取 DXF 文档
+            doc = ezdxf.readfile(dxf_path)  # 获取模型空间
             msp = doc.modelspace()
         except Exception:
             # DXF 损坏或非 DXF 文件：直接返回 None 交由上层处理
@@ -339,57 +339,57 @@ class YOLODetectionIntegrator:
 
         # 计算所有图元的最小外接矩形作为渲染边界
         # 不直接使用 DXF 的 extents 是因为有些图纸没有正确设置该属性
-        all_x, all_y = [], []
+        all_x, all_y = [], []  # 遍历所有图元计算边界
         for entity in msp:
-            try:
+            try:  # LINE 提取起点终点
                 if entity.dxftype() == "LINE":
                     s, e = entity.dxf.start, entity.dxf.end
                     all_x.extend([s[0], e[0]])
-                    all_y.extend([s[1], e[1]])
+                    all_y.extend([s[1], e[1]])  # LWPOLYLINE 提取所有顶点
                 elif entity.dxftype() == "LWPOLYLINE":
                     pts = [(v[0], v[1]) for v in entity.get_points()]
                     all_x.extend(p[0] for p in pts)
-                    all_y.extend(p[1] for p in pts)
+                    all_y.extend(p[1] for p in pts)  # CIRCLE 用直径范围覆盖
                 elif entity.dxftype() == "CIRCLE":
                     cx, cy = entity.dxf.center[:2]
                     r = entity.dxf.radius
                     all_x.extend([cx - r, cx + r])
-                    all_y.extend([cy - r, cy + r])
+                    all_y.extend([cy - r, cy + r])  # TEXT/MTEXT 仅插入点
                 elif entity.dxftype() in ("TEXT", "MTEXT"):
                     ins = entity.dxf.insert[:2]
                     all_x.append(ins[0])
                     all_y.append(ins[1])
             except Exception:
                 continue
-
+        # 无支持图元无法渲染
         if not all_x:
             # 所有图元都被跳过（无支持类型的图元），无法计算渲染边界
             return None
-
+        # 添加边距避免贴边
         # 添加 2 单位边距，避免图元紧贴图像边缘导致 YOLO 检测框不完整
         margin = 2.0
         x_min, x_max = min(all_x) - margin, max(all_x) + margin
         y_min, y_max = min(all_y) - margin, max(all_y) + margin
 
-        fig_w = max(x_max - x_min, 1) * 0.4
+        fig_w = max(x_max - x_min, 1) * 0.4  # mm 转英寸
         fig_h = max(y_max - y_min, 1) * 0.4
         # 限制最大图像尺寸，防止 OOM（max 2048px）
         # CPU 推理大图会显著增加耗时，2048px 是经验平衡值
-        max_pixels = 2048
+        max_pixels = 2048  # 限制最大像素防 OOM
         if fig_w * dpi > max_pixels or fig_h * dpi > max_pixels:
             scale = min(max_pixels / (fig_w * dpi), max_pixels / (fig_h * dpi))
-            fig_w *= scale
+            fig_w *= scale  # 等比例缩小
             fig_h *= scale
-        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)  # 创建 matplotlib 图形
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
         ax.set_aspect("equal")  # 等比例：保证 YOLO bbox 形状在像素空间不失真
-        ax.axis("off")
+        ax.axis("off")  # 关闭坐标轴
 
-        for entity in msp:
-            layer = entity.dxf.layer if hasattr(entity.dxf, "layer") else ""
+        for entity in msp:  # 遍历图元渲染
+            layer = entity.dxf.layer if hasattr(entity.dxf, "layer") else ""  # 获取图层名
             # 跳过 META 图层：该层包含尺寸辅助线等对 YOLO 检测无意义的元素
-            if layer.upper() == "META":
+            if layer.upper() == "META":  # META 层辅助线干扰 YOLO
                 continue
             dxftype = entity.dxftype()
             try:
@@ -438,12 +438,12 @@ class YOLODetectionIntegrator:
 def _compute_iou(a: Dict, b: Dict) -> float:
     """计算两个 bbox 的 IoU（交并比）
 
-    IoU 用于判断 YOLO 检测框之间的重叠程度，
-    后续可用于 NMS 后处理或合并高度重叠的同类型检测框。
-
-    返回值范围 [0, 1]，1 表示完全重合，0 表示无重叠。
+      IoU 用于判断 YOLO 检测框之间的重叠程度，
+      后续可用于 NMS 后处理或合并高度重叠的同类型检测框。  # 计算 X 轴重叠长度
+    # 计算 Y 轴重叠长度
+      返回值范围 [0, 1]，1 表示完全重合，0 表示无重叠。  # 计算并集面积
     """
-    inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))
+    inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))  # 防零除
     inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))
     union = a["width"] * a["height"] + b["width"] * b["height"] - inter_x * inter_y
     # 分母加 1 避免零除：当两个 bbox 完全不相交时 union 仍可能为 0（极端 case）
@@ -452,9 +452,9 @@ def _compute_iou(a: Dict, b: Dict) -> float:
 
 def _compute_center(bbox: Dict) -> Tuple[float, float]:
     """计算 bbox 中心点坐标
-
-    用于距离计算和贴近性校验，比直接用角点更稳定。
-    返回 (cx, cy)。
+    # 返回中心点坐标
+      用于距离计算和贴近性校验，比直接用角点更稳定。
+      返回 (cx, cy)。
     """
     return bbox["x"] + bbox["width"] / 2, bbox["y"] + bbox["height"] / 2
 
@@ -472,13 +472,15 @@ def _point_to_segment_distance(
         (px, py): 目标点坐标（如门/窗中心）
         (x1,y1)-(x2,y2): 线段端点坐标（如墙体线段）
     """
-    dx, dy = x2 - x1, y2 - y1
+    dx, dy = x2 - x1, y2 - y1  # 线段退化为点
     # 线段退化为点时，直接返回点到点的距离
-    if dx == 0 and dy == 0:
+    if dx == 0 and dy == 0:  # 返回点到点距离
         return math.hypot(px - x1, py - y1)
     # 投影参数 t：限制在 [0,1] 确保垂足落在线段内
     # 若投影落在端点外，直接返回端点距离（点到线段 vs 点到直线）
-    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+    t = max(
+        0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy))
+    )  # 返回点到线段距离
     return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
@@ -501,12 +503,12 @@ def filter_yolo_detections(
         detections: predict() 返回的检测列表
         walls: 可选的墙体线列表，每项为 {"x1","y1","x2","y2"}
         min_corridor_width_m: corridor 最小宽度阈值（米）
-        verbose: 是否输出过滤日志
+        verbose: 是否输出过滤日志  # 空输入直接返回
 
     返回:
         过滤后的检测列表，每条可能包含 added 或 suppressed 标记
     """
-    if not detections:
+    if not detections:  # 使用传入的墙体线段
         return []
 
     # 收集墙体线段：rule 2/3 需要判断 door/window 是否贴墙
@@ -524,8 +526,8 @@ def filter_yolo_detections(
             }
             for d in detections
             if d["type"] == "wall"
-        ]
-
+        ]  # 默认保留
+    # 过滤原因（调试用）
     filtered: List[Dict] = []
     # 墙体 bbox 列表：rule 2/3 用于点到线段距离计算
     wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]
@@ -536,7 +538,7 @@ def filter_yolo_detections(
         w, h = bbox["width"], bbox["height"]
         cx, cy = _compute_center(bbox)
         keep = True
-        suppression_reason = None
+        suppression_reason = None  # 规则 1：走廊宽度过滤
 
         # ── 规则 1：走廊宽度过滤 ──
         # 建筑规范要求走廊净宽 >= 0.9m（居住建筑）或 >= 1.2m（公共建筑）
@@ -547,7 +549,7 @@ def filter_yolo_detections(
             if width_m < min_corridor_width_m:
                 keep = False
                 suppression_reason = f"corridor_width={width_m:.2f}<{min_corridor_width_m:.2f}"
-
+        # 规则 2：door 贴墙校验
         # ── 规则 2：door 方向校验（是否贴墙） ──
         # 门必须安装在墙体开口处，不贴墙的 door 检测框几乎可以肯定是 YOLO 误检
         # 阈值取 door_long_side * 2.0 和 door_short_side * 3.0 的较大值
@@ -564,7 +566,9 @@ def filter_yolo_detections(
                     )
                     for wb in wall_bboxes
                 )
-                if min_dist > max(door_long_side * 2.0, door_short_side * 3.0):
+                if min_dist > max(
+                    door_long_side * 2.0, door_short_side * 3.0
+                ):  # 规则 3：window 墙体对齐
                     keep = False
                     suppression_reason = f"door_wall_dist={min_dist:.1f}>threshold"
 
@@ -580,7 +584,7 @@ def filter_yolo_detections(
                     )
                     for wb in wall_bboxes
                 )
-                if min_dist > window_long * 2.0:
+                if min_dist > window_long * 2.0:  # 规则 4：corridor 连续性
                     keep = False
                     suppression_reason = f"window_wall_dist={min_dist:.1f}>threshold"
 
@@ -588,7 +592,7 @@ def filter_yolo_detections(
         # 走廊必须有 door/room 与之相邻，否则可能是楼梯间或其他非走廊空间
         # 只标记低置信度不直接过滤，保留给走廊推断逻辑做最终判断
         if etype == "corridor" and keep:
-            adjacent_found = False
+            adjacent_found = False  # 距离阈值 corridor 长边 3 倍
             for other in detections:
                 if other["type"] in ("door", "room", "fire_door") and other is not det:
                     ob = other["bbox"]
@@ -599,8 +603,8 @@ def filter_yolo_detections(
                         adjacent_found = True
                         break
             if not adjacent_found:
-                det["properties"]["corridor_low_confidence"] = True
-                if verbose:
+                det["properties"]["corridor_low_confidence"] = True  # 规则 5：room 宽高比合理性
+                if verbose:  # 宽高比 > 5 硬过滤
                     logger.debug(f"corridor 孤立: {det.get("type")} @ ({cx:.1f},{cy:.1f})")
 
         # ── 规则 5：room 宽高比/面积合理性 ──
@@ -611,7 +615,7 @@ def filter_yolo_detections(
         # 宽高比 > 5 通常是 YOLO 将多个房间合并为一个大 bbox 的结果
         # 硬过滤 5:1，软标记 4:1，兼顾召回率与精确率
         if etype == "room" and keep:
-            aspect = max(w, h) / max(h, w, 1)
+            aspect = max(w, h) / max(h, w, 1)  # 保留通过过滤的检测
             if aspect > 5.0:
                 keep = False
                 suppression_reason = f"room_aspect_ratio={aspect:.1f}>5"
