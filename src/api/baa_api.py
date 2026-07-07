@@ -1816,6 +1816,73 @@ async def render_drawing(  # code
 
 
 @app.get("/review/{file_id}/pdf")  # function call
+# ── 项目级审查汇总 ─────────────────────────────────────
+
+
+@app.get("/review/project/summary")
+async def project_summary(
+    file_ids: List[str] = Query(..., description="待汇总的文件ID列表（已审查过的文件）"),
+    api_key: str = Depends(verify_api_key),
+):
+    """项目级审查汇总
+
+    对已审查过的多个图纸文件生成跨文件的统一汇总报告，
+    包含项目总体评分、合规率、严重级别分布、规范条目热力图、
+    项目级风险识别等维度。
+
+    不重新审查，从缓存读取各文件审查结果后聚合。
+    """
+    from src.baa_engine.project_summary import (
+        aggregate_project_summary,
+        format_project_report,
+    )
+
+    if not file_ids:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": "file_ids 不能为空"},
+        )
+    if len(file_ids) > 50:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": "单次最多汇总50个文件"},
+        )
+
+    # ── 从缓存读取各文件审查结果 ───────────────────────────
+    file_results = []
+    for file_id in file_ids:
+        # 先尝试从 PersistentCache 读取
+        from src.baa_engine.cache import get_cache
+
+        cached = get_cache().get(f"project_summary:{file_id}", "review_result")
+        if cached and isinstance(cached, dict):
+            file_results.append(cached)
+            continue
+
+        # 回退：尝试读取 drawing_parser 缓存中的审查结果
+        # 如果缓存未命中，该文件不计入汇总
+        file_results.append(
+            {
+                "filename": file_id,
+                "status": "missing",
+                "message": f"文件 {file_id} 的审查结果未缓存",
+            }
+        )
+
+    # ── 聚合汇总 ──────────────────────────────────────────
+    summary = aggregate_project_summary(file_results)
+    report_text = format_project_report(summary)
+
+    return {
+        "status": "success",
+        "summary": summary,
+        "report_text": report_text,
+    }
+
+
+# ── 单文件 PDF 审查报告导出 ─────────────────────────────
+
+
 async def review_pdf(  # code
     file_id: str,  # code
     request: Request = None,  # assignment
