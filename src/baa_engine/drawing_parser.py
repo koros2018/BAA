@@ -599,6 +599,187 @@ except Exception:
         except Exception:  # catch exception
             return None  # return: None
 
+    def _resolve_xref_external(
+        self,
+        xref_names: List[str],
+        dwg_path: Path,
+        dxf_doc: Any,
+        block_defs: Dict[str, Any],
+        depth: int = 0,
+        max_depth: int = 3,
+        visited: set = None,
+    ) -> List[str]:
+        """解析外部参照（xref）文件，将内容合并到主 dxf_doc
+
+        在同目录下查找 {xref_name}.dwg 或 {xref_name}.dxf，
+        读取后将其实体复制到主 dxf_doc 的 modelspace，
+        同时提取 block_defs。支持递归解析（最多 max_depth 层）。
+
+        返回：未找到文件的 xref 名称列表
+        """
+        if depth > max_depth:
+            return list(xref_names)
+        if visited is None:
+            visited = set()
+
+        unresolved = []
+        parent_dir = dwg_path.parent
+
+        for xref_name in xref_names:
+            if xref_name.upper() in visited:
+                continue
+            visited.add(xref_name.upper())
+
+            # 在同目录查找 xref 文件
+            xref_path = None
+            for ext in (".dwg", ".dxf"):
+                candidate = parent_dir / f"{xref_name}{ext}"
+                if candidate.exists():
+                    xref_path = candidate
+                    break
+
+            if xref_path is None:
+                unresolved.append(xref_name)
+                continue
+
+            # 读取外部参照文件
+            try:
+                ext = xref_path.suffix.lower()
+                if ext == ".dxf":
+                    xref_doc = ezdxf.readfile(str(xref_path))
+                else:
+                    # DWG：尝试 ezdwg 转换
+                    try:
+                        import ezdwg as _ezdwg_xref
+
+                        xref_dwg = _ezdwg_xref.read(str(xref_path))
+                        tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+                        tmp_path = tmp.name
+                        tmp.close()
+                        xref_dwg.export_dxf(tmp_path)
+                        xref_doc = ezdxf.readfile(tmp_path)
+                        Path(tmp_path).unlink(missing_ok=True)
+                    except Exception:
+                        unresolved.append(xref_name)
+                        continue
+
+                # 提取该文件的 block_defs
+                xref_block_defs: Dict[str, Any] = {}
+                xref_xref_names = []
+                for name, blk in xref_doc.blocks:
+                    if blk.is_xref:
+                        xref_xref_names.append(name)
+                        continue
+                    entities = list(blk)
+                    if entities:
+                        xref_block_defs[name.upper()] = entities
+
+                # 合并 block_defs
+                for k, v in xref_block_defs.items():
+                    if k not in block_defs:
+                        block_defs[k] = v
+
+                # 递归解析嵌套 xref
+                nested_unresolved = self._resolve_xref_external(
+                    xref_xref_names,
+                    xref_path,
+                    dxf_doc,
+                    block_defs,
+                    depth=depth + 1,
+                    max_depth=max_depth,
+                    visited=visited,
+                )
+
+                # 将 xref 文件中的实体复制到主 dxf_doc 的 modelspace
+                msp_dst = dxf_doc.modelspace()
+                for ent in xref_doc.modelspace():
+                    dxf_type = ent.dxftype()
+                    try:
+                        color = getattr(ent.dxf, "color", 7) or 7
+                        layer = getattr(ent.dxf, "layer", "0") or "0"
+
+                        if dxf_type == "LINE":
+                            msp_dst.add_line(
+                                (ent.dxf.start[0], ent.dxf.start[1]),
+                                (ent.dxf.end[0], ent.dxf.end[1]),
+                                dxfattribs={"color": color, "layer": layer},
+                            )
+                        elif dxf_type == "LWPOLYLINE":
+                            pts = [(p[0], p[1]) for p in getattr(ent.dxf, "points", [])]
+                            if len(pts) >= 2:
+                                msp_dst.add_lwpolyline(
+                                    pts, dxfattribs={"color": color, "layer": layer}
+                                )
+                        elif dxf_type == "CIRCLE":
+                            msp_dst.add_circle(
+                                (ent.dxf.center[0], ent.dxf.center[1]),
+                                ent.dxf.radius,
+                                dxfattribs={"color": color, "layer": layer},
+                            )
+                        elif dxf_type == "ARC":
+                            msp_dst.add_arc(
+                                (ent.dxf.center[0], ent.dxf.center[1]),
+                                ent.dxf.radius,
+                                ent.dxf.start_angle,
+                                ent.dxf.end_angle,
+                                dxfattribs={"color": color, "layer": layer},
+                            )
+                        elif dxf_type == "INSERT":
+                            ins_pt = getattr(ent.dxf, "insert", (0, 0, 0))
+                            name = getattr(ent.dxf, "name", "UNKNOWN")
+                            x, y = ins_pt[0], ins_pt[1]
+                            scale = (
+                                getattr(ent.dxf, "x_scale", getattr(ent.dxf, "y_scale", 1.0)) or 1.0
+                            )
+                            rotation = getattr(ent.dxf, "rotation", 0.0) or 0.0
+                            expanded = False
+                            for blk_name, blk_entities in block_defs.items():
+                                if blk_name.lower() == name.lower():
+                                    self._insert_block_expand(
+                                        blk_entities,
+                                        msp_dst,
+                                        x,
+                                        y,
+                                        scale,
+                                        rotation,
+                                        color,
+                                        layer,
+                                        block_defs=block_defs,
+                                        depth=0,
+                                        max_depth=5,
+                                    )
+                                    expanded = True
+                                    break
+                            if not expanded:
+                                half = max(50.0, scale * 20.0)
+                                msp_dst.add_lwpolyline(
+                                    [
+                                        (x - half, y - half),
+                                        (x + half, y - half),
+                                        (x + half, y + half),
+                                        (x - half, y + half),
+                                        (x - half, y - half),
+                                    ],
+                                    dxfattribs={"color": 1, "layer": layer},
+                                )
+                                msp_dst.add_text(
+                                    f"XREF:{name}",
+                                    dxfattribs={
+                                        "color": 1,
+                                        "height": 100.0,
+                                        "insert": (x + half + 10, y),
+                                        "layer": layer,
+                                    },
+                                )
+                    except Exception:
+                        pass
+
+                xref_doc.close()
+            except Exception:
+                unresolved.append(xref_name)
+
+        return unresolved
+
     def _try_manual_convert(
         self, path: Path
     ) -> Optional[Any]:  # method: def _try_manual_convert(self, path: Path) -> Optional[Any]:
@@ -628,8 +809,10 @@ except Exception:
                     entities = list(blk)  # list conversion
                     if entities:  # condition: entities:
                         block_defs[name.upper()] = entities  # function call
-                if xref_names:  # condition: xref_names:
-                    result.warning = f"图纸含外部参照(xref): {', '.join(xref_names[:5])}（未展开，可能影响审查完整性）"  # function call
+
+                # ── 自动解析外部参照文件 ──
+                self._resolve_xref_external(xref_names, path, dxf_doc, block_defs)
+
                 xref_doc.close()  # function call
                 os.unlink(tmp_xref.name)  # function call
             except Exception:  # catch exception

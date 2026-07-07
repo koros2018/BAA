@@ -141,7 +141,9 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
                 f"{params.get('property_name', '')}为{params.get('extracted_value', '')}"  # 操作
                 f"{params.get('unit', '')}，"  # 操作
                 f"满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
-                f"（{clause.get('text', '')}），判定通过。"
+                f"（{clause.get('text', '')}），"  # 操作
+                f"预期{judgement.get('operator', '')} {judgement.get('threshold', '')}{params.get('unit', '')}，"  # 操作
+                f"实际{params.get('extracted_value', '')}{params.get('unit', '')}，判定通过。"
             )  # 操作
 
         return (
@@ -150,6 +152,8 @@ class AttributionAnalyzer:  # definition: attribution analysis engine
             f"{params.get('unit', '')}，"  # 操作
             f"不满足{clause.get('standard', '')}第{clause.get('clause_id', '')}条要求"  # 操作
             f"（{clause.get('text', '')}），"  # 操作
+            f"预期{judgement.get('operator', '')} {judgement.get('threshold', '')}{params.get('unit', '')}，"  # 操作
+            f"实际{params.get('extracted_value', '')}{params.get('unit', '')}，"  # 操作
             f"差值为{abs(judgement.get('delta', 0)):.2f}{params.get('unit', '')}。"
         )  # 操作
 
