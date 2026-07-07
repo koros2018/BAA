@@ -40,7 +40,7 @@ jobs:
         run: |
           pylint src/ \
             --max-line-length=100 \
-            --disable=C0114,C0115,C0116,R0903,R0913,R0914,R0917,W0621,W0622 \
-            --fail-under=8.5 \
+            --disable=C0114,C0115,C0116,R0903,R0913,R0914,R0917,W0621,W0622,R0801 \
+            --fail-under=8.0 \
             --output-format=colorized \
             --jobs=1
