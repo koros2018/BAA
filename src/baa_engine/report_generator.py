@@ -245,6 +245,7 @@ class ReviewReport:
         corrections: List[Dict[str, Any]],
         output_path: Optional[str] = None,
         lang: str = "zh",
+        diff_report: Optional[Dict[str, Any]] = None,
     ) -> bytes:
         """生成完整审查报告 PDF"""
         buf = []
@@ -254,6 +255,9 @@ class ReviewReport:
         buf.append(PageBreak())
         self._build_summary_page(buf, filename, summary, details, lang)
         buf.append(PageBreak())
+        if diff_report:
+            self._build_diff_page(buf, diff_report, lang)
+            buf.append(PageBreak())
         self._build_violation_pages(buf, details, corrections, lang)
         self._build_correction_pages(buf, corrections, lang)
 
@@ -452,6 +456,79 @@ class ReviewReport:
                     [list(r) for r in rows],
                     col_widths=[cw - 80, 80],
                     headers=[t("table.entity_type", lang), t("table.quantity", lang)],
+                )
+            )
+
+        # ══════════════════════════════════════════════════════
+        # 版本对比页
+        # ══════════════════════════════════════════════════════
+
+    def _build_diff_page(
+        self,
+        buf,
+        diff_report: Dict[str, Any],
+        lang: str = "zh",
+    ):
+        """版本对比报告页：展示 v1 vs v2 的变更概览和详情"""  # # 文件名
+        s = self.styles
+        cw = self.page_w - 2 * self.margin
+
+        # 标题
+        v1_file = diff_report.get("v1_file", "")
+        v2_file = diff_report.get("v2_file", "")
+        title_text = t("report.diff_title", lang, v1=v1_file, v2=v2_file)
+        buf.append(Paragraph(title_text, s["section-title"]))
+        buf.append(Spacer(1, 8))
+
+        # 变更摘要
+        summary = diff_report.get("summary", {})
+        new_violations = summary.get("new_violations", 0)
+        fixed_violations = summary.get("fixed_violations", 0)
+        changed_violations = summary.get("changed_violations", 0)
+        total_v1 = summary.get("total_v1", 0)
+        total_v2 = summary.get("total_v2", 0)
+
+        # 摘要卡片
+        card_w = (cw - 24) / 3
+        buf.append(StatCard(t("report.diff_new", lang), str(new_violations), C_DANGER, card_w, 50))
+        buf.append(Spacer(1, 6))
+        buf.append(
+            StatCard(t("report.diff_fixed", lang), str(fixed_violations), C_ACCENT, card_w, 50)
+        )
+        buf.append(Spacer(1, 6))
+        buf.append(
+            StatCard(
+                t("report.diff_changed", lang), str(changed_violations), C_SECONDARY, card_w, 50
+            )
+        )
+        buf.append(Spacer(1, 16))
+
+        # 变更明细表
+        items = diff_report.get("items", [])
+        if items:
+            buf.append(Paragraph(t("report.diff_details", lang), s["subsection-title"]))
+            buf.append(Spacer(1, 6))
+            rows = []
+            for item in items:
+                diff_type = item.get("diff_type", "")
+                type_map = {
+                    "new": t("report.diff_new", lang),
+                    "fixed": t("report.diff_fixed", lang),
+                    "changed": t("report.diff_changed", lang),
+                }
+                type_label = type_map.get(diff_type, diff_type)
+                clause_id = item.get("clause_id", "")
+                entity = item.get("entity_id", "")
+                rows.append([type_label, clause_id, entity])
+            buf.append(
+                self._make_table(
+                    rows,
+                    col_widths=[(cw - 200) / 2, cw - 200, (cw - 200) / 2],
+                    headers=[
+                        t("report.diff_type", lang),
+                        t("table.clause_id", lang),
+                        t("table.entity_type", lang),
+                    ],
                 )
             )
 
