@@ -334,6 +334,7 @@ class YOLODetectionIntegrator:
             doc = ezdxf.readfile(dxf_path)
             msp = doc.modelspace()
         except Exception:
+            # DXF 损坏或非 DXF 文件：直接返回 None 交由上层处理
             return None
 
         # 计算所有图元的最小外接矩形作为渲染边界
@@ -362,6 +363,7 @@ class YOLODetectionIntegrator:
                 continue
 
         if not all_x:
+            # 所有图元都被跳过（无支持类型的图元），无法计算渲染边界
             return None
 
         # 添加 2 单位边距，避免图元紧贴图像边缘导致 YOLO 检测框不完整
@@ -381,7 +383,7 @@ class YOLODetectionIntegrator:
         fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
-        ax.set_aspect("equal")
+        ax.set_aspect("equal")  # 等比例：保证 YOLO bbox 形状在像素空间不失真
         ax.axis("off")
 
         for entity in msp:
@@ -418,11 +420,13 @@ class YOLODetectionIntegrator:
                         )
                     )
             except Exception:
+                # 单个图元渲染失败不影响整体：跳过该图元继续
                 continue
 
         tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
         tmp_path = tmp.name
         tmp.close()
+        # bbox_inches="tight" + facecolor="white"：白底去除多余空白边距
         plt.savefig(tmp_path, dpi=dpi, bbox_inches="tight", pad_inches=0.05, facecolor="white")
         plt.close(fig)
         return tmp_path
@@ -442,7 +446,7 @@ def _compute_iou(a: Dict, b: Dict) -> float:
     inter_x = max(0, min(a["x"] + a["width"], b["x"] + b["width"]) - max(a["x"], b["x"]))
     inter_y = max(0, min(a["y"] + a["height"], b["y"] + b["height"]) - max(a["y"], b["y"]))
     union = a["width"] * a["height"] + b["width"] * b["height"] - inter_x * inter_y
-    # 分母加 1 避免零除，空 bbox 的 union 为 0 时 IoU 退化为 0
+    # 分母加 1 避免零除：当两个 bbox 完全不相交时 union 仍可能为 0（极端 case）
     return (inter_x * inter_y) / max(union, 1)
 
 
@@ -472,7 +476,8 @@ def _point_to_segment_distance(
     # 线段退化为点时，直接返回点到点的距离
     if dx == 0 and dy == 0:
         return math.hypot(px - x1, py - y1)
-    # 投影参数 t，限制在 [0, 1] 范围内确保垂足在线段上
+    # 投影参数 t：限制在 [0,1] 确保垂足落在线段内
+    # 若投影落在端点外，直接返回端点距离（点到线段 vs 点到直线）
     t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
     return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
@@ -504,13 +509,12 @@ def filter_yolo_detections(
     if not detections:
         return []
 
-    # 收集所有墙体线段（用于贴近性校验）
+    # 收集墙体线段：rule 2/3 需要判断 door/window 是否贴墙
+    # walls 参数未提供时 fallback 到检测结果中的 wall bbox
     wall_segments: List[Dict] = []
     if walls:
         wall_segments = walls
     else:
-        # 从检测结果中提取 wall 实体作为参考线
-        # 如果 walls 参数未提供，则 fallback 到检测结果中的 wall 实体
         wall_segments = [
             {
                 "x1": d["bbox"]["x"],
@@ -523,6 +527,7 @@ def filter_yolo_detections(
         ]
 
     filtered: List[Dict] = []
+    # 墙体 bbox 列表：rule 2/3 用于点到线段距离计算
     wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]
 
     for det in detections:
@@ -536,6 +541,7 @@ def filter_yolo_detections(
         # ── 规则 1：走廊宽度过滤 ──
         # 建筑规范要求走廊净宽 >= 0.9m（居住建筑）或 >= 1.2m（公共建筑）
         # 这里用 0.5m 作为兜底下限，小于此值不可能是走廊
+        # 取 min(w, h) 是因为 YOLO bbox 可能长宽颠倒（取决于渲染方向）
         if etype == "corridor":
             width_m = min(w, h)
             if width_m < min_corridor_width_m:
@@ -600,6 +606,10 @@ def filter_yolo_detections(
         # ── 规则 5：room 宽高比/面积合理性 ──
         # 建筑设计中房间宽高比通常不超过 4:1（走廊除外，但走廊有独立类别）
         # 宽高比 > 5 通常是 YOLO 将多个房间合并为一个大 bbox 的结果
+        # ── 规则 5：room 宽高比/面积合理性 ──
+        # 建筑设计中房间宽高比通常不超过 4:1（走廊除外，但走廊有独立类别）
+        # 宽高比 > 5 通常是 YOLO 将多个房间合并为一个大 bbox 的结果
+        # 硬过滤 5:1，软标记 4:1，兼顾召回率与精确率
         if etype == "room" and keep:
             aspect = max(w, h) / max(h, w, 1)
             if aspect > 5.0:
