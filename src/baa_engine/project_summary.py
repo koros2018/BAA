@@ -69,8 +69,8 @@ def aggregate_project_summary(
     clause_file_set: Dict[str, set] = defaultdict(set)  # 每条 clause 涉及哪些文件
     file_scores = []
 
-    for file_result in file_results:
-        if file_result.get("status") != "success":
+    for file_result in file_results:  # 遍历每个文件结果
+        if file_result.get("status") != "success":  # 失败文件跳过评分
             # 失败的文件不计入项目评分，但保留在 per_file_scores 中
             file_scores.append(
                 {
@@ -79,33 +79,33 @@ def aggregate_project_summary(
                     "score": None,
                 }
             )
-            continue
+            continue  # 跳过失败文件，继续下一个
 
-        summary = file_result.get("summary", {})
-        details = file_result.get("details", [])
+        summary = file_result.get("summary", {})  # 提取统计摘要
+        details = file_result.get("details", [])  # 提取违规明细
 
-        total_checks += summary.get("total_checks", 0)
-        total_violations += summary.get("violations", 0)
+        total_checks += summary.get("total_checks", 0)  # 累加总检查数
+        total_violations += summary.get("violations", 0)  # 累加总违规数
 
         # 实体类型分布
-        for etype, count in summary.get("entity_types", {}).items():
+        for etype, count in summary.get("entity_types", {}).items():  # 统计实体类型分布
             entity_type_counter[etype] += count
 
         # 严重级别分布
-        for detail in details:
-            severity = detail.get("severity", "major")
+        for detail in details:  # 统计严重级别分布
+            severity = detail.get("severity", "major")  # 默认 major
             severity_counter[severity] += 1
-            clause_id = detail.get("clause_id", "unknown")
+            clause_id = detail.get("clause_id", "unknown")  # 统计规范条目违规次数
             clause_counter[clause_id] += 1
 
         # 收集所有违规明细（用于深度分析）
-        all_details.extend(details)
+        all_details.extend(details)  # 收集所有违规明细用于深度分析
 
         # 记录违规涉及的规范条目和文件
-        filename = file_result.get("filename", "unknown")
-        for detail in details:
-            clause_id = detail.get("clause_id", "unknown")
-            clause_file_set[clause_id].add(filename)
+        filename = file_result.get("filename", "unknown")  # 记录文件名
+        for detail in details:  # 记录每条违规对应的文件
+            clause_id = detail.get("clause_id", "unknown")  # 规范条目 ID
+            clause_file_set[clause_id].add(filename)  # 记录该条款涉及的文件
 
         # 文件评分
         file_scores.append(
@@ -122,27 +122,29 @@ def aggregate_project_summary(
     # 方法：加权扣分法
     # score = max(0, 100 - sum(severity_weight × count) / total_files × normalization)
     # normalization：避免单文件扣分过高导致项目评分为 0
-    successful_files = [fs for fs in file_scores if fs["status"] == "success"]
-    num_success_files = len(successful_files)
+    successful_files = [fs for fs in file_scores if fs["status"] == "success"]  # 过滤出成功文件
+    num_success_files = len(successful_files)  # 成功文件数
 
-    if num_success_files == 0 or total_checks == 0:
-        overall_score = 0.0
-        compliance_rate = 0.0
+    if num_success_files == 0 or total_checks == 0:  # 无成功文件或检查数为零
+        overall_score = 0.0  # 评分为 0
+        compliance_rate = 0.0  # 合规率为 0
     else:
         # 加权扣分：critical=10, major=5, minor=1
-        weighted_penalty = 0.0
-        for severity, count in severity_counter.items():
-            weight = SEVERITY_WEIGHTS.get(severity, 1.0)
-            weighted_penalty += weight * count
+        weighted_penalty = 0.0  # 初始化加权扣分
+        for severity, count in severity_counter.items():  # 遍历各级别违规
+            weight = SEVERITY_WEIGHTS.get(severity, 1.0)  # 获取权重系数
+            weighted_penalty += weight * count  # 累加加权扣分
 
         # 归一化：按文件数和检查数做加权，避免小文件项目过度扣分
         # penalty_per_check = weighted_penalty / total_checks
         # score = 100 - penalty_per_check × 100（确保满分为 100）
-        if total_checks > 0:
-            penalty_ratio = weighted_penalty / total_checks
-            overall_score = max(0, PROJECT_MAX_SCORE - penalty_ratio * PROJECT_MAX_SCORE)
+        if total_checks > 0:  # 有检查项时计算评分
+            penalty_ratio = weighted_penalty / total_checks  # 每条检查的平均扣分
+            overall_score = max(
+                0, PROJECT_MAX_SCORE - penalty_ratio * PROJECT_MAX_SCORE
+            )  # 100 - 平均扣分，不低于 0
         else:
-            overall_score = PROJECT_MAX_SCORE
+            overall_score = PROJECT_MAX_SCORE  # 无检查项时满分
 
         # 合规率 = (总检查数 - 违规数) / 总检查数
         compliance_rate = round(
@@ -163,15 +165,19 @@ def aggregate_project_summary(
 
     # ── 项目级风险识别 ──────────────────────────────────────
     # 高频违规条款：出现在超过 HIGH_FREQ_THRESHOLD 比例文件中的条款
-    project_risks = []
-    if num_success_files > 0:
-        threshold_file_count = max(1, num_success_files * HIGH_FREQ_THRESHOLD)
-        for clause_id, count in clause_counter.most_common():
-            file_set = clause_file_set.get(clause_id, set())
-            if len(file_set) >= threshold_file_count and count >= 2:
+    project_risks = []  # 初始化风险列表
+    if num_success_files > 0:  # 有成功文件时才识别风险
+        threshold_file_count = max(
+            1, num_success_files * HIGH_FREQ_THRESHOLD
+        )  # 计算高频阈值对应的文件数
+        for clause_id, count in clause_counter.most_common():  # 遍历所有违规条款
+            file_set = clause_file_set.get(clause_id, set())  # 获取条款涉及的文件集合
+            if len(file_set) >= threshold_file_count and count >= 2:  # 跨文件高频 + 多次违规
                 # 找出该条款的平均 severity
-                clause_details = [d for d in all_details if d.get("clause_id") == clause_id]
-                avg_severity = _classify_overall_severity(clause_details)
+                clause_details = [
+                    d for d in all_details if d.get("clause_id") == clause_id
+                ]  # 获取该条款的所有违规明细
+                avg_severity = _classify_overall_severity(clause_details)  # 判断整体严重级别
                 project_risks.append(
                     {
                         "clause_id": clause_id,
@@ -179,9 +185,9 @@ def aggregate_project_summary(
                         "files_affected": len(file_set),
                         "severity": avg_severity,
                         "description": (
-                            clause_details[0].get("clause_title", "未知条款")
-                            if clause_details
-                            else "未知条款"
+                            clause_details[0].get("clause_title", "未知条款")  # 获取条款描述
+                            if clause_details  # 有明细时取第一条的描述
+                            else "未知条款"  # 无明细时显示未知
                         ),
                     }
                 )
@@ -209,21 +215,21 @@ def _classify_overall_severity(details: List[Dict]) -> str:
     策略：取最高严重级别，如果 critical 占比超过 50% 则标记为 critical
     否则按 majority 判断
     """
-    if not details:
-        return "unknown"
+    if not details:  # 空列表返回 unknown
+        return "unknown"  # 返回 unknown
 
-    severity_order = {"critical": 0, "major": 1, "minor": 2}
-    severity_counts = Counter(d.get("severity", "major") for d in details)
-    total = len(details)
+    severity_order = {"critical": 0, "major": 1, "minor": 2}  # 严重级别优先级映射
+    severity_counts = Counter(d.get("severity", "major") for d in details)  # 统计各级别数量
+    total = len(details)  # 总违规数
 
     # 最高级别
-    worst = min(severity_order, key=lambda s: severity_order.get(s, 2))
+    worst = min(severity_order, key=lambda s: severity_order.get(s, 2))  # 取最高严重级别
 
     # 如果 critical 占多数，升级为 critical
-    if severity_counts.get("critical", 0) / total >= 0.5:
-        return "critical"
+    if severity_counts.get("critical", 0) / total >= 0.5:  # critical 占多数时升级
+        return "critical"  # 返回 critical
 
-    return worst
+    return worst  # 返回最高级别
 
 
 def format_project_report(summary: Dict[str, Any]) -> str:
@@ -243,24 +249,24 @@ def format_project_report(summary: Dict[str, Any]) -> str:
         "",
         "── 严重级别分布 ──",
     ]
-    for severity, count in summary.get("severity_distribution", {}).items():
-        lines.append(f"  {severity}: {count}")
+    for severity, count in summary.get("severity_distribution", {}).items():  # 遍历严重级别分布
+        lines.append(f"  {severity}: {count}")  # 追加到报告行
 
-    lines.extend(["", "── TOP 10 违规条款 ──"])
-    for item in summary.get("clause_frequency", [])[:10]:
+    lines.extend(["", "── TOP 10 违规条款 ──"])  # 追加 TOP 10 违规条款
+    for item in summary.get("clause_frequency", [])[:10]:  # 遍历前 10 条
         lines.append(
             f"  {item['clause_id']}: {item['violation_count']} 次"
             f"（{item['files_affected']} 个文件）"
         )
 
-    if summary.get("project_risks"):
-        lines.extend(["", "── ⚠️ 项目级风险 ──"])
-        for risk in summary["project_risks"]:
+    if summary.get("project_risks"):  # 有项目级风险时追加
+        lines.extend(["", "── ⚠️ 项目级风险 ──"])  # 追加风险标题
+        for risk in summary["project_risks"]:  # 遍历所有风险
             lines.append(
                 f"  {risk['clause_id']}: {risk['description']}"
                 f"（{risk['violation_count']} 次违规，"
                 f"{risk['files_affected']} 个文件，严重级别: {risk['severity']}）"
             )
 
-    lines.extend(["", "=" * 50])
-    return "\n".join(lines)
+    lines.extend(["", "=" * 50])  # 追加分隔线
+    return "\n".join(lines)  # 返回文本报告
