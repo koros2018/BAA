@@ -34,6 +34,7 @@ from reportlab.platypus import (
     ListItem,
 )
 from reportlab.platypus.flowables import Flowable
+from src.baa_engine.i18n import t
 
 # ── 注册中文字体 ─────────────────────────────────────────
 _FONT_REGISTERED = False
@@ -243,15 +244,16 @@ class ReviewReport:
         details: List[Dict[str, Any]],
         corrections: List[Dict[str, Any]],
         output_path: Optional[str] = None,
+        lang: str = "zh",
     ) -> bytes:
         """生成完整审查报告 PDF"""
-        buf = []  # # 统计卡片数据
-        self._build_cover(buf, filename, summary)
+        buf = []
+        self._build_cover(buf, filename, summary, lang)
         buf.append(PageBreak())
-        self._build_summary_page(buf, filename, summary, details)
-        buf.append(PageBreak())  # # 卡片宽度
-        self._build_violation_pages(buf, details, corrections)
-        self._build_correction_pages(buf, corrections)
+        self._build_summary_page(buf, filename, summary, details, lang)
+        buf.append(PageBreak())
+        self._build_violation_pages(buf, details, corrections, lang)
+        self._build_correction_pages(buf, corrections, lang)
 
         # 构建文档
         doc = BaseDocTemplate(
@@ -281,7 +283,7 @@ class ReviewReport:
     # 封面
     # ══════════════════════════════════════════════════════
     # # 获取内容宽度
-    def _build_cover(self, buf, filename: str, summary: Dict[str, Any]):
+    def _build_cover(self, buf, filename: str, summary: Dict[str, Any], lang: str = "zh"):
         s = self.styles  # # 摘要页标题
         cw = self.page_w - 2 * self.margin
         # # 构建概要信息表
@@ -290,19 +292,24 @@ class ReviewReport:
         buf.append(Spacer(1, 8))
 
         # 标题在色块上方
-        buf.append(Paragraph("图纸合规审查报告", s["cover-title"]))
+        buf.append(Paragraph(t("report.title", lang), s["cover-title"]))
         buf.append(Spacer(1, 6))
-        buf.append(Paragraph(f"图纸文件：{filename}", s["cover-sub"]))
+        buf.append(Paragraph(f'{t("common.filename", lang)}：{filename}', s["cover-sub"]))
 
         building_type = summary.get("building_type", "civil")
-        type_label = "民用建筑" if building_type == "civil" else "工业建筑"
-        buf.append(Paragraph(f"建筑类型：{type_label}", s["cover-info"]))
+        type_label = (
+            t("common.civil", lang) if building_type == "civil" else t("common.industrial", lang)
+        )
+        buf.append(Paragraph(f'{t("common.building_type", lang)}：{type_label}', s["cover-info"]))
 
         now = datetime.datetime.now()
         buf.append(
-            Paragraph(f"生成日期：{now.strftime('%Y-%m-%d %H:%M')}", s["cover-info"])
+            Paragraph(
+                f'{t("common.generated_at", lang)}：{now.strftime("%Y-%m-%d %H:%M")}',
+                s["cover-info"],
+            )
         )  # # 违规按条款分布标题
-        buf.append(Paragraph("Powered by BAA · Blueprint AI Agent", s["cover-info"]))
+        buf.append(Paragraph(t("common.app_name", lang), s["cover-info"]))
         buf.append(Spacer(1, 24))
         # # 按违规数降序排列
         # ── 统计卡片 ──────────────────────────────────────
@@ -351,7 +358,7 @@ class ReviewReport:
         buf.append(Spacer(1, 60))
         buf.append(
             Paragraph(
-                "本报告由 BAA（Blueprint AI Agent）自动生成，仅供参考。",
+                t("common.disclaimer", lang),
                 s["footer"],
             )
         )
@@ -365,29 +372,39 @@ class ReviewReport:
         buf,
         filename: str,
         summary: Dict[str, Any],
-        details: List[Dict[str, Any]],  # # 显示说明文本
+        details: List[Dict[str, Any]],
+        lang: str = "zh",
     ):
         s = self.styles
         cw = self.page_w - 2 * self.margin  # # 匹配修正建议
 
-        buf.append(Paragraph("审查统计摘要", s["section-title"]))
+        buf.append(Paragraph(t("report.summary_title", lang), s["section-title"]))
         buf.append(Spacer(1, 6))
 
         # ── 概要表 ────────────────────────────────────────
         rows = [
-            ["图纸文件", filename],
-            ["建筑类型", "民用" if summary.get("building_type", "civil") == "civil" else "工业"],
+            [t("common.filename", lang), filename],
+            [
+                "建筑类型",
+                (
+                    t("common.civil", lang)
+                    if summary.get("building_type", "civil") == "civil"
+                    else t("common.industrial", lang)
+                ),
+            ],
             ["图元总数", str(summary.get("total_entities", 0))],
             ["检查项次", str(summary.get("total_checks", 0))],
             ["违规总数", str(summary.get("violations", 0))],
             ["涉及条款", str(len(summary.get("violation_by_clause", {})))],
-            ["审查耗时", f"{summary.get('processing_time_ms', 0)}ms"],
+            [t("summary.processing_time", lang), f"{summary.get('processing_time_ms', 0)}ms"],
         ]
         buf.append(self._make_table(rows, col_widths=[100, cw - 100]))
         buf.append(Spacer(1, 16))
 
         # ── 违规按条款分布 ────────────────────────────────
-        buf.append(Paragraph("违规按条款分布", s["subsection-title"]))  # # 无修正建议则跳过
+        buf.append(
+            Paragraph(t("summary.violation_by_clause", lang), s["subsection-title"])
+        )  # # 无修正建议则跳过
         buf.append(Spacer(1, 6))
 
         violation_by_clause = summary.get("violation_by_clause", {})
@@ -406,25 +423,29 @@ class ReviewReport:
                 self._make_table(
                     rows,
                     col_widths=[70, cw - 130, 60],
-                    headers=["条款编号", "条款名称", "违规数"],
+                    headers=[
+                        t("table.clause_id", lang),
+                        t("table.clause_name", lang),
+                        t("table.violation_count", lang),
+                    ],
                 )
             )
         else:  # # 无违规条款
-            buf.append(Paragraph("无违规项", s["body"]))
+            buf.append(Paragraph(t("common.none", lang), s["body"]))
 
         buf.append(Spacer(1, 16))
 
         # ── 实体类型分布 ──────────────────────────────────
         entity_types = summary.get("entity_types", {})  # # 有表头时添加表头行
         if entity_types:  # # 将表头文本转为 Paragraph
-            buf.append(Paragraph("实体类型分布", s["subsection-title"]))
+            buf.append(Paragraph(t("summary.entity_distribution", lang), s["subsection-title"]))
             buf.append(Spacer(1, 6))
             rows = sorted(entity_types.items(), key=lambda x: -x[1])  # # 遍历数据行
             buf.append(
                 self._make_table(
                     [list(r) for r in rows],
                     col_widths=[cw - 80, 80],
-                    headers=["实体类型", "数量"],
+                    headers=[t("table.entity_type", lang), t("table.quantity", lang)],
                 )
             )
 
@@ -468,7 +489,11 @@ class ReviewReport:
                 explanation = item.get("explanation", "")
 
                 num = idx + 1
-                result_label = "❌ 不合规" if "FAIL" in str(result) else "⚠️ 警告"
+                result_label = (
+                    t("violation.non_compliant", lang)
+                    if "FAIL" in str(result)
+                    else t("violation.warning", lang)
+                )
                 result_color = C_DANGER if "FAIL" in str(result) else C_WARNING
 
                 buf.append(
@@ -489,7 +514,7 @@ class ReviewReport:
                         f"偏差: {diff}"
                     )
                 else:  # # 无精确值，显示说明
-                    line = f"  说明: {explanation}"
+                    line = f"  {t("violation.explanation", lang)}: {explanation}"
 
                 buf.append(Paragraph(line, s["violation-detail"]))
 
@@ -505,7 +530,7 @@ class ReviewReport:
                     if suggestion:  # # 有建议内容时显示
                         buf.append(
                             Paragraph(
-                                f"  💡 建议: {suggestion[:100]}",
+                                f"  {t("violation.suggestion", lang)}: {suggestion[:100]}",
                                 s["correction-text"],
                             )
                         )
@@ -527,15 +552,15 @@ class ReviewReport:
     # 修正建议页
     # ══════════════════════════════════════════════════════
 
-    def _build_correction_pages(self, buf, corrections: List[Dict[str, Any]]):
+    def _build_correction_pages(self, buf, corrections: List[Dict[str, Any]], lang: str = "zh"):
         if not corrections:  # # 无修正建议则跳过
             return
 
         s = self.styles
         buf.append(PageBreak())
-        buf.append(Paragraph("修正建议", s["section-title"]))
+        buf.append(Paragraph(t("report.correction_title", lang), s["section-title"]))
         buf.append(Spacer(1, 4))
-        buf.append(Paragraph(f"共 {len(corrections)} 条修正建议", s["body"]))
+        buf.append(Paragraph(t("report.correction_count", lang, count=len(corrections)), s["body"]))
         buf.append(Spacer(1, 12))
 
         for idx, c in enumerate(corrections):  # # 遍历修正建议
