@@ -383,8 +383,10 @@ class DrawingParser:  # class definition
                 "measurement": meas,  # 字段
                 "text": (
                     entity.get_measurement_text()
-                    if hasattr(entity, "get_measurement_text")
-                    else str(meas)
+                    if hasattr(
+                        entity, "get_measurement_text"
+                    )  # # 有 get_measurement_text 方法时使用
+                    else str(meas)  # # 否则直接转为字符串
                 ),  # 字段
                 "dimtype": (
                     str(entity.dxf.dimtype) if hasattr(entity.dxf, "dimtype") else "LINEAR"
@@ -550,7 +552,7 @@ except Exception:
 
 try:
     img = ac.Image.load("{str(path)}")
-    if img is None:
+    if img is None:  # # 图像加载失败
         sys.exit(1)
     opts = DxfOptions()
     img.save("{tmp_path}", opts)
@@ -617,37 +619,37 @@ except Exception:
 
         返回：未找到文件的 xref 名称列表
         """
-        if depth > max_depth:
-            return list(xref_names)
-        if visited is None:
+        if depth > max_depth:  # # 达到最大递归深度
+            return list(xref_names)  # # 返回已收集的 xref 名称
+        if visited is None:  # # 首次调用初始化 visited 集合
             visited = set()
 
         unresolved = []
         parent_dir = dwg_path.parent
 
-        for xref_name in xref_names:
-            if xref_name.upper() in visited:
+        for xref_name in xref_names:  # # 遍历当前层的 xref 名称
+            if xref_name.upper() in visited:  # # 已访问的 xref 跳过防循环
                 continue
             visited.add(xref_name.upper())
 
             # 在同目录查找 xref 文件
             xref_path = None
-            for ext in (".dwg", ".dxf"):
+            for ext in (".dwg", ".dxf"):  # # 尝试 .dwg 和 .dxf 两种后缀
                 candidate = parent_dir / f"{xref_name}{ext}"
-                if candidate.exists():
+                if candidate.exists():  # # 找到候选文件
                     xref_path = candidate
                     break
 
-            if xref_path is None:
+            if xref_path is None:  # # 未找到 xref 外部文件
                 unresolved.append(xref_name)
                 continue
 
             # 读取外部参照文件
             try:
                 ext = xref_path.suffix.lower()
-                if ext == ".dxf":
+                if ext == ".dxf":  # # DXF 文件用 ezdxf 读取
                     xref_doc = ezdxf.readfile(str(xref_path))
-                else:
+                else:  # # DWG 文件用 ezdwg 尝试读取
                     # DWG：尝试 ezdwg 转换
                     try:
                         import ezdwg as _ezdwg_xref
@@ -666,17 +668,17 @@ except Exception:
                 # 提取该文件的 block_defs
                 xref_block_defs: Dict[str, Any] = {}
                 xref_xref_names = []
-                for name, blk in xref_doc.blocks:
-                    if blk.is_xref:
+                for name, blk in xref_doc.blocks:  # # 遍历 xref 文件的块定义
+                    if blk.is_xref:  # # 跳过 xref 自身的引用
                         xref_xref_names.append(name)
                         continue
                     entities = list(blk)
-                    if entities:
+                    if entities:  # # 有展开的实体
                         xref_block_defs[name.upper()] = entities
 
                 # 合并 block_defs
-                for k, v in xref_block_defs.items():
-                    if k not in block_defs:
+                for k, v in xref_block_defs.items():  # # 合并块定义
+                    if k not in block_defs:  # # 不覆盖已有的块定义
                         block_defs[k] = v
 
                 # 递归解析嵌套 xref
@@ -692,31 +694,31 @@ except Exception:
 
                 # 将 xref 文件中的实体复制到主 dxf_doc 的 modelspace
                 msp_dst = dxf_doc.modelspace()
-                for ent in xref_doc.modelspace():
+                for ent in xref_doc.modelspace():  # # 遍历 xref 文件的所有图元
                     dxf_type = ent.dxftype()
                     try:
                         color = getattr(ent.dxf, "color", 7) or 7
                         layer = getattr(ent.dxf, "layer", "0") or "0"
 
-                        if dxf_type == "LINE":
+                        if dxf_type == "LINE":  # # LINE 类型
                             msp_dst.add_line(
                                 (ent.dxf.start[0], ent.dxf.start[1]),
                                 (ent.dxf.end[0], ent.dxf.end[1]),
                                 dxfattribs={"color": color, "layer": layer},
                             )
-                        elif dxf_type == "LWPOLYLINE":
+                        elif dxf_type == "LWPOLYLINE":  # # LWPOLYLINE 类型
                             pts = [(p[0], p[1]) for p in getattr(ent.dxf, "points", [])]
-                            if len(pts) >= 2:
+                            if len(pts) >= 2:  # # 至少 2 个点才构成线段
                                 msp_dst.add_lwpolyline(
                                     pts, dxfattribs={"color": color, "layer": layer}
                                 )
-                        elif dxf_type == "CIRCLE":
+                        elif dxf_type == "CIRCLE":  # # CIRCLE 类型
                             msp_dst.add_circle(
                                 (ent.dxf.center[0], ent.dxf.center[1]),
                                 ent.dxf.radius,
                                 dxfattribs={"color": color, "layer": layer},
                             )
-                        elif dxf_type == "ARC":
+                        elif dxf_type == "ARC":  # # ARC 类型
                             msp_dst.add_arc(
                                 (ent.dxf.center[0], ent.dxf.center[1]),
                                 ent.dxf.radius,
@@ -724,7 +726,7 @@ except Exception:
                                 ent.dxf.end_angle,
                                 dxfattribs={"color": color, "layer": layer},
                             )
-                        elif dxf_type == "INSERT":
+                        elif dxf_type == "INSERT":  # # INSERT 块引用，递归展开
                             ins_pt = getattr(ent.dxf, "insert", (0, 0, 0))
                             name = getattr(ent.dxf, "name", "UNKNOWN")
                             x, y = ins_pt[0], ins_pt[1]
@@ -733,8 +735,11 @@ except Exception:
                             )
                             rotation = getattr(ent.dxf, "rotation", 0.0) or 0.0
                             expanded = False
-                            for blk_name, blk_entities in block_defs.items():
-                                if blk_name.lower() == name.lower():
+                            for (
+                                blk_name,
+                                blk_entities,
+                            ) in block_defs.items():  # # 在已有块定义中查找匹配
+                                if blk_name.lower() == name.lower():  # # 不区分大小写匹配块名
                                     self._insert_block_expand(
                                         blk_entities,
                                         msp_dst,
@@ -750,7 +755,7 @@ except Exception:
                                     )
                                     expanded = True
                                     break
-                            if not expanded:
+                            if not expanded:  # # 有未展开的 xref
                                 half = max(50.0, scale * 20.0)
                                 msp_dst.add_lwpolyline(
                                     [
@@ -778,7 +783,7 @@ except Exception:
             except Exception:
                 unresolved.append(xref_name)
 
-        return unresolved
+        return unresolved  # # 返回未解析的 xref 列表
 
     def _try_manual_convert(
         self, path: Path
