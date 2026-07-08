@@ -110,6 +110,7 @@ class AtomicFunction:  # class definition
                     result="FAIL",  # assignment
                     delta=-self.threshold,  # assignment
                     severity=Severity.CRITICAL,  # assignment
+                    confidence=1.0,  # 缺失实体判定置信度为 1.0（明确）
                     entity_id="",  # assignment
                     entity_type="missing",  # assignment
                     params={  # assignment
@@ -163,6 +164,7 @@ class AtomicFunction:  # class definition
                 result="PASS" if passed else "FAIL",  # assignment
                 delta=actual - self.threshold,  # assignment
                 severity=Severity.PASS if passed else Severity.CRITICAL,  # assignment
+                confidence=1.0,  # 存在性判定置信度为 1.0
                 entity_id=entity.get("id", ""),  # function call
                 entity_type=entity.get("type", ""),  # function call
                 params={  # assignment

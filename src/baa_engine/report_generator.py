@@ -459,6 +459,26 @@ class ReviewReport:
                 )
             )
 
+        # 平均置信度（P36）
+        avg_confidence = summary.get("avg_confidence")
+        if avg_confidence is not None and avg_confidence > 0:
+            buf.append(Spacer(1, 12))
+            card_w = (cw - 16) / 2
+            conf_color = (
+                C_ACCENT
+                if avg_confidence >= 0.85
+                else (C_WARNING if avg_confidence >= 0.6 else C_DANGER)
+            )
+            buf.append(
+                StatCard(
+                    t("report.avg_confidence", lang),
+                    f"{int(avg_confidence * 100)}%",
+                    conf_color,
+                    card_w,
+                    70,
+                )
+            )
+
         # ══════════════════════════════════════════════════════
         # 版本对比页
         # ══════════════════════════════════════════════════════
@@ -687,6 +707,16 @@ class ReviewReport:
                     line = f"  {t("violation.explanation", lang)}: {explanation}"
 
                 buf.append(Paragraph(line, s["violation-detail"]))
+
+                # 置信度显示（P36）
+                item_confidence = item.get("confidence")
+                if item_confidence is not None and item_confidence > 0:
+                    buf.append(
+                        Paragraph(
+                            f"  {t("report.confidence", lang)}: {int(item_confidence * 100)}%",
+                            s["violation-detail"],
+                        )
+                    )
 
                 # 匹配修正建议
                 matched = [
