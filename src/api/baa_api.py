@@ -1100,28 +1100,40 @@ async def review(  # code
         "processing_time_ms": elapsed,  # 字段
     }  # code
 
-    # ── 生成修正建议（基于 CorrectionEngine） ────────────────
-    try:  # 尝试
-        from src.baa_engine.correction_engine import CorrectionEngine  # import
+    # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────
+    try:
+        correction_mode = query_params.get(
+            "correction_mode", os.environ.get("BAA_CORRECTION_MODE", "hybrid")
+        )
 
-        correction_engine = CorrectionEngine()  # function call
-        review_result_for_correction = {  # assignment
+        # 构建 findings 列表（与 correction_engine 兼容）
+        review_result_for_correction = {
             "findings": [
-                {  # 字段
-                    "entity_id": d["entity_id"],  # 字段
-                    "entity_type": d["entity_type"],  # 字段
-                    "clause_id": d["clause_id"],  # 字段
-                    "clause_title": d["clause_title"],  # 字段
-                    "extracted_value": d["extracted_value"],  # 字段
-                    "required_value": d["required_value"],  # 字段
-                    "difference": d["difference"],  # 字段
+                {
+                    "entity_id": d["entity_id"],
+                    "entity_type": d["entity_type"],
+                    "clause_id": d["clause_id"],
+                    "clause_title": d["clause_title"],
+                    "extracted_value": d["extracted_value"],
+                    "required_value": d["required_value"],
+                    "difference": d["difference"],
                 }
                 for d in details
-            ]  # code
-        }  # code
-        corrections = correction_engine.generate_for_result(
-            review_result_for_correction
-        )  # function call
+            ]
+        }
+
+        if correction_mode == "rule":
+            # 纯规则引擎模式
+            from src.baa_engine.correction_engine import CorrectionEngine
+
+            correction_engine = CorrectionEngine()
+            corrections = correction_engine.generate_for_result(review_result_for_correction)
+        else:
+            # LLM 或混合模式
+            from src.baa_engine.llm_correction import LLMCorrectionEngine
+
+            llm_engine = LLMCorrectionEngine(mode=correction_mode)
+            corrections = llm_engine.generate_for_result(review_result_for_correction)
         response_data["corrections"] = corrections  # 操作
     except Exception as e:  # 捕获异常
         response_data["corrections"] = []  # 操作
@@ -1678,36 +1690,47 @@ async def review_from_data(  # code
             "processing_time_ms": elapsed,  # 字段
         }  # code
 
-        # ── 生成修正建议 ──────────────────────────────────────
-        try:  # 尝试
-            from src.baa_engine.correction_engine import CorrectionEngine  # import
+        # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────
+        try:
+            correction_mode = request_params.get(
+                "correction_mode", os.environ.get("BAA_CORRECTION_MODE", "hybrid")
+            )
 
-            ce = CorrectionEngine()  # function call
-            review_result_for_correction = {  # assignment
+            review_result_for_correction = {
                 "findings": [
-                    {  # 字段
-                        "entity_id": d["entity_id"],  # 字段
-                        "entity_type": d["entity_type"],  # 字段
-                        "clause_id": d["clause_id"],  # 字段
-                        "clause_title": d["clause_title"],  # 字段
-                        "extracted_value": d["extracted_value"],  # 字段
-                        "required_value": d["required_value"],  # 字段
-                        "difference": d["difference"],  # 字段
+                    {
+                        "entity_id": d["entity_id"],
+                        "entity_type": d["entity_type"],
+                        "clause_id": d["clause_id"],
+                        "clause_title": d["clause_title"],
+                        "extracted_value": d["extracted_value"],
+                        "required_value": d["required_value"],
+                        "difference": d["difference"],
                     }
                     for d in details
-                ]  # code
-            }  # code
-            corrections = ce.generate_for_result(review_result_for_correction)  # function call
-            response_data["corrections"] = corrections  # 操作
-            # raw_result 供对比重构消费
-            response_data["raw_result"] = {  # 操作
-                "elements": elements,  # 字段
-                "details": details,  # 字段
-                "corrections": corrections,  # 字段
-                "summary": response_data.get("summary", {}),  # 字段
-            }  # code
-        except Exception as e:  # 捕获异常
-            response_data["corrections"] = []  # 操作
+                ]
+            }
+
+            if correction_mode == "rule":
+                from src.baa_engine.correction_engine import CorrectionEngine
+
+                ce = CorrectionEngine()
+                corrections = ce.generate_for_result(review_result_for_correction)
+            else:
+                from src.baa_engine.llm_correction import LLMCorrectionEngine
+
+                llm_engine = LLMCorrectionEngine(mode=correction_mode)
+                corrections = llm_engine.generate_for_result(review_result_for_correction)
+
+            response_data["corrections"] = corrections
+            response_data["raw_result"] = {
+                "elements": elements,
+                "details": details,
+                "corrections": corrections,
+                "summary": response_data.get("summary", {}),
+            }
+        except Exception as e:
+            response_data["corrections"] = []
             response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
 
     except Exception as outer_e:
