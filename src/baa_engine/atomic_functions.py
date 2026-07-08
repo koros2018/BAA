@@ -546,6 +546,11 @@ class AtomicFunction:  # class definition
             "EXIST-008",
             "EXIST-009",
             "EXIST-010",
+            "EXIST-011",
+            "EXIST-012",
+            "EXIST-013",
+            "EXIST-014",
+            "EXIST-015",
         ):  # check: membership test
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0  # return
 
@@ -1020,6 +1025,62 @@ class FuncRegistry:  # class definition
             "有/无",  # assignment
             target_entities=["emergency_broadcast", "speaker", "fire_system"],
         ),  # assignment
+        # ===== 设备类判定（P34 新增，5个）=====
+        AtomicFunction(
+            "EXIST-011",
+            "应急照明判定",
+            FuncCategory.EXIST,  # code
+            "GB50016-10.3.1",
+            "疏散走道应设应急照明",
+            "==",
+            1.0,
+            "有/无",  # assignment
+            target_entities=["emergency_light", "exit_sign"],
+        ),  # assignment
+        AtomicFunction(
+            "EXIST-012",
+            "消防广播判定",
+            FuncCategory.EXIST,  # code
+            "GB50016-8.5.1",
+            "一类高层应设消防广播",
+            "==",
+            1.0,
+            "有/无",  # assignment
+            target_entities=["alarm_device", "speaker", "emergency_broadcast"],
+        ),  # assignment
+        AtomicFunction(
+            "EXIST-013",
+            "消防水泵判定",
+            FuncCategory.EXIST,  # code
+            "GB50016-8.2.2",
+            "一类高层应设消防水泵",
+            "==",
+            1.0,
+            "有/无",  # assignment
+            target_entities=["fire_pump", "fire_hydrant"],
+        ),  # assignment
+        AtomicFunction(
+            "EXIST-014",
+            "消防水箱判定",
+            FuncCategory.EXIST,  # code
+            "GB50016-8.2.1",
+            "一类高层应设消防水箱",
+            "==",
+            1.0,
+            "有/无",  # assignment
+            target_entities=["water_tank", "fire_system"],
+        ),  # assignment
+        AtomicFunction(
+            "EXIST-015",
+            "排烟设备判定",
+            FuncCategory.EXIST,  # code
+            "GB50016-8.5.3",
+            "一类高层应设排烟设备",
+            "==",
+            1.0,
+            "有/无",  # assignment
+            target_entities=["smoke_exhaust", "fan"],
+        ),  # assignment
         # ===== EVAC 疏散路径判定（V2新增，3个）=====
         AtomicFunction(
             "EVAC-001",
@@ -1417,4 +1478,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 48  # 框架总容量：38 INITIAL+RESERVED + 10 P47无障碍扩展
+        return 53  # 框架总容量：48 INITIAL+RESERVED+P47 + 5 P34设备扩展
