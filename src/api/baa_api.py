@@ -274,9 +274,13 @@ def _periodic_gc():  # function: def _periodic_gc():
         _last_gc_time = now  # assignment
 
 
-# ── 并发限制（防止大图纸爆炸） ──────────────────────────
+# ── 并发限制与审查任务队列 ──────────────────────────
 MAX_CONCURRENT_REVIEWS = 4  # 最大并发审查数
-_review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)  # function call
+from src.baa_engine.task_queue import ReviewQueue  # import
+
+_review_queue = ReviewQueue(max_concurrent=MAX_CONCURRENT_REVIEWS, queue_timeout=300.0)
+# 兼容旧引用（_review_semaphore 保留为旧代码引用用，但不再使用）
+_review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
 
 
 @asynccontextmanager  # code
@@ -917,21 +921,34 @@ async def review(  # code
     start = time.time()  # get current time
     loop = asyncio.get_event_loop()  # function call
 
-    # 并发控制：等待排队（最多 {MAX_CONCURRENT_REVIEWS} 个并发槽位）
-    async with _review_semaphore:  # code
+    # 并发控制：审查任务队列排队
+    task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue(file_id)
+    if task_obj is None:
+        return {
+            "status": "error",
+            "error_code": "QUEUE_TIMEOUT",
+            "message": "排队超时（超过300秒），请稍后重试",
+            "file_id": file_id,
+        }
+
+    try:
         # Step 1: 图纸解析（CPU密集型 → 线程池）
+        _review_queue.update_progress(task_id, 10.0)
         result = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
         )  # code
         if not result.success:  # check: negated condition
+            _review_queue.fail(task_id, result.error)
             return {  # return: dict
                 "status": "error",  # 字段
                 "error_code": "PARSE_FAILED",  # 字段
                 "message": f"图纸解析失败: {result.error}",  # 字段
                 "file_id": file_id,  # 字段
+                "queue_info": {"task_id": task_id},
             }  # code
 
         # Step 2: 语义分析（CPU密集型 → 线程池）
+        _review_queue.update_progress(task_id, 50.0)
         semantic = await loop.run_in_executor(  # assignment
             ENGINE_THREAD_POOL,  # 解包
             lambda: _semantic_analyzer.analyze(  # 操作
@@ -941,6 +958,11 @@ async def review(  # code
             ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
+        _review_queue.update_progress(task_id, 70.0)
+
+    except Exception as e:
+        _review_queue.fail(task_id, str(e))
+        raise
 
     # 多建筑类型：向后兼容，building_types 为空时使用 building_type
     effective_types = building_types if building_types else [building_type]  # assignment
@@ -1111,6 +1133,13 @@ async def review(  # code
             for e in entities  # 循环
         ]  # code
 
+    # ── 标记任务完成 ────────────────────────────────────────
+    _review_queue.complete(task_id, response_data)
+    response_data["queue_info"] = {
+        "task_id": task_id,
+        "queue_position": queue_position,
+    }
+
     # ── 写入缓存（内存 + 持久化） ──────────────────────────
     if file_hash:  # condition: file_hash:
         cache_key = make_cache_key(file_hash, standard, building_type)  # function call
@@ -1122,6 +1151,61 @@ async def review(  # code
         _persistent_cache.set(cache_key, response_data, "review_result")  # function call
 
     return response_data  # return
+
+
+@app.get("/review/queue/{task_id}")  # function call
+async def review_queue_status(  # code
+    task_id: str,  # 操作
+    api_key: str = Depends(verify_api_key),  # function call
+):  # code
+    """查询审查任务排队状态
+
+    返回指定 task_id 的排队位置、进度和状态。
+    如果任务不存在，返回 404。
+    """
+    status = _review_queue.get_status(task_id)  # function call
+    if status is None:  # check: value is None
+        raise HTTPException(  # 抛出异常
+            status_code=404,  # assignment
+            detail={"status": "error", "message": f"任务不存在: {task_id}"},  # 操作
+        )  # code
+    return status  # return
+
+
+@app.delete("/review/queue/{task_id}")  # function call
+async def review_queue_cancel(  # code
+    task_id: str,  # 操作
+    api_key: str = Depends(verify_api_key),  # function call
+):  # code
+    """取消排队中的审查任务
+
+    仅能取消排队中（status=queued）的任务。
+    已在运行或已完成的任务无法取消。
+    """
+    cancelled = _review_queue.cancel(task_id)  # function call
+    if not cancelled:  # check: negated condition
+        status_info = _review_queue.get_status(task_id)  # function call
+        if status_info is None:  # check: value is None
+            raise HTTPException(  # 抛出异常
+                status_code=404,  # assignment
+                detail={"status": "error", "message": f"任务不存在: {task_id}"},  # 操作
+            )  # code
+        raise HTTPException(  # 抛出异常
+            status_code=409,  # assignment
+            detail={
+                "status": "error",
+                "message": f"任务当前状态为 {status_info['status']}，无法取消",
+            },  # 操作
+        )  # code
+    return {"status": "success", "message": f"任务 {task_id} 已取消"}  # return
+
+
+@app.get("/review/queue/stats")  # function call
+async def review_queue_stats(  # code
+    api_key: str = Depends(verify_api_key),  # function call
+):  # code
+    """查询审查任务队列统计信息"""
+    return _review_queue.stats()  # return
 
 
 @app.post("/batch-review")  # function call
@@ -1169,12 +1253,26 @@ async def batch_review(  # code
     async def _review_single_file(file: UploadFile) -> Dict:  # function call
         """单个文件审查（独立执行）"""
         nonlocal completed_files  # code
-        async with _review_semaphore:  # code
+
+        # 使用审查任务队列排队
+        temp_file_id = generate_file_id()
+        task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue(temp_file_id)
+        if task_obj is None:
+            completed_files += 1
+            return {
+                "filename": file.filename,
+                "status": "error",
+                "error_code": "QUEUE_TIMEOUT",
+                "message": "排队超时，请稍后重试",
+            }
+
+        try:
             ext = (
                 file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             )  # function call
             if ext not in SUPPORTED_FORMATS:  # check: membership test
                 completed_files += 1  # accumulate
+                _review_queue.fail(task_id, f"不支持的文件格式: {ext}")
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -1185,6 +1283,7 @@ async def batch_review(  # code
             content = await file.read()  # function call
             if len(content) > MAX_FILE_SIZE:  # check: numeric comparison
                 completed_files += 1  # accumulate
+                _review_queue.fail(task_id, "文件过大")
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -1196,11 +1295,13 @@ async def batch_review(  # code
             file_path = store_file(content, file_id, ext)  # function call
 
             # ── 解析（CPU密集型 → 线程池） ───────────────────
+            _review_queue.update_progress(task_id, 10.0)
             result = await loop.run_in_executor(  # assignment
                 ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
             )  # code
             if not result.success:  # check: negated condition
                 completed_files += 1  # accumulate
+                _review_queue.fail(task_id, result.error)
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -1209,6 +1310,7 @@ async def batch_review(  # code
                 }  # code
 
             # ── 语义分析（CPU密集型 → 线程池） ───────────────
+            _review_queue.update_progress(task_id, 50.0)
             semantic = await loop.run_in_executor(  # assignment
                 ENGINE_THREAD_POOL,  # code
                 lambda: _semantic_analyzer.analyze(  # code
@@ -1218,6 +1320,7 @@ async def batch_review(  # code
                 ),  # code
             )  # code
             entities = semantic["entities"]  # assignment
+            _review_queue.update_progress(task_id, 70.0)
 
             # 多建筑类型
             effective_types = building_types if building_types else [building_type]  # assignment
@@ -1354,6 +1457,19 @@ async def batch_review(  # code
                 ],  # code
             }  # code
 
+        except Exception as e:
+            _review_queue.fail(task_id, str(e))
+            completed_files += 1
+            return {
+                "filename": file.filename,
+                "status": "error",
+                "error_code": "REVIEW_FAILED",
+                "message": str(e),
+            }
+
+        # 标记任务完成
+        _review_queue.complete(task_id, {"filename": file.filename, "file_id": file_id})
+
     # ── 并发执行所有文件 ──────────────────────────────────────
     file_tasks = [asyncio.create_task(_review_single_file(f)) for f in files]  # function call
     file_results = await asyncio.gather(*file_tasks)  # function call
@@ -1451,135 +1567,157 @@ async def review_from_data(  # code
 
     start = time.time()  # get current time
 
-    # 多建筑类型并行匹配：取最严格阈值
-    def get_strict_threshold(
-        clause_id: str,
-    ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
-        worst_val, worst_unit, worst_op = None, None, None  # assignment
-        for bt in effective_types:  # loop: iterate
-            v, u, o = repo.get_threshold(clause_id, bt)  # function call
-            if worst_val is None or v > worst_val:  # check: value is None
-                worst_val, worst_unit, worst_op = v, u, o  # assignment
-        return worst_val, worst_unit, worst_op  # return
+    # 审查任务队列排队
+    task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue("from-data")
+    if task_obj is None:
+        return {
+            "status": "error",
+            "error_code": "QUEUE_TIMEOUT",
+            "message": "排队超时，请稍后重试",
+        }
 
-    # ── 逐实体逐函数规范判定 ──────────────────────────────
-    for e in entities:  # 循环
+    try:
+        _review_queue.update_progress(task_id, 10.0)
+
+        # 多建筑类型并行匹配：取最严格阈值
+        def get_strict_threshold(
+            clause_id: str,
+        ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+            worst_val, worst_unit, worst_op = None, None, None  # assignment
+            for bt in effective_types:  # loop: iterate
+                v, u, o = repo.get_threshold(clause_id, bt)  # function call
+                if worst_val is None or v > worst_val:  # check: value is None
+                    worst_val, worst_unit, worst_op = v, u, o  # assignment
+            return worst_val, worst_unit, worst_op  # return
+
+        # ── 逐实体逐函数规范判定 ──────────────────────────────
+        for e in entities:  # 循环
+            for func in registry_funcs:  # 循环
+                threshold_val, unit, op = get_strict_threshold(func.clause_id)  # function call
+                func.threshold = threshold_val  # assignment
+                func.unit = unit  # assignment
+                func.operator = op  # assignment
+                r = _func_registry.execute_with_timeout(func, e)  # function call
+                if r is None:  # check: value is None
+                    continue  # 继续循环
+                clause_results[func.clause_id] += 1  # accumulate
+                if r.result != "PASS":  # condition: r.result != "PASS":
+                    clause = {  # assignment
+                        "standard": "GB50016",  # 字段
+                        "clause_id": func.clause_id,  # 字段
+                        "title": func.name,  # 字段
+                        "text": func.description,  # 字段
+                        "category": func.category.value,  # 字段
+                    }  # code
+                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
+                    details.append(
+                        {  # code
+                            "entity_id": e.get("id", e.get("type", "")),  # 字段
+                            "entity_type": e["type"],  # 字段
+                            "clause_id": f.clause.get("clause_id", ""),  # 字段
+                            "clause_title": f.clause.get("title", ""),  # 字段
+                            "result": f.judgement["result"],  # 字段
+                            "extracted_value": f.extracted_params["extracted_value"],  # 字段
+                            "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
+                            "difference": f.extracted_params.get("difference", 0),  # 字段
+                            "severity": f.judgement.get("severity", "major"),  # 字段
+                            "explanation": f.explanation[:120],  # 字段
+                        }
+                    )  # code
+
+        # ── 缺失检查 ──────────────────────────────────────────
         for func in registry_funcs:  # 循环
-            threshold_val, unit, op = get_strict_threshold(func.clause_id)  # function call
-            func.threshold = threshold_val  # assignment
-            func.unit = unit  # assignment
-            func.operator = op  # assignment
-            r = _func_registry.execute_with_timeout(func, e)  # function call
-            if r is None:  # check: value is None
+            if func.category.value != "exist":  # check: OR condition
                 continue  # 继续循环
-            clause_results[func.clause_id] += 1  # accumulate
-            if r.result != "PASS":  # condition: r.result != "PASS":
-                clause = {  # assignment
-                    "standard": "GB50016",  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "title": func.name,  # 字段
-                    "text": func.description,  # 字段
-                    "category": func.category.value,  # 字段
-                }  # code
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                details.append(
-                    {  # code
-                        "entity_id": e.get("id", e.get("type", "")),  # 字段
-                        "entity_type": e["type"],  # 字段
-                        "clause_id": f.clause.get("clause_id", ""),  # 字段
-                        "clause_title": f.clause.get("title", ""),  # 字段
-                        "result": f.judgement["result"],  # 字段
-                        "extracted_value": f.extracted_params["extracted_value"],  # 字段
-                        "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
-                        "difference": f.extracted_params.get("difference", 0),  # 字段
-                        "severity": f.judgement.get("severity", "major"),  # 字段
-                        "explanation": f.explanation[:120],  # 字段
-                    }
-                )  # code
+            has_match = any(func.matches(e) for e in entities)  # check any true
+            if not has_match:  # check: negated condition
+                r = _func_registry.execute_with_timeout(func, None)  # function call
+                if r is not None and r.result != "PASS":  # check: value is not None
+                    clause = {  # assignment
+                        "standard": "GB50016",  # 字段
+                        "clause_id": func.clause_id,  # 字段
+                        "title": func.name,  # 字段
+                        "text": func.description,  # 字段
+                        "category": func.category.value,  # 字段
+                    }  # code
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, {}, entities[:5]
+                    )  # function call
+                    details.append(
+                        {  # code
+                            "entity_id": "",  # 字段
+                            "entity_type": "missing",  # 字段
+                            "clause_id": f.clause.get("clause_id", ""),  # 字段
+                            "clause_title": f.clause.get("title", ""),  # 字段
+                            "result": f.judgement["result"],  # 字段
+                            "severity": "critical",  # 字段
+                            "extracted_value": 0.0,  # 字段
+                            "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
+                            "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
+                            "explanation": f.explanation[:120],  # 字段
+                        }
+                    )  # code
 
-    # ── 缺失检查 ──────────────────────────────────────────
-    for func in registry_funcs:  # 循环
-        if func.category.value != "exist":  # check: OR condition
-            continue  # 继续循环
-        has_match = any(func.matches(e) for e in entities)  # check any true
-        if not has_match:  # check: negated condition
-            r = _func_registry.execute_with_timeout(func, None)  # function call
-            if r is not None and r.result != "PASS":  # check: value is not None
-                clause = {  # assignment
-                    "standard": "GB50016",  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "title": func.name,  # 字段
-                    "text": func.description,  # 字段
-                    "category": func.category.value,  # 字段
-                }  # code
-                f = _attribution_analyzer.build_finding(
-                    r, clause, {}, entities[:5]
-                )  # function call
-                details.append(
-                    {  # code
-                        "entity_id": "",  # 字段
-                        "entity_type": "missing",  # 字段
-                        "clause_id": f.clause.get("clause_id", ""),  # 字段
-                        "clause_title": f.clause.get("title", ""),  # 字段
-                        "result": f.judgement["result"],  # 字段
-                        "severity": "critical",  # 字段
-                        "extracted_value": 0.0,  # 字段
-                        "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
-                        "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
-                        "explanation": f.explanation[:120],  # 字段
-                    }
-                )  # code
+        elapsed = int((time.time() - start) * 1000)  # get current time
+        entity_types = Counter(e["type"] for e in entities)  # function call
+        violation_count = Counter(d["clause_id"] for d in details)  # function call
 
-    elapsed = int((time.time() - start) * 1000)  # get current time
-    entity_types = Counter(e["type"] for e in entities)  # function call
-    violation_count = Counter(d["clause_id"] for d in details)  # function call
-
-    response_data = {  # assignment
-        "status": "success",  # 字段
-        "summary": {  # 字段
-            "total_entities": len(entities),  # 字段
-            "entity_types": dict(entity_types),  # 字段
-            "total_checks": len(entities) * len(registry_funcs),  # 字段
-            "violations": len(details),  # 字段
-            "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
-        },  # code
-        "details": details[:100],  # 字段
-        "building_type": building_type,  # 字段
-        "processing_time_ms": elapsed,  # 字段
-    }  # code
-
-    # ── 生成修正建议 ──────────────────────────────────────
-    try:  # 尝试
-        from src.baa_engine.correction_engine import CorrectionEngine  # import
-
-        ce = CorrectionEngine()  # function call
-        review_result_for_correction = {  # assignment
-            "findings": [
-                {  # 字段
-                    "entity_id": d["entity_id"],  # 字段
-                    "entity_type": d["entity_type"],  # 字段
-                    "clause_id": d["clause_id"],  # 字段
-                    "clause_title": d["clause_title"],  # 字段
-                    "extracted_value": d["extracted_value"],  # 字段
-                    "required_value": d["required_value"],  # 字段
-                    "difference": d["difference"],  # 字段
-                }
-                for d in details
-            ]  # code
+        response_data = {  # assignment
+            "status": "success",  # 字段
+            "summary": {  # 字段
+                "total_entities": len(entities),  # 字段
+                "entity_types": dict(entity_types),  # 字段
+                "total_checks": len(entities) * len(registry_funcs),  # 字段
+                "violations": len(details),  # 字段
+                "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
+            },  # code
+            "details": details[:100],  # 字段
+            "building_type": building_type,  # 字段
+            "processing_time_ms": elapsed,  # 字段
         }  # code
-        corrections = ce.generate_for_result(review_result_for_correction)  # function call
-        response_data["corrections"] = corrections  # 操作
-        # raw_result 供对比重构消费
-        response_data["raw_result"] = {  # 操作
-            "elements": elements,  # 字段
-            "details": details,  # 字段
-            "corrections": corrections,  # 字段
-            "summary": response_data.get("summary", {}),  # 字段
-        }  # code
-    except Exception as e:  # 捕获异常
-        response_data["corrections"] = []  # 操作
-        response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
 
+        # ── 生成修正建议 ──────────────────────────────────────
+        try:  # 尝试
+            from src.baa_engine.correction_engine import CorrectionEngine  # import
+
+            ce = CorrectionEngine()  # function call
+            review_result_for_correction = {  # assignment
+                "findings": [
+                    {  # 字段
+                        "entity_id": d["entity_id"],  # 字段
+                        "entity_type": d["entity_type"],  # 字段
+                        "clause_id": d["clause_id"],  # 字段
+                        "clause_title": d["clause_title"],  # 字段
+                        "extracted_value": d["extracted_value"],  # 字段
+                        "required_value": d["required_value"],  # 字段
+                        "difference": d["difference"],  # 字段
+                    }
+                    for d in details
+                ]  # code
+            }  # code
+            corrections = ce.generate_for_result(review_result_for_correction)  # function call
+            response_data["corrections"] = corrections  # 操作
+            # raw_result 供对比重构消费
+            response_data["raw_result"] = {  # 操作
+                "elements": elements,  # 字段
+                "details": details,  # 字段
+                "corrections": corrections,  # 字段
+                "summary": response_data.get("summary", {}),  # 字段
+            }  # code
+        except Exception as e:  # 捕获异常
+            response_data["corrections"] = []  # 操作
+            response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
+
+    except Exception as outer_e:
+        _review_queue.fail(task_id, str(outer_e))
+        raise
+
+    # 标记任务完成
+    _review_queue.complete(task_id, response_data)
+    response_data["queue_info"] = {
+        "task_id": task_id,
+        "queue_position": queue_position,
+    }
     return response_data  # return
 
 
