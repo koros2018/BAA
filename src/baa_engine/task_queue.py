@@ -308,10 +308,6 @@ class ReviewQueue:
             "running_count": self._running_count,
             "queued_count": self.queued_count,
             "total_count": self.total_count,
-            "completed_count": sum(
-                1 for t in self._tasks.values() if t.status == "completed"
-            ),
-            "failed_count": sum(
-                1 for t in self._tasks.values() if t.status == "failed"
-            ),
+            "completed_count": sum(1 for t in self._tasks.values() if t.status == "completed"),
+            "failed_count": sum(1 for t in self._tasks.values() if t.status == "failed"),
         }

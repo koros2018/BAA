@@ -121,6 +121,23 @@ LAYER_RULES = {  # assign
     "广播": "alarm_device",  # 广播设备
     "疏散指示": "alarm_device",  # 疏散指示设备
     "钢夹层": "other",  # 钢结构夹层
+    # ── P47 无障碍设施图层 ──
+    "RAMP": "ramp",
+    "SLOPE": "ramp",
+    "坡道": "ramp",
+    "HANDRAIL": "handrail",
+    "扶手": "handrail",
+    "ACCESSIBLE": "accessible_path",
+    "无障碍": "accessible_path",
+    "WHEELCHAIR": "accessible_path",
+    "TACTILE": "tactile_guide",
+    "盲道": "tactile_guide",
+    "PARKING": "parking_space",
+    "车位": "parking_space",
+    "停车": "parking_space",
+    "TOILET": "accessible_toilet",
+    "卫生间": "accessible_toilet",
+    "WC": "accessible_toilet",
     # ── 电气设备图层（新增） ──
     "电设备": "equipment",  # 电气设备
     "电气": "equipment",  # 电气设备
@@ -1354,6 +1371,23 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "fire_elevator"  # return
             if "声光" in text:  # check: membership test
                 return "fire_alarm"  # return
+            # ── P47 无障碍 TEXT 识别 ──
+            if "坡道" in text or "RAMP" in text_upper:
+                return "ramp"
+            if "扶手" in text or "HANDRAIL" in text_upper:
+                return "handrail"
+            if "盲道" in text or "TACTILE" in text_upper:
+                return "tactile_guide"
+            if "无障碍卫生间" in text or "无障碍厕所" in text:
+                return "accessible_toilet"
+            if "无障碍电梯" in text or "ACCESSIBLE_ELEV" in text_upper:
+                return "accessible_elevator"
+            if "轮椅" in text or "WHEELCHAIR" in text_upper:
+                return "wheelchair_space"
+            if "无障碍车位" in text or "无障碍停车" in text:
+                return "parking_space"
+            if "无障碍" in text or "ACCESSIBLE" in text_upper:
+                return "accessible_path"
             return "text"  # return
 
         # INSERT 块：从块名推断实体类型（完整映射表）

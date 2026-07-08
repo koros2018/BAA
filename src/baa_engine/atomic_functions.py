@@ -26,6 +26,7 @@ class FuncCategory(Enum):  # class definition
     EXIST = "exist"  # 存在性判定
     AREA = "area"  # 面积判定
     EVAC = "evac"  # 疏散路径判定（V2新增）
+    ACCESS = "access"  # 无障碍设计判定（P47 新增）
 
 
 class Severity(Enum):  # class definition
@@ -266,6 +267,8 @@ class AtomicFunction:  # class definition
         elif self.category == FuncCategory.EVAC:  # elif condition
             required_keys = ["has_evacuation_route", "evacuation_path_length"]  # assignment
         elif self.category == FuncCategory.EXIST:  # elif condition
+            required_keys = []  # assignment
+        elif self.category == FuncCategory.ACCESS:  # elif condition
             required_keys = []  # assignment
         else:  # else: default case
             required_keys = []  # assignment
@@ -545,6 +548,72 @@ class AtomicFunction:  # class definition
             "EXIST-010",
         ):  # check: membership test
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0  # return
+
+        # P47 无障碍设计：ACCESS 类数值判定（复用 DIMENSION 路径）
+        if self.category == FuncCategory.ACCESS:
+            if func_id == "ACCESS-001":  # 轮椅坡道坡度
+                val = props.get("slope", props.get("gradient", props.get("ratio", 0.0)))
+                if val < 0.01:
+                    return None
+                return val
+            if func_id == "ACCESS-002":  # 轮椅坡道宽度
+                val = props.get("width", props.get("clear_width", 0.0))
+                if val < 0.01:
+                    return None
+                if unit == "mm":
+                    return val / 1000.0
+                if unit == "m":
+                    return val
+                if val > 100:
+                    return val / 1000.0
+                return val
+            if func_id == "ACCESS-003":  # 无障碍出入口宽度
+                val = props.get("width", props.get("clear_width", 0.0))
+                if val < 0.01:
+                    return None
+                if unit == "mm":
+                    return val / 1000.0
+                if unit == "m":
+                    return val
+                if val > 100:
+                    return val / 1000.0
+                return val
+            if func_id == "ACCESS-004":  # 无障碍通道宽度
+                val = props.get("width", props.get("clear_width", 0.0))
+                if val < 0.01:
+                    return None
+                if unit == "mm":
+                    return val / 1000.0
+                if unit == "m":
+                    return val
+                if val > 100:
+                    return val / 1000.0
+                return val
+            if func_id == "ACCESS-005":  # 扶手设置（EXIST类）
+                return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+            if func_id == "ACCESS-006":  # 无障碍电梯（EXIST类）
+                return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+            if func_id == "ACCESS-007":  # 无障碍停车位比例
+                val = props.get("ratio", props.get("count", 0.0))
+                if val < 0.0001:
+                    return None
+                return val
+            if func_id == "ACCESS-008":  # 无障碍卫生间（EXIST类）
+                return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+            if func_id == "ACCESS-009":  # 轮椅回转空间直径
+                val = props.get("diameter", props.get("width", props.get("clear_width", 0.0)))
+                if val < 0.01:
+                    return None
+                if unit == "mm":
+                    return val / 1000.0
+                if unit == "m":
+                    return val
+                if val > 100:
+                    return val / 1000.0
+                return val
+            if func_id == "ACCESS-010":  # 盲道设置（EXIST类）
+                return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+            return None
 
         # EVAC 类：疏散路径判定
         if func_id == "EVAC-001":  # 疏散路径是否存在
@@ -1000,6 +1069,117 @@ class FuncRegistry:  # class definition
             target_entities=["room", "space", "floor"],
             depends_on=["EVAC-001"],  # 依赖：路径存在才能测瓶颈
         ),  # assignment
+        # ===== P47 无障碍设计（GB50763，10条）=====
+        AtomicFunction(
+            "ACCESS-001",
+            "轮椅坡道坡度判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.3.2",
+            "坡道坡度不应大于1:12(8.33%)",
+            "<=",
+            8.33,
+            "%",
+            target_entities=["ramp"],
+        ),
+        AtomicFunction(
+            "ACCESS-002",
+            "轮椅坡道宽度判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.3.3",
+            "坡道净宽不应小于1.20m",
+            ">=",
+            1.20,
+            "m",
+            target_entities=["ramp"],
+        ),
+        AtomicFunction(
+            "ACCESS-003",
+            "无障碍出入口宽度判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.5.2",
+            "出入口净宽不应小于0.90m",
+            ">=",
+            0.90,
+            "m",
+            target_entities=["accessible_door", "door"],
+        ),
+        AtomicFunction(
+            "ACCESS-004",
+            "无障碍通道宽度判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.6.1",
+            "通道净宽不应小于1.20m",
+            ">=",
+            1.20,
+            "m",
+            target_entities=["corridor", "accessible_path"],
+        ),
+        AtomicFunction(
+            "ACCESS-005",
+            "扶手设置判定",
+            FuncCategory.EXIST,
+            "GB50763-3.8.1",
+            "坡道/台阶两侧应设扶手",
+            "==",
+            1.0,
+            "有",
+            target_entities=["handrail"],
+        ),
+        AtomicFunction(
+            "ACCESS-006",
+            "无障碍电梯判定",
+            FuncCategory.EXIST,
+            "GB50763-3.7.1",
+            "二层及以上应设无障碍电梯",
+            "==",
+            1.0,
+            "有",
+            target_entities=["accessible_elevator"],
+        ),
+        AtomicFunction(
+            "ACCESS-007",
+            "无障碍停车位判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.11.2",
+            "应设不少于总车位2%的无障碍车位",
+            ">=",
+            0.02,
+            "比例",
+            target_entities=["parking_space"],
+        ),
+        AtomicFunction(
+            "ACCESS-008",
+            "无障碍卫生间判定",
+            FuncCategory.EXIST,
+            "GB50763-3.9.1",
+            "应设无障碍卫生间",
+            "==",
+            1.0,
+            "有",
+            target_entities=["accessible_toilet"],
+        ),
+        AtomicFunction(
+            "ACCESS-009",
+            "轮椅回转空间判定",
+            FuncCategory.ACCESS,
+            "GB50763-3.8.2",
+            "轮椅回转直径不应小于1.50m",
+            ">=",
+            1.50,
+            "m",
+            target_entities=["wheelchair_space"],
+        ),
+        AtomicFunction(
+            "ACCESS-010",
+            "盲道设置判定",
+            FuncCategory.EXIST,
+            "GB50763-3.2.1",
+            "主要流线应设盲道",
+            "==",
+            1.0,
+            "有",
+            target_entities=["tactile_guide"],
+        ),
         # ===== P26 防火规范扩展（V2.5新增，4个）=====
         AtomicFunction(
             "LIGHT-002",
@@ -1237,4 +1417,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 38  # 框架总容量：34 INITIAL + 4 P26扩展
+        return 48  # 框架总容量：38 INITIAL+RESERVED + 10 P47无障碍扩展

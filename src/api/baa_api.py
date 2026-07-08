@@ -1609,7 +1609,9 @@ async def review_from_data(  # code
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
                     }  # code
-                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, e, entities[:5]
+                    )  # function call
                     details.append(
                         {  # code
                             "entity_id": e.get("id", e.get("type", "")),  # 字段
