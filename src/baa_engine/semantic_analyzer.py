@@ -170,6 +170,28 @@ SHORT_LAYER_RULES = {  # assign
     "FD": "fire_door",  # 字段
     "FE": "fire_elevator",  # 字段
     "T": "equipment",  # 通信设备（real: T=通信图层，需全词匹配）
+    # ── 电气设备扩展（P34） ──
+    "应急": "emergency_light",  # 应急照明（real: 应急照明, 应急灯）
+    "EPS": "emergency_light",  # 应急电源
+    "安全出口": "exit_sign",  # 安全出口指示灯
+    "出口指示灯": "exit_sign",  # 出口指示灯
+    "双切箱": "equipment",  # 双电源切换箱
+    "ALARM": "alarm_device",  # 报警设备
+    "SIREN": "alarm_device",  # 警笛/声光报警器
+    "控制箱": "equipment",  # 控制箱
+    "消防泵": "fire_pump",  # 消防泵
+    "喷淋泵": "fire_pump",  # 喷淋泵
+    "消火栓泵": "fire_pump",  # 消火栓泵
+    "稳压泵": "fire_pump",  # 稳压泵
+    "FIRE_PUMP": "fire_pump",  # 消防泵英文
+    "消防水箱": "water_tank",  # 消防水箱
+    "WATER_TANK": "water_tank",  # 消防水箱英文
+    "防火阀": "fire_damper",  # 防火阀
+    "排烟": "smoke_exhaust",  # 排烟设备
+    "正压送风": "smoke_exhaust",  # 正压送风
+    "风机": "equipment",  # 风机设备
+    "FAN": "equipment",  # 风机英文
+    "疏散指示灯": "exit_sign",  # 疏散指示灯
 }  # code
 
 
