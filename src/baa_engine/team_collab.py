@@ -116,6 +116,7 @@ class User(Base):
     created_at = Column(Float, default=time.time)
     updated_at = Column(Float, default=time.time, onupdate=time.time)
     last_login_at = Column(Float, default=0.0)
+    token = Column(String(64), default="")
     team_memberships = relationship("TeamMember", back_populates="user", lazy="selectin")
     project_memberships = relationship("ProjectMember", back_populates="user", lazy="selectin")
     comments = relationship("ReviewComment", back_populates="author", lazy="dynamic")
@@ -467,10 +468,8 @@ class CollaborationManager:
     def verify_token(self, token: str) -> Optional[str]:
         session = self._get_session()
         try:
-            for user in session.query(User).filter(User.is_active == True).all():
-                if token == self._generate_token(user.id):
-                    return user.id
-            return None
+            user = session.query(User).filter(User.token == token, User.is_active == True).first()
+            return user.id if user else None
         finally:
             self._close_session(session)
 
@@ -486,12 +485,15 @@ class CollaborationManager:
             )
             if existing:
                 return None, "用户名或邮箱已存在"
-            user = User(username=username, email=email, display_name=display_name or username)
+            user = User(username=username, email=email if email else None, display_name=display_name or username)
             user.set_password(password)
+            user.token = self._generate_token(user.id)
             session.add(user)
             session.commit()
             logger.info(f"[Collab] 注册用户: {username}")
-            return user.to_dict(), "success"
+            result = user.to_dict()
+            result["token"] = user.token
+            return result, "success"
         except Exception as e:
             session.rollback()
             return None, str(e)
@@ -509,9 +511,10 @@ class CollaborationManager:
             if not user.is_active:
                 return None, "账户已禁用"
             user.last_login_at = time.time()
+            user.token = self._generate_token(user.id)
             session.commit()
             result = user.to_dict()
-            result["token"] = self._generate_token(user.id)
+            result["token"] = user.token
             return result, "success"
         finally:
             self._close_session(session)

@@ -1404,6 +1404,8 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "accessible_toilet"
             if "无障碍电梯" in text or "ACCESSIBLE_ELEV" in text_upper:
                 return "accessible_elevator"
+            if "无障碍出入口" in text or "ACCESSIBLE_DOOR" in text_upper or "残疾人入口" in text or "无障碍入口" in text:
+                return "accessible_door"
             if "轮椅" in text or "WHEELCHAIR" in text_upper:
                 return "wheelchair_space"
             if "无障碍车位" in text or "无障碍停车" in text:
