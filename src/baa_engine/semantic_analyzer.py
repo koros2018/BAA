@@ -1972,70 +1972,63 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         relations = []  # init: empty list
         n_entities = len(entities)  # assign
 
-        # ── 1. 相邻关系（空间哈希加速，>2000 实体跳过）──
-        # 大图纸跳过全量相邻关系构建（相邻关系主要用于疏散路径分析，
-        # 大图 room 数量少，跳过不影响规范判定准确性）
-        # ── 1. 相邻关系（空间哈希加速，>2000 实体跳过）──
-        # 大图纸跳过全量相邻关系构建（相邻关系主要用于疏散路径分析，
-        # 大图 room 数量少，跳过不影响规范判定准确性）
-        if n_entities <= 2000:  # check: numeric comparison
-            CELL_SIZE = 100.0  # mm
-            # 空间哈希网格
-            grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}  # init: empty dict
-            for idx, e in enumerate(entities):  # loop: for idx, e in enumerate(entities):
-                bx = e.bbox.get("x", 0)  # assign
-                by = e.bbox.get("y", 0)  # assign
-                bw = e.bbox.get("width", 0)  # assign
-                bh = e.bbox.get("height", 0)  # assign
-                x1_cell = int(bx / CELL_SIZE)  # assign
-                x2_cell = int((bx + bw) / CELL_SIZE)  # assign
-                y1_cell = int(by / CELL_SIZE)  # assign
-                y2_cell = int((by + bh) / CELL_SIZE)  # assign
-                for gx in range(
-                    x1_cell, x2_cell + 1
-                ):  # loop: for gx in range(x1_cell, x2_cell + 1):
-                    for gy in range(
-                        y1_cell, y2_cell + 1
-                    ):  # loop: for gy in range(y1_cell, y2_cell + 1):
-                        grid.setdefault((gx, gy), []).append((idx, e))  # append: add to list
+        # ── 1. 相邻关系（空间哈希加速，>2000 实体只构建关键实体对）──
+        # 关键实体类型：room, corridor, door, exit, stair, fire_door, exit_door
+        KEY_ENTITY_TYPES = {"room", "corridor", "door", "exit", "stair", "fire_door", "exit_door"}
+        
+        CELL_SIZE = 100.0  # mm
+        grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
+        
+        # 选择需要构建相邻关系的实体
+        if n_entities <= 2000:
+            adj_candidates = list(enumerate(entities))
+        else:
+            # 大图纸：只对关键实体构建相邻关系
+            adj_candidates = [(i, e) for i, e in enumerate(entities) if e.type in KEY_ENTITY_TYPES]
+        
+        for idx, e in adj_candidates:
+            bx = e.bbox.get("x", 0)
+            by = e.bbox.get("y", 0)
+            bw = e.bbox.get("width", 0)
+            bh = e.bbox.get("height", 0)
+            x1_cell = int(bx / CELL_SIZE)
+            x2_cell = int((bx + bw) / CELL_SIZE)
+            y1_cell = int(by / CELL_SIZE)
+            y2_cell = int((by + bh) / CELL_SIZE)
+            for gx in range(x1_cell, x2_cell + 1):
+                for gy in range(y1_cell, y2_cell + 1):
+                    grid.setdefault((gx, gy), []).append((idx, e))
 
-            # 只比较同一或相邻网格的实体
-            compared = set()  # init: empty set
-            for idx_a, a in enumerate(entities):  # loop: for idx_a, a in enumerate(entities):
-                bx = a.bbox.get("x", 0)  # assign
-                by = a.bbox.get("y", 0)  # assign
-                bw = a.bbox.get("width", 0)  # assign
-                bh = a.bbox.get("height", 0)  # assign
-                x1_cell = int(bx / CELL_SIZE)  # assign
-                x2_cell = int((bx + bw) / CELL_SIZE)  # assign
-                y1_cell = int(by / CELL_SIZE)  # assign
-                y2_cell = int((by + bh) / CELL_SIZE)  # assign
-                for gx in range(
-                    x1_cell - 1, x2_cell + 2
-                ):  # loop: for gx in range(x1_cell - 1, x2_cell + 2):
-                    for gy in range(
-                        y1_cell - 1, y2_cell + 2
-                    ):  # loop: for gy in range(y1_cell - 1, y2_cell + 2):
-                        for idx_b, b in grid.get(
-                            (gx, gy), []
-                        ):  # loop: for idx_b, b in grid.get((gx, gy), []):
-                            if idx_b <= idx_a:  # check: numeric comparison
-                                continue  # code
-                            pair_key = (idx_a, idx_b)  # assign
-                            if pair_key in compared:  # check: membership test
-                                continue  # code
-                            compared.add(pair_key)  # call
-                            dist = self._min_edge_distance(a.bbox, b.bbox)  # assign
-                            if dist < self.ADJACENT_THRESHOLD:  # check: numeric comparison
-                                relations.append(
-                                    SpatialRelation(  # code
-                                        source_id=a.id,
-                                        target_id=b.id,  # assign
-                                        rel_type="adjacent",
-                                        distance=dist,  # assign
-                                        confidence=1.0 - dist / self.ADJACENT_THRESHOLD,  # assign
-                                    )
-                                )  # code
+        compared = set()
+        for idx_a, a in adj_candidates:
+            bx = a.bbox.get("x", 0)
+            by = a.bbox.get("y", 0)
+            bw = a.bbox.get("width", 0)
+            bh = a.bbox.get("height", 0)
+            x1_cell = int(bx / CELL_SIZE)
+            x2_cell = int((bx + bw) / CELL_SIZE)
+            y1_cell = int(by / CELL_SIZE)
+            y2_cell = int((by + bh) / CELL_SIZE)
+            for gx in range(x1_cell - 1, x2_cell + 2):
+                for gy in range(y1_cell - 1, y2_cell + 2):
+                    for idx_b, b in grid.get((gx, gy), []):
+                        if idx_b <= idx_a:
+                            continue
+                        pair_key = (idx_a, idx_b)
+                        if pair_key in compared:
+                            continue
+                        compared.add(pair_key)
+                        dist = self._min_edge_distance(a.bbox, b.bbox)
+                        if dist < self.ADJACENT_THRESHOLD:
+                            relations.append(
+                                SpatialRelation(
+                                    source_id=a.id,
+                                    target_id=b.id,
+                                    rel_type="adjacent",
+                                    distance=dist,
+                                    confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
+                                )
+                            )
 
         # ── 2. 墙体-门窗拓扑关系（V2升级）──
         # 用几何方法精确匹配门/窗在墙上的位置：
