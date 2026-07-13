@@ -63,14 +63,9 @@
         "total": 1,
         "PASS": 1,
         "FAIL": 0
-      },
-      "EVAC-004": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
       }
     },
-    "total_findings": 75
+    "total_findings": 74
   },
   {
     "file": "202109409-2#配电房_t3.dxf",
@@ -131,18 +126,13 @@
         "PASS": 1,
         "FAIL": 0
       },
-      "EVAC-004": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      },
       "DIM-008": {
         "total": 1,
         "PASS": 1,
         "FAIL": 0
       }
     },
-    "total_findings": 128
+    "total_findings": 127
   },
   {
     "file": "A1云计算中心_水消防2017.03.31_t3.dxf",
@@ -254,11 +244,6 @@
         "PASS": 401,
         "FAIL": 0
       },
-      "EVAC-001": {
-        "total": 21,
-        "PASS": 16,
-        "FAIL": 5
-      },
       "EVAC-003": {
         "total": 21,
         "PASS": 21,
@@ -294,6 +279,11 @@
         "PASS": 3,
         "FAIL": 0
       },
+      "EVAC-001": {
+        "total": 16,
+        "PASS": 16,
+        "FAIL": 0
+      },
       "ACCESS-005": {
         "total": 3,
         "PASS": 3,
@@ -303,14 +293,9 @@
         "total": 1,
         "PASS": 1,
         "FAIL": 0
-      },
-      "EVAC-004": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
       }
     },
-    "total_findings": 700
+    "total_findings": 694
   },
   {
     "file": "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf",
@@ -367,11 +352,6 @@
         "PASS": 9,
         "FAIL": 0
       },
-      "EVAC-001": {
-        "total": 11,
-        "PASS": 4,
-        "FAIL": 7
-      },
       "EVAC-003": {
         "total": 11,
         "PASS": 11,
@@ -381,9 +361,14 @@
         "total": 8,
         "PASS": 8,
         "FAIL": 0
+      },
+      "EVAC-001": {
+        "total": 4,
+        "PASS": 4,
+        "FAIL": 0
       }
     },
-    "total_findings": 308
+    "total_findings": 301
   },
   {
     "file": "中原人工智能计算中心总图-0409_t3.dxf",
@@ -460,11 +445,6 @@
         "PASS": 6,
         "FAIL": 0
       },
-      "EVAC-001": {
-        "total": 17,
-        "PASS": 0,
-        "FAIL": 17
-      },
       "EVAC-003": {
         "total": 17,
         "PASS": 17,
@@ -486,7 +466,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 614
+    "total_findings": 597
   },
   {
     "file": "4.通风BS170826.dxf",
@@ -615,18 +595,13 @@
         "PASS": 1,
         "FAIL": 0
       },
-      "EVAC-001": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      },
       "EVAC-003": {
         "total": 1,
         "PASS": 1,
         "FAIL": 0
       }
     },
-    "total_findings": 295
+    "total_findings": 294
   },
   {
     "file": "9.气体灭火（唯美图框）_t3.dxf",
@@ -691,11 +666,6 @@
         "PASS": 13,
         "FAIL": 1
       },
-      "EVAC-001": {
-        "total": 2,
-        "PASS": 0,
-        "FAIL": 2
-      },
       "EVAC-003": {
         "total": 2,
         "PASS": 2,
@@ -707,7 +677,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 1116
+    "total_findings": 1114
   },
   {
     "file": "东莞通-设备-外部参照（不打印）.dxf",
