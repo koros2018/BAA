@@ -3525,3 +3525,90 @@ async def collab_stats(_user_id: str = Depends(verify_collab_token)):
 
 
 # ── 单文件 PDF 审查报告导出 ─────────────────────────────
+
+
+# ── P56/P57 新 API：反向重构 + 原子函数库管理 ──
+
+@app.get("/api/v1/functions")
+async def list_functions(api_key: str = Depends(verify_api_key)):
+    """获取原子函数库列表（含简介、参数、模型）"""
+    global _func_registry
+    funcs = []
+    for f in _func_registry.list_all():
+        funcs.append({
+            "func_id": f.func_id,
+            "name": f.name,
+            "description": f.description,
+            "category": f.category.value if hasattr(f.category, "value") else str(f.category),
+            "clause_id": f.clause_id,
+            "target_entities": list(f.target_entities),
+            "operator": f.operator,
+            "threshold": f.threshold,
+            "unit": f.unit,
+            "depends_on": f.depends_on,
+        })
+    return {"status": "ok", "count": len(funcs), "functions": funcs}
+
+
+@app.post("/api/v1/functions/{func_id}/update")
+async def update_function(func_id: str, body: dict, api_key: str = Depends(verify_api_key)):
+    """更新原子函数的阈值/运算符等参数"""
+    global _func_registry
+    f = _func_registry.get(func_id)
+    if not f:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": f"函数 {func_id} 不存在"})
+    for key in ["threshold", "operator", "name", "description", "unit"]:
+        if key in body:
+            setattr(f, key, body[key])
+    return {"status": "ok", "message": f"{func_id} 已更新"}
+
+
+@app.post("/api/v1/reverse")
+async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
+    """反向重构：根据房间规格生成合规 DXF"""
+    from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType, validate_roundtrip
+    import tempfile, os
+    from pathlib import Path
+
+    spec = RoomSpec(
+        room_type=RoomType(body.get("room_type", "office")),
+        width_mm=body.get("width_mm", 5000),
+        height_mm=body.get("height_mm", 4000),
+        door_width_mm=body.get("door_width_mm"),
+    )
+    engine = ReverseEngine()
+    constraints = engine.infer_constraints(spec)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+    tmp.close()
+    engine.generate_dxf(spec, tmp.name)
+
+    with open(tmp.name, "r") as f:
+        dxf_content = f.read()
+
+    # 验证闭环
+    v = validate_roundtrip(Path(tmp.name))
+    os.unlink(tmp.name)
+
+    return {
+        "status": "ok",
+        "spec": {
+            "room_type": spec.room_type.value,
+            "width_mm": spec.width_mm,
+            "height_mm": spec.height_mm,
+            "door_width_mm": spec.door_width_mm,
+        },
+        "constraints": {
+            "min_width_mm": constraints.min_width_mm,
+            "min_height_mm": constraints.min_height_mm,
+            "min_door_width_mm": constraints.min_door_width_mm,
+            "min_area_m2": constraints.min_area_m2,
+            "notes": constraints.notes,
+        },
+        "dxf": dxf_content,
+        "validation": {
+            "all_pass": v.get("all_pass", False),
+            "fail_count": v.get("fail_count", 0),
+            "entities": v.get("entities", {}),
+        },
+    }
