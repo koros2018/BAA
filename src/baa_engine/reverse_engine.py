@@ -117,7 +117,7 @@ class ReverseEngine:
 
     def _build_dxf(self, spec: RoomSpec, constraints: LayoutConstraint,
                     output_path: str) -> str:
-        """构建 DXF 内容"""
+        """构建 DXF 内容（与正向解析识别规则对齐）"""
         lines = []
         lines.append("0")
         lines.append("SECTION")
@@ -133,31 +133,28 @@ class ReverseEngine:
         w = constraints.min_width_mm
         h = constraints.min_height_mm
         door_w = constraints.min_door_width_mm
+        door_x = int(w * 0.15)  # 门在底边墙 15% 位置
 
-        # 墙：4 条 LINE
-        wall_points = [
-            (0, 0, w, 0),       # 下边
-            (w, 0, w, h),       # 右边
-            (w, h, 0, h),       # 上边
-            (0, h, 0, 0),       # 左边
-        ]
-        for x1, y1, x2, y2 in wall_points:
-            lines.extend(self._line(x1, y1, x2, y2, "WALL"))
+        # 1. 房间轮廓：LWPOLYLINE 闭合多边形（被正向识别为 room）
+        # 面积 > 500000000 mm² (= 500 m²) 且宽高比 < 8 判为 room
+        lines.extend(self._lwpolyline_rect(0, 0, w, h, "WALL"))
 
-        # 门：在底边墙上，从左下角偏移 500mm
-        door_x = 500
+        # 2. 门：短 LINE (700-2000mm, short_edge < 50 → door)
         lines.extend(self._line(door_x, 0, door_x + door_w, 0, "DOOR"))
 
-        # 门弧线（90° 开门轨迹）
-        cx, cy = door_x, 0
-        lines.extend(self._arc(cx, cy, door_w, 0, 90, "DOOR"))
+        # 3. 门弧：ARC (100-2000mm 半径 → door)
+        lines.extend(self._arc(door_x, 0, door_w, 0, 90, "DOOR"))
 
-        # 尺寸标注（房间宽和高）
-        lines.extend(self._dim_line(0, -500, w, -500, f"{w}mm", "DIM"))
-        lines.extend(self._dim_line(-500, 0, -500, h, f"{h}mm", "DIM"))
+        # 4. 尺寸标注：DIMENSION 加 DEFPOINTS 线（被 _classify_by_layer 识别）
+        # DXF 尺寸标注需要关联点 + 标注线才能被解析
+        lines.extend(self._dim_with_defpoint(
+            0, -1000, w, -1000, f"{w}mm", "DIM"))
+        lines.extend(self._dim_with_defpoint(
+            -1000, 0, -1000, h, f"{h}mm", "DIM"))
 
-        # 文字标注：房间类型
-        lines.extend(self._text(spec.room_type.value, w / 2, h / 2, 300, "TEXT"))
+        # 5. 文字标注：在 DEFPOINTS 层加 TEXT（被识别为 other）
+        lines.extend(self._text(
+            spec.room_type.value.upper(), w / 2, h / 2, 300, "TEXT"))
 
         lines.append("0")
         lines.append("ENDSEC")
@@ -193,20 +190,6 @@ class ReverseEngine:
             "51", str(end_angle),
         ]
 
-    def _dim_line(self, x1, y1, x2, y2, text, layer):
-        return [
-            "0", "DIMENSION",
-            "8", layer,
-            "10", str(x1),
-            "20", str(y1),
-            "30", "0",
-            "11", str(x2),
-            "21", str(y2),
-            "31", "0",
-            "70", "0",
-            "1", text,
-        ]
-
     def _text(self, text, x, y, height, layer):
         return [
             "0", "TEXT",
@@ -217,6 +200,36 @@ class ReverseEngine:
             "40", str(height),
             "1", text,
         ]
+
+    def _lwpolyline_rect(self, x, y, w, h, layer):
+        """LWPOLYLINE 矩形（4 顶点闭合多边形，被识别为 room/wall）"""
+        return [
+            "0", "LWPOLYLINE",
+            "8", layer,
+            "100", "AcDbEntity",
+            "100", "AcDbPolyline",
+            "90", "4",  # 顶点数
+            "70", "1",  # 闭合
+            "10", str(x), "20", str(y),
+            "10", str(x + w), "20", str(y),
+            "10", str(x + w), "20", str(y + h),
+            "10", str(x), "20", str(y + h),
+        ]
+
+    def _dim_with_defpoint(self, x1, y1, x2, y2, text, layer):
+        """DIMENSION + DEFPOINTS 线（被 _classify_by_layer 识别为 dimension）"""
+        # DEFPOINTS 层上的短 LINE 被识别为标注参考线
+        lines = []
+        lines.extend(self._line(x1, y1, x2, y2, "DEFPOINTS"))
+        lines.extend([
+            "0", "DIMENSION",
+            "8", layer,
+            "10", str(x1), "20", str(y1), "30", "0",
+            "11", str(x2), "21", str(y2), "31", "0",
+            "70", "0",
+            "1", text,
+        ])
+        return lines
 
 
 def validate_roundtrip(dxf_path: str) -> Dict:
