@@ -647,7 +647,7 @@
             <div id="collab-login-form">
               <form onsubmit="collabLogin();return false">
                 <input id="collab-username" class="input w-full mb-2" placeholder="用户名" />
-                <input id="collab-password" type="password" class="input w-full mb-2" placeholder="密码" />
+                <input id="collab-password" type="password" class="input w-full mb-2" placeholder="密码" autocomplete="current-password" />
                 <button class="btn-primary w-full" type="submit">登录</button>
                 <p id="collab-auth-msg" class="text-xs mt-2 text-red-500"></p>
               </form>
@@ -655,7 +655,7 @@
             <div id="collab-register-form" style="display:none">
               <form onsubmit="collabRegister();return false">
                 <input id="collab-reg-username" class="input w-full mb-2" placeholder="用户名" />
-                <input id="collab-reg-password" type="password" class="input w-full mb-2" placeholder="密码（至少6位）" />
+                <input id="collab-reg-password" type="password" class="input w-full mb-2" placeholder="密码（至少6位）" autocomplete="new-password" />
                 <input id="collab-reg-email" class="input w-full mb-2" placeholder="邮箱（可选）" />
                 <input id="collab-reg-name" class="input w-full mb-2" placeholder="显示名称（可选）" />
                 <button class="btn-primary w-full" type="submit">注册</button>
@@ -3296,7 +3296,7 @@ function loadCollabTeams() {
     var h = '<table class="collab-table"><tr><th>\u540d\u79f0</th><th>\u6210\u5458</th><th>\u89d2\u8272</th><th>\u65f6\u95f4</th><th>\u64cd\u4f5c</th></tr>';
     for (var i = 0; i < d.teams.length; i++) {
       var t = d.teams[i];
-      h += '<tr><td><strong>' + t.name + '</strong></td><td>' + t.member_count + '</td><td><span class="collab-badge collab-badge-' + t.my_role + '">' + t.my_role + '</span></td><td>' + new Date(t.created_at*1000).toLocaleDateString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showTeamDetail(\u0027' + t.id + '\u0027)">📋</button></td></tr>';
+      h += '<tr><td><strong>' + t.name + '</strong></td><td>' + t.member_count + '</td><td><span class="collab-badge collab-badge-' + t.my_role + '">' + t.my_role + '</span></td><td>' + new Date(t.created_at*1000).toLocaleDateString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showTeamDetail(&#39;' + t.id + '&#39;)">📋</button></td></tr>';
     }
     h += '</table>';
     el.innerHTML = h;
@@ -3331,16 +3331,16 @@ function showTeamDetail(teamId) {
       ph = '<table class="collab-table"><tr><th>\u9879\u76ee</th><th>\u56fe\u7eb8</th><th>\u5ba1\u67e5</th><th>\u72b6\u6001</th><th>\u64cd\u4f5c</th></tr>';
       for (var i = 0; i < projects.length; i++) {
         var p = projects[i];
-        ph += '<tr><td><strong>' + p.name + '</strong></td><td>' + p.file_count + '</td><td>' + p.review_count + '</td><td>' + p.status + '</td><td><button class="text-blue-600 text-xs underline" onclick="showProjectDetail(\u0027' + p.id + '\u0027)">📝</button></td></tr>';
+        ph += '<tr><td><strong>' + p.name + '</strong></td><td>' + p.file_count + '</td><td>' + p.review_count + '</td><td>' + p.status + '</td><td><button class="text-blue-600 text-xs underline" onclick="showProjectDetail(&#39;' + p.id + '&#39;)">📝</button></td></tr>';
       }
       ph += '</table>';
     }
-    setModalBody('<h3 class="text-lg font-bold mb-4">\u56e2\u961f: ' + team.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458 (' + team.members.length + ')</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u9879\u76ee</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal(\u0027' + teamId + '\u0027)">+ \u65b0\u5efa\u9879\u76ee</button></div>' + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
+    setModalBody('<h3 class="text-lg font-bold mb-4">\u56e2\u961f: ' + team.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458 (' + team.members.length + ')</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u9879\u76ee</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal(&#39;' + teamId + '&#39;)">+ \u65b0\u5efa\u9879\u76ee</button></div>' + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
   });
 }
 
 function showCreateProjectModal(teamId) {
-  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u9879\u76ee</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="\u9879\u76ee\u540d\u79f0" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="\u5efa\u7b51\u7c7b\u578b" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail(\u0027' + teamId + '\u0027)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createProject(\u0027' + teamId + '\u0027)">\u521b\u5efa</button></div>');
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u9879\u76ee</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="\u9879\u76ee\u540d\u79f0" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="\u5efa\u7b51\u7c7b\u578b" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail(&#39;' + teamId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createProject(&#39;' + teamId + '&#39;)">\u521b\u5efa</button></div>');
 }
 
 function createProject(teamId) {
@@ -3368,16 +3368,16 @@ function showProjectDetail(projectId) {
       sh = '<table class="collab-table"><tr><th>\u540d\u79f0</th><th>\u72b6\u6001</th><th>\u521b\u5efa\u4eba</th><th>\u65f6\u95f4</th><th>\u64cd\u4f5c</th></tr>';
       for (var i = 0; i < sessions.length; i++) {
         var s = sessions[i];
-        sh += '<tr><td>' + s.name + '</td><td><span class="collab-badge collab-badge-' + s.status + '">' + s.status + '</span></td><td>' + (s.creator_name || '') + '</td><td>' + new Date(s.created_at*1000).toLocaleString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showReviewSessionDetail(\u0027' + s.id + '\u0027)">📝</button></td></tr>';
+        sh += '<tr><td>' + s.name + '</td><td><span class="collab-badge collab-badge-' + s.status + '">' + s.status + '</span></td><td>' + (s.creator_name || '') + '</td><td>' + new Date(s.created_at*1000).toLocaleString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showReviewSessionDetail(&#39;' + s.id + '&#39;)">📝</button></td></tr>';
       }
       sh += '</table>';
     }
-    setModalBody('<h3 class="text-lg font-bold mb-4">\u9879\u76ee: ' + proj.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u5ba1\u67e5\u4f1a\u8bdd</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateReviewSessionModal(\u0027' + projectId + '\u0027)">+ \u65b0\u5efa\u5ba1\u67e5</button></div>' + sh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
+    setModalBody('<h3 class="text-lg font-bold mb-4">\u9879\u76ee: ' + proj.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u5ba1\u67e5\u4f1a\u8bdd</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateReviewSessionModal(&#39;' + projectId + '&#39;)">+ \u65b0\u5efa\u5ba1\u67e5</button></div>' + sh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
   });
 }
 
 function showCreateReviewSessionModal(projectId) {
-  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u5ba1\u67e5\u4f1a\u8bdd</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="\u540d\u79f0" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail(\u0027' + projectId + '\u0027)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession(\u0027' + projectId + '\u0027)">\u521b\u5efa</button></div>');
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u5ba1\u67e5\u4f1a\u8bdd</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="\u540d\u79f0" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail(&#39;' + projectId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession(&#39;' + projectId + '&#39;)">\u521b\u5efa</button></div>');
 }
 
 function createReviewSession(projectId) {
@@ -3551,28 +3551,28 @@ function filterFunctions() {
     list.innerHTML = filtered.map(f => {
         const catColors = {dim: 'blue', dist: 'green', count: 'purple', attr: 'orange', exist: 'red', area: 'teal', evac: 'pink', access: 'indigo'};
         const color = catColors[f.category] || 'gray';
-        return '<div class="card p-3 hover:shadow-md transition cursor-pointer" onclick="toggleFuncDetail('' + f.func_id + '')">' +
+        const fid = f.func_id;
+        return '<div class="card p-3 hover:shadow-md transition cursor-pointer" onclick="toggleFuncDetail(&#39;' + fid + '&#39;)">' +
             '<div class="flex items-center justify-between">' +
             '<div class="flex items-center gap-2">' +
-            '<span class="text-xs font-mono bg-' + color + '-100 text-' + color + '-700 px-2 py-0.5 rounded">' + f.func_id + '</span>' +
+            '<span class="text-xs font-mono bg-' + color + '-100 text-' + color + '-700 px-2 py-0.5 rounded">' + fid + '</span>' +
             '<span class="font-medium">' + f.name + '</span>' +
             '</div>' +
             '<span class="text-xs text-gray-400">' + f.clause_id + '</span>' +
             '</div>' +
             '<div class="text-sm text-gray-500 mt-1">' + f.description + '</div>' +
-            '<div id="detail-' + f.func_id + '" class="hidden mt-2 pt-2 border-t border-gray-100">' +
+            '<div id="detail-' + fid + '" class="hidden mt-2 pt-2 border-t border-gray-100">' +
             '<div class="grid grid-cols-2 gap-2 text-sm">' +
             '<div><span class="text-gray-500">目标实体:</span> ' + (f.target_entities || []).join(', ') + '</div>' +
             '<div><span class="text-gray-500">运算符:</span> ' + f.operator + '</div>' +
-            '<div><span class="text-gray-500">阈值:</span> <input class="input w-24 inline text-sm" value="' + f.threshold + '" id="th-' + f.func_id + '" /></div>' +
-            '<div><span class="text-gray-500">单位:</span> <input class="input w-20 inline text-sm" value="' + f.unit + '" id="unit-' + f.func_id + '" /></div>' +
+            '<div><span class="text-gray-500">阈值:</span> <input class="input w-24 inline text-sm" value="' + f.threshold + '" id="th-' + fid + '" /></div>' +
+            '<div><span class="text-gray-500">单位:</span> <input class="input w-20 inline text-sm" value="' + f.unit + '" id="unit-' + fid + '" /></div>' +
             '</div>' +
-            '<button class="btn-primary text-xs mt-2" onclick="event.stopPropagation();updateFunction('' + f.func_id + '')">保存修改</button>' +
+            '<button class="btn-primary text-xs mt-2" onclick="event.stopPropagation();updateFunction(&#39;' + fid + '&#39;)">保存修改</button>' +
             '</div>' +
             '</div>';
     }).join('');
 }
-
 function toggleFuncDetail(funcId) {
     const el = document.getElementById('detail-' + funcId);
     if (el) el.classList.toggle('hidden');
