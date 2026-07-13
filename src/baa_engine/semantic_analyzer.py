@@ -1067,9 +1067,16 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             "园林",
             "井",
             "电-",
-            "系统",
+            "电气",
+            "照明",
+            "插座",
+            "弱电",
+            "消防",
+            "火灾",
+            "报警",
             "设备",
             "电缆",
+            "系统",
             "Defpoints",
         ]  # assign
         new_rooms = []  # init: empty list
@@ -1101,6 +1108,14 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             # 面积条件：1m² < area < 500m²
             if area < 1000000 or area > 500000000:  # check: numeric comparison
                 continue  # code
+
+            # 宽高比过滤：极端长条形不是房间
+            bw = max(xs) - min(xs)  # assign
+            bh = max(ys) - min(ys)  # assign
+            if bw > 0 and bh > 0:  # check: both positive
+                aspect = max(bw, bh) / min(bw, bh)  # assign
+                if aspect > 8.0:  # 宽高比 > 8:1 不是房间（走廊/管道/线槽）
+                    continue  # code
 
             # bbox
             xs = [p[0] for p in pts]  # assign: membership check
@@ -1234,9 +1249,20 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                     "园林",
                     "井",
                     "电-",
+                    "电气",
+                    "照明",
+                    "插座",
+                    "弱电",
+                    "消防",
+                    "火灾",
+                    "报警",
                     "系统",
                     "设备",
                     "电缆",
+                    "WIRE",
+                    "线槽",
+                    "DOTLN",
+                    "DOT",
                     "Defpoints",
                 ]  # assign
                 if any(
@@ -1245,6 +1271,11 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                     if aspect_ratio > 3:  # check: numeric comparison
                         return "other"  # return
                     return "wall"  # return
+                # 默认图层（0/00）上的闭合多边形：电气图中大量线槽/表格轮廓在此
+                # 只有宽高比 < 3 且面积 > 10m² 才可能为房间
+                if prim.layer.strip() in ("0", "00", ""):  # check: membership test
+                    if area < 10000000 or aspect_ratio > 3:  # < 10m² 或狭长
+                        return "other"  # return
                 # room 最小面积 1m²（1,000,000mm²），过滤小框/文字标注
                 # room 最大面积 500m²（500,000,000mm²），过滤图纸边界框/标题栏框
                 if area > 500000000:  # > 500m² → 图纸边界/标题栏，不是房间

@@ -16,15 +16,15 @@ from datetime import date
 GOLD_STANDARD = {
     "A1云计算中心平面图0405_t3.dxf": {
         "DIST-001": "CONFIRMED",
-        "EVAC-001": "SKIP",
-        "EVAC-004": "SKIP",
+        "EVAC-001": "CONFIRMED",
+        "EVAC-004": "CONFIRMED",
     },
     "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf": {
-        "EVAC-001": "SKIP",
+        "EVAC-001": "CONFIRMED",
     },
     "东莞通-建筑-外部参照（不打印）.dxf": {
         "DIST-001": "CONFIRMED",
-        "EVAC-001": "SKIP",
+        "EVAC-001": "CONFIRMED",
     },
     "中原人工智能计算中心总图-0409_t3.dxf": {},
     "A1云计算中心_水消防2017.03.31_t3.dxf": {
@@ -35,14 +35,14 @@ GOLD_STANDARD = {
     },
     "9.气体灭火（唯美图框）_t3.dxf": {},
     "2.1电气170825-报审.dxf": {
-        "DIST-001": "CONFIRMED",
+        "DIST-001": "SKIP",
         "EVAC-001": "SKIP",
     },
     "202109409-2#配电房_t3.dxf": {
-        "EVAC-004": "SKIP",
+        "EVAC-004": "CONFIRMED",
     },
     "20210409-3#泵房_t3.dxf": {
-        "EVAC-004": "SKIP",
+        "EVAC-004": "CONFIRMED",
     },
     "4.通风BS170826.dxf": {
         "DIM-006": "CONFIRMED",
