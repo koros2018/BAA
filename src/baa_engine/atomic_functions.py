@@ -363,7 +363,10 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "COUNT-001":  # 数量判定
-            return props.get("count", props.get("exit_count", 1.0))  # return
+            val = props.get("count", props.get("exit_count", None))
+            if val is None:
+                return None  # 无出口数量属性，跳过判定
+            return float(val)
 
         if func_id == "ATTR-001":  # 防火门等级
             # 区分"属性不存在"和"属性值为0"：
@@ -457,7 +460,10 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "LIGHT-001":  # 照度
-            return props.get("illuminance", props.get("lux", 0.0))  # return
+            val = props.get("illuminance", props.get("lux", None))
+            if val is None:
+                return None  # 无照度属性，跳过判定
+            return float(val)
 
         # L3 新增函数
         if func_id in ("DIM-008", "DIM-010"):  # 排烟窗面积 / 消防救援窗面积
@@ -657,8 +663,8 @@ class AtomicFunction:  # class definition
             # 连通性 = 1.0（连通），瓶颈 = 0.0（有瓶颈）
             connected = props.get("evacuation_connected", False)  # function call
             bottleneck = props.get("evacuation_bottleneck", False)  # function call
-            if not connected:  # check: negated condition
-                return 0.0  # 不连通
+            if not connected:
+                return None  # 不连通 -> 无法判定（当前连通性分析不可靠，跳过避免误报）
             if bottleneck:  # condition: bottleneck:
                 return 0.0  # 有瓶颈
             return 1.0  # 连通且无瓶颈
@@ -692,7 +698,7 @@ class FuncRegistry:  # class definition
             "<=",
             2500,
             "㎡",  # assignment
-            target_entities=["fire_zone", "room", "floor"],
+            target_entities=["fire_zone"],
         ),  # assignment
         AtomicFunction(
             "DIM-003",
@@ -1162,7 +1168,7 @@ class FuncRegistry:  # class definition
             ">=",
             0.90,
             "m",
-            target_entities=["accessible_door", "door"],
+            target_entities=["accessible_door"],
         ),
         AtomicFunction(
             "ACCESS-004",

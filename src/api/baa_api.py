@@ -3203,7 +3203,7 @@ async def collab_register(body: dict):
     result, msg = cm.register_user(username, password, email, display_name)
     if not result:
         raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "user": result, "message": msg}
+    return {"status": "success", "user": result, "token": result.get("token", ""), "message": msg}
 
 
 @app.post("/collab/auth/login", tags=["Collaboration"])
