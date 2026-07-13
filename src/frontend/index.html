@@ -646,7 +646,7 @@
             </div>
             <div id="collab-login-form">
               <form onsubmit="collabLogin();return false">
-                <input id="collab-username" class="input w-full mb-2" placeholder="用户名" />
+                <input id="collab-username" class="input w-full mb-2" placeholder="用户名" autocomplete="username" />
                 <input id="collab-password" type="password" class="input w-full mb-2" placeholder="密码" autocomplete="current-password" />
                 <button class="btn-primary w-full" type="submit">登录</button>
                 <p id="collab-auth-msg" class="text-xs mt-2 text-red-500"></p>
@@ -654,7 +654,7 @@
             </div>
             <div id="collab-register-form" style="display:none">
               <form onsubmit="collabRegister();return false">
-                <input id="collab-reg-username" class="input w-full mb-2" placeholder="用户名" />
+                <input id="collab-reg-username" class="input w-full mb-2" placeholder="用户名" autocomplete="username" />
                 <input id="collab-reg-password" type="password" class="input w-full mb-2" placeholder="密码（至少6位）" autocomplete="new-password" />
                 <input id="collab-reg-email" class="input w-full mb-2" placeholder="邮箱（可选）" />
                 <input id="collab-reg-name" class="input w-full mb-2" placeholder="显示名称（可选）" />
@@ -3436,6 +3436,7 @@ if (collabToken) {
 }
 
 </script>
+<script>
 <!-- 协作 Modal -->
 <div id="collab-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;" class="flex">
   <div class="bg-white rounded-xl shadow-xl p-5" style="width:90%;max-width:800px;max-height:85vh;overflow-y:auto;" id="collab-modal-body">
@@ -3599,5 +3600,6 @@ async function updateFunction(funcId) {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(loadFunctions, 1000);
 });
+</script>
 </body>
 </html>
