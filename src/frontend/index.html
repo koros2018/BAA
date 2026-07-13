@@ -175,6 +175,8 @@
       <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
       <div class="sidebar-item" data-page="settings">🔌连接配置</div>
       <div class="sidebar-item" data-page="collab">👥协作</div>
+      <div class="sidebar-item" data-page="reverse">🔄反向重构</div>
+      <div class="sidebar-item" data-page="funcs">⚙️原子函数库</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
@@ -686,6 +688,87 @@
         </div>
       </div>
     </div>
+
+    <!-- P56 反向重构 UI -->
+    <div class="page" id="page-reverse">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold">🔄 反向重构</h2>
+          <span class="text-xs text-gray-400">P56 · 原型</span>
+        </div>
+
+        <div class="card p-4">
+          <h3 class="text-base font-bold mb-3">房间规格输入</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">房间类型</label>
+              <select id="reverse-room-type" class="input w-full">
+                <option value="office">办公室</option>
+                <option value="stair">楼梯间</option>
+                <option value="corridor">走廊</option>
+                <option value="exit">安全出口</option>
+                <option value="fire_lobby">前室</option>
+                <option value="equipment">设备间</option>
+                <option value="accessible_toilet">无障碍卫生间</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">门宽 (mm, 可选)</label>
+              <input id="reverse-door-width" class="input w-full" placeholder="自动推断" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">宽度 (mm)</label>
+              <input id="reverse-width" class="input w-full" value="5000" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">高度 (mm)</label>
+              <input id="reverse-height" class="input w-full" value="4000" />
+            </div>
+          </div>
+          <button class="btn-primary mt-3" onclick="generateReverse()">生成 DXF</button>
+        </div>
+
+        <div id="reverse-result" class="hidden">
+          <div class="card p-4 mb-3">
+            <h3 class="text-base font-bold mb-2">约束推理结果</h3>
+            <div id="reverse-constraints" class="text-sm"></div>
+          </div>
+          <div class="card p-4 mb-3">
+            <h3 class="text-base font-bold mb-2">闭环验证</h3>
+            <div id="reverse-validation" class="text-sm"></div>
+          </div>
+          <div class="card p-4">
+            <h3 class="text-base font-bold mb-2">生成 DXF</h3>
+            <pre id="reverse-dxf" class="text-xs bg-gray-50 p-3 rounded overflow-auto" style="max-height:400px"></pre>
+            <button class="btn-primary mt-2" onclick="copyReverseDXF()">📋 复制 DXF</button>
+          </div>
+        </div>
+        <div id="reverse-error" class="hidden card p-4 bg-red-50 text-red-700"></div>
+      </div>
+    </div>
+
+    <!-- P57 原子函数库 UI -->
+    <div class="page" id="page-funcs">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold">⚙️ 原子函数库</h2>
+          <span class="text-xs text-gray-400" id="func-count">加载中...</span>
+        </div>
+
+        <div class="card p-4">
+          <div class="flex gap-2 mb-3">
+            <input id="func-search" class="input flex-1" placeholder="搜索函数 ID 或名称..." oninput="filterFunctions()" />
+            <select id="func-category-filter" class="input w-40" onchange="filterFunctions()">
+              <option value="">全部类别</option>
+            </select>
+          </div>
+          <div id="func-list" class="space-y-2">
+            <div class="text-center text-gray-400 py-8">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 <div class="page" id="page-settings">
       <h2 class="text-xl font-bold mb-6">🔌 连接配置</h2>
       <div class="space-y-4">
@@ -3359,5 +3442,162 @@ if (collabToken) {
   </div>
 </div>
 
+
+
+// ── P56 反向重构 ──
+
+async function generateReverse() {
+    const result = document.getElementById('reverse-result');
+    const err = document.getElementById('reverse-error');
+    if (!result) return;
+    const constraints = document.getElementById('reverse-constraints');
+    const validation = document.getElementById('reverse-validation');
+    const dxfPre = document.getElementById('reverse-dxf');
+    result.classList.add('hidden');
+    err.classList.add('hidden');
+
+    const body = {
+        room_type: document.getElementById('reverse-room-type')?.value || 'office',
+        width_mm: parseInt(document.getElementById('reverse-width')?.value) || 5000,
+        height_mm: parseInt(document.getElementById('reverse-height')?.value) || 4000,
+        door_width_mm: parseInt(document.getElementById('reverse-door-width')?.value) || null,
+    };
+
+    try {
+        const resp = await fetch('/api/v1/reverse', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (getApiKey() || '')},
+            body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (data.status !== 'ok') {
+            err.textContent = '错误: ' + JSON.stringify(data);
+            err.classList.remove('hidden');
+            return;
+        }
+
+        const c = data.constraints;
+        constraints.innerHTML = '<table class="w-full text-sm">' +
+            '<tr><td class="py-1 text-gray-500">最小宽度</td><td class="py-1">' + c.min_width_mm + ' mm</td></tr>' +
+            '<tr><td class="py-1 text-gray-500">最小高度</td><td class="py-1">' + c.min_height_mm + ' mm</td></tr>' +
+            '<tr><td class="py-1 text-gray-500">最小门宽</td><td class="py-1">' + c.min_door_width_mm + ' mm</td></tr>' +
+            '<tr><td class="py-1 text-gray-500">面积</td><td class="py-1">' + c.min_area_m2.toFixed(1) + ' m²</td></tr>' +
+            (c.notes.length ? '<tr><td class="py-1 text-gray-500">规范约束</td><td class="py-1">' + c.notes.join('<br>') + '</td></tr>' : '') +
+            '</table>';
+
+        const v = data.validation || {};
+        validation.innerHTML = '<span class="' + (v.all_pass ? 'text-green-600' : 'text-red-600') + ' font-bold">' +
+            (v.all_pass ? '✅ 全部通过' : '❌ ' + v.fail_count + ' FAIL') +
+            '</span> 实体: ' + JSON.stringify(v.entities || {});
+
+        dxfPre.textContent = data.dxf;
+        result.classList.remove('hidden');
+    } catch(e) {
+        err.textContent = '请求失败: ' + e.message;
+        err.classList.remove('hidden');
+    }
+}
+
+function copyReverseDXF() {
+    const dxf = document.getElementById('reverse-dxf');
+    if (dxf) { navigator.clipboard.writeText(dxf.textContent).then(() => alert('DXF 已复制到剪贴板')); }
+}
+
+// ── P57 原子函数库 ──
+
+async function loadFunctions() {
+    try {
+        const resp = await fetch('/api/v1/functions', {
+            headers: {'Authorization': 'Bearer ' + (getApiKey() || '')},
+        });
+        const data = await resp.json();
+        if (data.status !== 'ok') return;
+
+        document.getElementById('func-count').textContent = '共 ' + data.count + ' 个函数';
+
+        const categories = new Set();
+        data.functions.forEach(f => categories.add(f.category));
+        const filter = document.getElementById('func-category-filter');
+        if (filter) {
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                filter.appendChild(opt);
+            });
+        }
+
+        window._allFuncs = data.functions;
+        filterFunctions();
+    } catch(e) {
+        const el = document.getElementById('func-list');
+        if (el) el.innerHTML = '<div class="text-center text-red-500 py-8">加载失败: ' + e.message + '</div>';
+    }
+}
+
+function filterFunctions() {
+    const search = document.getElementById('func-search')?.value.toLowerCase() || '';
+    const category = document.getElementById('func-category-filter')?.value || '';
+    const funcs = window._allFuncs || [];
+    const list = document.getElementById('func-list');
+    if (!list) return;
+
+    const filtered = funcs.filter(f => {
+        if (category && f.category !== category) return false;
+        if (search && !f.func_id.toLowerCase().includes(search) && !f.name.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    list.innerHTML = filtered.map(f => {
+        const catColors = {dim: 'blue', dist: 'green', count: 'purple', attr: 'orange', exist: 'red', area: 'teal', evac: 'pink', access: 'indigo'};
+        const color = catColors[f.category] || 'gray';
+        return '<div class="card p-3 hover:shadow-md transition cursor-pointer" onclick="toggleFuncDetail('' + f.func_id + '')">' +
+            '<div class="flex items-center justify-between">' +
+            '<div class="flex items-center gap-2">' +
+            '<span class="text-xs font-mono bg-' + color + '-100 text-' + color + '-700 px-2 py-0.5 rounded">' + f.func_id + '</span>' +
+            '<span class="font-medium">' + f.name + '</span>' +
+            '</div>' +
+            '<span class="text-xs text-gray-400">' + f.clause_id + '</span>' +
+            '</div>' +
+            '<div class="text-sm text-gray-500 mt-1">' + f.description + '</div>' +
+            '<div id="detail-' + f.func_id + '" class="hidden mt-2 pt-2 border-t border-gray-100">' +
+            '<div class="grid grid-cols-2 gap-2 text-sm">' +
+            '<div><span class="text-gray-500">目标实体:</span> ' + (f.target_entities || []).join(', ') + '</div>' +
+            '<div><span class="text-gray-500">运算符:</span> ' + f.operator + '</div>' +
+            '<div><span class="text-gray-500">阈值:</span> <input class="input w-24 inline text-sm" value="' + f.threshold + '" id="th-' + f.func_id + '" /></div>' +
+            '<div><span class="text-gray-500">单位:</span> <input class="input w-20 inline text-sm" value="' + f.unit + '" id="unit-' + f.func_id + '" /></div>' +
+            '</div>' +
+            '<button class="btn-primary text-xs mt-2" onclick="event.stopPropagation();updateFunction('' + f.func_id + '')">保存修改</button>' +
+            '</div>' +
+            '</div>';
+    }).join('');
+}
+
+function toggleFuncDetail(funcId) {
+    const el = document.getElementById('detail-' + funcId);
+    if (el) el.classList.toggle('hidden');
+}
+
+async function updateFunction(funcId) {
+    const th = document.getElementById('th-' + funcId);
+    const unit = document.getElementById('unit-' + funcId);
+    if (!th || !unit) return;
+    try {
+        const resp = await fetch('/api/v1/functions/' + funcId + '/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (getApiKey() || '')},
+            body: JSON.stringify({threshold: parseFloat(th.value), unit: unit.value}),
+        });
+        const data = await resp.json();
+        alert(data.message || '更新成功');
+    } catch(e) {
+        alert('更新失败: ' + e.message);
+    }
+}
+
+// 页面加载时自动加载原子函数库
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(loadFunctions, 1000);
+});
 </body>
 </html>
