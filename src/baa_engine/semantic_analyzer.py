@@ -4,6 +4,7 @@ BAA 语义识别引擎 - 图元分类 + 空间关系构建（规则版）
 
 import os  # stdlib: filesystem ops
 import math  # stdlib: math functions
+from collections import deque  # stdlib: O(1) queue for BFS
 from typing import List, Dict, Any, Optional, Tuple  # typing: type hints
 from .drawing_parser import RawPrimitive  # 导入
 import logging  # 导入
@@ -1973,7 +1974,8 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         n_entities = len(entities)  # assign
 
         # ── 1. 相邻关系（空间哈希加速，>2000 实体只构建关键实体对）──
-        # 关键实体类型：room, corridor, door, exit, stair, fire_door, exit_door
+        # 关键实体类型：room/corridor/door/exit/stair/fire_door/exit_door + wall
+        # wall 必须包含：room↔wall adjacent 是 step 5 (room-wall-door 传递) 的基础
         KEY_ENTITY_TYPES = {"room", "corridor", "door", "exit", "stair", "fire_door", "exit_door"}
         
         CELL_SIZE = 100.0  # mm
@@ -2161,37 +2163,54 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                     )  # code
 
         # ── 5. 房间-门间接连接（通过墙传递）──
-        # 如果房间与墙相邻，且门被墙包含，则建立房间-门的连接
-        # 这样 BFS 才能从房间走到门再到出口
-        room_wall_adj = {}  # init: empty dict
-        wall_door_contains = {}  # init: empty dict
+        # 使用 door.properties["host_wall_id"] 直接定位门所在的墙
+        # 然后遍历该墙相邻的 room，建立 room↔door 连接
+        # wall 不在 KEY_ENTITY_TYPES 中，避免大图纸 wall×wall adjacency 超时
+        # 先构建 wall_id -> set(room_id) 映射：只有 room↔wall 相邻关系中的墙才收录
+        wall_rooms: Dict[str, set] = {}  # init: empty dict
         for rel in relations:  # 循环
             if rel.type == "adjacent":  # condition: rel.type == "adjacent":
-                if rel.source_id in {r.id for r in rooms} and rel.target_id in {
-                    w.id for w in walls
-                }:  # check: membership test
-                    room_wall_adj.setdefault(rel.source_id, set()).add(rel.target_id)  # call
-                if rel.target_id in {r.id for r in rooms} and rel.source_id in {
-                    w.id for w in walls
-                }:  # check: membership test
-                    room_wall_adj.setdefault(rel.target_id, set()).add(rel.source_id)  # call
-            if rel.type == "contains":  # condition: rel.type == "contains":
-                if rel.source_id in {w.id for w in walls} and rel.target_id in {
-                    d.id for d in doors
-                }:  # check: membership test
-                    wall_door_contains.setdefault(rel.source_id, set()).add(rel.target_id)  # call
-        for room_id, wall_ids in room_wall_adj.items():  # 循环
-            for wall_id in wall_ids:  # 循环
-                for door_id in wall_door_contains.get(wall_id, set()):  # 循环
-                    relations.append(
-                        SpatialRelation(  # code
-                            source_id=room_id,
-                            target_id=door_id,  # assign
-                            rel_type="connects_to",
-                            distance=0.0,  # assign
-                            via="door",  # assign
-                        )
-                    )  # code
+                sid, tid = rel.source_id, rel.target_id
+                if sid in {r.id for r in rooms} and tid in {w.id for w in walls}:  # room→wall
+                    wall_rooms.setdefault(tid, set()).add(sid)  # call
+                elif tid in {r.id for r in rooms} and sid in {w.id for w in walls}:  # wall→room
+                    wall_rooms.setdefault(sid, set()).add(tid)  # call
+        # 大图纸 room 数量少但 wall 极多，相邻关系不足时用 bbox 检测补全
+        # 只检测 room 与门所在墙的 bbox 距离，不走全量 wall adjacency
+        door_wall_map: Dict[str, SemanticEntity] = {}  # init: empty dict
+        for door in doors:  # 循环
+            host_id = door.properties.get("host_wall_id")  # function call
+            if host_id:  # check: truthy
+                wall_ent = next((w for w in walls if w.id == host_id), None)  # assign
+                if wall_ent:  # check: truthy
+                    door_wall_map[host_id] = wall_ent  # call
+        # 对每个 room，找所有与门所在墙 bbox 接近的墙
+        for room in rooms:  # 循环
+            if room.id in wall_rooms:  # 已有相邻墙
+                continue  # 跳过已覆盖的 room
+            for wid, wall_ent in door_wall_map.items():  # 循环
+                if self._min_edge_distance(room.bbox, wall_ent.bbox) < 500.0:  # function call
+                    wall_rooms.setdefault(wid, set()).add(room.id)  # call
+        # 建立 room↔door connects_to：遍历每个门，找相邻的 room
+        seen_conn: set = set()  # init: empty set
+        for door in doors:  # 循环
+            host_id = door.properties.get("host_wall_id")  # function call
+            if not host_id:  # check: negated condition
+                continue  # 无宿主墙，跳过
+            for room_id in wall_rooms.get(host_id, set()):  # 循环
+                pair = (room_id, door.id)  # assign
+                if pair in seen_conn:  # check: membership test
+                    continue  # 避免重复
+                seen_conn.add(pair)  # call
+                relations.append(
+                    SpatialRelation(  # code
+                        source_id=room_id,
+                        target_id=door.id,  # assign
+                        rel_type="connects_to",
+                        distance=0.0,  # assign
+                        via="door",  # assign
+                    )
+                )  # code
 
         return relations  # return
 
@@ -2398,9 +2417,9 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             if eid in visited:  # check: membership test
                 continue  # 继续循环
             comp = []  # init: empty list
-            queue = [eid]  # assign
+            queue = deque([eid])  # assign: O(1) pop from left
             while queue:  # 循环
-                current = queue.pop(0)  # assign
+                current = queue.popleft()  # assign
                 if current in visited:  # check: membership test
                     continue  # 继续循环
                 visited.add(current)  # call
@@ -2497,49 +2516,27 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         if not exits:  # check: negated condition
             return []  # return: list of items
 
-        # 无明确 exit 时，room 面积 < 10m² 跳过 EVAC 判定（非疏散空间）
-        skip_small_rooms = not strict_exits and bool(fallback_exits)  # assign
-
         # 如果没有 room 但有 corridor，用 corridor 作为起点分析连通性
-        if not rooms:  # check: negated condition
-            corridors = [e for e in entities if e.type == "corridor"]  # compare: equality
+        if not rooms:  # check: condition: not rooms:
+            corridors = [e for e in entities if e.type == "corridor"]  # assign
             if corridors:  # check: OR condition
                 rooms = corridors  # 兜底：用走廊代替房间作为起点
             else:  # 否则
                 return []  # return: list of items
 
-        # 优先用 type=exit 的，兜底用 door/fire_door
-        has_exit_type = any(e.type == "exit" for e in exits)  # compare: equality
-        if not has_exit_type:  # check: negated condition
-            pass  # 占位
+        # exit 查找集合（提前构建，避免循环内重复构造）
+        exit_id_set = {e.id for e in exits}  # assign: membership check
 
         routes = []  # init: empty list
         for room in rooms:  # 循环
-            # 兜底模式（无明确exit）且 room 面积 < 10m²：跳过 EVAC 判定
-            if skip_small_rooms:  # condition: skip_small_rooms:
-                bw = room.bbox.get("width", 0)  # assign
-                bh = room.bbox.get("height", 0)  # assign
-                area = bw * bh / 1e6  # assign
-                if area < 10:  # check: numeric comparison
-                    route_info = {  # assign
-                        "room_id": room.id,  # 字段
-                        "room_type": room.type,  # 字段
-                        "room_bbox": room.bbox,  # 字段
-                        "has_route": True,  # 字段
-                        "path_length": None,  # 字段
-                        "exit_id": None,  # 字段
-                    }  # code
-                    routes.append(route_info)  # append: add to list
-                    continue  # 继续循环
-
-            # BFS 找最近出口
+            # BFS 找最近出口：所有 room 都走 BFS，不再跳过
             visited = {room.id}  # assign
-            queue = [(room.id, [room.id], 0.0)]  # assign
+            queue = deque([(room.id, [room.id], 0.0)])  # assign: O(1) BFS queue
             found_route = None  # init: set to None
 
             while queue:  # 循环
-                current, path, distance = queue.pop(0)  # 解包
-                if current in {e.id for e in exits}:  # check: membership test
+                current, path, distance = queue.popleft()  # 解包: O(1)
+                if current in exit_id_set:  # check: membership test
                     found_route = (path, distance)  # assign
                     break  # 跳出循环
                 for neighbor, rel_type, dist in adj.get(current, []):  # 循环
@@ -2711,10 +2708,10 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             if room.id not in {r["room_id"] for r in results}:  # check: membership test
                 # 检查是否有间接路径
                 visited = {room.id}  # assign
-                queue = [room.id]  # assign
+                queue = deque([room.id])  # assign: O(1) BFS queue
                 found_exit = False  # assign
                 while queue:  # loop: while queue:
-                    current = queue.pop(0)  # assign
+                    current = queue.popleft()  # assign
                     if current in exit_ids:  # check: membership test
                         found_exit = True  # assign
                         break  # code

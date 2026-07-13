@@ -203,8 +203,8 @@
       },
       "EVAC-001": {
         "total": 4,
-        "PASS": 4,
-        "FAIL": 0
+        "PASS": 3,
+        "FAIL": 1
       },
       "EVAC-003": {
         "total": 4,
@@ -213,8 +213,13 @@
       },
       "EVAC-004": {
         "total": 4,
-        "PASS": 0,
-        "FAIL": 4
+        "PASS": 2,
+        "FAIL": 2
+      },
+      "EVAC-002": {
+        "total": 3,
+        "PASS": 3,
+        "FAIL": 0
       },
       "EXIST-006": {
         "total": 1,
@@ -222,7 +227,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 383
+    "total_findings": 386
   },
   {
     "file": "A1云计算中心平面图0405_t3.dxf",
@@ -261,8 +266,8 @@
       },
       "EVAC-001": {
         "total": 21,
-        "PASS": 16,
-        "FAIL": 5
+        "PASS": 4,
+        "FAIL": 17
       },
       "EVAC-003": {
         "total": 21,
@@ -271,8 +276,8 @@
       },
       "EVAC-004": {
         "total": 21,
-        "PASS": 0,
-        "FAIL": 21
+        "PASS": 2,
+        "FAIL": 19
       },
       "DIM-005": {
         "total": 49,
@@ -304,18 +309,18 @@
         "PASS": 3,
         "FAIL": 0
       },
+      "EVAC-002": {
+        "total": 4,
+        "PASS": 4,
+        "FAIL": 0
+      },
       "ACCESS-005": {
         "total": 3,
         "PASS": 3,
         "FAIL": 0
-      },
-      "EVAC-002": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
       }
     },
-    "total_findings": 720
+    "total_findings": 723
   },
   {
     "file": "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf",
@@ -374,8 +379,8 @@
       },
       "EVAC-001": {
         "total": 11,
-        "PASS": 4,
-        "FAIL": 7
+        "PASS": 1,
+        "FAIL": 10
       },
       "EVAC-003": {
         "total": 11,
@@ -384,16 +389,21 @@
       },
       "EVAC-004": {
         "total": 11,
-        "PASS": 0,
-        "FAIL": 11
+        "PASS": 1,
+        "FAIL": 10
       },
       "ACCESS-008": {
         "total": 8,
         "PASS": 8,
         "FAIL": 0
+      },
+      "EVAC-002": {
+        "total": 1,
+        "PASS": 1,
+        "FAIL": 0
       }
     },
-    "total_findings": 319
+    "total_findings": 320
   },
   {
     "file": "中原人工智能计算中心总图-0409_t3.dxf",
@@ -527,8 +537,8 @@
       },
       "EVAC-001": {
         "total": 3,
-        "PASS": 3,
-        "FAIL": 0
+        "PASS": 0,
+        "FAIL": 3
       },
       "EVAC-003": {
         "total": 3,
