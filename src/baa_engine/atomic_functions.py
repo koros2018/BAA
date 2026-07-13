@@ -634,7 +634,10 @@ class AtomicFunction:  # class definition
             area = props.get("area", 0.0)  # function call
             if area and area > 5000:  # check: numeric comparison
                 return None  # 大面积 room，路径分析不可靠
-            return 1.0 if props.get("has_evacuation_route", False) else 0.0  # return
+            has_route = props.get("has_evacuation_route", None)
+            if has_route is None:
+                return None  # 无路径分析结果，跳过
+            return 1.0 if has_route else None  # 不连通 -> 无法判定（当前连通性分析不可靠）
         if func_id == "EVAC-002":  # 疏散路径长度
             if (
                 "evacuation_path_length" not in props and "travel_distance" not in props
@@ -665,8 +668,8 @@ class AtomicFunction:  # class definition
             bottleneck = props.get("evacuation_bottleneck", False)  # function call
             if not connected:
                 return None  # 不连通 -> 无法判定（当前连通性分析不可靠，跳过避免误报）
-            if bottleneck:  # condition: bottleneck:
-                return 0.0  # 有瓶颈
+            if bottleneck:
+                return None  # 瓶颈 -> 当前连通性分析不可靠，跳过避免误报
             return 1.0  # 连通且无瓶颈
 
 

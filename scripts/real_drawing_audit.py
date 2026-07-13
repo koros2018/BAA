@@ -2,12 +2,56 @@
 """
 真实图纸全量审计脚本
 对每张真实 DXF 图纸执行：解析 → 语义分析 → 原子函数判定
-输出：实体分布 + 违规详情 + 统计汇总
+输出：实体分布 + 违规详情 + 统计汇总 + 黄金标准对比
 """
 
 import sys
 import json
 import functools
+from datetime import date
+
+# ── 黄金标准基线（人工标注） ──
+# 格式: {图纸名: {函数ID: "CONFIRMED"|"SKIP"|"FALSE_POSITIVE"}}
+# 来源: docs/real-drawing-gold-standard-20260713.md
+GOLD_STANDARD = {
+    "A1云计算中心平面图0405_t3.dxf": {
+        "DIST-001": "CONFIRMED",
+        "EVAC-001": "SKIP",
+        "EVAC-004": "SKIP",
+    },
+    "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf": {
+        "EVAC-001": "SKIP",
+    },
+    "东莞通-建筑-外部参照（不打印）.dxf": {
+        "DIST-001": "CONFIRMED",
+        "EVAC-001": "SKIP",
+    },
+    "中原人工智能计算中心总图-0409_t3.dxf": {},
+    "A1云计算中心_水消防2017.03.31_t3.dxf": {
+        "DIM-006": "CONFIRMED",
+    },
+    "6.火灾自动报警 （报审）_t3.dxf": {
+        "EVAC-001": "SKIP",
+    },
+    "9.气体灭火（唯美图框）_t3.dxf": {},
+    "2.1电气170825-报审.dxf": {
+        "DIST-001": "CONFIRMED",
+        "EVAC-001": "SKIP",
+    },
+    "202109409-2#配电房_t3.dxf": {
+        "EVAC-004": "SKIP",
+    },
+    "20210409-3#泵房_t3.dxf": {
+        "EVAC-004": "SKIP",
+    },
+    "4.通风BS170826.dxf": {
+        "DIM-006": "CONFIRMED",
+    },
+    "东莞通-设备-外部参照（不打印）.dxf": {},
+}
+
+# 预期结果：SKIP 的函数不应报告 FAIL，CONFIRMED 的函数应报告 FAIL
+# 此基线用于检测回归：新代码不应改变 CONFIRMED 状态的检出数
 from pathlib import Path
 from collections import Counter, defaultdict
 
@@ -175,6 +219,51 @@ def main():
         json.dump(all_reports, f, ensure_ascii=False, indent=2, default=str)
     print(f"\n完整报告已保存: {output_path}")
 
+    # ── 黄金标准对比 ──
+    print()
+    print("=" * 60)
+    print("=== 黄金标准基线对比 ===")
+    print()
+
+    regression_errors = []
+    confirmed_missed = []
+    total_confirmed = 0
+    total_skip = 0
+    total_false_pos = 0
+
+    for r in all_reports:
+        if not r["success"] or r["entity_count"] == 0:
+            continue
+        fname = r["file"]
+        gold = GOLD_STANDARD.get(fname, {})
+        if not gold:
+            continue
+
+        for func_id, expected in gold.items():
+            total_confirmed += 1 if expected == "CONFIRMED" else 0
+            total_skip += 1 if expected == "SKIP" else 0
+
+            func_data = r["func_summary"].get(func_id, {"FAIL": 0, "total": 0})
+            has_fail = func_data["FAIL"] > 0
+
+            if expected == "CONFIRMED" and not has_fail:
+                confirmed_missed.append((fname, func_id))
+                print(f"  ❌ 漏报: {fname} {func_id} 预期 CONFIRMED 但未检出")
+            elif expected == "SKIP" and has_fail:
+                regression_errors.append((fname, func_id, func_data["FAIL"]))
+                print(f"  🔴 回归: {fname} {func_id} 预期 SKIP 但检出 {func_data['FAIL']} FAIL")
+
+    print()
+    print(f"黄金标准统计: CONFIRMED={total_confirmed}, SKIP={total_skip}")
+    print(f"漏报: {len(confirmed_missed)} 项")
+    print(f"回归: {len(regression_errors)} 项")
+
+    if not confirmed_missed and not regression_errors:
+        print("✅ 黄金标准基线通过，无回归无漏报")
+
+    return len(confirmed_missed) + len(regression_errors)
+
 
 if __name__ == "__main__":
-    main()
+    errors = main()
+    sys.exit(errors)
