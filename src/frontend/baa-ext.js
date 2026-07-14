@@ -285,6 +285,7 @@ async function generateMultiReverse() {
         }
 
         // 渲染 SVG 可视化布局
+        const l = data.layout;
         const svgContainer = document.getElementById('reverse-svg');
         if (svgContainer) {
             svgContainer.innerHTML = renderLayoutSVG(l, data.validation);
