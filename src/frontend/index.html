@@ -291,6 +291,32 @@
           <div id="diff-items-changed" class="diff-items-panel hidden"></div>
         </div>
 
+        <!-- 图纸可视化对比 -->
+        <div class="card mb-4">
+          <h3 class="font-medium mb-3">📊 图纸违规可视化</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-xs font-medium mb-2 text-blue-600">版本1（旧图纸）</h4>
+              <div id="diff-vis-v1" class="border rounded bg-gray-50 min-h-40 flex items-center justify-center text-gray-400 text-xs">
+                选择图纸后自动加载
+              </div>
+            </div>
+            <div>
+              <h4 class="text-xs font-medium mb-2 text-green-600">版本2（新图纸）</h4>
+              <div id="diff-vis-v2" class="border rounded bg-gray-50 min-h-40 flex items-center justify-center text-gray-400 text-xs">
+                选择图纸后自动加载
+              </div>
+            </div>
+          </div>
+          <div class="mt-2 flex gap-3 text-xs text-gray-500">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>严重</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span>主要</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>一般</span>
+            <span class="text-gray-300">|</span>
+            <span>圆点标注违规位置，鼠标悬停查看详情</span>
+          </div>
+        </div>
+
         <!-- 完整对比报告 JSON -->
         <div class="card">
           <details>
@@ -303,7 +329,7 @@
       <div id="diff-empty" class="card text-center py-8 text-gray-300">
         上传两个版本的图纸后开始对比
       </div>
-    </div
+    </div>
 
     <!-- ===== 结果分析 ===== -->
     <div class="page" id="page-analysis">
