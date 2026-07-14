@@ -9,7 +9,6 @@ __pycache__
 .env.example
 conftest.py
 scripts/
-docs/
 data/logs/
 data/files/
 data/coco/

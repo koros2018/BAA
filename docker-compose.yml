@@ -10,15 +10,15 @@ services:
     volumes:
       # 持久化数据：上传文件、密钥、日志
       - baa_data:/app/data
-      # 可选：挂载模型文件（YOLO 权重等）
-      # - ./data/models:/app/data/models
-      # 可选：挂载规范库
+      # 规范库（可选挂载）
       # - ./data/specs:/app/data/specs
+      # YOLO 模型权重
+      # - ./data/models:/app/data/models
     environment:
       - BAA_PORT=${BAA_PORT:-8000}
-      - BAA_WORKERS=${BAA_WORKERS:-4}
+      - BAA_WORKERS=${BAA_WORKERS:-2}
       - BAA_DATA_DIR=/app/data
-      - BAA_API_KEY=${BAA_API_KEY:-}
+      - BAA_API_KEY=${BAA_API_KEY:-baa_dev_2026}
       - PYTHONUNBUFFERED=1
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health'); assert r.status == 200"]
