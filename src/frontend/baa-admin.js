@@ -1,344 +1,3 @@
-// ── 规范库 ──────────────────────────────────────────────
-const SPEC_DATA = [
-  {clause_id:'GB50016-5.5.18', name:'疏散楼梯净宽判定', description:'疏散楼梯净宽度不应小于1.2m', category:'dim', target:['staircase','stair']},
-  {clause_id:'GB50016-6.1.1', name:'防火分区面积判定', description:'防火分区面积不应大于2500㎡', category:'dim', target:['fire_zone','room','floor']},
-  {clause_id:'GB50016-7.1.1', name:'消防车道宽度判定', description:'消防车道宽度不应小于4m', category:'dim', target:['fire_lane','road','driveway']},
-  {clause_id:'GB50016-5.5.17', name:'疏散距离判定', description:'疏散距离不应大于30m', category:'dist', target:['room','floor','space']},
-  {clause_id:'GB50016-5.5.8', name:'安全出口数量判定', description:'安全出口不应少于2个', category:'count', target:['floor','fire_zone']},
-  {clause_id:'GB50016-6.5.1', name:'防火门等级判定', description:'防火门等级应为甲级', category:'attr', target:['fire_door','door']},
-  {clause_id:'GB50016-5.5.18', name:'疏散走道宽度判定', description:'疏散走道净宽度不应小于1.1m', category:'dim', target:['corridor','aisle','passage']},
-  {clause_id:'GB50016-7.4.1', name:'避难层面积判定', description:'避难层净面积不宜小于5㎡/人', category:'area', target:['refuge_floor','refuge_area','floor']},
-  {clause_id:'GB50016-5.5.12', name:'楼梯间存在判定', description:'建筑应设置楼梯间', category:'exist', target:['staircase','stair']},
-  {clause_id:'GB50016-7.2.4', name:'窗净面积判定', description:'消防窗净面积不应小于1.0㎡', category:'dim', target:['fire_window','window']},
-  {clause_id:'GB50016-5.5.19', name:'疏散门净宽判定', description:'人员密集场所疏散门净宽不应小于1.4m', category:'dim', target:['exit_door','door']},
-  {clause_id:'GB50016-6.5.3', name:'防火卷帘宽度判定', description:'防火分隔防火卷帘宽度不应大于10m', category:'dim', target:['fire_curtain','curtain']},
-  {clause_id:'GB50016-6.6.1', name:'管道井封堵判定', description:'管道井应每层用不燃材料封堵', category:'exist', target:['shaft','pipe_shaft','cable_shaft']},
-  {clause_id:'GB50016-5.5.24', name:'剪刀楼梯分隔判定', description:'剪刀楼梯梯段间应设置防火隔墙', category:'exist', target:['scissor_staircase','staircase']},
-  {clause_id:'GB50016-10.3.1', name:'疏散指示标志判定', description:'疏散走道和安全出口应设疏散指示标志', category:'exist', target:['exit_sign','sign','corridor']},
-  {clause_id:'GB50016-8.3.1', name:'自动灭火系统判定', description:'一类高层应设置自动灭火系统', category:'exist', target:['sprinkler_system','sprinkler','fire_system']},
-  {clause_id:'GB50016-8.4.1', name:'火灾报警系统判定', description:'一类高层应设置火灾自动报警系统', category:'exist', target:['fire_alarm','alarm_system','fire_system']},
-  {clause_id:'GB50016-6.7.1', name:'保温材料等级判定', description:'保温材料应选用A或B1级', category:'attr', target:['insulation','wall_insulation','roof_insulation']},
-  {clause_id:'GB50016-10.1.5', name:'应急照明照度判定', description:'疏散照明照度不应低于1.0lx', category:'dim', target:['evacuation_lighting','light','lighting']},
-  // L3 新增（11个）
-  {clause_id:'GB50016-3.4.1', name:'防火间距判定', description:'厂房之间防火间距不应小于12m', category:'dist', target:['building','factory','warehouse']},
-  {clause_id:'GB50016-9.2.1', name:'排烟窗面积判定', description:'排烟窗净面积不应小于房间面积2%', category:'dim', target:['smoke_exhaust_window','window','room']},
-  {clause_id:'GB50016-7.3.1', name:'消防电梯判定', description:'一类高层公共建筑应设消防电梯', category:'exist', target:['fire_elevator','elevator']},
-  {clause_id:'GB50016-7.3.5', name:'消防电梯前室面积判定', description:'消防电梯前室面积不应小于6㎡', category:'area', target:['elevator_lobby','lobby','room']},
-  {clause_id:'GB50016-5.5.17', name:'袋形走道长度判定', description:'袋形走道长度不应大于20m', category:'dist', target:['corridor','aisle','passage']},
-  {clause_id:'GB50016-5.5.18', name:'疏散出口宽度判定', description:'疏散出口净宽度不应小于0.9m', category:'dim', target:['exit','exit_door','door']},
-  {clause_id:'GB50016-6.5.1', name:'防火窗等级判定', description:'防火窗耐火极限不应低于1.0h', category:'attr', target:['fire_window','window']},
-  {clause_id:'GB50016-8.2.1', name:'消防水箱判定', description:'一类高层应设消防水箱', category:'exist', target:['water_tank','fire_system']},
-  {clause_id:'GB50016-8.1.3', name:'消防水池判定', description:'市政供水不足时应设消防水池', category:'exist', target:['water_reservoir','fire_system']},
-  {clause_id:'GB50016-7.2.4', name:'消防救援窗面积判定', description:'消防救援窗口净面积不应小于1.0㎡', category:'dim', target:['rescue_window','window']},
-  {clause_id:'GB50016-8.5.1', name:'应急广播判定', description:'一类高层应设应急广播系统', category:'exist', target:['emergency_broadcast','speaker','fire_system']},
-];
-
-async function loadSpecs() {
-  const tbody = document.getElementById('spec-list');
-  tbody.innerHTML = '';
-  SPEC_DATA.forEach((s, i) => {
-    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积'};
-    tbody.innerHTML += '<tr class="border-b border-gray-50">' +
-      '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
-      '<td class="py-2 px-2 text-sm">' + s.name + '<br/><span class="text-xs text-gray-400">' + s.description + '</span></td>' +
-      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">L1</span></td>' +
-      '<td class="py-2 px-2 text-xs">' + (catLabels[s.category] || s.category) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + s.target.join(', ') + '</td></tr>';
-  });
-}
-
-// ── 图纸管理：上传解析 ──────────────────────────────
-// 已解析图纸的全局存储
-let parsedDrawings = [];
-// 文件缓存（用于AI审图时重新上传）
-let fileCache = {};
-
-async function uploadDrawing() {
-  const file = document.getElementById('file-input').files[0];
-  if (!file) { alert('请先选择图纸文件'); return; }
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
-
-  const bt = document.getElementById('drawing-bt').value;
-
-  const progress = document.getElementById('upload-progress');
-  progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
-
-  try {
-    // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
-    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
-    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
-    progress.className = 'hidden';
-
-    // 缓存文件（用于后续AI审图重新上传）
-    const fileId = result.file_id || 'drawing_' + Date.now();
-    fileCache[fileId] = file;
-
-    // 存储解析结果
-    const entry = {
-      id: fileId,
-      filename: file.name,
-      building_type: bt,
-      parsedAt: new Date().toISOString(),
-      elements: result.elements || [],
-      entities: result.entities || [],
-      findings_count: result.findings || 0,
-      total_checks: result.total_checks || 0,
-      file_id: fileId,
-      raw: result,
-      use_yolo: useYolo,
-    };
-    parsedDrawings.unshift(entry);
-    saveParsedDrawings();
-
-    // 更新图纸列表
-    renderDrawingList();
-
-    // 显示解析预览
-    const preview = document.getElementById('drawing-preview');
-    preview.className = 'card';
-    document.getElementById('parse-result-json').textContent =
-      JSON.stringify(result, null, 2);
-
-    // 渲染图纸
-    const renderImg = document.getElementById('drawing-render-img');
-    const placeholder = document.getElementById('drawing-render-placeholder');
-    renderImg.className = 'w-full';
-    renderImg.src = API_BASE() + '/render/' + fileId;
-    placeholder.className = 'hidden';
-
-    // 刷新AI审图的下拉
-    refreshReviewDrawingSelect();
-    loadDashboard();
-  } catch (e) {
-    progress.innerHTML = '❌ 解析失败: ' + e.message;
-    progress.className = 'card mb-4 text-sm text-red-500';
-  }
-}
-
-function saveParsedDrawings() {
-  try {
-    localStorage.setItem('baa_parsed_drawings', JSON.stringify(parsedDrawings));
-  } catch (e) { /* ignore quota */ }
-}
-
-function loadParsedDrawings() {
-  try {
-    const stored = localStorage.getItem('baa_parsed_drawings');
-    if (stored) parsedDrawings = JSON.parse(stored);
-  } catch (e) { parsedDrawings = []; }
-}
-
-function renderDrawingList() {
-  const tbody = document.getElementById('drawing-list');
-  if (!tbody) return;
-  const countEl = document.getElementById('drawing-count');
-  if (countEl) countEl.textContent = parsedDrawings.length;
-  
-  if (parsedDrawings.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
-    return;
-  }
-  tbody.innerHTML = '';
-  parsedDrawings.forEach((d, i) => {
-    const row = tbody.insertRow(-1);
-    row.className = 'border-b border-gray-50 text-sm';
-    const yoloBadge = d.use_yolo ? '<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>' : '';
-    const checked = d._selected ? 'checked' : '';
-    row.innerHTML =
-      '<td class="py-2 px-2"><input type="checkbox" class="drawing-select" data-idx="' + i + '" ' + checked + ' onchange="toggleDrawingSelect(' + i + ',this.checked)" /></td>' +
-      '<td class="py-2 px-2 truncate max-w-32">' + d.filename + yoloBadge + '</td>' +
-      '<td class="py-2 px-2 text-xs">' + (d.building_type === 'civil' ? '民用' : '工业') + '</td>' +
-      '<td class="py-2 px-2">' + (d.elements?.length || 0) + '</td>' +
-      '<td class="py-2 px-2 text-xs max-w-40 truncate">' + (d.elements ? d.elements.map(e => e.type).join(', ') : '') + '</td>' +
-      '<td class="py-2 px-2 text-xs">' + new Date(d.parsedAt).toLocaleTimeString() + '</td>' +
-      '<td class="py-2 px-2">' +
-      '<button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' +
-      (d.file_id ? '<button onclick="downloadReviewPdf(\'' + d.file_id + '\')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 mr-1" title="下载PDF报告">📄</button>' : '') +
-      '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td>';
-  });
-  updateBatchButton();
-}
-
-function toggleDrawingSelect(idx, checked) {
-  if (parsedDrawings[idx]) parsedDrawings[idx]._selected = checked;
-  updateBatchButton();
-}
-
-function selectAllDrawings() {
-  parsedDrawings.forEach(d => d._selected = true);
-  renderDrawingList();
-}
-
-function deselectAllDrawings() {
-  parsedDrawings.forEach(d => d._selected = false);
-  renderDrawingList();
-}
-
-function updateBatchButton() {
-  const count = parsedDrawings.filter(d => d._selected).length;
-  const btn = document.getElementById('batch-review-btn');
-  const badge = document.getElementById('batch-count');
-  if (btn) {
-    btn.className = count > 0
-      ? 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700'
-      : 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden';
-  }
-  if (badge) badge.textContent = count;
-}
-
-async function batchReview() {
-  const selected = parsedDrawings.filter(d => d._selected);
-  if (selected.length === 0) { alert('请先勾选要送审的图纸'); return; }
-  
-  const progress = document.getElementById('upload-progress');
-  progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在批量审查 ' + selected.length + ' 张图纸...';
-  
-  let totalViolations = 0;
-  let results = [];
-  
-  for (const d of selected) {
-    try {
-      const r = await apiPost('/review-from-data', {
-        entities: d.elements || [],
-        building_type: d.building_type,
-      });
-      if (r.status === 'completed' || r.status === 'success') {
-        const v = r.details?.length || 0;
-        totalViolations += v;
-        results.push({name: d.filename, violations: v, details: r.details});
-      }
-    } catch (e) {
-      results.push({name: d.filename, violations: -1, error: e.message});
-    }
-  }
-  
-  progress.className = 'card mb-4 text-sm';
-  let html = '✅ 批量审查完成 (' + selected.length + ' 张, 共 ' + totalViolations + ' 项违规)<br/><br/>';
-  results.forEach(r => {
-    if (r.error) {
-      html += '<div class="text-red-500 text-xs">❌ ' + r.name + ': ' + r.error + '</div>';
-    } else {
-      const c = r.violations > 0 ? 'text-red-500' : 'text-green-600';
-      html += '<div class="text-xs mb-1">' + r.name + ': <span class="' + c + '">' + r.violations + ' 项违规</span></div>';
-    }
-  });
-  progress.innerHTML = html;
-  
-  // 切换到审图页面，加载第一张
-  if (results.length > 0) {
-    switchPage('review');
-  }
-}
-
-async function uploadAndReview() {
-  // 先执行上传+解析
-  const file = document.getElementById('file-input').files[0];
-  if (!file) { alert('请先选择图纸文件'); return; }
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'dxf') { alert('仅支持 .dxf 和 .dwg 格式'); return; }
-  const bt = document.getElementById('drawing-bt').value;
-  const progress = document.getElementById('upload-progress');
-  progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
-  try {
-    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
-    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
-    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
-    progress.className = 'hidden';
-    const fileId = result.file_id || 'drawing_' + Date.now();
-    fileCache[fileId] = file;
-    const entry = {
-      id: fileId, filename: file.name, building_type: bt,
-      parsedAt: new Date().toISOString(),
-      elements: result.elements || [], entities: result.entities || [],
-      findings_count: result.findings || 0, total_checks: result.total_checks || 0,
-      use_yolo: useYolo,
-      file_id: fileId, raw: result,
-    };
-    parsedDrawings.unshift(entry);
-    saveParsedDrawings();
-    renderDrawingList();
-    refreshReviewDrawingSelect();
-    loadDashboard();
-    // 停留在图纸管理页面，显示解析预览
-    const preview = document.getElementById('drawing-preview');
-    if (preview) {
-      preview.className = 'card';
-      document.getElementById('parse-result-json').textContent =
-        JSON.stringify(result, null, 2);
-    }
-  } catch (e) {
-    progress.innerHTML = '❌ 解析失败: ' + e.message;
-    progress.className = 'card mb-4 text-sm text-red-500';
-  }
-}
-
-function deleteDrawing(idx) {
-  const d = parsedDrawings[idx];
-  if (!d) return;
-  if (!confirm('确定删除图纸「' + d.filename + '」的解析记录？')) return;
-  parsedDrawings.splice(idx, 1);
-  saveParsedDrawings();
-  renderDrawingList();
-}
-
-function sendToReview(idx) {
-  const d = parsedDrawings[idx];
-  if (!d) return;
-  // 切换到AI审图页面并选中此图纸
-  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-  document.querySelector('[data-page="review"]').classList.add('active');
-  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  document.getElementById('page-review').classList.add('active');
-
-  const select = document.getElementById('review-drawing-select');
-  // 找到对应option并选中
-  for (let i = 0; i < select.options.length; i++) {
-    if (select.options[i].value === d.id) {
-      select.selectedIndex = i;
-      break;
-    }
-  }
-  onReviewDrawingSelect();
-}
-
-function refreshReviewDrawingSelect() {
-  const select = document.getElementById('review-drawing-select');
-  if (!select) return;
-  select.innerHTML = '<option value="">— 选择已解析图纸 —</option>';
-  parsedDrawings.forEach(d => {
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = d.filename + ' (' + (d.building_type === 'civil' ? '民用' : '工业') + ')';   
-    select.appendChild(opt);
-  });
-}
-
-function onReviewDrawingSelect() {
-  const select = document.getElementById('review-drawing-select');
-  const btn = document.getElementById('review-start-btn');
-  const info = document.getElementById('review-drawing-info');
-  const id = select.value;
-  if (!id) {
-    btn.disabled = true;
-    info.textContent = '';
-    return;
-  }
-  const d = parsedDrawings.find(p => p.id === id);
-  if (!d) {
-    btn.disabled = true;
-    info.textContent = '';
-    return;
-  }
-  btn.disabled = false;
-  info.textContent = '实体: ' + (d.elements?.length || 0) + '个 · 已解析: ' + new Date(d.parsedAt).toLocaleString();
-}
-
 // ── 审查记录 ──────────────────────────────────────────────
 function renderHistoryList() {
   const el = document.getElementById('history-list');
@@ -489,3 +148,226 @@ function closeCollabModal() { var el = document.getElementById('collab-modal-ove
 function setModalBody(html) { var el = document.getElementById('collab-modal-body'); if (el) { el.innerHTML = html; document.getElementById('collab-modal-overlay').style.display = 'flex'; } }
 
 function showCollabLogin() {
+  document.getElementById('collab-login-form').style.display = 'block';
+  document.getElementById('collab-register-form').style.display = 'none';
+  var btns = document.querySelectorAll('#collab-auth-tabs button');
+  btns[0].className = 'flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white';
+  btns[1].className = 'flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600';
+}
+
+function showCollabRegister() {
+  document.getElementById('collab-login-form').style.display = 'none';
+  document.getElementById('collab-register-form').style.display = 'block';
+  var btns = document.querySelectorAll('#collab-auth-tabs button');
+  btns[0].className = 'flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600';
+  btns[1].className = 'flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white';
+}
+
+function collabLogin() {
+  var u = document.getElementById('collab-username').value.trim();
+  var p = document.getElementById('collab-password').value;
+  if (!u || !p) { document.getElementById('collab-auth-msg').textContent = '请输入用户名和密码'; return; }
+  collabApi('/collab/auth/login', { method: 'POST', body: JSON.stringify({username: u, password: p}) }).then(function(d) {
+    if (d.status === 'success') {
+      collabToken = d.token; collabUser = d.user;
+      localStorage.setItem('baa_collab_token', collabToken);
+      localStorage.setItem('baa_collab_user', JSON.stringify(collabUser));
+      document.getElementById('collab-auth-msg').textContent = '';
+      collabEnterMain();
+    } else { document.getElementById('collab-auth-msg').textContent = d.detail || '登录失败'; }
+  });
+}
+
+function collabRegister() {
+  var u = document.getElementById('collab-reg-username').value.trim();
+  var p = document.getElementById('collab-reg-password').value;
+  var e = document.getElementById('collab-reg-email').value.trim();
+  var dn = document.getElementById('collab-reg-name').value.trim();
+  if (!u || !p) { document.getElementById('collab-reg-msg').textContent = '用户名和密码不能为空'; return; }
+  if (p.length < 6) { document.getElementById('collab-reg-msg').textContent = '密码至少6位'; return; }
+  var body = {username: u, password: p};
+  if (e) { body.email = e; body.display_name = dn; }
+  collabApi('/collab/auth/register', { method: 'POST', body: JSON.stringify(body) }).then(function(d) {
+    if (d.status === 'success') {
+      document.getElementById('collab-reg-msg').textContent = '注册成功，请登录';
+      document.getElementById('collab-reg-msg').style.color = '#059669';
+      showCollabLogin();
+      document.getElementById('collab-username').value = u;
+    } else { document.getElementById('collab-reg-msg').textContent = d.detail || '注册失败'; }
+  });
+}
+
+function collabLogout() {
+  collabToken = ''; collabUser = {};
+  localStorage.removeItem('baa_collab_token');
+  localStorage.removeItem('baa_collab_user');
+  document.getElementById('collab-main-section').style.display = 'none';
+  document.getElementById('collab-login-section').style.display = 'block';
+}
+
+function collabEnterMain() {
+  document.getElementById('collab-login-section').style.display = 'none';
+  document.getElementById('collab-main-section').style.display = 'block';
+  document.getElementById('collab-user-display').textContent = '👤 ' + (collabUser.display_name || collabUser.username);
+  collabRefresh();
+}
+
+function collabRefresh() { loadCollabStats(); loadCollabTeams(); }
+
+function loadCollabStats() {
+  collabApi('/collab/stats').then(function(d) {
+    if (d.status === 'success') {
+      document.getElementById('cs-users').textContent = d.stats.users;
+      document.getElementById('cs-teams').textContent = d.stats.teams;
+      document.getElementById('cs-projects').textContent = d.stats.active_projects;
+      document.getElementById('cs-sessions').textContent = d.stats.review_sessions;
+    }
+  });
+}
+
+function loadCollabTeams() {
+  collabApi('/collab/teams').then(function(d) {
+    var el = document.getElementById('collab-teams');
+    if (d.status !== 'success') { el.innerHTML = '\u52a0\u8f7d\u5931\u8d25'; return; }
+    if (!d.teams.length) { el.innerHTML = '\u6682\u65e0\u56e2\u961f'; return; }
+    var h = '<table class="collab-table"><tr><th>\u540d\u79f0</th><th>\u6210\u5458</th><th>\u89d2\u8272</th><th>\u65f6\u95f4</th><th>\u64cd\u4f5c</th></tr>';
+    for (var i = 0; i < d.teams.length; i++) {
+      var t = d.teams[i];
+      h += '<tr><td><strong>' + t.name + '</strong></td><td>' + t.member_count + '</td><td><span class="collab-badge collab-badge-' + t.my_role + '">' + t.my_role + '</span></td><td>' + new Date(t.created_at*1000).toLocaleDateString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showTeamDetail(&#39;' + t.id + '&#39;)">📋</button></td></tr>';
+    }
+    h += '</table>';
+    el.innerHTML = h;
+  });
+}
+
+function showCreateTeamModal() {
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u56e2\u961f</h3><input id="modal-team-name" class="input w-full mb-2" placeholder="\u56e2\u961f\u540d\u79f0" /><textarea id="modal-team-desc" class="input w-full mb-3" placeholder="\u63cf\u8ff0" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u53d6\u6d88</button><button class="modal-btn modal-btn-primary" onclick="createTeam()">\u521b\u5efa</button></div>');
+}
+
+function createTeam() {
+  var name = document.getElementById('modal-team-name').value.trim();
+  if (!name) return;
+  var desc = document.getElementById('modal-team-desc').value.trim();
+  collabApi('/collab/teams', { method: 'POST', body: JSON.stringify({name: name, description: desc}) }).then(function(d) {
+    if (d.status === 'success') { closeCollabModal(); collabRefresh(); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+  });
+}
+
+function showTeamDetail(teamId) {
+  Promise.all([collabApi('/collab/teams/' + teamId), collabApi('/collab/teams/' + teamId + '/projects')]).then(function(r) {
+    if (r[0].status !== 'success') return;
+    var team = r[0].team, projects = r[1].projects || [];
+    var mh = '<table class="collab-table"><tr><th>\u7528\u6237</th><th>\u89d2\u8272</th><th>\u65f6\u95f4</th></tr>';
+    for (var i = 0; i < team.members.length; i++) {
+      var m = team.members[i];
+      mh += '<tr><td>' + (m.display_name || m.username) + '</td><td><span class="collab-badge collab-badge-' + m.role + '">' + m.role + '</span></td><td>' + new Date(m.joined_at*1000).toLocaleDateString() + '</td></tr>';
+    }
+    mh += '</table>';
+    var ph = '';
+    if (projects.length === 0) { ph = '<p class="text-sm text-gray-400 py-2">\u6682\u65e0\u9879\u76ee</p>'; } else {
+      ph = '<table class="collab-table"><tr><th>\u9879\u76ee</th><th>\u56fe\u7eb8</th><th>\u5ba1\u67e5</th><th>\u72b6\u6001</th><th>\u64cd\u4f5c</th></tr>';
+      for (var i = 0; i < projects.length; i++) {
+        var p = projects[i];
+        ph += '<tr><td><strong>' + p.name + '</strong></td><td>' + p.file_count + '</td><td>' + p.review_count + '</td><td>' + p.status + '</td><td><button class="text-blue-600 text-xs underline" onclick="showProjectDetail(&#39;' + p.id + '&#39;)">📝</button></td></tr>';
+      }
+      ph += '</table>';
+    }
+    setModalBody('<h3 class="text-lg font-bold mb-4">\u56e2\u961f: ' + team.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458 (' + team.members.length + ')</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u9879\u76ee</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal(&#39;' + teamId + '&#39;)">+ \u65b0\u5efa\u9879\u76ee</button></div>' + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
+  });
+}
+
+function showCreateProjectModal(teamId) {
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u9879\u76ee</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="\u9879\u76ee\u540d\u79f0" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="\u5efa\u7b51\u7c7b\u578b" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail(&#39;' + teamId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createProject(&#39;' + teamId + '&#39;)">\u521b\u5efa</button></div>');
+}
+
+function createProject(teamId) {
+  var name = document.getElementById('modal-proj-name').value.trim();
+  if (!name) return;
+  var desc = document.getElementById('modal-proj-desc').value.trim();
+  var btype = document.getElementById('modal-proj-type').value.trim();
+  collabApi('/collab/projects', { method: 'POST', body: JSON.stringify({name: name, team_id: teamId, description: desc, building_type: btype}) }).then(function(d) {
+    if (d.status === 'success') { showTeamDetail(teamId); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+  });
+}
+
+function showProjectDetail(projectId) {
+  Promise.all([collabApi('/collab/projects/' + projectId), collabApi('/collab/projects/' + projectId + '/review-sessions')]).then(function(r) {
+    if (r[0].status !== 'success') return;
+    var proj = r[0].project, sessions = r[1].review_sessions || [];
+    var mh = '<table class="collab-table"><tr><th>\u7528\u6237</th><th>\u6743\u9650</th></tr>';
+    for (var i = 0; i < proj.members.length; i++) {
+      var m = proj.members[i];
+      mh += '<tr><td>' + (m.display_name || m.username) + '</td><td><span class="collab-badge">' + m.permission + '</span></td></tr>';
+    }
+    mh += '</table>';
+    var sh = '';
+    if (sessions.length === 0) { sh = '<p class="text-sm text-gray-400 py-2">\u6682\u65e0\u5ba1\u67e5\u4f1a\u8bdd</p>'; } else {
+      sh = '<table class="collab-table"><tr><th>\u540d\u79f0</th><th>\u72b6\u6001</th><th>\u521b\u5efa\u4eba</th><th>\u65f6\u95f4</th><th>\u64cd\u4f5c</th></tr>';
+      for (var i = 0; i < sessions.length; i++) {
+        var s = sessions[i];
+        sh += '<tr><td>' + s.name + '</td><td><span class="collab-badge collab-badge-' + s.status + '">' + s.status + '</span></td><td>' + (s.creator_name || '') + '</td><td>' + new Date(s.created_at*1000).toLocaleString() + '</td><td><button class="text-blue-600 text-xs underline" onclick="showReviewSessionDetail(&#39;' + s.id + '&#39;)">📝</button></td></tr>';
+      }
+      sh += '</table>';
+    }
+    setModalBody('<h3 class="text-lg font-bold mb-4">\u9879\u76ee: ' + proj.name + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u6210\u5458</h4>' + mh + '</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">\u5ba1\u67e5\u4f1a\u8bdd</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateReviewSessionModal(&#39;' + projectId + '&#39;)">+ \u65b0\u5efa\u5ba1\u67e5</button></div>' + sh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
+  });
+}
+
+function showCreateReviewSessionModal(projectId) {
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u5ba1\u67e5\u4f1a\u8bdd</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="\u540d\u79f0" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail(&#39;' + projectId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession(&#39;' + projectId + '&#39;)">\u521b\u5efa</button></div>');
+}
+
+function createReviewSession(projectId) {
+  var name = document.getElementById('modal-rs-name').value.trim();
+  if (!name) return;
+  var desc = document.getElementById('modal-rs-desc').value.trim();
+  collabApi('/collab/review-sessions', { method: 'POST', body: JSON.stringify({project_id: projectId, name: name, description: desc}) }).then(function(d) {
+    if (d.status === 'success') { showProjectDetail(projectId); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+  });
+}
+
+function showReviewSessionDetail(sessionId) {
+  Promise.all([
+    collabApi('/collab/review-sessions/' + sessionId),
+    collabApi('/collab/review-sessions/' + sessionId + '/comments'),
+    collabApi('/collab/review-sessions/' + sessionId + '/approval-flow')
+  ]).then(function(r) {
+    if (r[0].status !== 'success') return;
+    var rs = r[0].review_session, comments = r[1].comments || [], flow = r[2].approval_flow;
+    var statusBadge = '<span class="collab-badge collab-badge-' + rs.status + '">' + rs.status + '</span>';
+    var ch = '';
+    if (comments.length === 0) { ch = '<p class="text-sm text-gray-400 py-2">\u6682\u65e0\u8bc4\u8bba</p>'; } else {
+      for (var i = 0; i < comments.length; i++) {
+        var c = comments[i];
+        var icon = c.comment_type === 'issue' ? '\u26a0\ufe0f' : c.comment_type === 'suggestion' ? '\U0001f4a1' : c.comment_type === 'question' ? '\u2753' : '\u2705';
+        ch += '<div class="comment-box comment-' + c.comment_type + '"><div class="flex justify-between items-start"><span class="font-medium text-sm">' + icon + ' ' + (c.author_name || '') + '</span><span class="text-xs text-gray-400">' + new Date(c.created_at*1000).toLocaleString() + '</span></div><p class="text-sm mt-1">' + c.content + '</p>';
+        if (c.clause_ref) { ch += '<div class="text-xs text-gray-400 mt-1">\u2022 \u6761\u6b3e: ' + c.clause_ref + '</div>'; }
+        if (c.entity_ref) { ch += '<div class="text-xs text-gray-400">\u2022 \u5b9e\u4f53: ' + c.entity_ref + '</div>'; }
+        ch += '</div>';
+      }
+    }
+    var fh = '';
+    if (flow) {
+      fh = '<table class="collab-table"><tr><th>\u5e8f\u53f7</th><th>\u5ba1\u6279\u4eba</th><th>\u72b6\u6001</th><th>\u610f\u89c1</th><th>\u65f6\u95f4</th></tr>';
+      for (var i = 0; i < flow.steps.length; i++) {
+        var st = flow.steps[i];
+        var sb = '<span class="collab-badge collab-badge-' + st.status + '">' + st.status + '</span>';
+        fh += '<tr><td>' + st.order + '</td><td>' + (st.reviewer_name || '') + '</td><td>' + sb + '</td><td>' + (st.comment || '') + '</td><td>' + (st.acted_at ? new Date(st.acted_at*1000).toLocaleString() : '') + '</td></tr>';
+      }
+      fh += '</table>';
+    } else {
+      fh = '<p class="text-sm text-gray-400 py-2">\u6682\u65e0\u5ba1\u6279\u6d41\u7a0b</p>';
+    }
+    setModalBody('<h3 class="text-lg font-bold mb-4">\u5ba1\u67e5\u4f1a\u8bdd: ' + rs.name + ' ' + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">\u8bc4\u8bba</h4>' + ch + '</div><div><h4 class="font-medium mb-2">\u5ba1\u6279\u6d41\u7a0b</h4>' + fh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">\u5173\u95ed</button></div>');
+  });
+}
+
+// Auto-login if token exists
+if (collabToken) {
+  setTimeout(function() {
+    var page = document.getElementById('page-collab');
+    if (page && page.classList.contains('active')) {
+      collabEnterMain();
+    }
+  }, 500);
+}
