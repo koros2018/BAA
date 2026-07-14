@@ -437,6 +437,12 @@ class MultiRoomEngine:
             lines.extend(self._text(
                 "CORRIDOR", cx, cy, 250, "TEXT"))
 
+        # 5. 疏散路径标注（箭头线从房间门→走廊→出口方向）
+        # 在 EVAC 层绘制疏散箭头线，用于正向解析识别疏散路径
+        evac_lines = self._build_evacuation_paths(layout)
+        for el in evac_lines:
+            lines.extend(el)
+
         lines.append("0")
         lines.append("ENDSEC")
         lines.append("0")
@@ -446,6 +452,71 @@ class MultiRoomEngine:
         with open(output_path, "w") as f:
             f.write(dxf_content)
         return output_path
+
+    def _build_evacuation_paths(self, layout: MultiRoomLayout) -> list:
+        """
+        生成疏散路径箭头线（EVAC 层）。
+        
+        每个房间生成两条路径段：
+        1. 从房间门中心点到走廊中心
+        2. 从走廊中心沿走廊方向到出口（走廊右端或左端）
+        
+        路径段用带箭头的 LINE 表示，被正向解析识别为疏散路径。
+        """
+        evac_paths = []
+        
+        if not layout.corridor:
+            return evac_paths
+        
+        corridor_cx = layout.corridor.x_mm + layout.corridor.width_mm / 2
+        corridor_cy = layout.corridor.y_mm + layout.corridor.height_mm / 2
+        
+        # 出口方向：走廊右端（假设安全出口在右侧）
+        exit_x = layout.corridor.x_mm + layout.corridor.width_mm
+        exit_y = corridor_cy
+        
+        for room in layout.rooms:
+            # 房间门中心点
+            if room.door_side in ("top", "bottom"):
+                door_cx = room.door_x_mm + room.width_mm * 0.075  # 门宽一半
+                door_cy = room.y_mm + (room.height_mm if room.door_side == "top" else 0)
+            else:
+                door_cx = room.x_mm + (room.width_mm if room.door_side == "right" else 0)
+                door_cy = room.door_x_mm + room.height_mm * 0.075
+            
+            # 段1: 门中心 → 走廊中心
+            # 中间点：从门垂直延伸到走廊边缘
+            if room.door_side == "bottom":
+                mid_y = layout.corridor.y_mm
+                mid_x = door_cx
+                evac_paths.append(self._evac_line(door_cx, door_cy, mid_x, mid_y))
+                evac_paths.append(self._evac_line(mid_x, mid_y, corridor_cx, corridor_cy))
+            elif room.door_side == "top":
+                mid_y = layout.corridor.y_mm + layout.corridor.height_mm
+                mid_x = door_cx
+                evac_paths.append(self._evac_line(door_cx, door_cy, mid_x, mid_y))
+                evac_paths.append(self._evac_line(mid_x, mid_y, corridor_cx, corridor_cy))
+            else:
+                # 侧边门，直接连接到走廊中心
+                evac_paths.append(self._evac_line(door_cx, door_cy, corridor_cx, corridor_cy))
+            
+            # 段2: 走廊中心 → 出口方向
+            evac_paths.append(self._evac_line(corridor_cx, corridor_cy, exit_x, exit_y))
+        
+        return evac_paths
+
+    def _evac_line(self, x1, y1, x2, y2):
+        """疏散路径 LINE（EVAC 层），带箭头指示"""
+        return [
+            "0", "LINE",
+            "8", "EVAC",
+            "10", str(x1),
+            "20", str(y1),
+            "30", "0",
+            "11", str(x2),
+            "21", str(y2),
+            "31", "0",
+        ]
 
     def _draw_room(self, room: RoomPlacement, lines: list):
         """绘制单个房间：轮廓 + 门线 + 门弧"""
