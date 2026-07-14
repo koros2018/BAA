@@ -155,13 +155,79 @@ async function updateFunction(funcId) {
 
 // ── P58 多房间布局生成 ──
 
+// 反向重构 Tab 切换
+function switchRevTab(tab) {
+    const singlePanel = document.getElementById('rev-single-panel');
+    const multiPanel = document.getElementById('rev-multi-panel');
+    const tabSingle = document.getElementById('rev-tab-single');
+    const tabMulti = document.getElementById('rev-tab-multi');
+    const result = document.getElementById('reverse-result');
+    const err = document.getElementById('reverse-error');
+    
+    if (tab === 'multi') {
+        singlePanel.classList.add('hidden');
+        multiPanel.classList.remove('hidden');
+        tabSingle.classList.remove('bg-white', 'shadow-sm', 'font-medium');
+        tabSingle.classList.add('text-gray-600');
+        tabMulti.classList.add('bg-white', 'shadow-sm', 'font-medium');
+        tabMulti.classList.remove('text-gray-600');
+        // 初始化多房间表单
+        initMultiRooms();
+    } else {
+        singlePanel.classList.remove('hidden');
+        multiPanel.classList.add('hidden');
+        tabSingle.classList.add('bg-white', 'shadow-sm', 'font-medium');
+        tabSingle.classList.remove('text-gray-600');
+        tabMulti.classList.remove('bg-white', 'shadow-sm', 'font-medium');
+        tabMulti.classList.add('text-gray-600');
+    }
+    // 隐藏旧结果
+    result.classList.add('hidden');
+    err.classList.add('hidden');
+}
+
+// 初始化多房间表单（默认3个房间）
+function initMultiRooms() {
+    const list = document.getElementById('multi-room-list');
+    if (!list || list.children.length > 0) return; // 已初始化
+    addMultiRoom('office', 5000, 4000, 900);
+    addMultiRoom('equipment', 3000, 3000, 900);
+    addMultiRoom('accessible_toilet', 2500, 2500, 900);
+}
+
+// 添加一个房间行
+function addMultiRoom(type, width, height, doorWidth) {
+    const list = document.getElementById('multi-room-list');
+    if (!list) return;
+    const idx = list.children.length;
+    const div = document.createElement('div');
+    div.className = 'multi-room-row flex items-center gap-2 mb-2 p-2 border rounded-lg bg-gray-50';
+    div.innerHTML = `
+        <select class="multi-room-type input text-sm w-28">
+            <option value="office" ${type === 'office' ? 'selected' : ''}>办公室</option>
+            <option value="stair" ${type === 'stair' ? 'selected' : ''}>楼梯间</option>
+            <option value="corridor" ${type === 'corridor' ? 'selected' : ''}>走廊</option>
+            <option value="exit" ${type === 'exit' ? 'selected' : ''}>安全出口</option>
+            <option value="fire_lobby" ${type === 'fire_lobby' ? 'selected' : ''}>前室</option>
+            <option value="equipment" ${type === 'equipment' ? 'selected' : ''}>设备间</option>
+            <option value="accessible_toilet" ${type === 'accessible_toilet' ? 'selected' : ''}>无障碍卫生间</option>
+        </select>
+        <input class="multi-room-width input text-sm w-20" value="${width || 5000}" placeholder="宽" />
+        <input class="multi-room-height input text-sm w-20" value="${height || 4000}" placeholder="高" />
+        <input class="multi-room-door-width input text-sm w-20" value="${doorWidth || ''}" placeholder="门宽" />
+        <span class="text-xs text-gray-400 w-16">mm</span>
+        <button class="text-red-500 hover:text-red-700 text-sm" onclick="this.closest('.multi-room-row').remove()">✕</button>
+    `;
+    list.appendChild(div);
+}
+
 async function generateMultiReverse() {
-    const result = document.getElementById('multi-reverse-result');
-    const err = document.getElementById('multi-reverse-error');
+    const result = document.getElementById('reverse-result');
+    const err = document.getElementById('reverse-error');
     if (!result) return;
-    const layoutDiv = document.getElementById('multi-reverse-layout');
-    const dxfPre = document.getElementById('multi-reverse-dxf');
-    const validationDiv = document.getElementById('multi-reverse-validation');
+    const layoutDiv = document.getElementById('reverse-layout');
+    const dxfPre = document.getElementById('reverse-dxf');
+    const validationDiv = document.getElementById('reverse-validation');
     result.classList.add('hidden');
     err.classList.add('hidden');
 
