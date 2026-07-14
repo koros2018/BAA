@@ -104,6 +104,7 @@ class YOLODetectionIntegrator:
             # 优先级：v3 > v2 > v2-3 > v1，越新版本检测精度越高
             project_root = Path(__file__).resolve().parent.parent.parent  # project_root: 赋值
             candidates = [
+                project_root / "runs" / "detect" / "runs" / "train" / "baa_yolov8n_v4" / "weights" / "best.pt",
                 project_root / "data" / "models" / "baa_yolov8n_v3" / "weights" / "best.pt",
                 project_root / "data" / "models" / "baa_yolov8n_v2" / "weights" / "best.pt",
                 project_root
