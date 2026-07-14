@@ -1,0 +1,39 @@
+name: Real Drawing Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ezdxf
+          
+      - name: Run real drawing audit
+        run: python3 scripts/real_drawing_audit.py
+        
+      - name: Check audit report
+        run: |
+          python3 -c "
+import json
+with open('data/real_drawing_audit_report.json') as f:
+    report = json.load(f)
+total_fail = sum(d.get('fail_count', 0) for d in report)
+print(f'Total FAIL: {total_fail}')
+assert total_fail == 0, f'Audit FAIL count: {total_fail}'
+print('✅ Audit passed: 0 FAIL')
+"
