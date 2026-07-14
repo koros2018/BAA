@@ -3387,7 +3387,7 @@ async def collab_register(body: dict):
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"密码长度至少6位"})
     result, msg = cm.register_user(username, password, email, display_name)
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "user": result, "token": result.get("token", ""), "message": msg}
 
 
@@ -3400,7 +3400,7 @@ async def collab_login(body: dict):
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"用户名和密码不能为空"})
     result, msg = cm.login_user(username, password)
     if not result:
-        raise HTTPException(status_code=401, detail={status: error, error_code: AUTH_FAILED, message: msg})
+        raise HTTPException(status_code=401, detail={"status": "error", "error_code": "AUTH_FAILED", "message": msg})
     return {"status": "success", "user": result, "token": result.get("token", "")}
 
 
@@ -3418,7 +3418,7 @@ async def collab_update_me(body: dict, user_id: str = Depends(verify_collab_toke
     cm = get_collab_manager()
     result, msg = cm.update_user(user_id, body)
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "user": result}
 
 
@@ -3441,7 +3441,7 @@ async def collab_create_team(body: dict, user_id: str = Depends(verify_collab_to
         name, user_id, body.get("description", ""), body.get("is_public", False)
     )
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "team": result}
 
 
@@ -3472,7 +3472,7 @@ async def collab_add_team_member(
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"user_id 不能为空"})
     result, msg = cm.add_team_member(team_id, user_id, target_user_id, role)
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "member": result}
 
 
@@ -3483,7 +3483,7 @@ async def collab_remove_team_member(
     cm = get_collab_manager()
     ok, msg = cm.remove_team_member(team_id, user_id, target_id)
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3502,7 +3502,7 @@ async def collab_create_project(body: dict, user_id: str = Depends(verify_collab
         building_area=body.get("building_area", 0.0),
     )
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "project": result}
 
 
@@ -3533,7 +3533,7 @@ async def collab_add_project_member(
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"user_id 不能为空"})
     result, msg = cm.add_project_member(project_id, user_id, target_id, permission)
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "member": result}
 
 
@@ -3547,7 +3547,7 @@ async def collab_update_project_member(
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"permission 不能为空"})
     ok, msg = cm.update_project_member_permission(project_id, user_id, target_id, permission)
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3558,7 +3558,7 @@ async def collab_remove_project_member(
     cm = get_collab_manager()
     ok, msg = cm.remove_project_member(project_id, user_id, target_id)
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3583,7 +3583,7 @@ async def collab_create_review_session(body: dict, user_id: str = Depends(verify
         file_ids=body.get("file_ids"),
     )
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "review_session": result}
 
 
@@ -3613,7 +3613,7 @@ async def collab_update_review_session_status(
         raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"status 不能为空"})
     ok, msg = cm.update_review_session_status(session_id, user_id, status)
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3636,7 +3636,7 @@ async def collab_add_comment(
         severity=body.get("severity", "info"),
     )
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "comment": result}
 
 
@@ -3654,7 +3654,7 @@ async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_
     cm = get_collab_manager()
     ok, msg = cm.resolve_comment(comment_id, user_id)
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3670,7 +3670,7 @@ async def collab_create_approval_flow(
         session_id, user_id, name=body.get("name", "标准审批"), assignee_ids=assignee_ids
     )
     if not result:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success", "approval_flow": result}
 
 
@@ -3690,7 +3690,7 @@ async def collab_approve_step(
     cm = get_collab_manager()
     ok, msg = cm.approve_step(step_id, user_id, body.get("comment", ""))
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
@@ -3699,7 +3699,7 @@ async def collab_reject_step(step_id: str, body: dict, user_id: str = Depends(ve
     cm = get_collab_manager()
     ok, msg = cm.reject_step(step_id, user_id, body.get("comment", ""))
     if not ok:
-        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
+        raise HTTPException(status_code=400, detail={"status": "error", "error_code": "OPERATION_FAILED", "message": msg})
     return {"status": "success"}
 
 
