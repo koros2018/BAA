@@ -14,18 +14,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖清单
+# 复制依赖清单和 YOLO 配置
 COPY requirements.txt pyproject.toml ./
 
 # 安装所有依赖到 /install
 RUN pip install --user --no-cache-dir -r requirements.txt
+
+# 预下载 YOLOv8n 权重（避免运行时首次下载慢）
+RUN python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt', download=False)" 2>/dev/null || \
+    python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
 
 # ── 第二阶段：运行环境 ────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="BAA - Blueprint AI Agent"
 LABEL org.opencontainers.image.description="图纸合规智能体 - DXF/DWG 图纸 AI 审查系统"
-LABEL org.opencontainers.image.version="1.10.0"
+LABEL org.opencontainers.image.version="2.5.4"
 LABEL org.opencontainers.image.source="https://github.com/koros2018/BAA"
 
 # 系统运行依赖（ezdwg/ezdxf 需要）
@@ -54,9 +58,7 @@ RUN rm -rf \
     .gitignore \
     .env.example \
     conftest.py \
-    scripts/ \
-    docs/ \
-    data/logs/
+    scripts/
 
 # 创建数据目录（卷挂载点）
 RUN mkdir -p /app/data/files /app/data/models /app/data/logs /app/data/specs
@@ -67,20 +69,21 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # 环境变量（运行时可通过 -e 覆盖）
 ENV BAA_PORT=8000
-ENV BAA_WORKERS=4
+ENV BAA_WORKERS=2
 ENV BAA_DATA_DIR=/app/data
-ENV BAA_API_KEY=
+ENV BAA_API_KEY=***
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
 EXPOSE 8000
 
 # 生产启动：Gunicorn + Uvicorn Worker
-ENTRYPOINT ["gunicorn", "src.api.baa_api:app", \
-    "-k", "uvicorn.workers.UvicornWorker", \
-    "--bind", "0.0.0.0:8000", \
-    "--timeout", "120", \
-    "--max-requests", "10000", \
-    "--access-logfile", "-", \
-    "--error-logfile", "-", \
-    "--preload"]
+ENTRYPOINT ["sh", "-c", "gunicorn src.api.baa_api:app \
+    -k uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:${BAA_PORT:-8000} \
+    --timeout 120 \
+    --max-requests 10000 \
+    --workers ${BAA_WORKERS:-2} \
+    --access-logfile - \
+    --error-logfile - \
+    --preload"]
