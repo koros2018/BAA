@@ -88,23 +88,19 @@ document.addEventListener('DOMContentLoaded', () => {
   initAdminToken();  // 初始化密钥管理页专用管理令牌
   loadApiKeys();
   populateTokenSelect();
-  loadParsedDrawings();
-  renderDrawingList();
-  refreshReviewDrawingSelect();
-  loadReviewResults();
-  loadDashboard();
-  loadSpecs();
 
   // API地址变更时自动保存
   document.getElementById('api-base')?.addEventListener('change', saveApiBase);
 
-  // 引擎状态
+  // 引擎状态（概览页用）
   try {
-    const health = JSON.parse(document.getElementById('health-status').textContent || '{}');
-    const specCount = SPEC_DATA.length;
+    const healthEl = document.getElementById('health-status');
+    if (healthEl) {
+      const health = JSON.parse(healthEl.textContent || '{}');
+    }
     document.getElementById('engine-status').innerHTML =
       '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
-      '<div class="flex justify-between"><span>规范库</span><span>' + specCount + '条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>30条 (10L1+10L2+11L3)</span></div>' +
       '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
       '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
   } catch(e) {
