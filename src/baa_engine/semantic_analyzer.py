@@ -1109,6 +1109,10 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             if area < 1000000 or area > 500000000:  # check: numeric comparison
                 continue  # code
 
+            # bbox
+            xs = [p[0] for p in pts]  # assign: membership check
+            ys = [p[1] for p in pts]  # assign: membership check
+
             # 宽高比过滤：极端长条形不是房间
             bw = max(xs) - min(xs)  # assign
             bh = max(ys) - min(ys)  # assign
@@ -1117,9 +1121,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 if aspect > 8.0:  # 宽高比 > 8:1 不是房间（走廊/管道/线槽）
                     continue  # code
 
-            # bbox
-            xs = [p[0] for p in pts]  # assign: membership check
-            ys = [p[1] for p in pts]  # assign: membership check
+            # bbox dict
             bbox = {
                 "x": min(xs),
                 "y": min(ys),
@@ -1436,7 +1438,12 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "accessible_toilet"
             if "无障碍电梯" in text or "ACCESSIBLE_ELEV" in text_upper:
                 return "accessible_elevator"
-            if "无障碍出入口" in text or "ACCESSIBLE_DOOR" in text_upper or "残疾人入口" in text or "无障碍入口" in text:
+            if (
+                "无障碍出入口" in text
+                or "ACCESSIBLE_DOOR" in text_upper
+                or "残疾人入口" in text
+                or "无障碍入口" in text
+            ):
                 return "accessible_door"
             if "轮椅" in text or "WHEELCHAIR" in text_upper:
                 return "wheelchair_space"
@@ -2008,17 +2015,17 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         # 关键实体类型：room/corridor/door/exit/stair/fire_door/exit_door + wall
         # wall 必须包含：room↔wall adjacent 是 step 5 (room-wall-door 传递) 的基础
         KEY_ENTITY_TYPES = {"room", "corridor", "door", "exit", "stair", "fire_door", "exit_door"}
-        
+
         CELL_SIZE = 100.0  # mm
         grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
-        
+
         # 选择需要构建相邻关系的实体
         if n_entities <= 2000:
             adj_candidates = list(enumerate(entities))
         else:
             # 大图纸：只对关键实体构建相邻关系
             adj_candidates = [(i, e) for i, e in enumerate(entities) if e.type in KEY_ENTITY_TYPES]
-        
+
         for idx, e in adj_candidates:
             bx = e.bbox.get("x", 0)
             by = e.bbox.get("y", 0)
