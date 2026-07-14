@@ -1,0 +1,54 @@
+    <!-- ===== 协作 ===== -->
+    <div class="page" id="page-collab">
+      <div id="collab-login-section">
+        <div style="max-width:400px;margin:40px auto;text-align:center">
+          <h2 class="text-xl font-bold mb-4">&#x1F465; 团队协作</h2>
+          <div id="collab-auth-card" class="card p-5">
+            <div class="flex gap-2 mb-4" id="collab-auth-tabs">
+              <button class="flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white" onclick="showCollabLogin()">登录</button>
+              <button class="flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600" onclick="showCollabRegister()">注册</button>
+            </div>
+            <div id="collab-login-form">
+              <form onsubmit="collabLogin();return false">
+                <input id="collab-username" class="input w-full mb-2" placeholder="用户名" />
+                <input id="collab-password" type="password" class="input w-full mb-2" placeholder="密码" />
+                <button class="btn-primary w-full" type="submit">登录</button>
+                <p id="collab-auth-msg" class="text-xs mt-2 text-red-500"></p>
+              </form>
+            </div>
+            <div id="collab-register-form" style="display:none">
+              <form onsubmit="collabRegister();return false">
+                <input id="collab-reg-username" class="input w-full mb-2" placeholder="用户名" />
+                <input id="collab-reg-password" type="password" class="input w-full mb-2" placeholder="密码（至少6位）" />
+                <input id="collab-reg-email" class="input w-full mb-2" placeholder="邮箱（可选）" />
+                <input id="collab-reg-name" class="input w-full mb-2" placeholder="显示名称（可选）" />
+                <button class="btn-primary w-full" type="submit">注册</button>
+                <p id="collab-reg-msg" class="text-xs mt-2 text-red-500"></p>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="collab-main-section" style="display:none">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">&#x1F465; 团队协作</h2>
+          <div class="flex items-center gap-3">
+            <span id="collab-user-display" class="text-sm text-gray-600"></span>
+            <button class="px-3 py-1.5 text-sm bg-gray-100 rounded hover:bg-gray-200" onclick="collabLogout()">退出</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-4 mb-4" id="collab-stats">
+          <div class="stat-card">&#x1F464;<div><p class="text-2xl font-bold" id="cs-users">-</p><p class="text-xs text-gray-400">用户</p></div></div>
+          <div class="stat-card">&#x1F3E2;<div><p class="text-2xl font-bold" id="cs-teams">-</p><p class="text-xs text-gray-400">团队</p></div></div>
+          <div class="stat-card">&#x1F4C1;<div><p class="text-2xl font-bold" id="cs-projects">-</p><p class="text-xs text-gray-400">活跃项目</p></div></div>
+          <div class="stat-card">&#x1F4CB;<div><p class="text-2xl font-bold" id="cs-sessions">-</p><p class="text-xs text-gray-400">审查会话</p></div></div>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <button class="btn-primary" onclick="showCreateTeamModal()">+ 新建团队</button>
+          <button class="px-4 py-2 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50" onclick="collabRefresh()">&#x1F504; 刷新</button>
+        </div>
+        <div id="collab-content">
+          <div class="card mb-4"><h3 class="font-medium mb-3">我的团队</h3><div id="collab-teams" class="text-sm text-gray-400">加载中...</div></div>
+        </div>
+      </div>
+    </div>

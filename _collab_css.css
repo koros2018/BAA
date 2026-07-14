@@ -1,0 +1,25 @@
+.modal-btn { padding:0.5rem 1rem; border-radius:0.375rem; font-size:0.875rem; cursor:pointer; transition:all 0.15s; }
+.modal-btn-primary { background:#2563eb; color:white; border:none; }
+.modal-btn-primary:hover { background:#1d4ed8; }
+.modal-btn-secondary { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
+.modal-btn-secondary:hover { background:#e5e7eb; }
+.modal-btn-danger { background:#ef4444; color:white; border:none; }
+.modal-btn-danger:hover { background:#dc2626; }
+.collab-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+.collab-table th { text-align:left; padding:0.5rem 0.75rem; background:#f9fafb; border-bottom:1px solid #e5e7eb; font-weight:500; color:#6b7280; }
+.collab-table td { padding:0.5rem 0.75rem; border-bottom:1px solid #f3f4f6; }
+.collab-table tr:hover td { background:#f9fafb; }
+.collab-badge { display:inline-block; padding:0.125rem 0.5rem; border-radius:9999px; font-size:0.75rem; font-weight:500; }
+.collab-badge-owner { background:#fef3c7; color:#92400e; }
+.collab-badge-manager { background:#dbeafe; color:#1e40af; }
+.collab-badge-member { background:#e0e7ff; color:#3730a3; }
+.collab-badge-guest { background:#f3f4f6; color:#6b7280; }
+.collab-badge-pending { background:#fef3c7; color:#92400e; }
+.collab-badge-approved { background:#d1fae5; color:#065f46; }
+.collab-badge-rejected { background:#fee2e2; color:#991b1b; }
+.collab-badge-draft { background:#f3f4f6; color:#6b7280; }
+.comment-box { border-left:3px solid #3b82f6; padding:0.75rem; margin-bottom:0.5rem; background:#f9fafb; border-radius:0 0.375rem 0.375rem 0; }
+.comment-issue { border-left-color:#ef4444; }
+.comment-suggestion { border-left-color:#f59e0b; }
+.comment-question { border-left-color:#8b5cf6; }
+.comment-approval { border-left-color:#10b981; }
