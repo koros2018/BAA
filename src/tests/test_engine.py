@@ -48,8 +48,8 @@ class TestFuncRegistry:  # class definition
     def test_initial_count(self):  # function: def test_initial_count(self):
         """注册表初始数量：30 INITIAL + 4 EVAC"""
         registry = FuncRegistry()  # function call
-        assert registry.count == 119  # 断言（103 + 16 GB50974 P57扩展2026-07-14）
-        assert registry.capacity == 120  # 框架总容量
+        assert registry.count == 135  # 断言（119 + 16 P57扩展2026-07-14：GB50974剩余8条+GB50763无障碍8条）
+        assert registry.capacity == 136  # 框架总容量
 
     def test_get_by_id(self):  # function: def test_get_by_id(self):
         registry = FuncRegistry()  # function call
@@ -72,7 +72,7 @@ class TestFuncRegistry:  # class definition
         """列表包含所有已注册函数"""
         registry = FuncRegistry()  # function call
         all_funcs = registry.list_all()  # check all true
-        assert len(all_funcs) == 119  # P57 扩展后总数（103 + 16 GB50974）
+        assert len(all_funcs) == 135  # P57 扩展后总数（119 + 16 GB50974剩余条款+GB50763无障碍细则）
         categories = set(f.category for f in all_funcs)  # function call
         for cat in [
             FuncCategory.DIMENSION,

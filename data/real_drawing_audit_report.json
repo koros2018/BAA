@@ -150,18 +150,18 @@
     "primitive_count": 61834,
     "entity_count": 7523,
     "entity_types": {
-      "other": 4794,
-      "door": 1146,
+      "other": 4855,
+      "door": 1118,
       "window": 627,
-      "wall": 226,
+      "wall": 204,
       "sprinkler": 195,
       "text": 153,
       "dimension": 129,
       "fire_equipment": 96,
       "fire_extinguisher": 62,
-      "column": 56,
+      "column": 48,
       "fire_hydrant": 25,
-      "room": 10,
+      "room": 7,
       "handrail": 3,
       "fire_alarm": 1
     },
@@ -181,16 +181,6 @@
         "PASS": 3,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 10,
-        "PASS": 10,
-        "FAIL": 0
-      },
-      "DIM-008": {
-        "total": 6,
-        "PASS": 6,
-        "FAIL": 0
-      },
       "EXIST-013": {
         "total": 25,
         "PASS": 25,
@@ -201,83 +191,93 @@
         "PASS": 6,
         "FAIL": 1
       },
+      "DIST-001": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      },
       "EVAC-001": {
-        "total": 4,
-        "PASS": 3,
+        "total": 3,
+        "PASS": 2,
         "FAIL": 1
       },
       "EVAC-003": {
-        "total": 4,
-        "PASS": 4,
-        "FAIL": 0
-      },
-      "EVAC-004": {
-        "total": 4,
-        "PASS": 2,
-        "FAIL": 2
-      },
-      "EVAC-002": {
         "total": 3,
         "PASS": 3,
         "FAIL": 0
+      },
+      "EVAC-004": {
+        "total": 3,
+        "PASS": 1,
+        "FAIL": 2
       },
       "EXIST-006": {
         "total": 1,
         "PASS": 1,
         "FAIL": 0
+      },
+      "DIM-008": {
+        "total": 4,
+        "PASS": 4,
+        "FAIL": 0
+      },
+      "EVAC-002": {
+        "total": 2,
+        "PASS": 2,
+        "FAIL": 0
       }
     },
-    "total_findings": 386
+    "total_findings": 377
   },
   {
     "file": "A1云计算中心平面图0405_t3.dxf",
     "success": true,
     "primitive_count": 23652,
-    "entity_count": 9880,
+    "entity_count": 9887,
     "entity_types": {
-      "other": 4757,
-      "wall": 2316,
+      "other": 4841,
+      "wall": 2272,
       "dimension": 1285,
       "window": 777,
       "stair": 401,
       "text": 126,
-      "door": 79,
-      "column": 69,
-      "room": 47,
+      "door": 78,
+      "column": 65,
+      "room": 19,
       "parking_space": 17,
       "fire_hydrant": 3,
       "handrail": 3
     },
     "func_summary": {
-      "DIST-001": {
-        "total": 47,
-        "PASS": 45,
-        "FAIL": 2
-      },
-      "DIM-008": {
-        "total": 75,
-        "PASS": 75,
-        "FAIL": 0
-      },
       "EXIST-001": {
         "total": 401,
         "PASS": 401,
         "FAIL": 0
       },
+      "DIST-001": {
+        "total": 19,
+        "PASS": 18,
+        "FAIL": 1
+      },
+      "DIM-008": {
+        "total": 62,
+        "PASS": 62,
+        "FAIL": 0
+      },
       "EVAC-001": {
-        "total": 21,
-        "PASS": 4,
-        "FAIL": 17
+        "total": 6,
+        "PASS": 2,
+        "FAIL": 4
       },
       "EVAC-003": {
-        "total": 21,
-        "PASS": 21,
+        "total": 6,
+        "PASS": 6,
         "FAIL": 0
       },
       "EVAC-004": {
-        "total": 21,
+        "total": 6,
         "PASS": 2,
-        "FAIL": 19
+        "FAIL": 4
       },
       "DIM-005": {
         "total": 49,
@@ -310,8 +310,8 @@
         "FAIL": 0
       },
       "EVAC-002": {
-        "total": 4,
-        "PASS": 4,
+        "total": 2,
+        "PASS": 2,
         "FAIL": 0
       },
       "ACCESS-005": {
@@ -320,7 +320,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 723
+    "total_findings": 635
   },
   {
     "file": "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf",
@@ -328,8 +328,8 @@
     "primitive_count": 30729,
     "entity_count": 9252,
     "entity_types": {
-      "other": 4915,
-      "wall": 3328,
+      "other": 4918,
+      "wall": 3325,
       "window": 416,
       "dimension": 239,
       "stair": 160,
@@ -409,14 +409,14 @@
     "file": "中原人工智能计算中心总图-0409_t3.dxf",
     "success": true,
     "primitive_count": 1199,
-    "entity_count": 1139,
+    "entity_count": 1138,
     "entity_types": {
-      "other": 443,
+      "other": 466,
       "wall": 295,
       "dimension": 190,
-      "column": 86,
+      "column": 64,
       "window": 44,
-      "door": 26,
+      "door": 24,
       "text": 22,
       "stair": 19,
       "parking_space": 10,
@@ -435,16 +435,16 @@
     "file": "2.1电气170825-报审.dxf",
     "success": true,
     "primitive_count": 10227,
-    "entity_count": 9878,
+    "entity_count": 9872,
     "entity_types": {
       "text": 4451,
-      "wall": 1801,
-      "other": 1458,
+      "wall": 1886,
+      "other": 1605,
       "dimension": 831,
       "equipment": 803,
-      "room": 265,
       "column": 116,
       "door": 96,
+      "room": 27,
       "fire_alarm": 24,
       "fire_extinguisher": 8,
       "evacuation_lighting": 7,
@@ -461,13 +461,13 @@
         "FAIL": 0
       },
       "DIST-001": {
-        "total": 265,
-        "PASS": 264,
-        "FAIL": 1
+        "total": 27,
+        "PASS": 27,
+        "FAIL": 0
       },
       "DIM-008": {
-        "total": 248,
-        "PASS": 248,
+        "total": 27,
+        "PASS": 27,
         "FAIL": 0
       },
       "EXIST-005": {
@@ -479,21 +479,6 @@
         "total": 6,
         "PASS": 6,
         "FAIL": 0
-      },
-      "EVAC-001": {
-        "total": 17,
-        "PASS": 0,
-        "FAIL": 17
-      },
-      "EVAC-003": {
-        "total": 17,
-        "PASS": 17,
-        "FAIL": 0
-      },
-      "EVAC-004": {
-        "total": 17,
-        "PASS": 0,
-        "FAIL": 17
       },
       "DIM-006": {
         "total": 9,
@@ -511,7 +496,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 631
+    "total_findings": 121
   },
   {
     "file": "4.通风BS170826.dxf",
@@ -519,37 +504,17 @@
     "primitive_count": 46361,
     "entity_count": 7287,
     "entity_types": {
-      "other": 5037,
+      "other": 5068,
       "window": 682,
-      "door": 663,
+      "door": 646,
       "wall": 390,
       "dimension": 319,
       "text": 144,
-      "column": 30,
+      "column": 18,
       "equipment": 16,
-      "room": 6
+      "room": 4
     },
     "func_summary": {
-      "DIST-001": {
-        "total": 6,
-        "PASS": 6,
-        "FAIL": 0
-      },
-      "EVAC-001": {
-        "total": 3,
-        "PASS": 0,
-        "FAIL": 3
-      },
-      "EVAC-003": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
-      "EVAC-004": {
-        "total": 3,
-        "PASS": 0,
-        "FAIL": 3
-      },
       "DIM-006": {
         "total": 9,
         "PASS": 8,
@@ -560,13 +525,33 @@
         "PASS": 19,
         "FAIL": 0
       },
+      "DIST-001": {
+        "total": 4,
+        "PASS": 4,
+        "FAIL": 0
+      },
       "DIM-008": {
         "total": 3,
         "PASS": 3,
         "FAIL": 0
+      },
+      "EVAC-001": {
+        "total": 1,
+        "PASS": 0,
+        "FAIL": 1
+      },
+      "EVAC-003": {
+        "total": 1,
+        "PASS": 1,
+        "FAIL": 0
+      },
+      "EVAC-004": {
+        "total": 1,
+        "PASS": 0,
+        "FAIL": 1
       }
     },
-    "total_findings": 46
+    "total_findings": 38
   },
   {
     "file": "6.火灾自动报警 （报审）_t3.dxf",
@@ -575,7 +560,7 @@
     "entity_count": 9979,
     "entity_types": {
       "equipment": 4663,
-      "other": 3071,
+      "other": 3080,
       "dimension": 944,
       "wall": 711,
       "door": 235,
@@ -584,11 +569,11 @@
       "fire_hydrant": 68,
       "column": 36,
       "fire_alarm": 20,
-      "room": 15,
       "fire_extinguisher": 14,
       "sprinkler": 12,
       "smoke_detector": 10,
       "fire_door": 9,
+      "room": 6,
       "water_reservoir": 3,
       "alarm_device": 2,
       "fire_equipment": 2,
@@ -620,16 +605,6 @@
         "PASS": 30,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 15,
-        "PASS": 15,
-        "FAIL": 0
-      },
-      "DIM-008": {
-        "total": 14,
-        "PASS": 14,
-        "FAIL": 0
-      },
       "DIM-006": {
         "total": 11,
         "PASS": 11,
@@ -645,23 +620,18 @@
         "PASS": 1,
         "FAIL": 0
       },
-      "EVAC-001": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      },
-      "EVAC-003": {
-        "total": 1,
-        "PASS": 1,
+      "DIST-001": {
+        "total": 6,
+        "PASS": 6,
         "FAIL": 0
       },
-      "EVAC-004": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
+      "DIM-008": {
+        "total": 6,
+        "PASS": 6,
+        "FAIL": 0
       }
     },
-    "total_findings": 296
+    "total_findings": 276
   },
   {
     "file": "9.气体灭火（唯美图框）_t3.dxf",
@@ -705,9 +675,9 @@
     "primitive_count": 9437,
     "entity_count": 9303,
     "entity_types": {
-      "wall": 5482,
+      "wall": 5479,
       "stair": 1086,
-      "other": 988,
+      "other": 991,
       "door": 697,
       "window": 665,
       "dimension": 348,
