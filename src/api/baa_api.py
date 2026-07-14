@@ -1179,7 +1179,7 @@ async def review_queue_status(  # code
     if status is None:  # check: value is None
         raise HTTPException(  # 抛出异常
             status_code=404,  # assignment
-            detail={"status": "error", "message": f"任务不存在: {task_id}"},  # 操作
+            detail={"status": "error", "error_code": "TASK_NOT_FOUND", "message": f"任务不存在: {task_id}"},  # 操作
         )  # code
     return status  # return
 
@@ -1200,12 +1200,13 @@ async def review_queue_cancel(  # code
         if status_info is None:  # check: value is None
             raise HTTPException(  # 抛出异常
                 status_code=404,  # assignment
-                detail={"status": "error", "message": f"任务不存在: {task_id}"},  # 操作
+                detail={"status": "error", "error_code": "TASK_NOT_FOUND", "message": f"任务不存在: {task_id}"},  # 操作
             )  # code
         raise HTTPException(  # 抛出异常
             status_code=409,  # assignment
             detail={
                 "status": "error",
+                "error_code": "TASK_CANT_CANCEL",
                 "message": f"任务当前状态为 {status_info['status']}，无法取消",
             },  # 操作
         )  # code
@@ -1238,11 +1239,11 @@ async def batch_review(  # code
     """
     if len(files) < 1:  # check: numeric comparison
         raise HTTPException(
-            status_code=400, detail={"status": "error", "message": "请至少上传一个文件"}
+            status_code=400, detail={"status": "error", "error_code": "NO_FILES", "message": "请至少上传一个文件"}
         )  # 抛出异常
     if len(files) > 20:  # check: numeric comparison
         raise HTTPException(
-            status_code=400, detail={"status": "error", "message": "单次最多审查20个文件"}
+            status_code=400, detail={"status": "error", "error_code": "TOO_MANY_FILES", "message": "单次最多审查20个文件"}
         )  # 抛出异常
 
     start = time.time()  # get current time
@@ -1864,7 +1865,7 @@ async def render_drawing(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "message": "文件不存在"}
+            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
         )  # 抛出异常
 
     import ezdxf  # import
@@ -1876,7 +1877,7 @@ async def render_drawing(  # code
         msp = doc.modelspace()  # function call
     except Exception:  # 捕获异常
         raise HTTPException(
-            status_code=400, detail={"status": "error", "message": "无法解析图纸文件"}
+            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"}
         )  # 抛出异常
 
     # ── 计算图元边界（用于 SVG viewBox 适配） ────────────────
@@ -1993,7 +1994,7 @@ async def render_drawing_overlay(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "message": "文件不存在"}
+            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
         )  # 抛出异常
 
     import ezdxf  # import
@@ -2011,7 +2012,7 @@ async def render_drawing_overlay(  # code
         msp = doc.modelspace()  # function call
     except Exception:  # 捕获异常
         raise HTTPException(
-            status_code=400, detail={"status": "error", "message": "无法解析图纸文件"}
+            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"}
         )  # 抛出异常
 
     # 计算边界
@@ -2167,7 +2168,7 @@ async def review_pdf(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "message": "文件不存在"}
+            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
         )  # function call
 
     # 重新审查（保证使用最新引擎版本）
@@ -2180,7 +2181,7 @@ async def review_pdf(  # code
     )  # code
     if not result.success:  # check: negated condition
         raise HTTPException(
-            status_code=400, detail={"status": "error", "message": f"图纸解析失败: {result.error}"}
+            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": f"图纸解析失败: {result.error}"}
         )  # function call
 
     semantic = await loop.run_in_executor(  # assignment
@@ -2867,6 +2868,7 @@ async def get_task_result(task_id: str, api_key: str = Depends(verify_api_key)):
             status_code=409,
             detail={  # 抛出异常
                 "status": "pending",  # 字段
+                "error_code": "TASK_PENDING",
                 "message": "任务仍在处理中，请稍后查询",  # 字段
             },
         )  # code
@@ -3124,6 +3126,7 @@ async def review_compare(  # code
                 status_code=400,
                 detail={  # assignment
                     "status": "error",
+                    "error_code": "PARSE_FAILED",
                     "message": f"图纸解析失败: {result.error}",  # code
                 },
             )  # code
@@ -3297,12 +3300,12 @@ async def project_summary(
     if not file_ids:
         raise HTTPException(
             status_code=400,
-            detail={"status": "error", "message": "file_ids 不能为空"},
+            detail={"status": "error", "error_code": "INVALID_INPUT", "message": "file_ids 不能为空"},
         )
     if len(file_ids) > 50:
         raise HTTPException(
             status_code=400,
-            detail={"status": "error", "message": "单次最多汇总50个文件"},
+            detail={"status": "error", "error_code": "TOO_MANY_FILES", "message": "单次最多汇总50个文件"},
         )
 
     # ── 从缓存读取各文件审查结果 ───────────────────────────
@@ -3356,12 +3359,18 @@ def get_collab_manager():
 async def verify_collab_token(request: Request) -> Optional[str]:
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="需要 Bearer token")
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "error", "error_code": "AUTH_REQUIRED", "message": "需要 Bearer token"}
+        )
     token = auth[7:]
     cm = get_collab_manager()
     user_id = cm.verify_token(token)
     if not user_id:
-        raise HTTPException(status_code=401, detail="token 无效或已过期")
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "error", "error_code": "TOKEN_INVALID", "message": "token 无效或已过期"}
+        )
     return user_id
 
 
@@ -3373,12 +3382,12 @@ async def collab_register(body: dict):
     email = body.get("email", "")
     display_name = body.get("display_name", "")
     if not username or not password:
-        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"用户名和密码不能为空"})
     if len(password) < 6:
-        raise HTTPException(status_code=400, detail="密码长度至少6位")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"密码长度至少6位"})
     result, msg = cm.register_user(username, password, email, display_name)
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "user": result, "token": result.get("token", ""), "message": msg}
 
 
@@ -3388,10 +3397,10 @@ async def collab_login(body: dict):
     username = body.get("username", "")
     password = body.get("password", "")
     if not username or not password:
-        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"用户名和密码不能为空"})
     result, msg = cm.login_user(username, password)
     if not result:
-        raise HTTPException(status_code=401, detail=msg)
+        raise HTTPException(status_code=401, detail={status: error, error_code: AUTH_FAILED, message: msg})
     return {"status": "success", "user": result, "token": result.get("token", "")}
 
 
@@ -3400,7 +3409,7 @@ async def collab_get_me(user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     user = cm.get_user(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=404, detail={"status":"error","error_code":"USER_NOT_FOUND","message":"用户不存在"})
     return {"status": "success", "user": user}
 
 
@@ -3409,7 +3418,7 @@ async def collab_update_me(body: dict, user_id: str = Depends(verify_collab_toke
     cm = get_collab_manager()
     result, msg = cm.update_user(user_id, body)
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "user": result}
 
 
@@ -3427,12 +3436,12 @@ async def collab_create_team(body: dict, user_id: str = Depends(verify_collab_to
     cm = get_collab_manager()
     name = body.get("name", "")
     if not name:
-        raise HTTPException(status_code=400, detail="团队名称不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"团队名称不能为空"})
     result, msg = cm.create_team(
         name, user_id, body.get("description", ""), body.get("is_public", False)
     )
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "team": result}
 
 
@@ -3448,7 +3457,7 @@ async def collab_get_team(team_id: str, _user_id: str = Depends(verify_collab_to
     cm = get_collab_manager()
     team = cm.get_team(team_id)
     if not team:
-        raise HTTPException(status_code=404, detail="团队不存在")
+        raise HTTPException(status_code=404, detail={"status":"error","error_code":"TEAM_NOT_FOUND","message":"团队不存在"})
     return {"status": "success", "team": team}
 
 
@@ -3460,10 +3469,10 @@ async def collab_add_team_member(
     target_user_id = body.get("user_id", "")
     role = body.get("role", "member")
     if not target_user_id:
-        raise HTTPException(status_code=400, detail="user_id 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"user_id 不能为空"})
     result, msg = cm.add_team_member(team_id, user_id, target_user_id, role)
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "member": result}
 
 
@@ -3474,7 +3483,7 @@ async def collab_remove_team_member(
     cm = get_collab_manager()
     ok, msg = cm.remove_team_member(team_id, user_id, target_id)
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3483,7 +3492,7 @@ async def collab_create_project(body: dict, user_id: str = Depends(verify_collab
     cm = get_collab_manager()
     name = body.get("name", "")
     if not name:
-        raise HTTPException(status_code=400, detail="项目名称不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"项目名称不能为空"})
     result, msg = cm.create_project(
         name,
         user_id,
@@ -3493,7 +3502,7 @@ async def collab_create_project(body: dict, user_id: str = Depends(verify_collab
         building_area=body.get("building_area", 0.0),
     )
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "project": result}
 
 
@@ -3509,7 +3518,7 @@ async def collab_get_project(project_id: str, user_id: str = Depends(verify_coll
     cm = get_collab_manager()
     project = cm.get_project(project_id, user_id)
     if not project:
-        raise HTTPException(status_code=404, detail="项目不存在")
+        raise HTTPException(status_code=404, detail={"status":"error","error_code":"PROJECT_NOT_FOUND","message":"项目不存在"})
     return {"status": "success", "project": project}
 
 
@@ -3521,10 +3530,10 @@ async def collab_add_project_member(
     target_id = body.get("user_id", "")
     permission = body.get("permission", "view")
     if not target_id:
-        raise HTTPException(status_code=400, detail="user_id 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"user_id 不能为空"})
     result, msg = cm.add_project_member(project_id, user_id, target_id, permission)
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "member": result}
 
 
@@ -3535,10 +3544,10 @@ async def collab_update_project_member(
     cm = get_collab_manager()
     permission = body.get("permission", "")
     if not permission:
-        raise HTTPException(status_code=400, detail="permission 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"permission 不能为空"})
     ok, msg = cm.update_project_member_permission(project_id, user_id, target_id, permission)
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3549,7 +3558,7 @@ async def collab_remove_project_member(
     cm = get_collab_manager()
     ok, msg = cm.remove_project_member(project_id, user_id, target_id)
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3565,7 +3574,7 @@ async def collab_create_review_session(body: dict, user_id: str = Depends(verify
     cm = get_collab_manager()
     project_id = body.get("project_id", "")
     if not project_id:
-        raise HTTPException(status_code=400, detail="project_id 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"project_id 不能为空"})
     result, msg = cm.create_review_session(
         project_id,
         user_id,
@@ -3574,7 +3583,7 @@ async def collab_create_review_session(body: dict, user_id: str = Depends(verify
         file_ids=body.get("file_ids"),
     )
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "review_session": result}
 
 
@@ -3590,7 +3599,7 @@ async def collab_get_review_session(session_id: str, user_id: str = Depends(veri
     cm = get_collab_manager()
     rs = cm.get_review_session(session_id, user_id)
     if not rs:
-        raise HTTPException(status_code=404, detail="审查会话不存在")
+        raise HTTPException(status_code=404, detail={"status":"error","error_code":"SESSION_NOT_FOUND","message":"审查会话不存在"})
     return {"status": "success", "review_session": rs}
 
 
@@ -3601,10 +3610,10 @@ async def collab_update_review_session_status(
     cm = get_collab_manager()
     status = body.get("status", "")
     if not status:
-        raise HTTPException(status_code=400, detail="status 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"status 不能为空"})
     ok, msg = cm.update_review_session_status(session_id, user_id, status)
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3615,7 +3624,7 @@ async def collab_add_comment(
     cm = get_collab_manager()
     content = body.get("content", "")
     if not content:
-        raise HTTPException(status_code=400, detail="评论内容不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"评论内容不能为空"})
     result, msg = cm.add_comment(
         session_id,
         user_id,
@@ -3627,7 +3636,7 @@ async def collab_add_comment(
         severity=body.get("severity", "info"),
     )
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "comment": result}
 
 
@@ -3645,7 +3654,7 @@ async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_
     cm = get_collab_manager()
     ok, msg = cm.resolve_comment(comment_id, user_id)
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3656,12 +3665,12 @@ async def collab_create_approval_flow(
     cm = get_collab_manager()
     assignee_ids = body.get("assignee_ids", [])
     if not assignee_ids:
-        raise HTTPException(status_code=400, detail="assignee_ids 不能为空")
+        raise HTTPException(status_code=400, detail={"status":"error","error_code":"INVALID_INPUT","message":"assignee_ids 不能为空"})
     result, msg = cm.create_approval_flow(
         session_id, user_id, name=body.get("name", "标准审批"), assignee_ids=assignee_ids
     )
     if not result:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success", "approval_flow": result}
 
 
@@ -3670,7 +3679,7 @@ async def collab_get_approval_flow(session_id: str, user_id: str = Depends(verif
     cm = get_collab_manager()
     flow = cm.get_approval_flow(session_id)
     if not flow:
-        raise HTTPException(status_code=404, detail="审批流不存在")
+        raise HTTPException(status_code=404, detail={"status":"error","error_code":"APPROVAL_NOT_FOUND","message":"审批流不存在"})
     return {"status": "success", "approval_flow": flow}
 
 
@@ -3681,7 +3690,7 @@ async def collab_approve_step(
     cm = get_collab_manager()
     ok, msg = cm.approve_step(step_id, user_id, body.get("comment", ""))
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3690,7 +3699,7 @@ async def collab_reject_step(step_id: str, body: dict, user_id: str = Depends(ve
     cm = get_collab_manager()
     ok, msg = cm.reject_step(step_id, user_id, body.get("comment", ""))
     if not ok:
-        raise HTTPException(status_code=400, detail=msg)
+        raise HTTPException(status_code=400, detail={status: error, error_code: OPERATION_FAILED, message: msg})
     return {"status": "success"}
 
 
@@ -3732,7 +3741,7 @@ async def update_function(func_id: str, body: dict, api_key: str = Depends(verif
     global _func_registry
     f = _func_registry.get(func_id)
     if not f:
-        raise HTTPException(status_code=404, detail={"status": "error", "message": f"函数 {func_id} 不存在"})
+        raise HTTPException(status_code=404, detail={"status": "error", "error_code": "FUNC_NOT_FOUND", "message": f"函数 {func_id} 不存在"})
     for key in ["threshold", "operator", "name", "description", "unit"]:
         if key in body:
             setattr(f, key, body[key])
