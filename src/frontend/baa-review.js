@@ -181,16 +181,15 @@ async function runReview() {
         const start = (page - 1) * pageSize;
         const pageItems = filtered.slice(start, start + pageSize);
 
+        const selVals = {all:'全部',critical:'严重',major:'主要',minor:'轻微'};
+        let filterOpts = Object.entries(selVals).map(([k,v]) => '<option value="'+k+'"'+(filter===k?' selected':'')+'>'+v+'</option>').join('');
         let html = '<div class="flex items-center justify-between mb-2">' +
           '<p class="font-medium text-red-600">违规详情 (' + filtered.length + '/' + v.length + '项)</p>' +
           '<div class="flex gap-1 text-xs">' +
           '<select id="violation-filter" onchange="window._reviewFilter=this.value; window._reviewPage=1; renderViolationPage()" class="border rounded px-1 py-0.5 text-xs">' +
-          '<option value="all">全部</option>' +
-          '<option value="critical">严重</option>' +
-          '<option value="major">主要</option>' +
-          '<option value="minor">轻微</option>' +
+          filterOpts +
           '</select>' +
-          '<input id="violation-search" placeholder="搜索..." class="border rounded px-1 py-0.5 text-xs w-20" oninput="window._reviewSearch=this.value; window._reviewPage=1; renderViolationPage()" />' +
+          '<input id="violation-search" placeholder="搜索..." class="border rounded px-1 py-0.5 text-xs w-20" value="' + (window._reviewSearch || '') + '" oninput="window._reviewSearch=this.value; window._reviewPage=1; renderViolationPage()" />' +
           '</div></div>';
 
         if (pageItems.length === 0) {
