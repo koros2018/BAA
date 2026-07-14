@@ -143,3 +143,9 @@ def require_admin(request: Request, api_key: str = "") -> str:
             "message": "需要admin权限",
         },
     )
+# ── 审查任务队列 ──────────────────────────────────────────
+MAX_CONCURRENT_REVIEWS = 4
+from src.baa_engine.task_queue import ReviewQueue  # noqa: E402
+
+_review_queue = ReviewQueue(max_concurrent=MAX_CONCURRENT_REVIEWS, queue_timeout=300.0)
+_review_semaphore = None  # 兼容旧引用，由 baa_api.py 设置
