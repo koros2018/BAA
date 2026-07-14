@@ -669,6 +669,9 @@ function renderDiffResults(data) {
   // 原始 JSON
   document.getElementById('diff-raw-json').textContent = JSON.stringify(data, null, 2);
 
+  // 加载图纸可视化（违规叠加）
+  loadDiffVisualization(data);
+
   // 默认选中新增tab
   switchDiffTab('new');
 }
@@ -752,6 +755,63 @@ function switchDiffTab(tab) {
     btn.className = 'diff-tab-btn px-3 py-1 rounded-lg font-medium ' +
       (isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600');
   });
+}
+
+// 加载对比图纸可视化（违规叠加渲染）
+function loadDiffVisualization(data) {
+  const v1FileId = data.v1_file_id;
+  const v2FileId = data.v2_file_id;
+  const items = data.items || [];
+
+  if (!v1FileId && !v2FileId) {
+    document.getElementById('diff-vis-v1').innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无文件 ID，无法渲染</div>';
+    document.getElementById('diff-vis-v2').innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无文件 ID，无法渲染</div>';
+    return;
+  }
+
+  // 从 diff items 提取违规位置信息
+  // entity_type 和 entity_id 提供位置线索，但无精确 x/y
+  // 使用 overlay 端点，传入违规摘要信息
+  const makeOverlayUrl = (fileId, label, isV1) => {
+    if (!fileId) return null;
+    // 按严重度分组统计
+    const sevCounts = {};
+    items.forEach(item => {
+      if ((isV1 && item.diff_type === 'fixed') || (!isV1 && item.diff_type === 'new')) {
+        const s = item.severity || 'major';
+        if (!sevCounts[s]) sevCounts[s] = 0;
+        sevCounts[s]++;
+      }
+    });
+    return API_BASE() + '/render/' + encodeURIComponent(fileId) + '/overlay?violations=' +
+      encodeURIComponent(JSON.stringify(items.slice(0, 50).map(item => ({
+        entity_type: item.entity_type || 'unknown',
+        severity: item.severity || 'major',
+        clause_id: item.clause_id || '',
+        x: 0, y: 0  // 后端会 fallback
+      }))));
+  };
+
+  const v1Url = makeOverlayUrl(v1FileId, '版本1', true);
+  const v2Url = makeOverlayUrl(v2FileId, '版本2', false);
+
+  // 渲染 V1
+  const v1El = document.getElementById('diff-vis-v1');
+  if (v1Url) {
+    v1El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">⏳ 加载图纸...</div>';
+    v1El.innerHTML = '<img src="' + v1Url + '" class="w-full" alt="版本1图纸" style="max-height:400px" onerror="this.outerHTML=\'<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>\'" />';
+  } else {
+    v1El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>';
+  }
+
+  // 渲染 V2
+  const v2El = document.getElementById('diff-vis-v2');
+  if (v2Url) {
+    v2El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">⏳ 加载图纸...</div>';
+    v2El.innerHTML = '<img src="' + v2Url + '" class="w-full" alt="版本2图纸" style="max-height:400px" onerror="this.outerHTML=\'<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>\'" />';
+  } else {
+    v2El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>';
+  }
 }
 
 function clearDiffResults() {

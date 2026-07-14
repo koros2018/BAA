@@ -1975,6 +1975,178 @@ async def render_drawing(  # code
     return Response(content=svg_content, media_type="image/svg+xml")  # return
 
 
+# ── 图纸渲染叠加层（违规高亮） ──────────────────────────
+
+
+@app.get("/render/{file_id}/overlay")  # function call
+async def render_drawing_overlay(  # code
+    file_id: str,  # code
+    request: Request = None,  # assignment
+    api_key: str = Depends(verify_api_key),  # function call
+):  # code
+    """将 DXF/DWG 图纸渲染为 SVG，并叠加违规高亮标注
+
+    在基础 SVG 渲染之上，通过 query params 传入违规位置信息进行高亮：
+    - violations: JSON 编码的违规列表，每个含 entity_type, x, y, severity
+    - 高亮颜色：critical=红色, major=橙色, normal=黄色
+    """
+    file_path = get_file_path(file_id)  # function call
+    if not file_path:  # check: negated condition
+        raise HTTPException(
+            status_code=404, detail={"status": "error", "message": "文件不存在"}
+        )  # 抛出异常
+
+    import ezdxf  # import
+    from io import StringIO  # import
+
+    # 解析违规参数
+    violations_param = request.query_params.get("violations", "") if request else ""
+    try:  # 尝试
+        violations = json.loads(violations_param) if violations_param else []
+    except (json.JSONDecodeError, TypeError):  # 捕获异常
+        violations = []  # assignment
+
+    try:  # 尝试
+        doc = ezdxf.readfile(str(file_path))  # function call
+        msp = doc.modelspace()  # function call
+    except Exception:  # 捕获异常
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "message": "无法解析图纸文件"}
+        )  # 抛出异常
+
+    # 计算边界
+    all_x, all_y = [], []  # assignment
+    for entity in msp:  # 循环
+        try:  # 尝试
+            if entity.dxftype() == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                all_x.extend([s[0], e[0]])
+                all_y.extend([s[1], e[1]])
+            elif entity.dxftype() == "LWPOLYLINE":
+                pts = [(v[0], v[1]) for v in entity.get_points()]
+                all_x.extend(p[0] for p in pts)
+                all_y.extend(p[1] for p in pts)
+            elif entity.dxftype() == "CIRCLE":
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                all_x.extend([cx - r, cx + r])
+                all_y.extend([cy - r, cy + r])
+            elif entity.dxftype() in ("TEXT", "MTEXT"):
+                ins = entity.dxf.insert[:2]
+                all_x.append(ins[0])
+                all_y.append(ins[1])
+        except Exception:
+            continue
+
+    if not all_x:
+        return {"status": "error", "message": "图纸无有效图元"}
+
+    margin = 5.0
+    x_min, x_max = min(all_x) - margin, max(all_x) + margin
+    y_min, y_max = min(all_y) - margin, max(all_y) + margin
+    w, h = x_max - x_min, y_max - y_min
+
+    svg_w = min(max(w * 0.5, 400), 1200)
+    svg_h = min(max(h * 0.5, 300), 800)
+
+    buf = StringIO()
+    buf.write(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="{x_min} {-y_max} {w} {h}" '
+        f'width="{svg_w}" height="{svg_h}" '
+        f'style="background:#fff">\n'
+    )
+
+    max_entities = 2000
+    drawn = 0
+
+    # ── 绘制图元（基础渲染，同 render_drawing） ────────────
+    for entity in msp:
+        if drawn >= max_entities:
+            break
+        dxftype = entity.dxftype()
+        try:
+            if dxftype == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                buf.write(
+                    f'<line x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '
+                    f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '
+                    f'stroke="#333" stroke-width="0.5" />\n'
+                )
+                drawn += 1
+            elif dxftype == "LWPOLYLINE":
+                pts = [(v[0], -v[1]) for v in entity.get_points()]
+                d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)
+                buf.write(f'<path d="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n')
+                drawn += 1
+            elif dxftype == "CIRCLE":
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                buf.write(
+                    f'<circle cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '
+                    f'fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )
+                drawn += 1
+            elif dxftype in ("TEXT", "MTEXT"):
+                ins = entity.dxf.insert[:2]
+                txt = entity.dxf.text if hasattr(entity.dxf, "text") else ""
+                ht = entity.dxf.height if hasattr(entity.dxf, "height") else 2.5
+                buf.write(
+                    f'<text x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '
+                    f'font-size="{ht}" fill="#666">{txt[:30]}</text>\n'
+                )
+                drawn += 1
+        except Exception:
+            continue
+
+    # ── 叠加违规高亮标注 ──────────────────────────────────
+    severity_colors = {
+        "critical": "#ef4444",
+        "major": "#f97316",
+        "normal": "#eab308",
+        "minor": "#eab308",
+    }
+    severity_labels = {
+        "critical": "严重",
+        "major": "主要",
+        "normal": "一般",
+        "minor": "轻微",
+    }
+
+    for v in violations:  # 循环
+        vtype = v.get("entity_type", "unknown")  # function call
+        x = v.get("x", 0)  # function call
+        y = v.get("y", 0)  # function call
+        sev = v.get("severity", "major")  # function call
+        clause = v.get("clause_id", "")  # function call
+        color = severity_colors.get(sev, "#f97316")  # function call
+        label = severity_labels.get(sev, "主要")  # function call
+
+        # 高亮圆点
+        buf.write(
+            f'<circle cx="{x:.2f}" cy="{-y:.2f}" r="8" '
+            f'fill="{color}" fill-opacity="0.3" '
+            f'stroke="{color}" stroke-width="2" />\n'
+        )
+        # 标注文字
+        buf.write(
+            f'<text x="{x:.2f}" y="{-y - 10:.2f}" '
+            f'fill="{color}" font-size="3" font-weight="bold" '
+            f'text-anchor="middle">[{label}] {vtype}</text>\n'
+        )
+        if clause:  # check: truthy
+            buf.write(
+                f'<text x="{x:.2f}" y="{-y + 14:.2f}" '
+                f'fill="{color}" font-size="2.5" '
+                f'text-anchor="middle">{clause}</text>\n'
+            )
+
+    buf.write("</svg>")
+    svg_content = buf.getvalue()
+
+    return Response(content=svg_content, media_type="image/svg+xml")  # return
+
+
 # ── PDF 审查报告导出 ─────────────────────────────────
 
 
@@ -3047,10 +3219,10 @@ async def review_compare(  # code
                         }
                     )  # code
 
-        return filename, details  # return
+        return filename, details, file_id  # return
 
-    name1, details1 = await _run_review(file1)  # function call
-    name2, details2 = await _run_review(file2)  # function call
+    name1, details1, file_id1 = await _run_review(file1)  # function call
+    name2, details2, file_id2 = await _run_review(file2)  # function call
 
     engine = ReviewDiffEngine()  # function call
     report = engine.compare(  # assignment
@@ -3064,7 +3236,11 @@ async def review_compare(  # code
         v2_standard=standard,  # assignment
     )  # code
 
-    return engine.to_json(report)  # return
+    result = engine.to_json(report)  # return
+    # 注入 file_id 用于前端可视化
+    result["v1_file_id"] = file_id1  # assignment
+    result["v2_file_id"] = file_id2  # assignment
+    return result  # return
 
 
 # ── 启动入口 ──────────────────────────────────────────────
