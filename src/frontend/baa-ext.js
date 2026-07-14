@@ -153,6 +153,87 @@ async function updateFunction(funcId) {
     }
 }
 
+// ── P58 多房间布局生成 ──
+
+async function generateMultiReverse() {
+    const result = document.getElementById('multi-reverse-result');
+    const err = document.getElementById('multi-reverse-error');
+    if (!result) return;
+    const layoutDiv = document.getElementById('multi-reverse-layout');
+    const dxfPre = document.getElementById('multi-reverse-dxf');
+    const validationDiv = document.getElementById('multi-reverse-validation');
+    result.classList.add('hidden');
+    err.classList.add('hidden');
+
+    // 从页面表单收集房间列表
+    const roomRows = document.querySelectorAll('.multi-room-row');
+    const rooms = [];
+    roomRows.forEach(row => {
+        const roomType = row.querySelector('.multi-room-type')?.value || 'office';
+        const width = parseInt(row.querySelector('.multi-room-width')?.value) || 5000;
+        const height = parseInt(row.querySelector('.multi-room-height')?.value) || 4000;
+        const doorWidth = parseInt(row.querySelector('.multi-room-door-width')?.value) || null;
+        rooms.push({room_type: roomType, width_mm: width, height_mm: height, door_width_mm: doorWidth});
+    });
+
+    // 如果表单不存在，使用默认房间
+    if (rooms.length === 0) {
+        rooms.push({room_type: 'office', width_mm: 5000, height_mm: 4000});
+        rooms.push({room_type: 'stair', width_mm: 3000, height_mm: 5000});
+    }
+
+    const body = {
+        rooms: rooms,
+        validate: true,
+    };
+
+    try {
+        const resp = await fetch('/api/v1/reverse/multi', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (getApiKey() || '')},
+            body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (data.status !== 'ok') {
+            err.textContent = '错误: ' + JSON.stringify(data);
+            err.classList.remove('hidden');
+            return;
+        }
+
+        // 显示布局信息
+        const l = data.layout;
+        let html = '<table class="w-full text-sm">' +
+            '<thead><tr class="text-left text-gray-500"><th class="py-1">房间</th><th class="py-1">位置</th><th class="py-1">尺寸</th></tr></thead><tbody>';
+        l.rooms.forEach(r => {
+            html += '<tr><td class="py-1">' + r.type + '</td>' +
+                '<td class="py-1">(' + r.x + ', ' + r.y + ')</td>' +
+                '<td class="py-1">' + r.w + ' x ' + r.h + ' mm</td></tr>';
+        });
+        if (l.corridor) {
+            html += '<tr class="text-blue-600"><td class="py-1">走廊</td>' +
+                '<td class="py-1">—</td>' +
+                '<td class="py-1">' + l.corridor.w + ' x ' + l.corridor.h + ' mm</td></tr>';
+        }
+        html += '</tbody></table>';
+        layoutDiv.innerHTML = html;
+
+        // 验证结果
+        const v = data.validation || {};
+        if (validationDiv) {
+            validationDiv.innerHTML = '<span class="' + (v.all_pass ? 'text-green-600' : 'text-gray-500') + ' font-bold">' +
+                (v.all_pass ? '✅ 闭环验证通过' : '验证未开启') +
+                '</span>';
+        }
+
+        // DXF 内容
+        dxfPre.textContent = data.dxf;
+        result.classList.remove('hidden');
+    } catch(e) {
+        err.textContent = '请求失败: ' + e.message;
+        err.classList.remove('hidden');
+    }
+}
+
 // 页面加载时自动加载原子函数库
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(loadFunctions, 1000);

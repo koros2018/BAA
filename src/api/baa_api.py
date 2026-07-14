@@ -3612,3 +3612,59 @@ async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
             "entities": v.get("entities", {}),
         },
     }
+
+
+@app.post("/api/v1/reverse/multi")
+async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_key)):
+    """多房间布局生成"""
+    from src.baa_engine.reverse_engine import (
+        ReverseEngine, MultiRoomEngine, RoomSpec, RoomType, validate_roundtrip
+    )
+    import tempfile, os
+    from pathlib import Path
+
+    # body: { rooms: [{room_type, width_mm, height_mm, door_width_mm}...] }
+    specs = [
+        RoomSpec(room_type=RoomType(r.get("room_type", "office")),
+                 width_mm=r.get("width_mm", 5000),
+                 height_mm=r.get("height_mm", 4000),
+                 door_width_mm=r.get("door_width_mm"))
+        for r in body.get("rooms", [])
+    ]
+
+    if not specs:
+        return {"status": "error", "message": "rooms 列表为空"}
+
+    multi = MultiRoomEngine()
+    layout = multi.generate_layout(specs)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+    tmp.close()
+    dxf = multi.build_dxf(layout, tmp.name)
+
+    with open(tmp.name, "r") as f:
+        dxf_content = f.read()
+
+    # 验证闭环
+    validation = None
+    if body.get("validate", False):
+        v = validate_roundtrip(Path(tmp.name))
+        validation = {
+            "all_pass": v.get("all_pass", False),
+            "fail_count": v.get("fail_count", 0),
+            "entities": v.get("entities", {}),
+        }
+
+    os.unlink(tmp.name)
+
+    return {
+        "status": "ok",
+        "dxf": dxf_content,
+        "layout": {
+            "rooms": [{"type": r.room_type.value, "x": r.x_mm, "y": r.y_mm,
+                       "w": r.width_mm, "h": r.height_mm} for r in layout.rooms],
+            "corridor": {"w": layout.corridor.width_mm, "h": layout.corridor.height_mm}
+                if layout.corridor else None,
+        },
+        "validation": validation,
+    }
