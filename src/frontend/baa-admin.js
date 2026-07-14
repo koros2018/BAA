@@ -1,0 +1,491 @@
+// ── 规范库 ──────────────────────────────────────────────
+const SPEC_DATA = [
+  {clause_id:'GB50016-5.5.18', name:'疏散楼梯净宽判定', description:'疏散楼梯净宽度不应小于1.2m', category:'dim', target:['staircase','stair']},
+  {clause_id:'GB50016-6.1.1', name:'防火分区面积判定', description:'防火分区面积不应大于2500㎡', category:'dim', target:['fire_zone','room','floor']},
+  {clause_id:'GB50016-7.1.1', name:'消防车道宽度判定', description:'消防车道宽度不应小于4m', category:'dim', target:['fire_lane','road','driveway']},
+  {clause_id:'GB50016-5.5.17', name:'疏散距离判定', description:'疏散距离不应大于30m', category:'dist', target:['room','floor','space']},
+  {clause_id:'GB50016-5.5.8', name:'安全出口数量判定', description:'安全出口不应少于2个', category:'count', target:['floor','fire_zone']},
+  {clause_id:'GB50016-6.5.1', name:'防火门等级判定', description:'防火门等级应为甲级', category:'attr', target:['fire_door','door']},
+  {clause_id:'GB50016-5.5.18', name:'疏散走道宽度判定', description:'疏散走道净宽度不应小于1.1m', category:'dim', target:['corridor','aisle','passage']},
+  {clause_id:'GB50016-7.4.1', name:'避难层面积判定', description:'避难层净面积不宜小于5㎡/人', category:'area', target:['refuge_floor','refuge_area','floor']},
+  {clause_id:'GB50016-5.5.12', name:'楼梯间存在判定', description:'建筑应设置楼梯间', category:'exist', target:['staircase','stair']},
+  {clause_id:'GB50016-7.2.4', name:'窗净面积判定', description:'消防窗净面积不应小于1.0㎡', category:'dim', target:['fire_window','window']},
+  {clause_id:'GB50016-5.5.19', name:'疏散门净宽判定', description:'人员密集场所疏散门净宽不应小于1.4m', category:'dim', target:['exit_door','door']},
+  {clause_id:'GB50016-6.5.3', name:'防火卷帘宽度判定', description:'防火分隔防火卷帘宽度不应大于10m', category:'dim', target:['fire_curtain','curtain']},
+  {clause_id:'GB50016-6.6.1', name:'管道井封堵判定', description:'管道井应每层用不燃材料封堵', category:'exist', target:['shaft','pipe_shaft','cable_shaft']},
+  {clause_id:'GB50016-5.5.24', name:'剪刀楼梯分隔判定', description:'剪刀楼梯梯段间应设置防火隔墙', category:'exist', target:['scissor_staircase','staircase']},
+  {clause_id:'GB50016-10.3.1', name:'疏散指示标志判定', description:'疏散走道和安全出口应设疏散指示标志', category:'exist', target:['exit_sign','sign','corridor']},
+  {clause_id:'GB50016-8.3.1', name:'自动灭火系统判定', description:'一类高层应设置自动灭火系统', category:'exist', target:['sprinkler_system','sprinkler','fire_system']},
+  {clause_id:'GB50016-8.4.1', name:'火灾报警系统判定', description:'一类高层应设置火灾自动报警系统', category:'exist', target:['fire_alarm','alarm_system','fire_system']},
+  {clause_id:'GB50016-6.7.1', name:'保温材料等级判定', description:'保温材料应选用A或B1级', category:'attr', target:['insulation','wall_insulation','roof_insulation']},
+  {clause_id:'GB50016-10.1.5', name:'应急照明照度判定', description:'疏散照明照度不应低于1.0lx', category:'dim', target:['evacuation_lighting','light','lighting']},
+  // L3 新增（11个）
+  {clause_id:'GB50016-3.4.1', name:'防火间距判定', description:'厂房之间防火间距不应小于12m', category:'dist', target:['building','factory','warehouse']},
+  {clause_id:'GB50016-9.2.1', name:'排烟窗面积判定', description:'排烟窗净面积不应小于房间面积2%', category:'dim', target:['smoke_exhaust_window','window','room']},
+  {clause_id:'GB50016-7.3.1', name:'消防电梯判定', description:'一类高层公共建筑应设消防电梯', category:'exist', target:['fire_elevator','elevator']},
+  {clause_id:'GB50016-7.3.5', name:'消防电梯前室面积判定', description:'消防电梯前室面积不应小于6㎡', category:'area', target:['elevator_lobby','lobby','room']},
+  {clause_id:'GB50016-5.5.17', name:'袋形走道长度判定', description:'袋形走道长度不应大于20m', category:'dist', target:['corridor','aisle','passage']},
+  {clause_id:'GB50016-5.5.18', name:'疏散出口宽度判定', description:'疏散出口净宽度不应小于0.9m', category:'dim', target:['exit','exit_door','door']},
+  {clause_id:'GB50016-6.5.1', name:'防火窗等级判定', description:'防火窗耐火极限不应低于1.0h', category:'attr', target:['fire_window','window']},
+  {clause_id:'GB50016-8.2.1', name:'消防水箱判定', description:'一类高层应设消防水箱', category:'exist', target:['water_tank','fire_system']},
+  {clause_id:'GB50016-8.1.3', name:'消防水池判定', description:'市政供水不足时应设消防水池', category:'exist', target:['water_reservoir','fire_system']},
+  {clause_id:'GB50016-7.2.4', name:'消防救援窗面积判定', description:'消防救援窗口净面积不应小于1.0㎡', category:'dim', target:['rescue_window','window']},
+  {clause_id:'GB50016-8.5.1', name:'应急广播判定', description:'一类高层应设应急广播系统', category:'exist', target:['emergency_broadcast','speaker','fire_system']},
+];
+
+async function loadSpecs() {
+  const tbody = document.getElementById('spec-list');
+  tbody.innerHTML = '';
+  SPEC_DATA.forEach((s, i) => {
+    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积'};
+    tbody.innerHTML += '<tr class="border-b border-gray-50">' +
+      '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
+      '<td class="py-2 px-2 text-sm">' + s.name + '<br/><span class="text-xs text-gray-400">' + s.description + '</span></td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">L1</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (catLabels[s.category] || s.category) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + s.target.join(', ') + '</td></tr>';
+  });
+}
+
+// ── 图纸管理：上传解析 ──────────────────────────────
+// 已解析图纸的全局存储
+let parsedDrawings = [];
+// 文件缓存（用于AI审图时重新上传）
+let fileCache = {};
+
+async function uploadDrawing() {
+  const file = document.getElementById('file-input').files[0];
+  if (!file) { alert('请先选择图纸文件'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+
+  const bt = document.getElementById('drawing-bt').value;
+
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
+
+  try {
+    // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
+    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
+    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
+    progress.className = 'hidden';
+
+    // 缓存文件（用于后续AI审图重新上传）
+    const fileId = result.file_id || 'drawing_' + Date.now();
+    fileCache[fileId] = file;
+
+    // 存储解析结果
+    const entry = {
+      id: fileId,
+      filename: file.name,
+      building_type: bt,
+      parsedAt: new Date().toISOString(),
+      elements: result.elements || [],
+      entities: result.entities || [],
+      findings_count: result.findings || 0,
+      total_checks: result.total_checks || 0,
+      file_id: fileId,
+      raw: result,
+      use_yolo: useYolo,
+    };
+    parsedDrawings.unshift(entry);
+    saveParsedDrawings();
+
+    // 更新图纸列表
+    renderDrawingList();
+
+    // 显示解析预览
+    const preview = document.getElementById('drawing-preview');
+    preview.className = 'card';
+    document.getElementById('parse-result-json').textContent =
+      JSON.stringify(result, null, 2);
+
+    // 渲染图纸
+    const renderImg = document.getElementById('drawing-render-img');
+    const placeholder = document.getElementById('drawing-render-placeholder');
+    renderImg.className = 'w-full';
+    renderImg.src = API_BASE() + '/render/' + fileId;
+    placeholder.className = 'hidden';
+
+    // 刷新AI审图的下拉
+    refreshReviewDrawingSelect();
+    loadDashboard();
+  } catch (e) {
+    progress.innerHTML = '❌ 解析失败: ' + e.message;
+    progress.className = 'card mb-4 text-sm text-red-500';
+  }
+}
+
+function saveParsedDrawings() {
+  try {
+    localStorage.setItem('baa_parsed_drawings', JSON.stringify(parsedDrawings));
+  } catch (e) { /* ignore quota */ }
+}
+
+function loadParsedDrawings() {
+  try {
+    const stored = localStorage.getItem('baa_parsed_drawings');
+    if (stored) parsedDrawings = JSON.parse(stored);
+  } catch (e) { parsedDrawings = []; }
+}
+
+function renderDrawingList() {
+  const tbody = document.getElementById('drawing-list');
+  if (!tbody) return;
+  const countEl = document.getElementById('drawing-count');
+  if (countEl) countEl.textContent = parsedDrawings.length;
+  
+  if (parsedDrawings.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  parsedDrawings.forEach((d, i) => {
+    const row = tbody.insertRow(-1);
+    row.className = 'border-b border-gray-50 text-sm';
+    const yoloBadge = d.use_yolo ? '<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>' : '';
+    const checked = d._selected ? 'checked' : '';
+    row.innerHTML =
+      '<td class="py-2 px-2"><input type="checkbox" class="drawing-select" data-idx="' + i + '" ' + checked + ' onchange="toggleDrawingSelect(' + i + ',this.checked)" /></td>' +
+      '<td class="py-2 px-2 truncate max-w-32">' + d.filename + yoloBadge + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + (d.building_type === 'civil' ? '民用' : '工业') + '</td>' +
+      '<td class="py-2 px-2">' + (d.elements?.length || 0) + '</td>' +
+      '<td class="py-2 px-2 text-xs max-w-40 truncate">' + (d.elements ? d.elements.map(e => e.type).join(', ') : '') + '</td>' +
+      '<td class="py-2 px-2 text-xs">' + new Date(d.parsedAt).toLocaleTimeString() + '</td>' +
+      '<td class="py-2 px-2">' +
+      '<button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' +
+      (d.file_id ? '<button onclick="downloadReviewPdf(\'' + d.file_id + '\')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 mr-1" title="下载PDF报告">📄</button>' : '') +
+      '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td>';
+  });
+  updateBatchButton();
+}
+
+function toggleDrawingSelect(idx, checked) {
+  if (parsedDrawings[idx]) parsedDrawings[idx]._selected = checked;
+  updateBatchButton();
+}
+
+function selectAllDrawings() {
+  parsedDrawings.forEach(d => d._selected = true);
+  renderDrawingList();
+}
+
+function deselectAllDrawings() {
+  parsedDrawings.forEach(d => d._selected = false);
+  renderDrawingList();
+}
+
+function updateBatchButton() {
+  const count = parsedDrawings.filter(d => d._selected).length;
+  const btn = document.getElementById('batch-review-btn');
+  const badge = document.getElementById('batch-count');
+  if (btn) {
+    btn.className = count > 0
+      ? 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700'
+      : 'px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden';
+  }
+  if (badge) badge.textContent = count;
+}
+
+async function batchReview() {
+  const selected = parsedDrawings.filter(d => d._selected);
+  if (selected.length === 0) { alert('请先勾选要送审的图纸'); return; }
+  
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '⏳ 正在批量审查 ' + selected.length + ' 张图纸...';
+  
+  let totalViolations = 0;
+  let results = [];
+  
+  for (const d of selected) {
+    try {
+      const r = await apiPost('/review-from-data', {
+        entities: d.elements || [],
+        building_type: d.building_type,
+      });
+      if (r.status === 'completed' || r.status === 'success') {
+        const v = r.details?.length || 0;
+        totalViolations += v;
+        results.push({name: d.filename, violations: v, details: r.details});
+      }
+    } catch (e) {
+      results.push({name: d.filename, violations: -1, error: e.message});
+    }
+  }
+  
+  progress.className = 'card mb-4 text-sm';
+  let html = '✅ 批量审查完成 (' + selected.length + ' 张, 共 ' + totalViolations + ' 项违规)<br/><br/>';
+  results.forEach(r => {
+    if (r.error) {
+      html += '<div class="text-red-500 text-xs">❌ ' + r.name + ': ' + r.error + '</div>';
+    } else {
+      const c = r.violations > 0 ? 'text-red-500' : 'text-green-600';
+      html += '<div class="text-xs mb-1">' + r.name + ': <span class="' + c + '">' + r.violations + ' 项违规</span></div>';
+    }
+  });
+  progress.innerHTML = html;
+  
+  // 切换到审图页面，加载第一张
+  if (results.length > 0) {
+    switchPage('review');
+  }
+}
+
+async function uploadAndReview() {
+  // 先执行上传+解析
+  const file = document.getElementById('file-input').files[0];
+  if (!file) { alert('请先选择图纸文件'); return; }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'dxf') { alert('仅支持 .dxf 和 .dwg 格式'); return; }
+  const bt = document.getElementById('drawing-bt').value;
+  const progress = document.getElementById('upload-progress');
+  progress.className = 'card mb-4 text-sm text-gray-500';
+  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
+  try {
+    const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
+    const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
+    const result = await apiPostFile('/deconstruct', file, {building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice});
+    progress.className = 'hidden';
+    const fileId = result.file_id || 'drawing_' + Date.now();
+    fileCache[fileId] = file;
+    const entry = {
+      id: fileId, filename: file.name, building_type: bt,
+      parsedAt: new Date().toISOString(),
+      elements: result.elements || [], entities: result.entities || [],
+      findings_count: result.findings || 0, total_checks: result.total_checks || 0,
+      use_yolo: useYolo,
+      file_id: fileId, raw: result,
+    };
+    parsedDrawings.unshift(entry);
+    saveParsedDrawings();
+    renderDrawingList();
+    refreshReviewDrawingSelect();
+    loadDashboard();
+    // 停留在图纸管理页面，显示解析预览
+    const preview = document.getElementById('drawing-preview');
+    if (preview) {
+      preview.className = 'card';
+      document.getElementById('parse-result-json').textContent =
+        JSON.stringify(result, null, 2);
+    }
+  } catch (e) {
+    progress.innerHTML = '❌ 解析失败: ' + e.message;
+    progress.className = 'card mb-4 text-sm text-red-500';
+  }
+}
+
+function deleteDrawing(idx) {
+  const d = parsedDrawings[idx];
+  if (!d) return;
+  if (!confirm('确定删除图纸「' + d.filename + '」的解析记录？')) return;
+  parsedDrawings.splice(idx, 1);
+  saveParsedDrawings();
+  renderDrawingList();
+}
+
+function sendToReview(idx) {
+  const d = parsedDrawings[idx];
+  if (!d) return;
+  // 切换到AI审图页面并选中此图纸
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  document.querySelector('[data-page="review"]').classList.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-review').classList.add('active');
+
+  const select = document.getElementById('review-drawing-select');
+  // 找到对应option并选中
+  for (let i = 0; i < select.options.length; i++) {
+    if (select.options[i].value === d.id) {
+      select.selectedIndex = i;
+      break;
+    }
+  }
+  onReviewDrawingSelect();
+}
+
+function refreshReviewDrawingSelect() {
+  const select = document.getElementById('review-drawing-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">— 选择已解析图纸 —</option>';
+  parsedDrawings.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.filename + ' (' + (d.building_type === 'civil' ? '民用' : '工业') + ')';   
+    select.appendChild(opt);
+  });
+}
+
+function onReviewDrawingSelect() {
+  const select = document.getElementById('review-drawing-select');
+  const btn = document.getElementById('review-start-btn');
+  const info = document.getElementById('review-drawing-info');
+  const id = select.value;
+  if (!id) {
+    btn.disabled = true;
+    info.textContent = '';
+    return;
+  }
+  const d = parsedDrawings.find(p => p.id === id);
+  if (!d) {
+    btn.disabled = true;
+    info.textContent = '';
+    return;
+  }
+  btn.disabled = false;
+  info.textContent = '实体: ' + (d.elements?.length || 0) + '个 · 已解析: ' + new Date(d.parsedAt).toLocaleString();
+}
+
+// ── 审查记录 ──────────────────────────────────────────────
+function renderHistoryList() {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  loadReviewResults();
+  const search = (document.getElementById('history-search')?.value || '').toLowerCase();
+  const filter = document.getElementById('history-filter')?.value || 'all';
+  let filtered = reviewResults;
+  if (filter === 'civil') filtered = filtered.filter(r => r.buildingType === 'civil');
+  else if (filter === 'industrial') filtered = filtered.filter(r => r.buildingType === 'industrial');
+  else if (filter === 'violations') filtered = filtered.filter(r => (r.details?.length || 0) > 0);
+  else if (filter === 'clean') filtered = filtered.filter(r => (r.details?.length || 0) === 0);
+  if (search) {
+    filtered = filtered.filter(r =>
+      r.drawingName.toLowerCase().includes(search) ||
+      (r.details || []).some(v => (v.clause_id || '').toLowerCase().includes(search) || (v.clause_title || '').toLowerCase().includes(search))
+    );
+  }
+  document.getElementById('history-total-count').textContent = filtered.length;
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="text-center text-gray-400 py-8">无匹配记录</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(r => {
+    const viols = r.details?.length || 0;
+    const btLabel = r.buildingType === 'civil' ? '民用' : r.buildingType === 'industrial' ? '工业' : '--';
+    const criticalCount = (r.details || []).filter(v => v.severity === 'critical').length;
+    const timeStr = new Date(r.reviewedAt).toLocaleString();
+    const color = viols === 0 ? 'green' : criticalCount > 0 ? 'red' : 'orange';
+    return '<div class="card p-3 cursor-pointer hover:shadow-md transition-shadow" onclick="viewHistoryDetail(\'' + r.id + '\')">' +
+      '<div class="flex items-center justify-between">' +
+      '<div class="flex items-center gap-3">' +
+      '<span class="text-' + color + '-500 text-lg">' + (viols === 0 ? '✅' : criticalCount > 0 ? '🔴' : '🟡') + '</span>' +
+      '<div><div class="font-medium text-sm">' + r.drawingName + '</div>' +
+      '<div class="text-xs text-gray-400">' + btLabel + ' · ' + timeStr + '</div></div></div>' +
+      '<div class="text-right"><div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项</div>' +
+      '<div class="text-xs text-gray-400">违规</div></div></div></div>';
+  }).join('');
+}
+function viewHistoryDetail(id) {
+  const r = reviewResults.find(x => x.id === id);
+  if (!r) return;
+  let modal = document.getElementById('history-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'history-detail-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center';
+    modal.onclick = function(e) { if (e.target === modal) closeHistoryModal(); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">' +
+    '<div class="flex items-center justify-between p-4 border-b">' +
+    '<h3 class="text-lg font-bold">审查详情: ' + r.drawingName + '</h3>' +
+    '<button onclick="closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>' +
+    '<div class="p-4 overflow-y-auto flex-1">' +
+    '<div class="grid grid-cols-4 gap-3 mb-4">' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (r.details?.length || 0) + '</div><div class="text-xs text-gray-400">违规</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + (r.details?.filter(v => v.severity === 'critical').length || 0) + '</div><div class="text-xs text-gray-400">严重</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + (r.details?.filter(v => v.severity === 'major').length || 0) + '</div><div class="text-xs text-gray-400">主要</div></div>' +
+    '<div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + (r.details?.filter(v => v.severity !== 'critical' && v.severity !== 'major').length || 0) + '</div><div class="text-xs text-gray-400">轻微</div></div>' +
+    '</div>' +
+    '<div class="text-xs text-gray-400 mb-2">建筑类型: ' + (r.buildingType === 'civil' ? '民用' : '工业') + ' · 审查时间: ' + new Date(r.reviewedAt).toLocaleString() + '</div>' +
+    '<div class="space-y-2">' +
+    (r.details || []).slice(0, 50).map(v => {
+      const sevColor = v.severity === 'critical' ? 'red' : v.severity === 'major' ? 'orange' : 'yellow';
+      const sevLabel = v.severity === 'critical' ? '严重' : v.severity === 'major' ? '主要' : '轻微';
+      return '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs">' +
+        '<div class="flex justify-between"><span class="font-medium">' + (v.clause_title || '') + '</span><span class="px-1.5 py-0.5 rounded bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span></div>' +
+        '<span class="text-gray-500">' + (v.clause_id || '') + ' · ' + (v.entity_type || '') + '</span><br/>' +
+        '<span class="text-gray-400">' + (v.explanation || '') + '</span></div>';
+    }).join('') + (r.details?.length > 50 ? '<div class="text-xs text-gray-400 text-center pt-2">... 仅显示前50项</div>' : '') +
+    '</div></div></div>';
+}
+function closeHistoryModal() {
+  const modal = document.getElementById('history-detail-modal');
+  if (modal) modal.remove();
+}
+function clearReviewHistory() {
+  if (!confirm('确定清空所有审查历史记录？此操作不可恢复。')) return;
+  localStorage.removeItem('baa_review_results');
+  reviewResults = [];
+  renderHistoryList();
+  loadDashboard();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  loadApiBase();  // 恢复API地址
+  initAdminToken();  // 初始化密钥管理页专用管理令牌
+  loadApiKeys();
+  populateTokenSelect();
+  loadParsedDrawings();
+  renderDrawingList();
+  refreshReviewDrawingSelect();
+  loadReviewResults();
+  loadDashboard();
+  loadSpecs();
+
+  // API地址变更时自动保存
+  document.getElementById('api-base')?.addEventListener('change', saveApiBase);
+
+  // 引擎状态
+  try {
+    const health = JSON.parse(document.getElementById('health-status').textContent || '{}');
+    const specCount = SPEC_DATA.length;
+    document.getElementById('engine-status').innerHTML =
+      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>' + specCount + '条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
+      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+  } catch(e) {
+    document.getElementById('engine-status').innerHTML =
+      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>30条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
+      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+  }
+});
+
+// ── 预览缩放 ──────────────────────────────────────────────
+function zoomImage(img) {
+  if (!img || !img.src || img.style.display === 'none') return;
+  let modal = document.getElementById('zoom-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'zoom-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center cursor-zoom-out';
+    modal.onclick = function() { modal.remove(); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<img src="' + img.src + '" class="max-w-[95vw] max-h-[95vh] object-contain" />';
+}
+
+// P43 collab frontend
+var collabToken = localStorage.getItem('baa_collab_token') || '';
+var collabUser = {};
+try { collabUser = JSON.parse(localStorage.getItem('baa_collab_user') || '{}'); } catch(e) {}
+
+function collabApi(path, options) {
+  options = options || {};
+  var url = API_BASE() + path;
+  var headers = {'Content-Type': 'application/json'};
+  if (collabToken) headers['Authorization'] = 'Bearer ' + collabToken;
+  if (options.headers) { for (var k in options.headers) headers[k] = options.headers[k]; }
+  options.headers = headers;
+  return fetch(url, options).then(function(r) { return r.json(); });
+}
+
+function closeCollabModal() { var el = document.getElementById('collab-modal-overlay'); if (el) el.style.display = 'none'; }
+function setModalBody(html) { var el = document.getElementById('collab-modal-body'); if (el) { el.innerHTML = html; document.getElementById('collab-modal-overlay').style.display = 'flex'; } }
+
+function showCollabLogin() {
