@@ -17,6 +17,7 @@ from .atomic_functions import FuncRegistry
 
 class RoomType(str, Enum):
     """房间功能类型（与 atomic_functions 的 target_entities 对齐）"""
+
     OFFICE = "office"
     STAIR = "stair"
     EXIT = "exit"
@@ -29,6 +30,7 @@ class RoomType(str, Enum):
 @dataclass
 class RoomSpec:
     """房间规格输入"""
+
     room_type: RoomType
     width_mm: float
     height_mm: float
@@ -38,6 +40,7 @@ class RoomSpec:
 @dataclass
 class LayoutConstraint:
     """布局约束输出"""
+
     min_width_mm: float
     min_height_mm: float
     min_door_width_mm: float
@@ -53,13 +56,13 @@ class ReverseEngine:
 
     # 房间类型 → 默认最小尺寸（mm）
     DEFAULT_MIN_SIZES: Dict[RoomType, Tuple[float, float, float]] = {
-        RoomType.OFFICE: (3000, 3000, 900),      # 3m x 3m, 门 900mm
-        RoomType.STAIR: (2500, 4000, 1100),       # 楼梯间
-        RoomType.EXIT: (2000, 2000, 1000),        # 安全出口
-        RoomType.CORRIDOR: (2000, 6000, 1200),    # 走廊
+        RoomType.OFFICE: (3000, 3000, 900),  # 3m x 3m, 门 900mm
+        RoomType.STAIR: (2500, 4000, 1100),  # 楼梯间
+        RoomType.EXIT: (2000, 2000, 1000),  # 安全出口
+        RoomType.CORRIDOR: (2000, 6000, 1200),  # 走廊
         RoomType.FIRE_LOBBY: (2000, 2000, 1000),  # 前室
-        RoomType.EQUIPMENT: (2000, 2000, 900),    # 设备间
-        RoomType.TOILET: (2000, 2000, 900),       # 无障碍卫生间
+        RoomType.EQUIPMENT: (2000, 2000, 900),  # 设备间
+        RoomType.TOILET: (2000, 2000, 900),  # 无障碍卫生间
     }
 
     def __init__(self):
@@ -115,8 +118,7 @@ class ReverseEngine:
         constraints = self.infer_constraints(spec)
         return self._build_dxf(spec, constraints, output_path)
 
-    def _build_dxf(self, spec: RoomSpec, constraints: LayoutConstraint,
-                    output_path: str) -> str:
+    def _build_dxf(self, spec: RoomSpec, constraints: LayoutConstraint, output_path: str) -> str:
         """构建 DXF 内容（与正向解析识别规则对齐）"""
         lines = []
         lines.append("0")
@@ -147,14 +149,11 @@ class ReverseEngine:
 
         # 4. 尺寸标注：DIMENSION 加 DEFPOINTS 线（被 _classify_by_layer 识别）
         # DXF 尺寸标注需要关联点 + 标注线才能被解析
-        lines.extend(self._dim_with_defpoint(
-            0, -1000, w, -1000, f"{w}mm", "DIM"))
-        lines.extend(self._dim_with_defpoint(
-            -1000, 0, -1000, h, f"{h}mm", "DIM"))
+        lines.extend(self._dim_with_defpoint(0, -1000, w, -1000, f"{w}mm", "DIM"))
+        lines.extend(self._dim_with_defpoint(-1000, 0, -1000, h, f"{h}mm", "DIM"))
 
         # 5. 文字标注：在 DEFPOINTS 层加 TEXT（被识别为 other）
-        lines.extend(self._text(
-            spec.room_type.value.upper(), w / 2, h / 2, 300, "TEXT"))
+        lines.extend(self._text(spec.room_type.value.upper(), w / 2, h / 2, 300, "TEXT"))
 
         lines.append("0")
         lines.append("ENDSEC")
@@ -168,52 +167,93 @@ class ReverseEngine:
 
     def _line(self, x1, y1, x2, y2, layer):
         return [
-            "0", "LINE",
-            "8", layer,
-            "10", str(x1),
-            "20", str(y1),
-            "30", "0",
-            "11", str(x2),
-            "21", str(y2),
-            "31", "0",
+            "0",
+            "LINE",
+            "8",
+            layer,
+            "10",
+            str(x1),
+            "20",
+            str(y1),
+            "30",
+            "0",
+            "11",
+            str(x2),
+            "21",
+            str(y2),
+            "31",
+            "0",
         ]
 
     def _arc(self, cx, cy, r, start_angle, end_angle, layer):
         return [
-            "0", "ARC",
-            "8", layer,
-            "10", str(cx),
-            "20", str(cy),
-            "30", "0",
-            "40", str(r),
-            "50", str(start_angle),
-            "51", str(end_angle),
+            "0",
+            "ARC",
+            "8",
+            layer,
+            "10",
+            str(cx),
+            "20",
+            str(cy),
+            "30",
+            "0",
+            "40",
+            str(r),
+            "50",
+            str(start_angle),
+            "51",
+            str(end_angle),
         ]
 
     def _text(self, text, x, y, height, layer):
         return [
-            "0", "TEXT",
-            "8", layer,
-            "10", str(x),
-            "20", str(y),
-            "30", "0",
-            "40", str(height),
-            "1", text,
+            "0",
+            "TEXT",
+            "8",
+            layer,
+            "10",
+            str(x),
+            "20",
+            str(y),
+            "30",
+            "0",
+            "40",
+            str(height),
+            "1",
+            text,
         ]
 
     def _lwpolyline_rect(self, x, y, w, h, layer):
         """LWPOLYLINE 矩形（4 顶点闭合多边形，被识别为 room/wall）"""
         return [
-            "0", "LWPOLYLINE",
-            "8", layer,
-            "100", "AcDbEntity",
-            "100", "AcDbPolyline",
-            "90", "4",  # 顶点数
-            "70", "1",  # 闭合
-            "10", str(x), "20", str(y),
-            "10", str(x + w), "20", str(y),
-            "10", str(x + w), "20", str(y + h),
-            "10", str(x), "20", str(y + h),
+            "0",
+            "LWPOLYLINE",
+            "8",
+            layer,
+            "100",
+            "AcDbEntity",
+            "100",
+            "AcDbPolyline",
+            "90",
+            "4",  # 顶点数
+            "70",
+            "1",  # 闭合
+            "10",
+            str(x),
+            "20",
+            str(y),
+            "10",
+            str(x + w),
+            "20",
+            str(y),
+            "10",
+            str(x + w),
+            "20",
+            str(y + h),
+            "10",
+            str(x),
+            "20",
+            str(y + h),
         ]
 
     def _dim_with_defpoint(self, x1, y1, x2, y2, text, layer):
@@ -221,14 +261,30 @@ class ReverseEngine:
         # DEFPOINTS 层上的短 LINE 被识别为标注参考线
         lines = []
         lines.extend(self._line(x1, y1, x2, y2, "DEFPOINTS"))
-        lines.extend([
-            "0", "DIMENSION",
-            "8", layer,
-            "10", str(x1), "20", str(y1), "30", "0",
-            "11", str(x2), "21", str(y2), "31", "0",
-            "70", "0",
-            "1", text,
-        ])
+        lines.extend(
+            [
+                "0",
+                "DIMENSION",
+                "8",
+                layer,
+                "10",
+                str(x1),
+                "20",
+                str(y1),
+                "30",
+                "0",
+                "11",
+                str(x2),
+                "21",
+                str(y2),
+                "31",
+                "0",
+                "70",
+                "0",
+                "1",
+                text,
+            ]
+        )
         return lines
 
 
@@ -240,6 +296,7 @@ class ReverseEngine:
 @dataclass
 class RoomPlacement:
     """房间在最终布局中的位置和门朝向"""
+
     room_type: RoomType
     x_mm: float
     y_mm: float
@@ -252,6 +309,7 @@ class RoomPlacement:
 @dataclass
 class MultiRoomLayout:
     """多房间布局结果"""
+
     rooms: List[RoomPlacement]
     corridor: Optional[RoomPlacement]  # 连接所有房间的走廊
     constraints: List[LayoutConstraint]
@@ -318,15 +376,17 @@ class MultiRoomEngine:
             door_w = constraints[room_specs.index(spec)].min_door_width_mm
             # 门在房间底边（朝向走廊的方向），居中放置
             door_x = current_x + (w - door_w) / 2
-            placements.append(RoomPlacement(
-                room_type=spec.room_type,
-                x_mm=current_x,
-                y_mm=0,
-                width_mm=w,
-                height_mm=h,
-                door_x_mm=door_x,
-                door_side="top",  # 门朝上（朝向走廊）
-            ))
+            placements.append(
+                RoomPlacement(
+                    room_type=spec.room_type,
+                    x_mm=current_x,
+                    y_mm=0,
+                    width_mm=w,
+                    height_mm=h,
+                    door_x_mm=door_x,
+                    door_side="top",  # 门朝上（朝向走廊）
+                )
+            )
             current_x += w + self.ROOM_GAP
 
         # 走廊宽度取所有房间最大门宽
@@ -351,15 +411,17 @@ class MultiRoomEngine:
             h = constraints[room_specs.index(spec)].min_height_mm
             door_w = constraints[room_specs.index(spec)].min_door_width_mm
             door_x = current_x + (w - door_w) / 2
-            placements.append(RoomPlacement(
-                room_type=spec.room_type,
-                x_mm=current_x,
-                y_mm=corridor_y + corridor_w + self.ROOM_GAP,
-                width_mm=w,
-                height_mm=h,
-                door_x_mm=door_x,
-                door_side="bottom",  # 门朝下（朝向走廊）
-            ))
+            placements.append(
+                RoomPlacement(
+                    room_type=spec.room_type,
+                    x_mm=current_x,
+                    y_mm=corridor_y + corridor_w + self.ROOM_GAP,
+                    width_mm=w,
+                    height_mm=h,
+                    door_x_mm=door_x,
+                    door_side="bottom",  # 门朝下（朝向走廊）
+                )
+            )
             current_x += w + self.ROOM_GAP
 
         notes.append(f"走廊宽度: {corridor_w}mm")
@@ -414,27 +476,34 @@ class MultiRoomEngine:
             total_h = max(all_yh) - min(all_y)
 
             # 底部总宽度标注
-            lines.extend(self._dim_with_defpoint(
-                min(all_x), -1000, max(all_xw), -1000,
-                f"{total_w}mm", "DIM"))
+            lines.extend(
+                self._dim_with_defpoint(
+                    min(all_x), -1000, max(all_xw), -1000, f"{total_w}mm", "DIM"
+                )
+            )
 
             # 右侧总高度标注
-            lines.extend(self._dim_with_defpoint(
-                max(all_xw) + 1000, min(all_y), max(all_xw) + 1000, max(all_yh),
-                f"{total_h}mm", "DIM"))
+            lines.extend(
+                self._dim_with_defpoint(
+                    max(all_xw) + 1000,
+                    min(all_y),
+                    max(all_xw) + 1000,
+                    max(all_yh),
+                    f"{total_h}mm",
+                    "DIM",
+                )
+            )
 
         # 4. 房间功能文字标注
         for room in layout.rooms:
             cx = room.x_mm + room.width_mm / 2
             cy = room.y_mm + room.height_mm / 2
-            lines.extend(self._text(
-                room.room_type.value.upper(), cx, cy, 250, "TEXT"))
+            lines.extend(self._text(room.room_type.value.upper(), cx, cy, 250, "TEXT"))
 
         if layout.corridor:
             cx = layout.corridor.x_mm + layout.corridor.width_mm / 2
             cy = layout.corridor.y_mm + layout.corridor.height_mm / 2
-            lines.extend(self._text(
-                "CORRIDOR", cx, cy, 250, "TEXT"))
+            lines.extend(self._text("CORRIDOR", cx, cy, 250, "TEXT"))
 
         # 5. 疏散路径标注（箭头线从房间门→走廊→出口方向）
         # 在 EVAC 层绘制疏散箭头线，用于正向解析识别疏散路径
@@ -455,25 +524,25 @@ class MultiRoomEngine:
     def _build_evacuation_paths(self, layout: MultiRoomLayout) -> list:
         """
         生成疏散路径箭头线（EVAC 层）。
-        
+
         每个房间生成两条路径段：
         1. 从房间门中心点到走廊中心
         2. 从走廊中心沿走廊方向到出口（走廊右端或左端）
-        
+
         路径段用带箭头的 LINE 表示，被正向解析识别为疏散路径。
         """
         evac_paths = []
-        
+
         if not layout.corridor:
             return evac_paths
-        
+
         corridor_cx = layout.corridor.x_mm + layout.corridor.width_mm / 2
         corridor_cy = layout.corridor.y_mm + layout.corridor.height_mm / 2
-        
+
         # 出口方向：走廊右端（假设安全出口在右侧）
         exit_x = layout.corridor.x_mm + layout.corridor.width_mm
         exit_y = corridor_cy
-        
+
         for room in layout.rooms:
             # 房间门中心点
             if room.door_side in ("top", "bottom"):
@@ -482,7 +551,7 @@ class MultiRoomEngine:
             else:
                 door_cx = room.x_mm + (room.width_mm if room.door_side == "right" else 0)
                 door_cy = room.door_x_mm + room.height_mm * 0.075
-            
+
             # 段1: 门中心 → 走廊中心
             # 中间点：从门垂直延伸到走廊边缘
             if room.door_side == "bottom":
@@ -498,30 +567,39 @@ class MultiRoomEngine:
             else:
                 # 侧边门，直接连接到走廊中心
                 evac_paths.append(self._evac_line(door_cx, door_cy, corridor_cx, corridor_cy))
-            
+
             # 段2: 走廊中心 → 出口方向
             evac_paths.append(self._evac_line(corridor_cx, corridor_cy, exit_x, exit_y))
-        
+
         return evac_paths
 
     def _evac_line(self, x1, y1, x2, y2):
         """疏散路径 LINE（EVAC 层），带箭头指示"""
         return [
-            "0", "LINE",
-            "8", "EVAC",
-            "10", str(x1),
-            "20", str(y1),
-            "30", "0",
-            "11", str(x2),
-            "21", str(y2),
-            "31", "0",
+            "0",
+            "LINE",
+            "8",
+            "EVAC",
+            "10",
+            str(x1),
+            "20",
+            str(y1),
+            "30",
+            "0",
+            "11",
+            str(x2),
+            "21",
+            str(y2),
+            "31",
+            "0",
         ]
 
     def _draw_room(self, room: RoomPlacement, lines: list):
         """绘制单个房间：轮廓 + 门线 + 门弧"""
         # 房间轮廓
-        lines.extend(self._lwpolyline_rect(
-            room.x_mm, room.y_mm, room.width_mm, room.height_mm, "WALL"))
+        lines.extend(
+            self._lwpolyline_rect(room.x_mm, room.y_mm, room.width_mm, room.height_mm, "WALL")
+        )
 
         # 门线 + 门弧
         door_w = room.width_mm * 0.15  # 门宽约为房间宽的 15%
@@ -555,71 +633,129 @@ class MultiRoomEngine:
     def _lwpolyline_rect(self, x, y, w, h, layer):
         """LWPOLYLINE 矩形（4 顶点闭合多边形）"""
         return [
-            "0", "LWPOLYLINE",
-            "8", layer,
-            "100", "AcDbEntity",
-            "100", "AcDbPolyline",
-            "90", "4",
-            "70", "1",
-            "10", str(x), "20", str(y),
-            "10", str(x + w), "20", str(y),
-            "10", str(x + w), "20", str(y + h),
-            "10", str(x), "20", str(y + h),
+            "0",
+            "LWPOLYLINE",
+            "8",
+            layer,
+            "100",
+            "AcDbEntity",
+            "100",
+            "AcDbPolyline",
+            "90",
+            "4",
+            "70",
+            "1",
+            "10",
+            str(x),
+            "20",
+            str(y),
+            "10",
+            str(x + w),
+            "20",
+            str(y),
+            "10",
+            str(x + w),
+            "20",
+            str(y + h),
+            "10",
+            str(x),
+            "20",
+            str(y + h),
         ]
 
     def _line(self, x1, y1, x2, y2, layer):
         return [
-            "0", "LINE",
-            "8", layer,
-            "10", str(x1),
-            "20", str(y1),
-            "30", "0",
-            "11", str(x2),
-            "21", str(y2),
-            "31", "0",
+            "0",
+            "LINE",
+            "8",
+            layer,
+            "10",
+            str(x1),
+            "20",
+            str(y1),
+            "30",
+            "0",
+            "11",
+            str(x2),
+            "21",
+            str(y2),
+            "31",
+            "0",
         ]
 
     def _arc(self, cx, cy, r, start_angle, end_angle, layer):
         return [
-            "0", "ARC",
-            "8", layer,
-            "10", str(cx),
-            "20", str(cy),
-            "30", "0",
-            "40", str(r),
-            "50", str(start_angle),
-            "51", str(end_angle),
+            "0",
+            "ARC",
+            "8",
+            layer,
+            "10",
+            str(cx),
+            "20",
+            str(cy),
+            "30",
+            "0",
+            "40",
+            str(r),
+            "50",
+            str(start_angle),
+            "51",
+            str(end_angle),
         ]
 
     def _text(self, text, x, y, height, layer):
         return [
-            "0", "TEXT",
-            "8", layer,
-            "10", str(x),
-            "20", str(y),
-            "30", "0",
-            "40", str(height),
-            "1", text,
+            "0",
+            "TEXT",
+            "8",
+            layer,
+            "10",
+            str(x),
+            "20",
+            str(y),
+            "30",
+            "0",
+            "40",
+            str(height),
+            "1",
+            text,
         ]
 
     def _dim_with_defpoint(self, x1, y1, x2, y2, text, layer):
         """DIMENSION + DEFPOINTS 线"""
         lines = []
         lines.extend(self._line(x1, y1, x2, y2, "DEFPOINTS"))
-        lines.extend([
-            "0", "DIMENSION",
-            "8", layer,
-            "10", str(x1), "20", str(y1), "30", "0",
-            "11", str(x2), "21", str(y2), "31", "0",
-            "70", "0",
-            "1", text,
-        ])
+        lines.extend(
+            [
+                "0",
+                "DIMENSION",
+                "8",
+                layer,
+                "10",
+                str(x1),
+                "20",
+                str(y1),
+                "30",
+                "0",
+                "11",
+                str(x2),
+                "21",
+                str(y2),
+                "31",
+                "0",
+                "70",
+                "0",
+                "1",
+                text,
+            ]
+        )
         return lines
 
 
 def validate_roundtrip(dxf_path: str) -> Dict:
     """验证正向→反向闭环：解析 DXF → 原子函数检查"""
     import sys
+
     sys.path.insert(0, str(dxf_path.parent.parent))
     from src.baa_engine.drawing_parser import DrawingParser
     from src.baa_engine.semantic_analyzer import SemanticAnalyzer
@@ -644,20 +780,24 @@ def validate_roundtrip(dxf_path: str) -> Dict:
             if func.matches(e):
                 f = func.execute(e)
                 if f:
-                    findings.append({
-                        "func_id": f.func_id,
-                        "result": f.result,
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                    })
+                    findings.append(
+                        {
+                            "func_id": f.func_id,
+                            "result": f.result,
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                        }
+                    )
 
     pass_count = sum(1 for f in findings if f["result"] == "PASS")
     fail_count = sum(1 for f in findings if f["result"] == "FAIL")
 
     return {
         "success": True,
-        "entities": {t: len([x for x in entities if x["type"] == t])
-                     for t in set(x["type"] for x in entities)},
+        "entities": {
+            t: len([x for x in entities if x["type"] == t])
+            for t in set(x["type"] for x in entities)
+        },
         "findings": findings,
         "pass_count": pass_count,
         "fail_count": fail_count,

@@ -290,18 +290,14 @@ async def collab_create_project(body: dict, user_id: str = Depends(verify_collab
 
 
 @router.get("/collab/projects")
-async def collab_list_projects(
-    status: str = "active", user_id: str = Depends(verify_collab_token)
-):
+async def collab_list_projects(status: str = "active", user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     projects = cm.list_user_projects(user_id, status)
     return {"status": "success", "projects": projects}
 
 
 @router.get("/collab/projects/{project_id}")
-async def collab_get_project(
-    project_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_get_project(project_id: str, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     project = cm.get_project(project_id, user_id)
     if not project:
@@ -392,18 +388,14 @@ async def collab_remove_project_member(
 
 
 @router.get("/collab/teams/{team_id}/projects")
-async def collab_list_team_projects(
-    team_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_list_team_projects(team_id: str, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     projects = cm.list_team_projects(team_id, user_id)
     return {"status": "success", "projects": projects}
 
 
 @router.post("/collab/review-sessions")
-async def collab_create_review_session(
-    body: dict, user_id: str = Depends(verify_collab_token)
-):
+async def collab_create_review_session(body: dict, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     project_id = body.get("project_id", "")
     if not project_id:
@@ -435,18 +427,14 @@ async def collab_create_review_session(
 
 
 @router.get("/collab/projects/{project_id}/review-sessions")
-async def collab_list_review_sessions(
-    project_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_list_review_sessions(project_id: str, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     sessions = cm.list_review_sessions(project_id, user_id)
     return {"status": "success", "review_sessions": sessions}
 
 
 @router.get("/collab/review-sessions/{session_id}")
-async def collab_get_review_session(
-    session_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_get_review_session(session_id: str, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     rs = cm.get_review_session(session_id, user_id)
     if not rs:
@@ -536,9 +524,7 @@ async def collab_list_comments(
 
 
 @router.put("/collab/comments/{comment_id}/resolve")
-async def collab_resolve_comment(
-    comment_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_collab_token)):
     cm = get_collab_manager()
     ok, msg = cm.resolve_comment(comment_id, user_id)
     if not ok:
