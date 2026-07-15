@@ -832,3 +832,63 @@ async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_k
         },
         "validation": validation,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# P41: AI 辅助修正建议（LLM 驱动）
+# ═══════════════════════════════════════════════════════════════
+
+
+@app.post("/api/v1/correction/suggestions")
+async def generate_correction_suggestions(
+    body: dict,
+    api_key: str = Depends(verify_api_key),
+):
+    """基于审查违规结果生成修正建议（rule/llm/hybrid 三种模式）
+
+    请求体：
+    {
+        "review_id": "<可选，审查会话 ID>",
+        "findings": [  # 审查违规结果列表
+            {"entity_id": "e1", "func_id": "DIM-001", ...},
+            ...
+        ],
+        "entities": [  # 实体信息（可选）
+            {"id": "e1", "type": "stair", "properties": {...}},
+            ...
+        ],
+        "mode": "rule|llm|hybrid",  # 模式
+    }
+    """
+    import os
+
+    from src.baa_engine.llm_correction import LLMCorrectionEngine
+
+    findings = body.get("findings", [])
+    entities = body.get("entities", [])
+    mode = body.get("mode", os.environ.get("BAA_CORRECTION_MODE", "hybrid"))
+
+    engine = LLMCorrectionEngine()
+    suggestions = engine.generate(findings, entities, mode=mode)
+
+    return {
+        "status": "ok",
+        "mode": engine.mode,
+        "count": len(suggestions),
+        "suggestions": [
+            {
+                "entity_id": s.entity_id,
+                "entity_type": s.entity_type,
+                "clause_id": s.clause_id,
+                "clause_title": s.clause_title,
+                "action": s.action,
+                "description": s.description,
+                "current_value": s.current_value,
+                "required_value": s.required_value,
+                "delta": s.delta,
+                "recommendation": s.recommendation,
+                "source": s.source,
+            }
+            for s in suggestions
+        ],
+    }

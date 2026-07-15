@@ -537,18 +537,12 @@ class MultiRoomEngine:
             exit_h = layout.corridor.height_mm
             exit_y = layout.corridor.y_mm
             # EXIT 房间轮廓
-            lines.extend(
-                self._lwpolyline_rect(exit_x, exit_y, exit_w, exit_h, "WALL")
-            )
+            lines.extend(self._lwpolyline_rect(exit_x, exit_y, exit_w, exit_h, "WALL"))
             # EXIT 门
             door_w = 1100
             door_y = exit_y + exit_h / 2 - door_w / 2
-            lines.extend(
-                self._line(exit_x, door_y, exit_x, door_y + door_w, "DOOR")
-            )
-            lines.extend(
-                self._arc(exit_x, door_y, door_w, 270, 360, "DOOR")
-            )
+            lines.extend(self._line(exit_x, door_y, exit_x, door_y + door_w, "DOOR"))
+            lines.extend(self._arc(exit_x, door_y, door_w, 270, 360, "DOOR"))
             # EXIT 文字
             lines.extend(
                 self._text(
