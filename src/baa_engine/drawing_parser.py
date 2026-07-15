@@ -682,7 +682,7 @@ except Exception:
                         block_defs[k] = v
 
                 # 递归解析嵌套 xref
-                nested_unresolved = self._resolve_xref_external(
+                self._resolve_xref_external(
                     xref_xref_names,
                     xref_path,
                     dxf_doc,

@@ -415,7 +415,6 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
     @staticmethod  # 装饰器
     def _calc_priority(s: CorrectionSuggestion) -> str:  # 函数定义: _calc_priority
         """计算修正优先级"""
-        urgent_categories = {"ADD", "REPLACE", "UPGRADE"}  # 赋值: urgent_categories
         # 条件分支：if s.action.value in {a.value for a in [CorrectionAction.ADD, CorrectionAction.REPLACE, CorrectionAction.UPGRADE]}
         if s.action.value in {
             a.value

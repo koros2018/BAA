@@ -68,8 +68,8 @@ _semantic_analyzer = None
 _func_registry = None
 _attribution_analyzer = None
 _spec_repo = None
-_feedback_manager: Optional["FeedbackManager"] = None
-_learning_engine: Optional["LearningEngine"] = None
+_feedback_manager: Optional["FeedbackManager"] = None  # noqa: F821
+_learning_engine: Optional["LearningEngine"] = None  # noqa: F821
 
 
 def get_key_manager():
