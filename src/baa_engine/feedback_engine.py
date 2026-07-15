@@ -304,7 +304,7 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
         try:  # 尝试
             # 更新民用/工业的默认阈值
             for bt in ("civil", "industrial"):  # loop: try both standard branches
-                current, unit, op = spec_repo.get_threshold(
+                _, _, _ = spec_repo.get_threshold(
                     clause_id, bt
                 )  # read: current threshold config
                 spec_repo.set_threshold(

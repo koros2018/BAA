@@ -290,7 +290,6 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         try:  # try: operation block
             import hashlib  # stdlib import
 
-            prim_hash = hashlib.md5(str(id(primitives))).hexdigest()[:16]  # assign
             # 使用前100个图元的type+bbox近似指纹
             fingerprint_parts = []  # init: empty list
             for p in primitives[:100]:  # loop: for p in primitives[:100]:
@@ -481,8 +480,6 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 ...
             ]
         """
-        import math  # stdlib: math functions
-
         if not primitives:  # check: negated condition
             return []  # return: list of items
 
@@ -541,7 +538,6 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             center_y = bbox.get("y", 0) + bbox.get("height", 0) / 2  # assign
 
             # 匹配标高模式
-            text_upper = text.upper()  # assign
             level = None  # init: set to None
             label = text  # assign
 
@@ -2115,7 +2111,6 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
                 # 计算门在墙边上的投影重叠长度
                 overlap = 0.0  # init: set to 0
-                is_horizontal_wall = wb.get("width", 0) > wb.get("height", 0)  # assign
 
                 if min_dx <= min_dy:  # check: numeric comparison
                     # 门接触垂直边（墙的左或右边）
@@ -2375,7 +2370,6 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
     ) -> str:  # method: def _infer_attribute_name(dim: Dict, entity: SemanticEntity)
         """推断属性名"""
         entity_type = entity.type  # assign
-        dim_text = dim.get("text", "")  # assign
 
         if entity_type == "wall":  # condition: entity_type == "wall":
             return "width"  # return

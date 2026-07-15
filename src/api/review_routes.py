@@ -1567,7 +1567,6 @@ async def review_compare(  # code
         entities = semantic["entities"]  # assignment
 
         from src.baa_engine.spec_repository import SpecRepository  # import
-        from collections import Counter  # stdlib: collections
 
         repo = SpecRepository()  # function call
         details = []  # assignment
@@ -1678,8 +1677,6 @@ if __name__ == "__main__":  # condition: __name__ == "__main__":
     生产环境建议通过 Docker 或 systemd 管理进程生命周期。
     """
     import uvicorn  # import
-    import sys  # import
-    import os  # stdlib: filesystem ops
 
     port = int(os.getenv("BAA_PORT", "8000"))  # 服务端口
     workers = int(os.getenv("BAA_WORKERS", "4"))  # 默认4 worker

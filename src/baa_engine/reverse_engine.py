@@ -302,7 +302,6 @@ class MultiRoomEngine:
                 bottom_rooms.append(spec)
 
         # 计算每排的最大高度
-        top_max_h = max((s.height_mm for s in top_rooms), default=3000)
         bottom_max_h = max((s.height_mm for s in bottom_rooms), default=3000)
 
         # 走廊 Y 起始位置 = 下排房间高度 + 间距

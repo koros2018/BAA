@@ -757,7 +757,7 @@ async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
 async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_key)):
     """多房间布局生成"""
     from src.baa_engine.reverse_engine import (
-        ReverseEngine, MultiRoomEngine, RoomSpec, RoomType, validate_roundtrip
+        MultiRoomEngine, RoomSpec, RoomType, validate_roundtrip
     )
     import tempfile, os
     from pathlib import Path

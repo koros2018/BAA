@@ -536,25 +536,10 @@ def filter_yolo_detections(
     if not detections:  # 使用传入的墙体线段
         return []  # return: []
 
-    # 收集墙体线段：rule 2/3 需要判断 door/window 是否贴墙
-    # walls 参数未提供时 fallback 到检测结果中的 wall bbox
-    wall_segments: List[Dict] = []  # wall_segments: List[Dict]: 赋值
-    if walls:  # check: if walls
-        wall_segments = walls  # wall_segments: 赋值
-    else:  # check: else
-        wall_segments = [
-            {
-                "x1": d["bbox"]["x"],
-                "y1": d["bbox"]["y"],
-                "x2": d["bbox"]["x"] + d["bbox"]["width"],
-                "y2": d["bbox"]["y"] + d["bbox"]["height"],
-            }
-            for d in detections  # loop: for d in detections
-            if d["type"] == "wall"  # check: if d["type"] == "wall"
-        ]  # 默认保留
+    # 提取墙体 bbox 列表
+    wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]  # 提取墙体 bbox 列表
     # 过滤原因（调试用）
     filtered: List[Dict] = []  # 过滤后结果列表
-    wall_bboxes = [d["bbox"] for d in detections if d["type"] == "wall"]  # 提取墙体 bbox 列表
 
     for det in detections:  # loop: for det in detections
         etype = det["type"]  # etype: 赋值

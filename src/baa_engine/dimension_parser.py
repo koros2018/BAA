@@ -111,7 +111,7 @@ class DimensionParser:
                     except Exception:
                         # 单个实体解析失败不影响其他标注，跳过继续
                         continue
-            except Exception as e:
+            except Exception:
                 # DWG 文件损坏或 ezdwg 未安装时静默降级，不抛异常阻塞整体流程
                 pass
         else:

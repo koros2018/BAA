@@ -168,6 +168,7 @@ async def rotate_api_key(  # code
 ):  # code
     """轮换API Key（生成新密钥值，旧密钥失效）"""
     km = get_key_manager()  # function call
+    new_ttl = body.get("new_ttl_days", body.get("new_ttl"))  # 从 body 提取
     result = km.rotate_key(key_id, new_ttl_days=new_ttl)  # function call
     if result:  # condition: result:
         return {  # return: dict

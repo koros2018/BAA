@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -131,7 +131,6 @@ class ReviewReport:
     # ── 样式构建 ─────────────────────────────────────────
 
     def _build_styles(self):
-        ss = getSampleStyleSheet()  # ss: getSampleStyleSheet()
         styles = {
             "cover-title": ParagraphStyle(
                 "CoverTitle",
@@ -383,16 +382,6 @@ class ReviewReport:
         # card_flowables: 追加 Flowable
 
         # 用表格布局卡片
-        # card_table 用真实数据 card_data[0..3] 构建 1 行 4 列表格
-        # 表格比流式布局更稳定，不会因为 Flowable 高度不一致导致错位
-        card_table_data = [  # card_table_data: 表格布局卡片数据
-            [StatCard(label, value, color, card_w)]
-            for label, value, color in card_data  # # 无违规则跳过
-        ]
-        card_table = Table(
-            [[card_data[0], card_data[1], card_data[2], card_data[3]]],
-            colWidths=[card_w] * 4,
-        )  # # 按 clause_id 分组
         # 用 Paragraph 列表替代 StatCard：简单列表布局在 PDF 中更可靠
         # ReportLab Flowable 的 StatCard 卡片在不同版本行为不稳定
         # 简化: 用文字描述
@@ -663,8 +652,6 @@ class ReviewReport:
         changed_violations = summary.get(
             "changed_violations", 0
         )  # changed_violations: summary.get("changed_violations", 0)
-        total_v1 = summary.get("total_v1", 0)  # total_v1: summary.get("total_v1", 0)
-        total_v2 = summary.get("total_v2", 0)  # total_v2: summary.get("total_v2", 0)
 
         # 摘要卡片
         card_w = (cw - 24) / 3  # card_w: 卡片宽度计算
