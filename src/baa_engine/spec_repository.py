@@ -1190,7 +1190,7 @@ class SpecRepository:  # class definition
 
         # 条件分支：if not clause.threshold
         if not clause.threshold:  # check: negated condition
-            clause.threshold = ClauseThreshold()  # function call
+            clause.threshold = Threshold()  # function call
         # 条件分支：if not clause.threshold.building_types
         if not clause.threshold.building_types:  # check: negated condition
             clause.threshold.building_types = {}  # assignment

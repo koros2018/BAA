@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm, cm
+from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
@@ -28,10 +28,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer,
     PageBreak,
-    KeepTogether,
     HRFlowable,
-    ListFlowable,
-    ListItem,
 )
 from reportlab.platypus.flowables import Flowable
 from src.baa_engine.i18n import t
@@ -859,7 +856,8 @@ class ReviewReport:
         self,
         buf,
         details: List[Dict[str, Any]],
-        corrections: List[Dict[str, Any]],  # # 设置表头文字颜色
+        corrections: List[Dict[str, Any]],
+        lang: str = "zh",  # 语言
     ):
         if not details:  # # 斑马纹
             return

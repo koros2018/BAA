@@ -29,3 +29,6 @@ data/1*
 ROADMAP.md
 .venv_old/
 datasets/
+*.db
+*.db-shm
+*.db-wal

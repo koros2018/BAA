@@ -22,13 +22,11 @@ import base64  # stdlib: base64
 import threading  # stdlib: threading
 from pathlib import Path  # import: path utils
 from datetime import datetime, timezone  # import
-from typing import Optional, Dict, List, Set  # typing: type hints
+from typing import Optional, Dict, List  # typing: type hints
 
 # ── AES-GCM 加密（密钥可恢复，用于前端展示） ──────────────
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # import
-from cryptography.hazmat.primitives import hashes  # import
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF  # import
 
 # 用于加密 raw_key 的主密钥（从环境变量派生，或自动生成一个持久化的）
 _ENCRYPTION_MASTER_KEY = None  # assignment

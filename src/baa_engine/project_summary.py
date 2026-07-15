@@ -12,7 +12,7 @@ BAA 项目级审查汇总模块
 
 import logging
 from collections import Counter, defaultdict
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 

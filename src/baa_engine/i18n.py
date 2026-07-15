@@ -10,7 +10,7 @@ BAA 多语言支持模块 (i18n)
 4. 兼容扩展：新语言只需添加一个字典
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 # ── 支持的语言代码 ─────────────────────────────────────
 SUPPORTED_LANGUAGES = {

@@ -12,7 +12,7 @@ BAA 自动图纸修正引擎
 - AREA类（面积不足）：建议扩大面积
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
 

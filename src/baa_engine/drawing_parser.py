@@ -21,8 +21,8 @@ from ezdxf.math import Vec2  # import: ezdxf library
 from pathlib import Path  # import: path utils
 from typing import List, Dict, Any, Optional  # typing: type hints
 import subprocess  # stdlib: subprocess
+import sys  # stdlib: system
 import tempfile  # stdlib: temp files
-import shutil  # stdlib: file ops
 import os  # stdlib: filesystem ops
 import gc  # stdlib: garbage collection
 import psutil  # psutil: system memory

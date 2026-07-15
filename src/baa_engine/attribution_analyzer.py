@@ -2,8 +2,8 @@
 BAA 归因分析模块 - 三要素 + 注意力热力图（规则版）
 """
 
-from typing import Dict, Any, Optional, List  # typing: generic type hints
-from dataclasses import dataclass, field  # dataclasses: @dataclass decorator
+from typing import Dict, Any, List  # typing: generic type hints
+from dataclasses import dataclass  # dataclasses: @dataclass decorator
 import uuid  # uuid: unique ID generation
 
 

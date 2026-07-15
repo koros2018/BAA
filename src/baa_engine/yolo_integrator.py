@@ -12,7 +12,6 @@ BAA YOLO 图元检测集成器
 import logging
 import math
 import os
-import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
