@@ -152,9 +152,6 @@ async def review(  # code
     details = []  # assignment
     registry_funcs = _func_registry.list_all()  # check all true
 
-    # 收集已出现的实体类型
-    found_entity_types = set(e["type"] for e in entities)  # function call
-
     # 多建筑类型并行匹配：取最严格阈值
     def get_strict_threshold(
         clause_id: str,
@@ -310,7 +307,7 @@ async def review(  # code
             llm_engine = LLMCorrectionEngine(mode=correction_mode)
             corrections = llm_engine.generate_for_result(review_result_for_correction)
         response_data["corrections"] = corrections  # 操作
-    except Exception as e:  # 捕获异常
+    except Exception:  # 捕获异常
         response_data["corrections"] = []  # 操作
 
     # ── 如果请求 full 模式，返回完整图元列表 ─────────────────
@@ -429,12 +426,9 @@ async def batch_review(  # code
     repo = SpecRepository()  # function call
     registry_funcs = _func_registry.list_all()  # check all true
 
-    results = []  # assignment
     all_details = []  # assignment
-    all_entities = []  # assignment
     total_violations = 0  # assignment
     total_checks = 0  # assignment
-    total_files = len(files)  # get length
     completed_files = 0  # assignment
 
     # ── 并发执行每个文件的审查（P37优化） ────────────────────
@@ -515,7 +509,6 @@ async def batch_review(  # code
 
             # ── 规范判定 ──────────────────────────────────────
             details = []  # assignment
-            found_entity_types = set(e["type"] for e in entities)  # function call
 
             def get_strict_threshold(
                 clause_id: str,
@@ -905,7 +898,7 @@ async def review_from_data(  # code
                 "corrections": corrections,
                 "summary": response_data.get("summary", {}),
             }
-        except Exception as e:
+        except Exception:
             response_data["corrections"] = []
             response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
 

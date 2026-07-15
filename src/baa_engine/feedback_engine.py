@@ -9,7 +9,6 @@ P10: 用户申诉 → 审核记录 → 阈值微调 → 审核追溯
 """
 
 import json  # stdlib: JSON serialization
-import time  # stdlib: timestamp operations
 import uuid  # stdlib: unique ID generation
 from pathlib import Path  # stdlib: filesystem path handling
 from datetime import datetime  # stdlib: ISO datetime formatting

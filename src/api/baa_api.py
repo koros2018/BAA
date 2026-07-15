@@ -19,7 +19,7 @@ import json  # JSON 序列化/反序列化
 import hmac  # HMAC 签名
 import hashlib  # 哈希函数
 import base64  # Base64 编码
-from datetime import datetime, timedelta  # 日期时间处理
+from datetime import datetime  # 日期时间处理
 
 # ── FastAPI 及依赖 ──────────────────────────────────────────
 from fastapi import (
@@ -30,7 +30,6 @@ from fastapi import (
     Depends,
     Query,
     Request,
-    Security,
 )  # fastapi: HTTP framework
 from fastapi.security import HTTPBearer  # import
 from fastapi.middleware.cors import CORSMiddleware  # import
@@ -480,7 +479,7 @@ async def deconstruct(  # code
                 for ye in yolo_entities:  # 循环
                     if ye["type"] not in existing_types:  # check: membership test
                         entities.append(ye)  # append to list
-        except Exception as yolo_e:  # 捕获异常
+        except Exception:  # 捕获异常
             # YOLO 失败不影响主流程
             pass  # 占位
 
@@ -780,7 +779,7 @@ async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_k
 
     tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
     tmp.close()
-    dxf = multi.build_dxf(layout, tmp.name)
+    multi.build_dxf(layout, tmp.name)
 
     with open(tmp.name, "r") as f:
         dxf_content = f.read()

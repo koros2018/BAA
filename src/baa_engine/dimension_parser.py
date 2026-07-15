@@ -17,7 +17,7 @@ BAA 尺寸标注解析器
     enriched = parser.inject_into_entities(dims, entities)
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict
 from pathlib import Path
 
 
@@ -246,8 +246,6 @@ class DimensionParser:
         返回:
             增强后的 entities 列表（注入 measurement 属性）
         """
-        import math
-
         if not entities or not dimensions:
             return entities
 

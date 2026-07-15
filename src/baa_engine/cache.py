@@ -14,10 +14,8 @@ import json  # JSON serialization
 import sqlite3  # SQLite database API
 import threading  # thread safety primitives
 import time  # time/timestamp operations
-import hashlib  # MD5 hashing for cache keys
 import os  # filesystem operations
 import logging  # logging framework
-from pathlib import Path  # path utilities
 from typing import Any, Optional, Dict, Callable  # generic type hints
 
 logger = logging.getLogger(__name__)  # module-level logger
