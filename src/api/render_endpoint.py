@@ -1,13 +1,16 @@
 """
 图纸渲染端点（SVG输出）
-在现有 baas_api.py 文件末尾追加以下代码（位于 `get_order` 函数之后，静态文件服务之前）
+从 baa_api.py 拆分，使用 APIRouter 注册
+被 baa_api.py include_router 加载
 """
 
-# ── 图纸渲染 ──────────────────────────────────────────────
-# 将以下代码插入到 `get_order` 的 return 之后、静态文件挂载之前
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from src.api.api_globals import get_file_path, verify_api_key
+
+router = APIRouter()  # function call
 
 
-@app.get("/render/{file_id}")
+@router.get("/render/{file_id}")
 async def render_drawing(
     file_id: str,  # 操作
     request: Request = None,
@@ -42,27 +45,22 @@ async def render_drawing(
                 s, e = entity.dxf.start, entity.dxf.end
                 all_x.extend([s[0], e[0]])
                 all_y.extend([s[1], e[1]])
-            # 条件分支：elif entity.dxftype() == "LWPOLYLINE"
             elif entity.dxftype() == "LWPOLYLINE":  # 分支
                 pts = [(v[0], v[1]) for v in entity.get_points()]
                 all_x.extend(p[0] for p in pts)
                 all_y.extend(p[1] for p in pts)
-            # 条件分支：elif entity.dxftype() == "CIRCLE"
             elif entity.dxftype() == "CIRCLE":  # 分支
                 cx, cy = entity.dxf.center[:2]
                 r = entity.dxf.radius
                 all_x.extend([cx - r, cx + r])
                 all_y.extend([cy - r, cy + r])
-            # 条件分支：elif entity.dxftype() in ("TEXT", "MTEXT")
             elif entity.dxftype() in ("TEXT", "MTEXT"):  # 分支
                 ins = entity.dxf.insert[:2]
                 all_x.append(ins[0])
                 all_y.append(ins[1])
-        # 异常处理
         except Exception:  # 捕获异常
             continue  # 继续循环
 
-    # 条件分支：if not all_x
     if not all_x:
         return {"status": "error", "message": "图纸无有效图元"}
 
@@ -86,15 +84,11 @@ async def render_drawing(
     max_entities = 2000
     drawn = 0
 
-    # 遍历处理
     for entity in msp:  # 循环
-        # 条件分支：if drawn >= max_entities
         if drawn >= max_entities:
             break  # 跳出循环
         dxftype = entity.dxftype()
-        # 异常保护
         try:  # 尝试
-            # 条件分支：if dxftype == "LINE"
             if dxftype == "LINE":
                 s, e = entity.dxf.start, entity.dxf.end
                 buf.write(
@@ -103,13 +97,11 @@ async def render_drawing(
                     f'stroke="#333" stroke-width="0.5" />\n'
                 )
                 drawn += 1
-            # 条件分支：elif dxftype == "LWPOLYLINE"
             elif dxftype == "LWPOLYLINE":  # 分支
                 pts = [(v[0], -v[1]) for v in entity.get_points()]
                 d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)
                 buf.write(f'<path d="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n')
                 drawn += 1
-            # 条件分支：elif dxftype == "CIRCLE"
             elif dxftype == "CIRCLE":  # 分支
                 cx, cy = entity.dxf.center[:2]
                 r = entity.dxf.radius
@@ -118,7 +110,6 @@ async def render_drawing(
                     f'fill="none" stroke="#333" stroke-width="0.5" />\n'
                 )
                 drawn += 1
-            # 条件分支：elif dxftype in ("TEXT", "MTEXT")
             elif dxftype in ("TEXT", "MTEXT"):  # 分支
                 ins = entity.dxf.insert[:2]
                 txt = entity.dxf.text if hasattr(entity.dxf, "text") else ""
@@ -128,7 +119,6 @@ async def render_drawing(
                     f'font-size="{h}" fill="#666">{txt[:30]}</text>\n'
                 )
                 drawn += 1
-        # 异常处理
         except Exception:  # 捕获异常
             continue  # 继续循环
 

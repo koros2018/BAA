@@ -13,13 +13,12 @@ BAA API 服务层 - FastAPI 实现
 """
 
 # ── 标准库导入 ──────────────────────────────────────────────
-import uuid  # 生成唯一标识符（文件ID、任务ID等）
-import os  # 环境变量、路径操作
 import time  # 时间戳、超时控制
-import json  # JSON 序列化/反序列化
 import gc  # 垃圾回收
-from pathlib import Path  # 跨平台路径操作
-from typing import Optional, List, Dict  # 类型注解
+import json  # JSON 序列化/反序列化
+import hmac  # HMAC 签名
+import hashlib  # 哈希函数
+import base64  # Base64 编码
 from datetime import datetime, timedelta  # 日期时间处理
 
 # ── FastAPI 及依赖 ──────────────────────────────────────────
@@ -29,12 +28,11 @@ from fastapi import (
     UploadFile,
     HTTPException,
     Depends,
-    Security,
     Query,
     Request,
-    Response,
+    Security,
 )  # fastapi: HTTP framework
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  # import
+from fastapi.security import HTTPBearer  # import
 from fastapi.middleware.cors import CORSMiddleware  # import
 from fastapi.staticfiles import StaticFiles  # import
 
@@ -42,9 +40,6 @@ from fastapi.staticfiles import StaticFiles  # import
 # 共享全局变量与工具函数
 # ═══════════════════════════════════════════════════════════════
 from src.api.api_globals import *  # noqa: F401, F403
-
-import hashlib  # stdlib: hashing
-import base64  # stdlib: base64
 
 # ── 反馈引擎（在 globals 中延迟导入，这里显式导入供类型注解用）
 from src.baa_engine.feedback_engine import FeedbackManager, LearningEngine  # import
@@ -183,8 +178,6 @@ def _load_engine():  # function: def _load_engine():
 from contextlib import asynccontextmanager  # import
 
 
-import gc  # stdlib: garbage collection
-
 # ── 内存监控（每 300 秒触发 GC，防止内存泄漏） ─────────
 _GC_INTERVAL = 300  # 秒
 _last_gc_time = 0  # 上次 GC 时间戳
@@ -233,6 +226,10 @@ app.include_router(admin_router)  # function call
 from src.api.review_routes import router as review_router  # import
 
 app.include_router(review_router)  # function call
+
+from src.api.render_endpoint import router as render_router  # import
+
+app.include_router(render_router)  # function call
 
 # ── 静态文件服务 ──────────────────────────────────────────
 SPECS_DIR = DATA_DIR / "specs"
@@ -287,10 +284,10 @@ app.add_middleware(  # code
 )  # code
 
 
-def get_api_key(
-    authorization: str = Query("", description="Bearer API Key")
-):  # function: def get_api_key(authorization: str = Query("", description="
-    """从 Query 参数中获取 API Key（兼容 Swagger UI 调试）"""
+# get_api_key 已迁移至 api_globals.extract_api_key
+# 保留此函数签名仅为兼容旧引用（如有），实际使用 Depends(extract_api_key)
+# 通过 verify_api_key 的 Depends 链自动注入
+# 注：get_api_key 无实现体，由 extract_api_key 替代
 
 
 # ── 引擎导入（懒加载） ──────────────────────────────────
