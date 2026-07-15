@@ -464,7 +464,7 @@ class CollaborationManager:
     def verify_token(self, token: str) -> Optional[str]:
         session = self._get_session()
         try:
-            user = session.query(User).filter(User.token == token, User.is_active == True).first()
+            user = session.query(User).filter(User.token == token, User.is_active).first()
             return user.id if user else None
         finally:
             self._close_session(session)
@@ -481,7 +481,11 @@ class CollaborationManager:
             )
             if existing:
                 return None, "用户名或邮箱已存在"
-            user = User(username=username, email=email if email else None, display_name=display_name or username)
+            user = User(
+                username=username,
+                email=email if email else None,
+                display_name=display_name or username,
+            )
             user.set_password(password)
             user.token = self._generate_token(user.id)
             session.add(user)
@@ -545,7 +549,7 @@ class CollaborationManager:
     def list_users(self, query: str = "", limit: int = 50) -> List[dict]:
         session = self._get_session()
         try:
-            q = session.query(User).filter(User.is_active == True)
+            q = session.query(User).filter(User.is_active)
             if query:
                 q = q.filter(
                     (User.username.ilike(f"%{query}%")) | (User.display_name.ilike(f"%{query}%"))
@@ -979,7 +983,7 @@ class CollaborationManager:
                 ReviewComment.review_session_id == review_session_id
             )
             if not include_resolved:
-                q = q.filter(ReviewComment.is_resolved == False)
+                q = q.filter(~ReviewComment.is_resolved)
             return [c.to_dict() for c in q.order_by(ReviewComment.created_at.asc()).all()]
         finally:
             self._close_session(session)

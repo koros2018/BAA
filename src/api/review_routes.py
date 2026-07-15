@@ -351,7 +351,11 @@ async def review_queue_status(  # code
     if status is None:  # check: value is None
         raise HTTPException(  # 抛出异常
             status_code=404,  # assignment
-            detail={"status": "error", "error_code": "TASK_NOT_FOUND", "message": f"任务不存在: {task_id}"},  # 操作
+            detail={
+                "status": "error",
+                "error_code": "TASK_NOT_FOUND",
+                "message": f"任务不存在: {task_id}",
+            },  # 操作
         )  # code
     return status  # return
 
@@ -372,7 +376,11 @@ async def review_queue_cancel(  # code
         if status_info is None:  # check: value is None
             raise HTTPException(  # 抛出异常
                 status_code=404,  # assignment
-                detail={"status": "error", "error_code": "TASK_NOT_FOUND", "message": f"任务不存在: {task_id}"},  # 操作
+                detail={
+                    "status": "error",
+                    "error_code": "TASK_NOT_FOUND",
+                    "message": f"任务不存在: {task_id}",
+                },  # 操作
             )  # code
         raise HTTPException(  # 抛出异常
             status_code=409,  # assignment
@@ -411,11 +419,17 @@ async def batch_review(  # code
     """
     if len(files) < 1:  # check: numeric comparison
         raise HTTPException(
-            status_code=400, detail={"status": "error", "error_code": "NO_FILES", "message": "请至少上传一个文件"}
+            status_code=400,
+            detail={"status": "error", "error_code": "NO_FILES", "message": "请至少上传一个文件"},
         )  # 抛出异常
     if len(files) > 20:  # check: numeric comparison
         raise HTTPException(
-            status_code=400, detail={"status": "error", "error_code": "TOO_MANY_FILES", "message": "单次最多审查20个文件"}
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "TOO_MANY_FILES",
+                "message": "单次最多审查20个文件",
+            },
         )  # 抛出异常
 
     start = time.time()  # get current time
@@ -1033,7 +1047,8 @@ async def render_drawing(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
+            status_code=404,
+            detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"},
         )  # 抛出异常
 
     import ezdxf  # import
@@ -1045,7 +1060,8 @@ async def render_drawing(  # code
         msp = doc.modelspace()  # function call
     except Exception:  # 捕获异常
         raise HTTPException(
-            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"}
+            status_code=400,
+            detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"},
         )  # 抛出异常
 
     # ── 计算图元边界（用于 SVG viewBox 适配） ────────────────
@@ -1162,7 +1178,8 @@ async def render_drawing_overlay(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
+            status_code=404,
+            detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"},
         )  # 抛出异常
 
     import ezdxf  # import
@@ -1180,7 +1197,8 @@ async def render_drawing_overlay(  # code
         msp = doc.modelspace()  # function call
     except Exception:  # 捕获异常
         raise HTTPException(
-            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"}
+            status_code=400,
+            detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"},
         )  # 抛出异常
 
     # 计算边界
@@ -1336,7 +1354,8 @@ async def review_pdf(  # code
     file_path = get_file_path(file_id)  # function call
     if not file_path:  # check: negated condition
         raise HTTPException(
-            status_code=404, detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"}
+            status_code=404,
+            detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"},
         )  # function call
 
     # 重新审查（保证使用最新引擎版本）
@@ -1349,7 +1368,12 @@ async def review_pdf(  # code
     )  # code
     if not result.success:  # check: negated condition
         raise HTTPException(
-            status_code=400, detail={"status": "error", "error_code": "PARSE_FAILED", "message": f"图纸解析失败: {result.error}"}
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "PARSE_FAILED",
+                "message": f"图纸解析失败: {result.error}",
+            },
         )  # function call
 
     semantic = await loop.run_in_executor(  # assignment
@@ -1498,6 +1522,7 @@ async def review_pdf(  # code
 
 
 # ── 静态文件服务（模型下载） ─────────────────────────────
+
 
 @router.post("/review/compare")  # function call
 async def review_compare(  # code
@@ -1721,12 +1746,20 @@ async def project_summary(
     if not file_ids:
         raise HTTPException(
             status_code=400,
-            detail={"status": "error", "error_code": "INVALID_INPUT", "message": "file_ids 不能为空"},
+            detail={
+                "status": "error",
+                "error_code": "INVALID_INPUT",
+                "message": "file_ids 不能为空",
+            },
         )
     if len(file_ids) > 50:
         raise HTTPException(
             status_code=400,
-            detail={"status": "error", "error_code": "TOO_MANY_FILES", "message": "单次最多汇总50个文件"},
+            detail={
+                "status": "error",
+                "error_code": "TOO_MANY_FILES",
+                "message": "单次最多汇总50个文件",
+            },
         )
 
     # ── 从缓存读取各文件审查结果 ───────────────────────────

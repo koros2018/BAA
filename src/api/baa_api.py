@@ -176,7 +176,6 @@ def _load_engine():  # function: def _load_engine():
 
 from contextlib import asynccontextmanager  # import
 
-
 # ── 内存监控（每 300 秒触发 GC，防止内存泄漏） ─────────
 _GC_INTERVAL = 300  # 秒
 _last_gc_time = 0  # 上次 GC 时间戳
@@ -193,6 +192,7 @@ def _periodic_gc():  # function: def _periodic_gc():
 
 # ── 并发限制与审查任务队列（在 api_globals 中定义） ──
 import asyncio  # stdlib: async
+
 # 兼容旧引用（_review_semaphore 保留为旧代码引用用，但不再使用）
 _review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
 
@@ -671,31 +671,38 @@ async def deconstruct(  # code
 @app.get("/api/v1/functions")
 async def list_functions(api_key: str = Depends(verify_api_key)):
     """获取原子函数库列表（含简介、参数、模型）"""
-    global _func_registry
     funcs = []
     for f in _func_registry.list_all():
-        funcs.append({
-            "func_id": f.func_id,
-            "name": f.name,
-            "description": f.description,
-            "category": f.category.value if hasattr(f.category, "value") else str(f.category),
-            "clause_id": f.clause_id,
-            "target_entities": list(f.target_entities),
-            "operator": f.operator,
-            "threshold": f.threshold,
-            "unit": f.unit,
-            "depends_on": f.depends_on,
-        })
+        funcs.append(
+            {
+                "func_id": f.func_id,
+                "name": f.name,
+                "description": f.description,
+                "category": f.category.value if hasattr(f.category, "value") else str(f.category),
+                "clause_id": f.clause_id,
+                "target_entities": list(f.target_entities),
+                "operator": f.operator,
+                "threshold": f.threshold,
+                "unit": f.unit,
+                "depends_on": f.depends_on,
+            }
+        )
     return {"status": "ok", "count": len(funcs), "functions": funcs}
 
 
 @app.post("/api/v1/functions/{func_id}/update")
 async def update_function(func_id: str, body: dict, api_key: str = Depends(verify_api_key)):
     """更新原子函数的阈值/运算符等参数"""
-    global _func_registry
     f = _func_registry.get(func_id)
     if not f:
-        raise HTTPException(status_code=404, detail={"status": "error", "error_code": "FUNC_NOT_FOUND", "message": f"函数 {func_id} 不存在"})
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "error_code": "FUNC_NOT_FOUND",
+                "message": f"函数 {func_id} 不存在",
+            },
+        )
     for key in ["threshold", "operator", "name", "description", "unit"]:
         if key in body:
             setattr(f, key, body[key])
@@ -706,8 +713,9 @@ async def update_function(func_id: str, body: dict, api_key: str = Depends(verif
 async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
     """反向重构：根据房间规格生成合规 DXF"""
     from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType, validate_roundtrip
-    import tempfile, os
-    from pathlib import Path
+    import tempfile  # import
+    from pathlib import Path  # path utils
+    import os  # stdlib: filesystem ops
 
     spec = RoomSpec(
         room_type=RoomType(body.get("room_type", "office")),
@@ -757,17 +765,23 @@ async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
 async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_key)):
     """多房间布局生成"""
     from src.baa_engine.reverse_engine import (
-        MultiRoomEngine, RoomSpec, RoomType, validate_roundtrip
+        MultiRoomEngine,
+        RoomSpec,
+        RoomType,
+        validate_roundtrip,
     )
-    import tempfile, os
-    from pathlib import Path
+    import tempfile  # import
+    from pathlib import Path  # path utils
+    import os  # stdlib: filesystem ops
 
     # body: { rooms: [{room_type, width_mm, height_mm, door_width_mm}...] }
     specs = [
-        RoomSpec(room_type=RoomType(r.get("room_type", "office")),
-                 width_mm=r.get("width_mm", 5000),
-                 height_mm=r.get("height_mm", 4000),
-                 door_width_mm=r.get("door_width_mm"))
+        RoomSpec(
+            room_type=RoomType(r.get("room_type", "office")),
+            width_mm=r.get("width_mm", 5000),
+            height_mm=r.get("height_mm", 4000),
+            door_width_mm=r.get("door_width_mm"),
+        )
         for r in body.get("rooms", [])
     ]
 
@@ -800,10 +814,21 @@ async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_k
         "status": "ok",
         "dxf": dxf_content,
         "layout": {
-            "rooms": [{"type": r.room_type.value, "x": r.x_mm, "y": r.y_mm,
-                       "w": r.width_mm, "h": r.height_mm} for r in layout.rooms],
-            "corridor": {"w": layout.corridor.width_mm, "h": layout.corridor.height_mm}
-                if layout.corridor else None,
+            "rooms": [
+                {
+                    "type": r.room_type.value,
+                    "x": r.x_mm,
+                    "y": r.y_mm,
+                    "w": r.width_mm,
+                    "h": r.height_mm,
+                }
+                for r in layout.rooms
+            ],
+            "corridor": (
+                {"w": layout.corridor.width_mm, "h": layout.corridor.height_mm}
+                if layout.corridor
+                else None
+            ),
         },
         "validation": validation,
     }
