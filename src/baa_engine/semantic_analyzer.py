@@ -2533,9 +2533,9 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 (rel.source_id, rel.type, rel.distance)
             )  # append: add to list
 
-            # 出口识别：优先用明确的 exit/exit_door
+            # 出口识别：优先用明确的 exit/exit_door/stair
         strict_exits = [
-            e for e in entities if e.type in ("exit", "exit_door")
+            e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
         ]  # assign: membership check
         fallback_exits = [
             e for e in entities if e.type in ("door", "fire_door")
@@ -2640,7 +2640,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
         # 出口识别
         strict_exits = [
-            e for e in entities if e.type in ("exit", "exit_door")
+            e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
         ]  # assign: membership check
         fallback_exits = [
             e for e in entities if e.type in ("door", "fire_door")
