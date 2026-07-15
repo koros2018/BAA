@@ -608,14 +608,13 @@ except Exception:
         dxf_doc: Any,
         block_defs: Dict[str, Any],
         depth: int = 0,
-        max_depth: int = 3,
+        max_depth: int = 5,
         visited: set = None,
     ) -> List[str]:
         """解析外部参照（xref）文件，将内容合并到主 dxf_doc
 
-        在同目录下查找 {xref_name}.dwg 或 {xref_name}.dxf，
-        读取后将其实体复制到主 dxf_doc 的 modelspace，
-        同时提取 block_defs。支持递归解析（最多 max_depth 层）。
+        递归搜索 xref 文件：优先同目录，其次搜索子目录树，
+        支持 ANON 匿名块、递归块嵌套（最深 max_depth 层）、防循环引用。
 
         返回：未找到文件的 xref 名称列表
         """
@@ -626,21 +625,34 @@ except Exception:
 
         unresolved = []
         parent_dir = dwg_path.parent
+        # 搜索路径：同目录 → 递归子目录
+        search_dirs = [parent_dir]
+        try:
+            search_dirs.extend(parent_dir.rglob("*"))
+        except Exception:
+            pass
+        # 扁平化：目录在前
+        dirs = [d for d in search_dirs if d.is_dir()]
+        dirs.sort(key=lambda p: len(str(p)))  # 短路径优先
 
         for xref_name in xref_names:  # # 遍历当前层的 xref 名称
             if xref_name.upper() in visited:  # # 已访问的 xref 跳过防循环
                 continue
             visited.add(xref_name.upper())
 
-            # 在同目录查找 xref 文件
+            # 在搜索路径中查找 xref 文件
             xref_path = None
-            for ext in (".dwg", ".dxf"):  # # 尝试 .dwg 和 .dxf 两种后缀
-                candidate = parent_dir / f"{xref_name}{ext}"
-                if candidate.exists():  # # 找到候选文件
-                    xref_path = candidate
+            for d in dirs:
+                for ext in (".dwg", ".dxf", ".DXF", ".DWG"):
+                    candidate = d / f"{xref_name}{ext}"
+                    if candidate.exists():
+                        xref_path = candidate
+                        break
+                if xref_path:
                     break
 
             if xref_path is None:  # # 未找到 xref 外部文件
+                logger.warning(f"未找到 xref 文件: {xref_name} (搜索目录: {dirs[:3]}...)")
                 unresolved.append(xref_name)
                 continue
 
@@ -662,19 +674,22 @@ except Exception:
                         xref_doc = ezdxf.readfile(tmp_path)
                         Path(tmp_path).unlink(missing_ok=True)
                     except Exception:
+                        logger.warning(f"读取 xref DWG 文件失败: {xref_path}")
                         unresolved.append(xref_name)
                         continue
 
-                # 提取该文件的 block_defs
+                # 提取该文件的 block_defs（含 ANON 匿名块）
                 xref_block_defs: Dict[str, Any] = {}
                 xref_xref_names = []
-                for name, blk in xref_doc.blocks:  # # 遍历 xref 文件的块定义
+                for name, blk in xref_doc.blocks:
                     if blk.is_xref:  # # 跳过 xref 自身的引用
                         xref_xref_names.append(name)
                         continue
                     entities = list(blk)
                     if entities:  # # 有展开的实体
-                        xref_block_defs[name.upper()] = entities
+                        # ANON 块：使用原名称（保留匿名标识）
+                        key = name.upper()
+                        xref_block_defs[key] = entities
 
                 # 合并 block_defs
                 for k, v in xref_block_defs.items():  # # 合并块定义
@@ -1327,6 +1342,42 @@ except Exception:
                         msp_dst.add_point(
                             new_loc, dxfattribs={"color": ent_color, "layer": ent_layer}
                         )  # int conversion
+                    elif dxf_type == "ELLIPSE":  # elif condition
+                        center = transform_point(
+                            (
+                                getattr(ent.dxf, "center", (0, 0, 0))[0],
+                                getattr(ent.dxf, "center", (0, 0, 0))[1],
+                            )
+                        )  # int conversion
+                        major_axis = (
+                            getattr(ent.dxf, "major_axis", (0, 0, 0))[0],
+                            getattr(ent.dxf, "major_axis", (0, 0, 0))[1],
+                        )  # get attribute
+                        new_major = transform_point(major_axis)
+                        axis_ratio = getattr(ent.dxf, "axis_ratio", 1.0)
+                        import math as _math  # stdlib: math
+
+                        # 从 major_axis 计算长轴半径
+                        mx = new_major[0] - center[0]
+                        my = new_major[1] - center[1]
+                        major_r = max(1.0, math.hypot(mx, my))
+                        major_r *= scale
+                        minor_r = major_r * axis_ratio * scale
+                        msp_dst.add_ellipse(
+                            center,
+                            major_r,
+                            minor_r,
+                            dxfattribs={"color": ent_color, "layer": ent_layer},
+                        )
+                    elif dxf_type == "SPLINE":  # elif condition
+                        # SPLINE：用 CONTROL_POINTS 展开
+                        cps = getattr(ent.dxf, "control_points", [])
+                        if cps:
+                            new_cps = [transform_point((p[0], p[1])) for p in cps]
+                            msp_dst.add_spline(
+                                control_points=new_cps,
+                                dxfattribs={"color": ent_color, "layer": ent_layer},
+                            )
                 except Exception:  # catch exception
                     pass  # 单个实体展开失败不影响其他实体
         except Exception:  # catch exception
