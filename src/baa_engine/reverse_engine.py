@@ -68,8 +68,19 @@ class ReverseEngine:
     def __init__(self):
         self.registry = FuncRegistry()
 
+    # 房间类型 → 匹配的 target_entities（用于自动原子函数约束推导）
+    ROOM_TARGET_MAP: Dict[RoomType, set] = {
+        RoomType.OFFICE: {"room", "office", "space"},
+        RoomType.STAIR: {"stair", "staircase"},
+        RoomType.EXIT: {"exit", "exit_door"},
+        RoomType.CORRIDOR: {"corridor", "space"},
+        RoomType.FIRE_LOBBY: {"lobby", "fire_lobby", "smoke_proof_lobby"},
+        RoomType.EQUIPMENT: {"equipment_room", "pump_room"},
+        RoomType.TOILET: {"accessible_toilet", "toilet", "restroom"},
+    }
+
     def infer_constraints(self, spec: RoomSpec) -> LayoutConstraint:
-        """根据房间类型 + 尺寸，推断应满足的规范约束"""
+        """根据房间类型 + 尺寸，自动从原子函数推导应满足的规范约束"""
         defaults = self.DEFAULT_MIN_SIZES.get(spec.room_type, (3000, 3000, 900))
         min_w = max(spec.width_mm, defaults[0])
         min_h = max(spec.height_mm, defaults[1])
@@ -78,32 +89,46 @@ class ReverseEngine:
         notes = []
         area_m2 = (spec.width_mm * spec.height_mm) / 1e6
 
-        # 查找匹配的原子函数，提取约束
+        # 匹配的 target_entities
+        targets = self.ROOM_TARGET_MAP.get(spec.room_type, set())
+
+        # 自动遍历原子函数，匹配 target_entities
         for func in self.registry.list_all():
-            if func.func_id == "DIM-001":  # 疏散楼梯净宽 ≥ 1.2m
-                if spec.room_type == RoomType.STAIR:
-                    min_door = max(min_door, 1200)
-                    notes.append("DIM-001: 疏散楼梯净宽 ≥ 1.2m")
+            # 只匹配 DIMENSION/DISTANCE/AREA/COUNT/ACCESS 类的尺寸约束
+            if func.category.value not in ("dim", "dist", "area", "count", "access"):
+                continue
 
-            elif func.func_id == "DIM-003":  # 消防车道宽度
-                if spec.room_type == RoomType.CORRIDOR:
-                    min_w = max(min_w, 4000)
-                    notes.append("DIM-003: 消防车道宽度 ≥ 4m")
+            func_targets = (
+                set(func.target_entities)
+                if not isinstance(func.target_entities, set)
+                else func.target_entities
+            )
+            if not (targets & func_targets):
+                continue
 
-            elif func.func_id == "DIM-009":  # 疏散门净宽 ≥ 0.8m
-                min_door = max(min_door, 800)
-                notes.append("DIM-009: 疏散门净宽 ≥ 0.8m")
+            # 根据运算符提取尺寸约束
+            if func.unit in ("m", "mm"):
+                threshold_mm = func.threshold * 1000 if func.unit == "m" else func.threshold
+                if func.operator in ("ge", ">=", ">"):
+                    min_w = max(min_w, threshold_mm)
+                    min_h = max(min_h, threshold_mm)
+                elif func.operator in ("le", "<=", "<"):
+                    notes.append(f"{func.func_id}: {func.name} ≤ {func.threshold}{func.unit}")
+                    continue
+                notes.append(f"{func.func_id}: {func.name} ≥ {func.threshold}{func.unit}")
 
-            elif func.func_id == "DIM-010":  # 无障碍门宽 ≥ 0.9m
-                if spec.room_type == RoomType.TOILET:
-                    min_door = max(min_door, 900)
-                    notes.append("DIM-010: 无障碍门宽 ≥ 0.9m")
+            elif func.unit in ("sqm", "m²"):
+                if func.operator in ("ge", ">=", ">"):
+                    notes.append(f"{func.func_id}: {func.name} ≥ {func.threshold}{func.unit}")
+                elif func.operator in ("le", "<=", "<"):
+                    notes.append(f"{func.func_id}: {func.name} ≤ {func.threshold}{func.unit}")
 
-            elif func.func_id == "DIST-001":  # 疏散距离 ≤ 30m
-                notes.append("DIST-001: 疏散距离 ≤ 30m")
+            elif func.unit in ("个", "台", "盏"):
+                if func.operator in ("ge", ">=", ">"):
+                    notes.append(f"{func.func_id}: {func.name} ≥ {func.threshold}{func.unit}")
 
-            elif func.func_id == "ARE-001":  # 防火分区面积
-                notes.append("ARE-001: 防火分区面积 ≤ 规范上限")
+        # 兜底：疏散门净宽 ≥ 0.8m（通用）
+        min_door = max(min_door, 800)
 
         return LayoutConstraint(
             min_width_mm=min_w,
@@ -505,7 +530,37 @@ class MultiRoomEngine:
             cy = layout.corridor.y_mm + layout.corridor.height_mm / 2
             lines.extend(self._text("CORRIDOR", cx, cy, 250, "TEXT"))
 
-        # 5. 疏散路径标注（箭头线从房间门→走廊→出口方向）
+        # 5. 安全出口 EXIT 标识（走廊端部）
+        if layout.corridor:
+            exit_x = layout.corridor.x_mm + layout.corridor.width_mm
+            exit_w = 2000  # EXIT 房间宽度
+            exit_h = layout.corridor.height_mm
+            exit_y = layout.corridor.y_mm
+            # EXIT 房间轮廓
+            lines.extend(
+                self._lwpolyline_rect(exit_x, exit_y, exit_w, exit_h, "WALL")
+            )
+            # EXIT 门
+            door_w = 1100
+            door_y = exit_y + exit_h / 2 - door_w / 2
+            lines.extend(
+                self._line(exit_x, door_y, exit_x, door_y + door_w, "DOOR")
+            )
+            lines.extend(
+                self._arc(exit_x, door_y, door_w, 270, 360, "DOOR")
+            )
+            # EXIT 文字
+            lines.extend(
+                self._text(
+                    "EXIT",
+                    exit_x + exit_w / 2,
+                    exit_y + exit_h / 2,
+                    300,
+                    "TEXT",
+                )
+            )
+
+        # 6. 疏散路径标注（箭头线从房间门→走廊→出口方向）
         # 在 EVAC 层绘制疏散箭头线，用于正向解析识别疏散路径
         evac_lines = self._build_evacuation_paths(layout)
         for el in evac_lines:
