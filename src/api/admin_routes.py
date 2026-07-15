@@ -3,19 +3,13 @@
 从 baa_api.py 拆分，使用 APIRouter 注册
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request, Response
-from fastapi.security import HTTPAuthorizationCredentials  # import
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 from src.api.api_globals import *  # noqa: F401, F403
-import hashlib  # stdlib: hashing
 import os  # environment
 from datetime import datetime  # date/time
-from typing import Optional  # type hints
 import uuid  # unique id
 import time  # timing
 import asyncio  # async
-from pathlib import Path  # path operations
-import json  # json
-from collections import Counter  # counting
 
 router = APIRouter()
 
