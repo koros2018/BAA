@@ -5,6 +5,52 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 from src.api.api_globals import *  # noqa: F401, F403
+from src.api import api_globals as _api_globals  # 用于延迟获取引擎引用
+
+
+# 从 api_globals 惰性获取引擎引用（确保 _load_engine() 已执行完毕）
+def _get_dp():
+    """获取 _drawing_parser（惰性，确保 engine 已加载）"""
+    return _api_globals._drawing_parser
+
+
+def _get_sa():
+    return _api_globals._semantic_analyzer
+
+
+def _get_fr():
+    return _api_globals._func_registry
+
+
+def _get_sr():
+    return _api_globals._spec_repo
+
+
+def _get_aa():
+    return _api_globals._attribution_analyzer
+
+
+def _get_pool():
+    return _api_globals.ENGINE_THREAD_POOL
+
+
+def _get_rq():
+    return _api_globals._review_queue
+
+
+def _get_pc():
+    return _api_globals._persistent_cache
+
+
+def _get_rc():
+    return _api_globals._review_cache
+
+
+def _get_rc_max():
+    return _api_globals._REVIEW_CACHE_MAX
+
+
+make_cache_key = _api_globals.make_cache_key
 import os
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -12,6 +58,7 @@ import uuid
 import time
 import asyncio
 import json
+import hashlib
 
 router = APIRouter()
 
@@ -82,14 +129,14 @@ async def review(  # code
     file_hash = hashlib.sha256(content).hexdigest()[:32]  # function call
     cache_key = make_cache_key(file_hash, standard, building_type)  # function call
     # 先查内存缓存（最快）
-    cached = _review_cache.get(cache_key)  # function call
+    cached = _get_rc().get(cache_key)  # function call
     if cached is not None:  # check: value is not None
         cached["file_id"] = file_id  # assignment
         return cached  # return
     # 再查持久化缓存（服务重启后恢复）
-    persistent = _persistent_cache.get(cache_key, "review_result")  # function call
+    persistent = _get_pc().get(cache_key, "review_result")  # function call
     if persistent is not None:  # check: value is not None
-        _review_cache[cache_key] = persistent  # assignment
+        _get_rc()[cache_key] = persistent  # assignment
         persistent["file_id"] = file_id  # assignment
         return persistent  # return
 
@@ -97,7 +144,7 @@ async def review(  # code
     loop = asyncio.get_event_loop()  # function call
 
     # 并发控制：审查任务队列排队
-    task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue(file_id)
+    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(file_id)
     if task_obj is None:
         return {
             "status": "error",
@@ -108,12 +155,12 @@ async def review(  # code
 
     try:
         # Step 1: 图纸解析（CPU密集型 → 线程池）
-        _review_queue.update_progress(task_id, 10.0)
+        _get_rq().update_progress(task_id, 10.0)
         result = await loop.run_in_executor(  # assignment
-            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
+            _get_pool(), _get_dp().parse, str(file_path), file_id  # 操作
         )  # code
         if not result.success:  # check: negated condition
-            _review_queue.fail(task_id, result.error)
+            _get_rq().fail(task_id, result.error)
             return {  # return: dict
                 "status": "error",  # 字段
                 "error_code": "PARSE_FAILED",  # 字段
@@ -123,20 +170,20 @@ async def review(  # code
             }  # code
 
         # Step 2: 语义分析（CPU密集型 → 线程池）
-        _review_queue.update_progress(task_id, 50.0)
+        _get_rq().update_progress(task_id, 50.0)
         semantic = await loop.run_in_executor(  # assignment
-            ENGINE_THREAD_POOL,  # 解包
-            lambda: _semantic_analyzer.analyze(  # 操作
+            _get_pool(),  # 解包
+            lambda: _get_sa().analyze(  # 操作
                 result.primitives,
                 result.dimensions,  # 解包
                 building_type=building_type,  # assignment
             ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
-        _review_queue.update_progress(task_id, 70.0)
+        _get_rq().update_progress(task_id, 70.0)
 
     except Exception as e:
-        _review_queue.fail(task_id, str(e))
+        _get_rq().fail(task_id, str(e))
         raise
 
     # 多建筑类型：向后兼容，building_types 为空时使用 building_type
@@ -150,7 +197,7 @@ async def review(  # code
 
     clause_results = Counter()  # function call
     details = []  # assignment
-    registry_funcs = _func_registry.list_all()  # check all true
+    registry_funcs = _get_fr().list_all()  # check all true
 
     # 多建筑类型并行匹配：取最严格阈值
     def get_strict_threshold(
@@ -168,9 +215,9 @@ async def review(  # code
     func_ids = [f.func_id for f in registry_funcs]  # 提取所有函数ID
     for e in entities:  # 循环
         # 使用链式执行：依赖函数先执行，结果缓存后传递给后续函数
-        chained_results = _func_registry.execute_chained(func_ids, e)  # function call
+        chained_results = _get_fr().execute_chained(func_ids, e)  # function call
         for fid, r in chained_results.items():  # 循环
-            func = _func_registry.get(fid)  # function call
+            func = _get_fr().get(fid)  # function call
             if func is None:  # condition: func is None:
                 continue  # 跳过
             threshold_val, unit, op = get_strict_threshold(func.clause_id)  # function call
@@ -186,7 +233,7 @@ async def review(  # code
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
+                f = _get_aa().build_finding(r, clause, e, entities[:5])  # function call
                 details.append(
                     {  # code
                         "entity_id": e.get("id", e.get("type", "")),  # 字段
@@ -207,7 +254,7 @@ async def review(  # code
             continue  # 继续循环
         has_match = any(func.matches(e) for e in entities)  # check any true
         if not has_match:  # check: negated condition
-            r = _func_registry.execute_with_timeout(func, None)  # 触发缺失检查模式
+            r = _get_fr().execute_with_timeout(func, None)  # 触发缺失检查模式
             if r is not None and r.result != "PASS":  # check: value is not None
                 clause = {  # assignment
                     "standard": "GB50016",  # 字段
@@ -216,9 +263,7 @@ async def review(  # code
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _attribution_analyzer.build_finding(
-                    r, clause, {}, entities[:5]
-                )  # function call
+                f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                 details.append(
                     {  # code
                         "entity_id": "",  # 字段
@@ -318,7 +363,7 @@ async def review(  # code
         ]  # code
 
     # ── 标记任务完成 ────────────────────────────────────────
-    _review_queue.complete(task_id, response_data)
+    _get_rq().complete(task_id, response_data)
     response_data["queue_info"] = {
         "task_id": task_id,
         "queue_position": queue_position,
@@ -327,12 +372,12 @@ async def review(  # code
     # ── 写入缓存（内存 + 持久化） ──────────────────────────
     if file_hash:  # condition: file_hash:
         cache_key = make_cache_key(file_hash, standard, building_type)  # function call
-        if len(_review_cache) >= _REVIEW_CACHE_MAX:  # check: numeric comparison
-            old_key = next(iter(_review_cache))  # function call
-            del _review_cache[old_key]  # code
-        _review_cache[cache_key] = response_data  # assignment
+        if len(_get_rc()) >= _get_rc_max():  # check: numeric comparison
+            old_key = next(iter(_get_rc()))  # function call
+            del _get_rc()[old_key]  # code
+        _get_rc()[cache_key] = response_data  # assignment
         # 异步写入持久化缓存（不阻塞响应）
-        _persistent_cache.set(cache_key, response_data, "review_result")  # function call
+        _get_pc().set(cache_key, response_data, "review_result")  # function call
 
     return response_data  # return
 
@@ -347,7 +392,7 @@ async def review_queue_status(  # code
     返回指定 task_id 的排队位置、进度和状态。
     如果任务不存在，返回 404。
     """
-    status = _review_queue.get_status(task_id)  # function call
+    status = _get_rq().get_status(task_id)  # function call
     if status is None:  # check: value is None
         raise HTTPException(  # 抛出异常
             status_code=404,  # assignment
@@ -370,9 +415,9 @@ async def review_queue_cancel(  # code
     仅能取消排队中（status=queued）的任务。
     已在运行或已完成的任务无法取消。
     """
-    cancelled = _review_queue.cancel(task_id)  # function call
+    cancelled = _get_rq().cancel(task_id)  # function call
     if not cancelled:  # check: negated condition
-        status_info = _review_queue.get_status(task_id)  # function call
+        status_info = _get_rq().get_status(task_id)  # function call
         if status_info is None:  # check: value is None
             raise HTTPException(  # 抛出异常
                 status_code=404,  # assignment
@@ -398,7 +443,7 @@ async def review_queue_stats(  # code
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """查询审查任务队列统计信息"""
-    return _review_queue.stats()  # return
+    return _get_rq().stats()  # return
 
 
 @router.post("/batch-review")  # function call
@@ -438,7 +483,7 @@ async def batch_review(  # code
     from collections import Counter  # stdlib: collections
 
     repo = SpecRepository()  # function call
-    registry_funcs = _func_registry.list_all()  # check all true
+    registry_funcs = _get_fr().list_all()  # check all true
 
     all_details = []  # assignment
     total_violations = 0  # assignment
@@ -452,7 +497,7 @@ async def batch_review(  # code
 
         # 使用审查任务队列排队
         temp_file_id = generate_file_id()
-        task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue(temp_file_id)
+        task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(temp_file_id)
         if task_obj is None:
             completed_files += 1
             return {
@@ -468,7 +513,7 @@ async def batch_review(  # code
             )  # function call
             if ext not in SUPPORTED_FORMATS:  # check: membership test
                 completed_files += 1  # accumulate
-                _review_queue.fail(task_id, f"不支持的文件格式: {ext}")
+                _get_rq().fail(task_id, f"不支持的文件格式: {ext}")
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -479,7 +524,7 @@ async def batch_review(  # code
             content = await file.read()  # function call
             if len(content) > MAX_FILE_SIZE:  # check: numeric comparison
                 completed_files += 1  # accumulate
-                _review_queue.fail(task_id, "文件过大")
+                _get_rq().fail(task_id, "文件过大")
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -491,13 +536,13 @@ async def batch_review(  # code
             file_path = store_file(content, file_id, ext)  # function call
 
             # ── 解析（CPU密集型 → 线程池） ───────────────────
-            _review_queue.update_progress(task_id, 10.0)
+            _get_rq().update_progress(task_id, 10.0)
             result = await loop.run_in_executor(  # assignment
-                ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
+                _get_pool(), _get_dp().parse, str(file_path), file_id  # function call
             )  # code
             if not result.success:  # check: negated condition
                 completed_files += 1  # accumulate
-                _review_queue.fail(task_id, result.error)
+                _get_rq().fail(task_id, result.error)
                 return {  # return: dict
                     "filename": file.filename,  # code
                     "status": "error",  # code
@@ -506,17 +551,17 @@ async def batch_review(  # code
                 }  # code
 
             # ── 语义分析（CPU密集型 → 线程池） ───────────────
-            _review_queue.update_progress(task_id, 50.0)
+            _get_rq().update_progress(task_id, 50.0)
             semantic = await loop.run_in_executor(  # assignment
-                ENGINE_THREAD_POOL,  # code
-                lambda: _semantic_analyzer.analyze(  # code
+                _get_pool(),  # code
+                lambda: _get_sa().analyze(  # code
                     result.primitives,
                     result.dimensions,  # code
                     building_type=building_type,  # assignment
                 ),  # code
             )  # code
             entities = semantic["entities"]  # assignment
-            _review_queue.update_progress(task_id, 70.0)
+            _get_rq().update_progress(task_id, 70.0)
 
             # 多建筑类型
             effective_types = building_types if building_types else [building_type]  # assignment
@@ -540,7 +585,7 @@ async def batch_review(  # code
                     func.threshold = threshold_val  # assignment
                     func.unit = unit  # assignment
                     func.operator = op  # assignment
-                    r = _func_registry.execute_with_timeout(func, e)  # function call
+                    r = _get_fr().execute_with_timeout(func, e)  # function call
                     if r is None:  # check: value is None
                         continue  # code
                     if r.result != "PASS":  # condition: r.result != "PASS":
@@ -551,9 +596,7 @@ async def batch_review(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(
-                            r, clause, e, entities[:5]
-                        )  # function call
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])  # function call
                         details.append(
                             {  # code
                                 "entity_id": e.get("id", e.get("type", "")),  # function call
@@ -580,7 +623,7 @@ async def batch_review(  # code
                     continue  # code
                 has_match = any(func.matches(e) for e in entities)  # check any true
                 if not has_match:  # check: negated condition
-                    r = _func_registry.execute_with_timeout(func, None)  # function call
+                    r = _get_fr().execute_with_timeout(func, None)  # function call
                     if r is not None and r.result != "PASS":  # check: value is not None
                         clause = {  # assignment
                             "standard": "GB50016",  # code
@@ -589,9 +632,7 @@ async def batch_review(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(
-                            r, clause, {}, entities[:5]
-                        )  # function call
+                        f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                         details.append(
                             {  # code
                                 "entity_id": "",  # code
@@ -653,7 +694,7 @@ async def batch_review(  # code
             }  # code
 
         except Exception as e:
-            _review_queue.fail(task_id, str(e))
+            _get_rq().fail(task_id, str(e))
             completed_files += 1
             return {
                 "filename": file.filename,
@@ -663,7 +704,7 @@ async def batch_review(  # code
             }
 
         # 标记任务完成
-        _review_queue.complete(task_id, {"filename": file.filename, "file_id": file_id})
+        _get_rq().complete(task_id, {"filename": file.filename, "file_id": file_id})
 
     # ── 并发执行所有文件 ──────────────────────────────────────
     file_tasks = [asyncio.create_task(_review_single_file(f)) for f in files]  # function call
@@ -758,12 +799,12 @@ async def review_from_data(  # code
     repo = SpecRepository()  # function call
     clause_results = Counter()  # function call
     details = []  # assignment
-    registry_funcs = _func_registry.list_all()  # check all true
+    registry_funcs = _get_fr().list_all()  # check all true
 
     start = time.time()  # get current time
 
     # 审查任务队列排队
-    task_obj, task_id, queue_position = await _review_queue.wait_and_dequeue("from-data")
+    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue("from-data")
     if task_obj is None:
         return {
             "status": "error",
@@ -772,7 +813,7 @@ async def review_from_data(  # code
         }
 
     try:
-        _review_queue.update_progress(task_id, 10.0)
+        _get_rq().update_progress(task_id, 10.0)
 
         # 多建筑类型并行匹配：取最严格阈值
         def get_strict_threshold(
@@ -792,7 +833,7 @@ async def review_from_data(  # code
                 func.threshold = threshold_val  # assignment
                 func.unit = unit  # assignment
                 func.operator = op  # assignment
-                r = _func_registry.execute_with_timeout(func, e)  # function call
+                r = _get_fr().execute_with_timeout(func, e)  # function call
                 if r is None:  # check: value is None
                     continue  # 继续循环
                 clause_results[func.clause_id] += 1  # accumulate
@@ -804,9 +845,7 @@ async def review_from_data(  # code
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
                     }  # code
-                    f = _attribution_analyzer.build_finding(
-                        r, clause, e, entities[:5]
-                    )  # function call
+                    f = _get_aa().build_finding(r, clause, e, entities[:5])  # function call
                     details.append(
                         {  # code
                             "entity_id": e.get("id", e.get("type", "")),  # 字段
@@ -828,7 +867,7 @@ async def review_from_data(  # code
                 continue  # 继续循环
             has_match = any(func.matches(e) for e in entities)  # check any true
             if not has_match:  # check: negated condition
-                r = _func_registry.execute_with_timeout(func, None)  # function call
+                r = _get_fr().execute_with_timeout(func, None)  # function call
                 if r is not None and r.result != "PASS":  # check: value is not None
                     clause = {  # assignment
                         "standard": "GB50016",  # 字段
@@ -837,9 +876,7 @@ async def review_from_data(  # code
                         "text": func.description,  # 字段
                         "category": func.category.value,  # 字段
                     }  # code
-                    f = _attribution_analyzer.build_finding(
-                        r, clause, {}, entities[:5]
-                    )  # function call
+                    f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                     details.append(
                         {  # code
                             "entity_id": "",  # 字段
@@ -917,11 +954,11 @@ async def review_from_data(  # code
             response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
 
     except Exception as outer_e:
-        _review_queue.fail(task_id, str(outer_e))
+        _get_rq().fail(task_id, str(outer_e))
         raise
 
     # 标记任务完成
-    _review_queue.complete(task_id, response_data)
+    _get_rq().complete(task_id, response_data)
     response_data["queue_info"] = {
         "task_id": task_id,
         "queue_position": queue_position,
@@ -1364,7 +1401,7 @@ async def review_pdf(  # code
     loop = asyncio.get_event_loop()  # function call
 
     result = await loop.run_in_executor(  # assignment
-        ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
+        _get_pool(), _get_dp().parse, str(file_path), file_id  # function call
     )  # code
     if not result.success:  # check: negated condition
         raise HTTPException(
@@ -1377,8 +1414,8 @@ async def review_pdf(  # code
         )  # function call
 
     semantic = await loop.run_in_executor(  # assignment
-        ENGINE_THREAD_POOL,  # code
-        lambda: _semantic_analyzer.analyze(
+        _get_pool(),  # code
+        lambda: _get_sa().analyze(
             result.primitives, result.dimensions, dxf_path=str(file_path)
         ),  # function call
     )  # code
@@ -1389,7 +1426,7 @@ async def review_pdf(  # code
 
     repo = SpecRepository()  # function call
     details = []  # assignment
-    registry_funcs = _func_registry.list_all()  # check all true
+    registry_funcs = _get_fr().list_all()  # check all true
 
     start = time.time()  # get current time
 
@@ -1398,7 +1435,7 @@ async def review_pdf(  # code
         for func in registry_funcs:  # loop: iterate
             threshold_val, unit, op = repo.get_threshold(func.clause_id, "civil")  # function call
             try:  # try block
-                r = _func_registry.execute_with_timeout(func, e)  # function call
+                r = _get_fr().execute_with_timeout(func, e)  # function call
                 if r is None:  # check: value is None
                     continue  # code
                 clause = {  # assignment
@@ -1408,9 +1445,7 @@ async def review_pdf(  # code
                     "text": func.description,  # code
                     "category": func.category.value,  # code
                 }  # code
-                f = _attribution_analyzer.build_finding(
-                    r, clause, {}, entities[:5]
-                )  # function call
+                f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                 if f.judgement["result"] != "PASS":  # condition: f.judgement["result"] != "PASS":
                     details.append(
                         {  # code
@@ -1434,7 +1469,7 @@ async def review_pdf(  # code
             continue  # code
         has_match = any(func.matches(e) for e in entities)  # check any true
         if not has_match:  # check: negated condition
-            r = _func_registry.execute_with_timeout(func, None)  # function call
+            r = _get_fr().execute_with_timeout(func, None)  # function call
             if r is not None and r.result != "PASS":  # check: value is not None
                 clause = {  # assignment
                     "standard": "GB50016",  # code
@@ -1443,9 +1478,7 @@ async def review_pdf(  # code
                     "text": func.description,  # code
                     "category": func.category.value,  # code
                 }  # code
-                f = _attribution_analyzer.build_finding(
-                    r, clause, {}, entities[:5]
-                )  # function call
+                f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                 details.append(
                     {  # code
                         "entity_id": "",  # code
@@ -1568,7 +1601,7 @@ async def review_compare(  # code
         file_path = store_file(content, file_id, ext)  # function call
 
         result = await loop.run_in_executor(  # assignment
-            ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # function call
+            _get_pool(), _get_dp().parse, str(file_path), file_id  # function call
         )  # code
         if not result.success:  # check: negated condition
             raise HTTPException(
@@ -1581,8 +1614,8 @@ async def review_compare(  # code
             )  # code
 
         semantic = await loop.run_in_executor(  # assignment
-            ENGINE_THREAD_POOL,  # code
-            lambda: _semantic_analyzer.analyze(  # code
+            _get_pool(),  # code
+            lambda: _get_sa().analyze(  # code
                 result.primitives,
                 result.dimensions,  # code
                 building_type=building_type,
@@ -1595,7 +1628,7 @@ async def review_compare(  # code
 
         repo = SpecRepository()  # function call
         details = []  # assignment
-        registry_funcs = _func_registry.list_all()  # check all true
+        registry_funcs = _get_fr().list_all()  # check all true
 
         for e in entities:  # loop: iterate
             for func in registry_funcs:  # loop: iterate
@@ -1606,7 +1639,7 @@ async def review_compare(  # code
                     func.threshold = threshold_val  # assignment
                     func.unit = unit  # assignment
                     func.operator = op  # assignment
-                    r = _func_registry.execute_with_timeout(func, e)  # function call
+                    r = _get_fr().execute_with_timeout(func, e)  # function call
                     if r is not None and r.result != "PASS":  # check: value is not None
                         clause = {  # assignment
                             "standard": standard,  # code
@@ -1615,9 +1648,7 @@ async def review_compare(  # code
                             "text": func.description,  # code
                             "category": func.category.value,  # code
                         }  # code
-                        f = _attribution_analyzer.build_finding(
-                            r, clause, e, entities[:5]
-                        )  # function call
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])  # function call
                         details.append(
                             {  # code
                                 "entity_id": e.get("id", ""),  # function call
@@ -1640,7 +1671,7 @@ async def review_compare(  # code
                 continue  # code
             has_match = any(func.matches(e) for e in entities)  # check any true
             if not has_match:  # check: negated condition
-                r = _func_registry.execute_with_timeout(func, None)  # function call
+                r = _get_fr().execute_with_timeout(func, None)  # function call
                 if r is not None and r.result != "PASS":  # check: value is not None
                     clause = {  # assignment
                         "standard": standard,  # code
@@ -1649,9 +1680,7 @@ async def review_compare(  # code
                         "text": func.description,  # code
                         "category": func.category.value,  # code
                     }  # code
-                    f = _attribution_analyzer.build_finding(
-                        r, clause, {}, entities[:5]
-                    )  # function call
+                    f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
                     details.append(
                         {  # code
                             "entity_id": "",  # code

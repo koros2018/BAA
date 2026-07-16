@@ -32,7 +32,7 @@ _tasks: Dict[str, dict] = {}
 _webhooks: Dict[str, dict] = {}
 
 # ── 审查结果缓存 ──────────────────────────────────────────
-from src.baa_engine.cache import get_cache
+from src.baa_engine.cache import get_cache, make_cache_key
 
 _persistent_cache = get_cache()
 _review_cache: Dict[str, dict] = {}
@@ -115,14 +115,20 @@ def extract_api_key(
 
 
 def verify_api_key(api_key: str = Depends(extract_api_key)) -> str:
-    """验证 API 密钥（含提取 + 校验）"""
-    if not API_KEYS:
-        return "anonymous"
-    if api_key and api_key in API_KEYS:
-        return api_key
+    """验证 API 密钥（含提取 + 校验）
+
+    兼容性：API_KEYS 为空时允许匿名访问（未配置密钥的部署场景）。
+    API_KEYS 非空时：必须提供有效密钥。
+    数据库密钥管理优先，其次配置密钥。
+    """
     km = get_key_manager()
     key_info = km.validate_key(api_key)
     if key_info and key_info.get("enabled", True):
+        return api_key
+    # API_KEYS 为空：匿名访问（无密钥配置的部署场景）
+    if not API_KEYS and not key_info:
+        return "anonymous"
+    if api_key and api_key in API_KEYS:
         return api_key
     raise HTTPException(
         status_code=401,

@@ -329,16 +329,16 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
 
         # 遍历处理
         for f in findings:  # 循环: f ← findings
-            clause_id = f.get("clause_id", "")  # 安全获取值
+            clause_id = f.get("clause_id", f.get("func_id", ""))  # clause_id 或 func_id
             entity_id = f.get("entity_id", "")  # 安全获取值
             entity = entity_map.get(entity_id, {})  # 安全获取值
             func_id = self._clause_to_func(clause_id)  # 赋值: func_id
 
             # 创建简易 FuncResult 对象供模板使用
             result = _FuncResult(  # 赋值: result
-                actual=f.get("extracted_value", 0),  # 安全获取值
-                threshold=f.get("required_value", 0),  # 安全获取值
-                delta=f.get("difference", 0),  # 安全获取值
+                actual=f.get("actual_value", f.get("extracted_value", 0)),  # 兼容两种字段名
+                threshold=f.get("threshold", f.get("required_value", 0)),  # 兼容两种字段名
+                delta=f.get("delta", f.get("difference", 0)),  # 兼容两种字段名
             )
 
             template = self._templates.get(func_id)  # 安全获取值
@@ -410,7 +410,7 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
             "GB50016-6.7.1": "ATTR-002",  # GB50016-6.7.1
             "GB50016-10.1.5": "LIGHT-001",  # GB50016-10.1.5
         }
-        return mapping.get(clause_id, "")  # 返回结果
+        return mapping.get(clause_id, clause_id)  # 已为 func_id 则直接返回
 
     @staticmethod  # 装饰器
     def _calc_priority(s: CorrectionSuggestion) -> str:  # 函数定义: _calc_priority

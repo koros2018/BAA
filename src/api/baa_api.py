@@ -168,6 +168,17 @@ def _load_engine():  # function: def _load_engine():
     _spec_repo = SpecRepository()  # function call
     _feedback_manager = FeedbackManager(DATA_DIR)  # function call
     _learning_engine = LearningEngine(_feedback_manager)  # function call
+
+    # 同步到 api_globals 供 review_routes 等子模块使用
+    import src.api.api_globals as _ag  # import
+
+    _ag._drawing_parser = _drawing_parser
+    _ag._semantic_analyzer = _semantic_analyzer
+    _ag._func_registry = _func_registry
+    _ag._attribution_analyzer = _attribution_analyzer
+    _ag._spec_repo = _spec_repo
+    _ag._feedback_manager = _feedback_manager
+    _ag._learning_engine = _learning_engine
     print(
         f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
     )  # print output
@@ -195,6 +206,10 @@ import asyncio  # stdlib: async
 
 # 兼容旧引用（_review_semaphore 保留为旧代码引用用，但不再使用）
 _review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
+
+
+# 预热加载引擎（同步执行，确保 worker 启动前完成）
+_load_engine()
 
 
 @asynccontextmanager  # code
@@ -656,8 +671,9 @@ async def deconstruct(  # code
         result["page_warning"] = page_warning  # assignment
 
     # ── xref 外部参照警告 ────────────────────────────────
-    if result.warning:  # condition: result.warning:
-        result["xref_warning"] = result.warning  # assignment
+    xref_warning = result.get("warning") or result.get("xref_warning")  # 安全获取值
+    if xref_warning:  # condition: xref_warning
+        result["xref_warning"] = xref_warning  # assignment
 
     # 根据条件判断分支：if use_yolo
     if use_yolo:  # condition: use_yolo:
