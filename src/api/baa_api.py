@@ -44,6 +44,38 @@ from src.api.api_globals import *  # noqa: F401, F403
 from src.baa_engine.feedback_engine import FeedbackManager, LearningEngine  # import
 
 
+def _sanitize_for_json(obj):
+    """递归清理 numpy 类型和不可序列化对象，避免 FastAPI jsonable_encoder 报错。
+
+    处理：
+    - numpy.bool_ → bool
+    - numpy.int* / numpy.float* → int / float
+    - 无 __dict__ 的对象 → 字符串
+    - 嵌套 dict / list 递归处理
+    """
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    try:
+        import numpy as _np
+        if isinstance(obj, _np.bool_):
+            return bool(obj)
+        if isinstance(obj, _np.integer):
+            return int(obj)
+        if isinstance(obj, _np.floating):
+            return float(obj)
+        if isinstance(obj, _np.ndarray):
+            return obj.tolist()
+    except ImportError:
+        pass
+    if isinstance(obj, (int, float, str, bool, type(None))):
+        return obj
+    if hasattr(obj, "__dict__"):
+        return obj
+    return str(obj)
+
+
 def generate_auth_token(
     payload: dict, secret: str = None
 ) -> str:  # function: def generate_auth_token(payload: dict, secret: str = None) -
@@ -549,130 +581,155 @@ async def deconstruct(  # code
     except Exception:  # 捕获异常
         pass  # 占位
 
-    # Step 3: 规范判定（使用 building_type 确定阈值，含去重）
-    # 遍历所有实体和所有原子函数，逐项检查合规性
-    from src.baa_engine.spec_repository import SpecRepository  # import
+    # Step 3: 规范判定（CPU 密集型，移到线程池避免阻塞事件循环）
+    # 250 原子函数 × N 实体的双循环在主事件循环跑会超过 gunicorn 120s timeout
+    # 导致 SIGKILL → ERR_EMPTY_RESPONSE。封装为 _do_deconstruct_step3 在线程池中执行
+    def _do_deconstruct_step3(
+        entities,
+    ) -> tuple:  # function: def _do_deconstruct_step3(entities) -> tuple:
+        """在线程池中执行规范判定 + 缺失检查 + 统计"""
+        from src.baa_engine.spec_repository import SpecRepository
 
-    repo = SpecRepository()  # function call
-    findings = []  # assignment
-    registry_funcs = _func_registry.list_all()  # check all true
-    total_checks = 0  # assignment
-    seen_violations = set()  # (clause_id, entity_type) 用于 FAIL 去重
+        repo = SpecRepository()
+        findings = []
+        registry_funcs = _func_registry.list_all()
+        total_checks = 0
+        seen_violations = set()
 
-    # 遍历处理
-    for e in entities:  # 循环
-        for func in registry_funcs:  # 循环
-            total_checks += 1  # accumulate
-            # 根据建筑类型和规范标准获取阈值参数
-            threshold_val, unit, op = repo.get_threshold(
-                func.clause_id, building_type, standard
-            )  # function call
-            func.threshold = threshold_val  # assignment
-            func.unit = unit  # assignment
-            func.operator = op  # assignment
-            r = _func_registry.execute_with_timeout(func, e)  # function call
-            if r is not None and r.result != "PASS":  # check: value is not None
-                # 去重：同一 clause_id + 同一 entity_type 只记一次 FAIL
-                etype = e.get("type", "")  # function call
-                dedup_key = (func.clause_id, etype)  # function call
-                is_dup = dedup_key in seen_violations  # assignment
-                if r.result == "FAIL":  # condition: r.result == "FAIL":
-                    seen_violations.add(dedup_key)  # function call
+        # 遍历处理
+        for e in entities:
+            for func in registry_funcs:
+                total_checks += 1
+                threshold_val, unit, op = repo.get_threshold(
+                    func.clause_id, building_type, standard
+                )
+                func.threshold = threshold_val
+                func.unit = unit
+                func.operator = op
+                r = _func_registry.execute_with_timeout(func, e)
+                if r is not None and r.result != "PASS":
+                    etype = e.get("type", "")
+                    dedup_key = (func.clause_id, etype)
+                    is_dup = dedup_key in seen_violations
+                    if r.result == "FAIL":
+                        seen_violations.add(dedup_key)
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, e, entities[:5]
+                    )
+                    finding_detail = {
+                        "finding_id": f.finding_id,
+                        "clause_id": func.clause_id,
+                        "clause_title": func.name,
+                        "description": func.description,
+                        "entity_type": etype,
+                        "result": r.result,
+                        "severity": getattr(r, "severity", "major"),
+                        "extracted_value": getattr(
+                            r, "extracted_value", getattr(r, "value", 0)
+                        ),
+                        "required_value": threshold_val,
+                        "explanation": getattr(
+                            f,
+                            "explanation",
+                            f.description[:100]
+                            if hasattr(f, "description")
+                            else "",
+                        ),
+                        "is_duplicate": is_dup,
+                    }
+                    findings.append(finding_detail)
 
-                clause = {  # assignment
-                    "standard": "GB50016",  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "title": func.name,  # 字段
-                    "text": func.description,  # 字段
-                    "category": func.category.value,  # 字段
-                }  # code
-                f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
-                # 详细的违规信息输出
-                finding_detail = {  # assignment
-                    "finding_id": f.finding_id,  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "clause_title": func.name,  # 字段
-                    "description": func.description,  # 字段
-                    "entity_type": etype,  # 字段
-                    "result": r.result,  # 字段
-                    "severity": getattr(r, "severity", "major"),  # 字段
-                    "extracted_value": getattr(
-                        r, "extracted_value", getattr(r, "value", 0)
-                    ),  # 字段
-                    "required_value": threshold_val,  # 字段
-                    "explanation": getattr(
-                        f, "explanation", f.description[:100] if hasattr(f, "description") else ""
-                    ),  # 字段
-                    "is_duplicate": is_dup,  # 字段
-                }  # code
-                findings.append(finding_detail)  # append to list
+        # 缺失检查
+        for func in registry_funcs:
+            if func.category.value != "exist":
+                continue
+            has_match = any(func.matches(e) for e in entities)
+            if not has_match:
+                total_checks += 1
+                r = _func_registry.execute_with_timeout(func, None)
+                if r is not None and r.result != "PASS":
+                    dedup_key = (func.clause_id, "missing")
+                    is_dup = dedup_key in seen_violations
+                    if r.result == "FAIL":
+                        seen_violations.add(dedup_key)
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    f = _attribution_analyzer.build_finding(
+                        r, clause, {}, entities[:5]
+                    )
+                    finding_detail = {
+                        "finding_id": f.finding_id,
+                        "clause_id": func.clause_id,
+                        "clause_title": func.name,
+                        "description": func.description,
+                        "entity_type": "missing",
+                        "result": r.result,
+                        "severity": "critical",
+                        "extracted_value": 0,
+                        "required_value": 1,
+                        "explanation": (
+                            f"缺少{func.name}相关实体（{func.description}）"
+                        ),
+                        "is_duplicate": is_dup,
+                    }
+                    findings.append(finding_detail)
 
-    # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
-    # 例如"应有防火门"→检查是否存在 fire_door 实体
-    for func in registry_funcs:  # 循环
-        if func.category.value != "exist":  # check: OR condition
-            continue  # 继续循环
-        has_match = any(func.matches(e) for e in entities)  # check any true
-        if not has_match:  # check: negated condition
-            total_checks += 1  # accumulate
-            r = _func_registry.execute_with_timeout(func, None)  # function call
-            if r is not None and r.result != "PASS":  # check: value is not None
-                dedup_key = (func.clause_id, "missing")  # function call
-                is_dup = dedup_key in seen_violations  # assignment
-                if r.result == "FAIL":  # condition: r.result == "FAIL":
-                    seen_violations.add(dedup_key)  # function call
+        # 统计
+        type_stats = {}
+        for e in entities:
+            t = e["type"]
+            if t not in type_stats:
+                type_stats[t] = {"count": 0, "bbox_areas": []}
+            type_stats[t]["count"] += 1
+            bbox = e["bbox"]
+            type_stats[t]["bbox_areas"].append(
+                bbox.get("width", 0) * bbox.get("height", 0)
+            )
 
-                clause = {  # assignment
-                    "standard": "GB50016",  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "title": func.name,  # 字段
-                    "text": func.description,  # 字段
-                    "category": func.category.value,  # 字段
-                }  # code
-                f = _attribution_analyzer.build_finding(
-                    r, clause, {}, entities[:5]
-                )  # function call
-                finding_detail = {  # assignment
-                    "finding_id": f.finding_id,  # 字段
-                    "clause_id": func.clause_id,  # 字段
-                    "clause_title": func.name,  # 字段
-                    "description": func.description,  # 字段
-                    "entity_type": "missing",  # 字段
-                    "result": r.result,  # 字段
-                    "severity": "critical",  # 字段
-                    "extracted_value": 0,  # 字段
-                    "required_value": 1,  # 字段
-                    "explanation": f"缺少{func.name}相关实体（{func.description}）",  # 字段
-                    "is_duplicate": is_dup,  # 字段
-                }  # code
-                findings.append(finding_detail)  # append to list
+        elements = []
+        for t, stats in sorted(type_stats.items()):
+            areas = stats["bbox_areas"]
+            total_area = sum(areas) if areas else 0
+            elem = {"type": t, "count": stats["count"]}
+            if t in ("wall", "corridor", "stair"):
+                elem["total_length_m"] = round(total_area**0.5, 1)
+            elif t in ("door", "fire_door", "window"):
+                elem["total_count"] = stats["count"]
+            elif t == "fire_zone":
+                elem["total_area_sqm"] = round(total_area, 1)
+            elif t in ("equipment", "foundation", "column"):
+                elem["total_count"] = stats["count"]
+            elif t == "other":
+                elem["total_count"] = stats["count"]
+            elements.append(elem)
 
-    # 统计
-    type_stats = {}  # assignment
-    for e in entities:  # 循环
-        t = e["type"]  # assignment
-        if t not in type_stats:  # check: membership test
-            type_stats[t] = {"count": 0, "bbox_areas": []}  # 操作
-        type_stats[t]["count"] += 1  # 操作
-        bbox = e["bbox"]  # assignment
-        type_stats[t]["bbox_areas"].append(bbox.get("width", 0) * bbox.get("height", 0))  # 操作
+        return findings, registry_funcs, total_checks, elements
 
-    elements = []  # assignment
-    for t, stats in sorted(type_stats.items()):  # 循环
-        areas = stats["bbox_areas"]  # assignment
-        total_area = sum(areas) if areas else 0  # aggregate sum
-        elem = {"type": t, "count": stats["count"]}  # assignment
-        if t in ("wall", "corridor", "stair"):  # check: membership test
-            elem["total_length_m"] = round(total_area**0.5, 1)  # 操作
-        elif t in ("door", "fire_door", "window"):  # 分支
-            elem["total_count"] = stats["count"]  # 操作
-        elif t == "fire_zone":  # 分支
-            elem["total_area_sqm"] = round(total_area, 1)  # 操作
-        elif t in ("equipment", "foundation", "column"):  # 分支
-            elem["total_count"] = stats["count"]  # 操作
-        elif t == "other":  # 分支
-            elem["total_count"] = stats["count"]  # 操作
-        elements.append(elem)  # append to list
+    try:
+        findings, registry_funcs, total_checks, elements = (
+            await loop.run_in_executor(
+                ENGINE_THREAD_POOL, _do_deconstruct_step3, entities
+            )
+        )
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_code": "REVIEW_FAILED",
+            "message": f"规范判定失败: {e}",
+            "file_id": file_id,
+        }
 
     elapsed = int((time.time() - start) * 1000)  # get current time
 
@@ -687,9 +744,10 @@ async def deconstruct(  # code
         [f for f in findings if f.get("severity") == "critical" and not f["is_duplicate"]]
     )  # get length
 
-    result = {  # assignment
+    result = {  # 操作
         "status": "success",  # 字段
         "elements": elements,  # 实体类型统计
+        "entities": entities,  # 所有解析出的实体（供 review-from-data 使用）
         "relations": len(relations),  # 实体间关系数量
         "findings": findings,  # 完整违规详情（含去重标记）
         "total_checks": total_checks,  # 总检查项数
@@ -720,7 +778,7 @@ async def deconstruct(  # code
         result["yolo_entities"] = len(yolo_entities)  # 操作
         result["yolo_enabled"] = True  # 操作
 
-    return result  # return
+    return _sanitize_for_json(result)  # 操作
 
 
 @app.post("/review")  # function call
