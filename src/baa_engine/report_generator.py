@@ -42,11 +42,21 @@ _FONT_REGISTERED = False  # _FONT_REGISTERED: False
 def _ensure_font():
     global _FONT_REGISTERED
     if not _FONT_REGISTERED:  # # 注册 CJK 字体
-        ttf_path = os.environ.get(
-            "BAA_PDF_FONT",
+        ttf_path = os.environ.get("BAA_PDF_FONT")
+        # 搜索常见系统路径（.ttf 和 .ttc 两种格式）
+        candidates = [
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttf",
+            "/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
             "/tmp/wqy-zenhei.ttf",
-        )
-        if not os.path.exists(ttf_path):  # # 字体文件不存在
+        ]
+        if not ttf_path:
+            for p in candidates:
+                if os.path.exists(p):
+                    ttf_path = p
+                    break
+        if not os.path.exists(ttf_path):
             raise RuntimeError(
                 f"CJK font not found at {ttf_path}. "
                 "Install WenQuanYi or set BAA_PDF_FONT env var."
