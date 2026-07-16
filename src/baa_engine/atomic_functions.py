@@ -2807,7 +2807,7 @@ class FuncRegistry:  # class definition
             depends_on=[],
         ),
         AtomicFunction(
-            func_id="EXIST-032",
+            func_id="EXIST-046",
             name="汽车库消防给水判定",
             description="汽车库应设置消防给水系统（GB50067-7.1.1）",
             category=FuncCategory.EXIST,
@@ -2819,7 +2819,7 @@ class FuncRegistry:  # class definition
             depends_on=[],
         ),
         AtomicFunction(
-            func_id="EXIST-033",
+            func_id="EXIST-047",
             name="汽车库自动喷水灭火系统判定",
             description="地下汽车库应设置自动喷水灭火系统（GB50067-7.2.1）",
             category=FuncCategory.EXIST,
@@ -2831,7 +2831,7 @@ class FuncRegistry:  # class definition
             depends_on=[],
         ),
         AtomicFunction(
-            func_id="EXIST-034",
+            func_id="EXIST-048",
             name="汽车库火灾报警系统判定",
             description="一、二类汽车库应设置火灾自动报警系统（GB50067-9.0.7）",
             category=FuncCategory.EXIST,
@@ -2843,7 +2843,7 @@ class FuncRegistry:  # class definition
             depends_on=[],
         ),
         AtomicFunction(
-            func_id="EXIST-035",
+            func_id="EXIST-049",
             name="汽车库排烟设施判定",
             description="地下汽车库应设置排烟设施（GB50067-8.2.1）",
             category=FuncCategory.EXIST,
