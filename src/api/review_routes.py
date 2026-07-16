@@ -59,6 +59,7 @@ import time
 import asyncio
 import json
 import hashlib
+from collections import Counter
 
 router = APIRouter()
 
@@ -805,15 +806,7 @@ async def review_from_data(  # code
     entities = body.get("entities", [])  # function call
     building_type = body.get("building_type", "civil")  # function call
     building_types = body.get("building_types")  # function call
-    effective_types = building_types if building_types else [building_type]  # assignment
-
-    from src.baa_engine.spec_repository import SpecRepository  # import
-    from collections import Counter  # stdlib: collections
-
-    repo = SpecRepository()  # function call
-    clause_results = Counter()  # function call
-    details = []  # assignment
-    registry_funcs = _get_fr().list_all()  # check all true
+    _effective_types_from_data = building_types if building_types else [building_type]  # 赋值
 
     start = time.time()  # get current time
 
@@ -829,82 +822,121 @@ async def review_from_data(  # code
     try:
         _get_rq().update_progress(task_id, 10.0)
 
-        # 多建筑类型并行匹配：取最严格阈值
-        def get_strict_threshold(
-            clause_id: str,
-        ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
-            worst_val, worst_unit, worst_op = None, None, None  # assignment
-            for bt in effective_types:  # loop: iterate
-                v, u, o = repo.get_threshold(clause_id, bt)  # function call
-                if worst_val is None or v > worst_val:  # check: value is None
-                    worst_val, worst_unit, worst_op = v, u, o  # assignment
-            return worst_val, worst_unit, worst_op  # return
+        # ── 规范判定（CPU 密集型，移到线程池避免阻塞事件循环）
+        # 250 原子函数 × N 实体的双循环在主事件循环跑会超过 gunicorn 120s timeout
+        # 导致 SIGKILL → ERR_EMPTY_RESPONSE，参考 /review 端点的 _do_clustering 模式
+        def _do_clustering_from_data(
+            entities,
+        ) -> tuple:  # function: def _do_clustering_from_data(entities) -> tuple:
+            """在线程池中执行规范判定 + 缺失检查"""
+            from src.baa_engine.spec_repository import SpecRepository
+            from collections import Counter
 
-        # ── 逐实体逐函数规范判定 ──────────────────────────────
-        for e in entities:  # 循环
-            for func in registry_funcs:  # 循环
-                threshold_val, unit, op = get_strict_threshold(func.clause_id)  # function call
-                func.threshold = threshold_val  # assignment
-                func.unit = unit  # assignment
-                func.operator = op  # assignment
-                r = _get_fr().execute_with_timeout(func, e)  # function call
-                if r is None:  # check: value is None
-                    continue  # 继续循环
-                clause_results[func.clause_id] += 1  # accumulate
-                if r.result != "PASS":  # condition: r.result != "PASS":
-                    clause = {  # assignment
-                        "standard": "GB50016",  # 字段
-                        "clause_id": func.clause_id,  # 字段
-                        "title": func.name,  # 字段
-                        "text": func.description,  # 字段
-                        "category": func.category.value,  # 字段
-                    }  # code
-                    f = _get_aa().build_finding(r, clause, e, entities[:5])  # function call
-                    details.append(
-                        {  # code
-                            "entity_id": e.get("id", e.get("type", "")),  # 字段
-                            "entity_type": e["type"],  # 字段
-                            "clause_id": f.clause.get("clause_id", ""),  # 字段
-                            "clause_title": f.clause.get("title", ""),  # 字段
-                            "result": f.judgement["result"],  # 字段
-                            "extracted_value": f.extracted_params["extracted_value"],  # 字段
-                            "required_value": f.extracted_params.get("required_value", 1.2),  # 字段
-                            "difference": f.extracted_params.get("difference", 0),  # 字段
-                            "severity": f.judgement.get("severity", "major"),  # 字段
-                            "explanation": f.explanation[:120],  # 字段
-                        }
-                    )  # code
+            repo = SpecRepository()
+            clause_results = Counter()
+            details = []
+            registry_funcs = _get_fr().list_all()
 
-        # ── 缺失检查 ──────────────────────────────────────────
-        for func in registry_funcs:  # 循环
-            if func.category.value != "exist":  # check: OR condition
-                continue  # 继续循环
-            has_match = any(func.matches(e) for e in entities)  # check any true
-            if not has_match:  # check: negated condition
-                r = _get_fr().execute_with_timeout(func, None)  # function call
-                if r is not None and r.result != "PASS":  # check: value is not None
-                    clause = {  # assignment
-                        "standard": "GB50016",  # 字段
-                        "clause_id": func.clause_id,  # 字段
-                        "title": func.name,  # 字段
-                        "text": func.description,  # 字段
-                        "category": func.category.value,  # 字段
-                    }  # code
-                    f = _get_aa().build_finding(r, clause, {}, entities[:5])  # function call
-                    details.append(
-                        {  # code
-                            "entity_id": "",  # 字段
-                            "entity_type": "missing",  # 字段
-                            "clause_id": f.clause.get("clause_id", ""),  # 字段
-                            "clause_title": f.clause.get("title", ""),  # 字段
-                            "result": f.judgement["result"],  # 字段
-                            "severity": "critical",  # 字段
-                            "extracted_value": 0.0,  # 字段
-                            "required_value": f.extracted_params.get("required_value", 1.0),  # 字段
-                            "difference": -f.extracted_params.get("required_value", 1.0),  # 字段
-                            "explanation": f.explanation[:120],  # 字段
+            def get_strict_threshold(
+                clause_id: str,
+            ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+                worst_val, worst_unit, worst_op = None, None, None
+                for bt in _effective_types_from_data:
+                    v, u, o = repo.get_threshold(clause_id, bt)
+                    if worst_val is None or v > worst_val:
+                        worst_val, worst_unit, worst_op = v, u, o
+                return worst_val, worst_unit, worst_op
+
+            for e in entities:
+                for func in registry_funcs:
+                    threshold_val, unit, op = get_strict_threshold(func.clause_id)
+                    func.threshold = threshold_val
+                    func.unit = unit
+                    func.operator = op
+                    r = _get_fr().execute_with_timeout(func, e)
+                    if r is None:
+                        continue
+                    clause_results[func.clause_id] += 1
+                    if r.result != "PASS":
+                        clause = {
+                            "standard": "GB50016",
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
                         }
-                    )  # code
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])
+                        details.append(
+                            {
+                                "entity_id": e.get("id", e.get("type", "")),
+                                "entity_type": e["type"],
+                                "clause_id": f.clause.get("clause_id", ""),
+                                "clause_title": f.clause.get("title", ""),
+                                "result": f.judgement["result"],
+                                "extracted_value": f.extracted_params[
+                                    "extracted_value"
+                                ],
+                                "required_value": f.extracted_params.get(
+                                    "required_value", 1.2
+                                ),
+                                "difference": f.extracted_params.get("difference", 0),
+                                "severity": f.judgement.get("severity", "major"),
+                                "explanation": f.explanation[:120],
+                            }
+                        )
+
+            # 缺失检查
+            for func in registry_funcs:
+                if func.category.value != "exist":
+                    continue
+                has_match = any(func.matches(e) for e in entities)
+                if not has_match:
+                    r = _get_fr().execute_with_timeout(func, None)
+                    if r is not None and r.result != "PASS":
+                        clause = {
+                            "standard": "GB50016",
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
+                        f = _get_aa().build_finding(r, clause, {}, entities[:5])
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": "missing",
+                                "clause_id": f.clause.get("clause_id", ""),
+                                "clause_title": f.clause.get("title", ""),
+                                "result": f.judgement["result"],
+                                "severity": "critical",
+                                "extracted_value": 0.0,
+                                "required_value": f.extracted_params.get(
+                                    "required_value", 1.0
+                                ),
+                                "difference": -f.extracted_params.get(
+                                    "required_value", 1.0
+                                ),
+                                "explanation": f.explanation[:120],
+                            }
+                        )
+
+            return clause_results, details
+
+        # 获取当前事件循环，必须在 run_in_executor 调用之前
+        loop = asyncio.get_event_loop()
+        registry_funcs = _get_fr().list_all()
+
+        try:
+            clause_results, details = await loop.run_in_executor(
+                _get_pool(), _do_clustering_from_data, entities
+            )
+        except Exception as e:
+            _get_rq().fail(task_id, str(e))
+            raise
+
+        # registry_funcs 在 _do_clustering_from_data 内部已重新 list_all，
+        # 这里重新获取供后续 total_checks 统计使用
+        registry_funcs = _get_fr().list_all()
 
         elapsed = int((time.time() - start) * 1000)  # get current time
         entity_types = Counter(e["type"] for e in entities)  # function call
@@ -958,14 +990,14 @@ async def review_from_data(  # code
 
             response_data["corrections"] = corrections
             response_data["raw_result"] = {
-                "elements": elements,
+                "elements": [],
                 "details": details,
                 "corrections": corrections,
                 "summary": response_data.get("summary", {}),
             }
         except Exception:
             response_data["corrections"] = []
-            response_data["raw_result"] = {"elements": elements, "details": details}  # 操作
+            response_data["raw_result"] = {"elements": [], "details": details}  # 操作
 
     except Exception as outer_e:
         _get_rq().fail(task_id, str(outer_e))
