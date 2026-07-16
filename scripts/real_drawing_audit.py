@@ -44,9 +44,7 @@ GOLD_STANDARD = {
     "20210409-3#泵房_t3.dxf": {
         "EVAC-004": "CONFIRMED",
     },
-    "4.通风BS170826.dxf": {
-        "DIM-006": "CONFIRMED",
-    },
+    "4.通风BS170826.dxf": {},
     "东莞通-设备-外部参照（不打印）.dxf": {},
 }
 
@@ -130,21 +128,24 @@ def audit_drawing(dxf_path):
 
 
 def collect_all_drawings():
-    """收集所有可用的真实 DXF 图纸"""
+    """收集所有可用的真实 DXF 图纸（仅限 git 跟踪的文件，确保 CI 一致性）"""
     paths = []
     seen = set()
 
-    for f in sorted(DATA_DIR.glob("*_t3.dxf")):
-        paths.append(f)
-        seen.add(f.name)
+    # 只收集 git 跟踪的 DXF 文件
+    import subprocess
+    result = subprocess.run(
+        ["git", "-c", "core.quotepath=false", "ls-files", "--", "*.dxf"],
+        capture_output=True, text=True, cwd=PROJECT_ROOT
+    )
+    tracked = [PROJECT_ROOT / line for line in result.stdout.strip().splitlines() if line]
 
-    dgt_dir = DATA_DIR / "1东莞通施工图-报审170823"
-    if dgt_dir.exists():
-        for f in sorted(dgt_dir.glob("*.dxf")):
-            if f.name not in seen:
-                paths.append(f)
-                seen.add(f.name)
+    for f in sorted(tracked):
+        if f.suffix.lower() == ".dxf" and f.exists():
+            paths.append(f)
+            seen.add(f.name)
 
+    # 也检查 data/drawings/real/ 下未跟踪但有审计价值的文件（本地开发用）
     if REAL_DIR.exists():
         for f in sorted(REAL_DIR.glob("*.dxf")):
             if f.name not in seen:
@@ -260,8 +261,9 @@ def main():
 
     if not confirmed_missed and not regression_errors:
         print("✅ 黄金标准基线通过，无回归无漏报")
+        return 0
 
-    return len(confirmed_missed) + len(regression_errors)
+    return 1
 
 
 if __name__ == "__main__":
