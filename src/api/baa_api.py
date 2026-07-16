@@ -153,7 +153,14 @@ FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"  # assignment
 
 
 def _load_engine_sync():  # function: def _load_engine_sync():
-    """同步预热加载引擎模块，每个 worker 启动时执行一次"""
+    """同步预热加载引擎模块，每个 worker 启动时执行一次
+
+    注意：必须使用 sys.modules[__name__] 操作模块 __dict__，
+    而不是 global 声明。因为 _load_engine_sync 从 daemon 线程
+    或 from-import 调用时，global 会绑定到 __main__ 而非 baa_api 模块。
+    """
+    import sys as _sys  # stdlib: sys
+
     try:
         from src.baa_engine.drawing_parser import DrawingParser  # import
         from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # import
@@ -161,8 +168,6 @@ def _load_engine_sync():  # function: def _load_engine_sync():
         from src.baa_engine.attribution_analyzer import AttributionAnalyzer  # import
         from src.baa_engine.spec_repository import SpecRepository  # import
 
-        global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine  # 全局变量
-        global _engine_ready  # 引擎就绪标志
         _drawing_parser = DrawingParser()  # function call
         _semantic_analyzer = SemanticAnalyzer()  # function call
         _func_registry = FuncRegistry()  # function call
@@ -170,6 +175,19 @@ def _load_engine_sync():  # function: def _load_engine_sync():
         _spec_repo = SpecRepository()  # function call
         _feedback_manager = FeedbackManager(DATA_DIR)  # function call
         _learning_engine = LearningEngine(_feedback_manager)  # function call
+
+        # 通过 setattr 写入 baa_api 模块，保证任何调用路径（daemon 线程 / from-import）
+        # 都能正确更新模块级全局变量。global 声明在 from-import 场景下会绑定到
+        # __main__ 的命名空间，导致状态丢失。
+        _m = _sys.modules[__name__]  # 当前 baa_api 模块
+        setattr(_m, "_drawing_parser", _drawing_parser)
+        setattr(_m, "_semantic_analyzer", _semantic_analyzer)
+        setattr(_m, "_func_registry", _func_registry)
+        setattr(_m, "_attribution_analyzer", _attribution_analyzer)
+        setattr(_m, "_spec_repo", _spec_repo)
+        setattr(_m, "_feedback_manager", _feedback_manager)
+        setattr(_m, "_learning_engine", _learning_engine)
+        setattr(_m, "_engine_ready", True)  # 标记引擎就绪
 
         # 同步到 api_globals 供 review_routes 等子模块使用
         import src.api.api_globals as _ag  # import
@@ -185,7 +203,6 @@ def _load_engine_sync():  # function: def _load_engine_sync():
             f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
         )  # print output
         print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")  # print output
-        _engine_ready = True  # 标记引擎就绪
     except Exception as e:
         import traceback
 
@@ -218,6 +235,14 @@ _review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
 
 # 预热加载引擎（同步执行，用 timeout 防止阻塞 worker 启动）
 import threading  # import
+
+# 必须先初始化变量，再启动线程，否则线程中 setattr 写入会被下方 = None 覆盖
+_drawing_parser = None  # 图纸解析器
+_engine_ready = False  # 引擎就绪标志
+_semantic_analyzer = None  # 语义分析器
+_func_registry = None  # 原子函数注册表
+_attribution_analyzer = None  # 属性推断引擎
+_spec_repo = None  # 规范知识库
 
 _engine_thread = threading.Thread(target=_load_engine_sync, daemon=True)  # assignment
 _engine_thread.start()  # function call
@@ -316,15 +341,9 @@ app.add_middleware(  # code
 
 # ── 引擎导入（懒加载） ──────────────────────────────────
 
-# ── 引擎引用（由 lifespan 预热加载） ──────────────────────
+# ── 引擎引用（由 _engine_thread 预热加载） ──────────────────────
 
-# 各引擎模块的全局引用，在 app 启动时通过 _load_engine() 初始化
-_drawing_parser = None  # 图纸解析器
-_engine_ready = False  # 引擎就绪标志
-_semantic_analyzer = None  # 语义分析器
-_func_registry = None  # 原子函数注册表
-_attribution_analyzer = None  # 属性推断引擎
-_spec_repo = None  # 规范知识库
+# 各引擎模块的全局引用，在 _engine_thread 启动前初始化，由 _load_engine_sync 覆盖
 
 # ── 反馈闭环引擎（P10） ────────────────────────────────────
 _feedback_manager: Optional[FeedbackManager] = None  # assignment
