@@ -72,28 +72,32 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 # 允许 ±10% 浮动（避免每次 parser 升级导致基线碎掉）
 ENTITY_BASELINE = {  # assignment
     "A1云计算中心平面图0405_t3.dxf": {  # code
-        "wall": 696,
-        "door": 22,
-        "window": 261,
-        "stair": 109,  # code
-        "column": 22,
-        "room": 13,
-        "dimension": 402,
-        "text": 37,  # code
-        "other": 1335,  # code
+        "wall": 2272,
+        "door": 78,
+        "window": 777,
+        "stair": 401,  # code
+        "column": 65,
+        "room": 19,
+        "dimension": 1285,
+        "text": 126,  # code
+        "other": 4841,  # code
+        "parking_space": 17,
+        "fire_hydrant": 3,
+        "handrail": 3,
     },  # code
     "20210409-3#泵房_t3.dxf": {  # code
-        "wall": 420,
-        "door": 16,
+        "wall": 397,
+        "door": 11,
         "window": 29,
         "stair": 44,  # code
         "column": 9,
         "room": 8,
         "dimension": 362,
         "text": 48,  # code
-        "other": 680,
+        "other": 667,
         "equipment": 6,
         "fire_zone": 4,  # code
+        "fire_equipment": 41,
     },  # code
     "202109409-2#配电房_t3.dxf": {  # code
         "wall": 292,
@@ -109,50 +113,56 @@ ENTITY_BASELINE = {  # assignment
         "fire_zone": 4,  # code
     },  # code
     "6.火灾自动报警 （报审）_t3.dxf": {  # code
-        "wall": 282,
-        "door": 88,
-        "window": 20,
+        "wall": 711,
+        "door": 235,
+        "window": 85,
         "stair": 1,  # code
-        "column": 7,
+        "column": 36,
         "room": 6,
-        "dimension": 270,
-        "text": 25,  # code
-        "other": 915,
-        "equipment": 1337,  # code
-        "fire_hydrant": 17,
-        "sprinkler": 2,
-        "fire_extinguisher": 2,  # code
-        "smoke_detector": 4,
-        "fire_alarm": 7,
-        "water_reservoir": 1,  # code
-        "fire_door": 5,  # code
+        "dimension": 944,
+        "text": 78,  # code
+        "other": 3080,
+        "equipment": 4663,  # code
+        "fire_hydrant": 68,
+        "sprinkler": 12,
+        "fire_extinguisher": 14,  # code
+        "smoke_detector": 10,
+        "fire_alarm": 20,
+        "water_reservoir": 3,  # code
+        "fire_door": 9,  # code
+        "fire_equipment": 2,
+        "alarm_device": 2,
     },  # code
     "9.气体灭火（唯美图框）_t3.dxf": {  # code
-        "wall": 305,
-        "door": 100,
-        "window": 0,
+        "wall": 682,
+        "door": 333,
+        "window": 3,
         "stair": 0,  # code
-        "column": 79,
+        "column": 284,
         "room": 0,
-        "dimension": 207,
-        "text": 352,  # code
-        "other": 1180,
-        "equipment": 737,  # code
-        "fire_extinguisher": 37,  # code
+        "dimension": 627,
+        "text": 1107,  # code
+        "other": 3983,
+        "equipment": 2466,  # code
+        "fire_extinguisher": 193,  # code
+        "sprinkler": 265,
     },  # code
     "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
-        "wall": 120,
-        "door": 339,
-        "window": 192,
+        "wall": 204,
+        "door": 1118,
+        "window": 627,
         "stair": 0,  # code
-        "column": 8,
-        "room": 4,
-        "dimension": 40,
-        "text": 57,  # code
-        "other": 1465,  # code
-        "fire_hydrant": 5,
-        "sprinkler": 2,
-        "fire_extinguisher": 3,  # code
+        "column": 48,
+        "room": 7,
+        "dimension": 129,
+        "text": 153,  # code
+        "other": 4855,  # code
+        "fire_hydrant": 25,
+        "sprinkler": 195,
+        "fire_extinguisher": 62,  # code
+        "fire_equipment": 96,
+        "fire_alarm": 1,
+        "handrail": 3,
     },  # code
 }  # code
 
