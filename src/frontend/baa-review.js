@@ -160,7 +160,8 @@ async function runReview() {
       window._reviewFilter = 'all';
       window._reviewSearch = '';
 
-      function renderViolationPage() {
+      // 提升到 window 作用域，供 HTML onclick/onchange 调用
+      window.renderViolationPage = function () {
         const v = window._reviewViolations || [];
         const pageSize = window._reviewPageSize || 15;
         const page = window._reviewPage || 1;
