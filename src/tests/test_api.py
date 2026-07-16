@@ -5,6 +5,7 @@ BAA API 测试
 import sys  # import
 import os  # stdlib: filesystem ops
 import json  # stdlib: JSON
+import pytest  # testing framework
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # path operation
 
@@ -47,6 +48,22 @@ def test_deconstruct_unauthorized():  # function: def test_deconstruct_unauthori
 
 def test_deconstruct_unsupported_format():  # function: def test_deconstruct_unsupported_format():
     """测试不支持的文件格式"""
+    # 确保引擎就绪（预热线程可能尚未完成，reload 后需等待）
+    import time
+    from src.api.baa_api import _engine_ready
+
+    for _ in range(200):
+        if _engine_ready:
+            break
+        time.sleep(0.1)
+
+    # 若引擎仍未就绪，手动 mock 以避免 503 干扰测试
+    from src.api import baa_api
+
+    if baa_api._drawing_parser is None:
+        baa_api._drawing_parser = object()
+        baa_api._engine_ready = True
+
     response = client.post(  # assignment
         "/deconstruct",  # 解构端点
         files={"file": ("test.pdf", b"fake pdf content", "application/pdf")},  # function call
