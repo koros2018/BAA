@@ -152,37 +152,45 @@ FRONTEND_DIR = PROJECT_ROOT / "src" / "frontend"  # assignment
 # ── 引擎预热（app启动时加载） ──────────────────────────────
 
 
-def _load_engine():  # function: def _load_engine():
-    """预热加载引擎模块，每个 worker 启动时执行一次"""
-    from src.baa_engine.drawing_parser import DrawingParser  # import
-    from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # import
-    from src.baa_engine.atomic_functions import FuncRegistry  # import
-    from src.baa_engine.attribution_analyzer import AttributionAnalyzer  # import
-    from src.baa_engine.spec_repository import SpecRepository  # import
+def _load_engine_sync():  # function: def _load_engine_sync():
+    """同步预热加载引擎模块，每个 worker 启动时执行一次"""
+    try:
+        from src.baa_engine.drawing_parser import DrawingParser  # import
+        from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # import
+        from src.baa_engine.atomic_functions import FuncRegistry  # import
+        from src.baa_engine.attribution_analyzer import AttributionAnalyzer  # import
+        from src.baa_engine.spec_repository import SpecRepository  # import
 
-    global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine  # 全局变量
-    _drawing_parser = DrawingParser()  # function call
-    _semantic_analyzer = SemanticAnalyzer()  # function call
-    _func_registry = FuncRegistry()  # function call
-    _attribution_analyzer = AttributionAnalyzer()  # function call
-    _spec_repo = SpecRepository()  # function call
-    _feedback_manager = FeedbackManager(DATA_DIR)  # function call
-    _learning_engine = LearningEngine(_feedback_manager)  # function call
+        global _drawing_parser, _semantic_analyzer, _func_registry, _attribution_analyzer, _spec_repo, _feedback_manager, _learning_engine  # 全局变量
+        global _engine_ready  # 引擎就绪标志
+        _drawing_parser = DrawingParser()  # function call
+        _semantic_analyzer = SemanticAnalyzer()  # function call
+        _func_registry = FuncRegistry()  # function call
+        _attribution_analyzer = AttributionAnalyzer()  # function call
+        _spec_repo = SpecRepository()  # function call
+        _feedback_manager = FeedbackManager(DATA_DIR)  # function call
+        _learning_engine = LearningEngine(_feedback_manager)  # function call
 
-    # 同步到 api_globals 供 review_routes 等子模块使用
-    import src.api.api_globals as _ag  # import
+        # 同步到 api_globals 供 review_routes 等子模块使用
+        import src.api.api_globals as _ag  # import
 
-    _ag._drawing_parser = _drawing_parser
-    _ag._semantic_analyzer = _semantic_analyzer
-    _ag._func_registry = _func_registry
-    _ag._attribution_analyzer = _attribution_analyzer
-    _ag._spec_repo = _spec_repo
-    _ag._feedback_manager = _feedback_manager
-    _ag._learning_engine = _learning_engine
-    print(
-        f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
-    )  # print output
-    print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")  # print output
+        _ag._drawing_parser = _drawing_parser
+        _ag._semantic_analyzer = _semantic_analyzer
+        _ag._func_registry = _func_registry
+        _ag._attribution_analyzer = _attribution_analyzer
+        _ag._spec_repo = _spec_repo
+        _ag._feedback_manager = _feedback_manager
+        _ag._learning_engine = _learning_engine
+        print(
+            f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
+        )  # print output
+        print(f"[BAA] 反馈闭环已加载: {_feedback_manager.stats()['total']}条申诉")  # print output
+        _engine_ready = True  # 标记引擎就绪
+    except Exception as e:
+        import traceback
+
+        print(f"[BAA] 引擎预热失败: {e}")
+        traceback.print_exc()
 
 
 from contextlib import asynccontextmanager  # import
@@ -208,20 +216,22 @@ import asyncio  # stdlib: async
 _review_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REVIEWS)
 
 
-# 预热加载引擎（同步执行，确保 worker 启动前完成）
-_load_engine()
+# 预热加载引擎（同步执行，用 timeout 防止阻塞 worker 启动）
+import threading  # import
+
+_engine_thread = threading.Thread(target=_load_engine_sync, daemon=True)  # assignment
+_engine_thread.start()  # function call
 
 
 @asynccontextmanager  # code
 async def lifespan(app: FastAPI):  # function call
     """应用生命周期管理
 
-    启动时：在线程池中异步预热引擎各模块，避免阻塞事件循环
+    启动时：等待引擎预热完成（后台线程）
     关闭时：优雅关闭线程池
     """
-    # 启动时：预热引擎
-    loop = asyncio.get_event_loop()  # function call
-    await loop.run_in_executor(ENGINE_THREAD_POOL, _load_engine)  # 操作
+    # 启动时：等待引擎预热完成
+    _engine_thread.join(timeout=120)  # function call
     yield  # 生成
     # 关闭时：清理线程池
     ENGINE_THREAD_POOL.shutdown(wait=False)  # function call
@@ -310,6 +320,7 @@ app.add_middleware(  # code
 
 # 各引擎模块的全局引用，在 app 启动时通过 _load_engine() 初始化
 _drawing_parser = None  # 图纸解析器
+_engine_ready = False  # 引擎就绪标志
 _semantic_analyzer = None  # 语义分析器
 _func_registry = None  # 原子函数注册表
 _attribution_analyzer = None  # 属性推断引擎
@@ -337,7 +348,7 @@ async def health():  # function call
     """
     engine_ok = _func_registry is not None  # assignment
     spec_ok = _spec_repo is not None  # assignment
-    parser_ok = _drawing_parser is not None  # assignment
+    parser_ok = _engine_ready  # assignment
     yolo_ok = False  # assignment
     yolo_info = "未加载"  # assignment
     try:  # 尝试
@@ -413,6 +424,16 @@ async def deconstruct(  # code
     Returns:
         dict: {status, elements, findings, summary, ...}
     """
+    # ── 引擎就绪检查 ────────────────────────────────────────
+    if _drawing_parser is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "error",
+                "error_code": "ENGINE_NOT_READY",
+                "message": "引擎正在预热中，请稍后重试",
+            },
+        )
     # ── 检查文件格式 ────────────────────────────────────────
     filename = file.filename or "unknown"  # assignment
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # function call
