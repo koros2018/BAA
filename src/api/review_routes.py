@@ -3,7 +3,7 @@
 从 baa_api.py 拆分，使用 APIRouter 注册
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request, Response
 from src.api.api_globals import *  # noqa: F401, F403
 from src.api import api_globals as _api_globals  # 用于延迟获取引擎引用
 
