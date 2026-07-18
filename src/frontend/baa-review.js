@@ -139,12 +139,39 @@ async function runReview() {
       const pdfFileId = drawing.file_id;
       if (pdfFileId) {
         summary.innerHTML += '<div class="mt-3 flex gap-2">' +
-          '<button onclick="downloadReviewPdf(\'' + pdfFileId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 下载PDF报告</button>' +
+          '<button onclick="downloadReviewPdf(\'' + pdfFileId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
+          '<button onclick="downloadReviewJSON()" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
           '</div>';
       }
 
       const details = document.getElementById('review-details');
       details.innerHTML = '';
+
+      // 统计面板：违规严重度分布
+      const severityCounts = {};
+      (result.findings || []).filter(f => f.result === 'FAIL' && !f.is_duplicate).forEach(f => {
+        const sev = f.severity || 'major';
+        severityCounts[sev] = (severityCounts[sev] || 0) + 1;
+      });
+      const totalViols = Object.values(severityCounts).reduce((a, b) => a + b, 0);
+      if (totalViols > 0) {
+        const sevColors = {critical: 'bg-red-500', major: 'bg-orange-500', minor: 'bg-yellow-400'};
+        const sevLabels = {critical: '严重', major: '主要', minor: '轻微'};
+        const sevTextColors = {critical: 'text-red-700', major: 'text-orange-700', minor: 'text-yellow-700'};
+        details.innerHTML += '<div class="grid grid-cols-3 gap-2 mb-3">';
+        ['critical', 'major', 'minor'].forEach(sev => {
+          const count = severityCounts[sev] || 0;
+          const pct = totalViols > 0 ? (count / totalViols * 100).toFixed(0) : 0;
+          details.innerHTML +=
+            '<div class="card p-2 text-center">' +
+            '<div class="text-lg font-bold ' + (sevTextColors[sev] || 'text-gray-600') + '">' + count + '</div>' +
+            '<div class="text-xs text-gray-400">' + (sevLabels[sev] || sev) + '</div>' +
+            '<div class="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div class="' + (sevColors[sev] || 'bg-gray-400') + ' h-1.5 rounded-full" style="width:' + pct + '%"></div></div>' +
+            '</div>';
+        });
+        details.innerHTML += '</div>';
+      }
+
       // findings可能是数组或旧的ID列表
       let violations = [];
       if (Array.isArray(result.findings)) {
@@ -172,6 +199,7 @@ async function runReview() {
         if (filter === 'critical') filtered = filtered.filter(f => f.severity === 'critical');
         else if (filter === 'major') filtered = filtered.filter(f => f.severity === 'major');
         else if (filter === 'minor') filtered = filtered.filter(f => f.severity !== 'critical' && f.severity !== 'major');
+        else if (filter !== 'all') filtered = filtered.filter(f => (f.clause_id || '') === filter);
         if (search) filtered = filtered.filter(f =>
           (f.clause_title || '').toLowerCase().includes(search) ||
           (f.clause_id || '').toLowerCase().includes(search) ||
@@ -184,6 +212,16 @@ async function runReview() {
 
         const selVals = {all:'全部',critical:'严重',major:'主要',minor:'轻微'};
         let filterOpts = Object.entries(selVals).map(([k,v]) => '<option value="'+k+'"'+(filter===k?' selected':'')+'>'+v+'</option>').join('');
+
+        // 按规范分组标签
+        const clauseGroups = {};
+        v.forEach(f => {
+          const cid = f.clause_id || '未知';
+          if (!clauseGroups[cid]) clauseGroups[cid] = 0;
+          clauseGroups[cid]++;
+        });
+        const sortedClauses = Object.entries(clauseGroups).sort((a, b) => b[1] - a[1]);
+
         let html = '<div class="flex items-center justify-between mb-2">' +
           '<p class="font-medium text-red-600">违规详情 (' + filtered.length + '/' + v.length + '项)</p>' +
           '<div class="flex gap-1 text-xs">' +
@@ -191,7 +229,12 @@ async function runReview() {
           filterOpts +
           '</select>' +
           '<input id="violation-search" placeholder="搜索..." class="border rounded px-1 py-0.5 text-xs w-20" value="' + (window._reviewSearch || '') + '" oninput="window._reviewSearch=this.value; window._reviewPage=1; renderViolationPage()" />' +
-          '</div></div>';
+          '</div></div>' +
+          '<div class="flex flex-wrap gap-1 mb-2">' +
+          sortedClauses.slice(0, 12).map(([cid, cnt]) =>
+            '<span class="px-2 py-0.5 rounded text-xs cursor-pointer ' + (filter === cid ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '" onclick="window._reviewFilter=\'' + cid + '\'; window._reviewPage=1; renderViolationPage()">' + cid + ' (' + cnt + ')</span>'
+          ).join('') +
+          '</div>';
 
         if (pageItems.length === 0) {
           html += '<div class="text-xs text-gray-400 p-2">无匹配项</div>';
@@ -849,6 +892,42 @@ function downloadReviewPdf(fileId) {
     .catch(err => {
       alert('❌ ' + err.message);
     });
+}
+
+// ── JSON 导出 ──────────────────────────────────────────────
+function downloadReviewJSON() {
+  const violations = window._reviewViolations || [];
+  if (violations.length === 0) {
+    alert('没有可导出的审查结果');
+    return;
+  }
+  const exportData = {
+    exportTime: new Date().toISOString(),
+    totalViolations: violations.length,
+    violations: violations.map(v => ({
+      entity_id: v.entity_id,
+      entity_type: v.entity_type,
+      clause_id: v.clause_id,
+      clause_title: v.clause_title,
+      severity: v.severity || 'major',
+      result: v.result,
+      extracted_value: v.extracted_value,
+      required_value: v.required_value,
+      difference: v.difference,
+      explanation: v.explanation,
+    })),
+    violationByClause: {},
+  };
+  violations.forEach(v => {
+    const cid = v.clause_id || 'unknown';
+    exportData.violationByClause[cid] = (exportData.violationByClause[cid] || 0) + 1;
+  });
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '审查结果_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ── 旧的对比函数（保留给其他页面引用） ──────────────────
