@@ -1,428 +1,285 @@
 """
-BAA MCP Server - 将BAA图纸解构和BIM重构能力封装为MCP工具
-基于 DD-9 MCP与Skill接入方案 v4.0（终稿定稿）
-
-启动方式：
-  # Streamable HTTP（推荐，适用于远程部署）
-  python src/mcp/baa_mcp_server.py --transport streamable-http --port 8080
-
-  # Stdio（适用于本地或容器内）
-  python src/mcp/baa_mcp_server.py --transport stdio
+BAA MCP Server — 将 BAA 图纸解构/BIM 重构/合规审查能力封装为 MCP 工具
 """
 
-import json  # stdlib: JSON
-import os  # stdlib: filesystem ops
-import sys  # import
-import asyncio  # stdlib: async
-from pathlib import Path  # import: path utils
-from typing import Any, Optional  # typing: type hints
+import json
+import os
+import sys
+import asyncio
+import time
+from pathlib import Path
+from typing import Any, Optional
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
-# 添加项目根到路径
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # function call
-sys.path.insert(0, str(PROJECT_ROOT))  # sys path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from mcp.server import Server, NotificationOptions  # import
-from mcp.server.models import InitializationOptions  # import
-from mcp.types import Tool, TextContent  # import
-from mcp.server.lowlevel.helper_types import ReadResourceContents  # import
+from mcp.server import Server, NotificationOptions
+from mcp.server.models import InitializationOptions
+from mcp.types import Tool, TextContent, Resource
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 
-from src.baa_engine.drawing_parser import DrawingParser  # import
-from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # import
-from src.baa_engine.atomic_functions import FuncRegistry  # import
-from src.baa_engine.attribution_analyzer import AttributionAnalyzer  # import
-from src.baa_engine.spec_repository import SpecRepository  # import
-from src.api.baa_api import generate_auth_token, verify_auth_token  # import
-
-
-class BAAMCPServer:  # class definition
-    """BAA MCP Server"""
-
-    def __init__(self):  # function: def __init__(self):
-        # 懒加载引擎
-        self._drawing_parser: Optional[DrawingParser] = None  # 操作
-        self._semantic_analyzer: Optional[SemanticAnalyzer] = None  # assignment
-        self._func_registry: Optional[FuncRegistry] = None  # 操作
-        self._attribution_analyzer: Optional[AttributionAnalyzer] = None  # assignment
-        self._spec_repo: Optional[SpecRepository] = None  # 操作
-
-        self.server = Server("baa-blueprint")  # function call
-
-        @self.server.list_tools()  # function call
-        async def list_tools() -> list[Tool]:  # function call
-            return [  # return: list
-                Tool(  # code
-                    name="baa_deconstruct",  # assignment
-                    description="解构工程图纸，识别墙、柱、梁、板、门、窗、楼梯、电梯等构件，返回结构化数据。此工具免费使用。",  # assignment
-                    inputSchema={  # assignment
-                        "type": "object",  # 字段
-                        "properties": {  # 字段
-                            "file_path": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "图纸文件路径（支持 dxf/dwg，推荐 dxf）",  # 字段
-                            },  # code
-                            "building_type": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",  # 字段
-                                "default": "civil",  # 字段
-                            },  # code
-                        },  # code
-                        "required": ["file_path"],  # 字段
-                    },  # code
-                ),  # code
-                Tool(  # code
-                    name="baa_reconstruct",  # assignment
-                    description="基于解构结果生成 BIM 模型。此工具需要有效的授权令牌（auth_token）。",  # assignment
-                    inputSchema={  # assignment
-                        "type": "object",  # 字段
-                        "properties": {  # 字段
-                            "file_id": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "解构接口返回的 file_id",  # 字段
-                            },  # code
-                            "auth_token": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "授权代收代付点生成的支付授权令牌（JWT格式）",  # 字段
-                            },  # code
-                            "elements": {  # 字段
-                                "type": "array",  # 字段
-                                "description": "构件列表（可选，不传则使用 file_id 关联数据）",  # 字段
-                                "items": {"type": "object"},  # 字段
-                            },  # code
-                            "options": {  # 字段
-                                "type": "object",  # 字段
-                                "description": "重构参数（可选）",  # 字段
-                                "properties": {  # 字段
-                                    "lod": {
-                                        "type": "integer",
-                                        "description": "LOD等级: 100/200/300",
-                                    },  # 字段
-                                    "format": {
-                                        "type": "string",
-                                        "description": "输出格式: ifc/obj/fbx",
-                                    },  # 字段
-                                    "include_reinforcement": {"type": "boolean"},  # 字段
-                                },  # code
-                            },  # code
-                        },  # code
-                        "required": ["file_id", "auth_token"],  # 字段
-                    },  # code
-                ),  # code
-                Tool(  # code
-                    name="baa_review",  # assignment
-                    description="图纸合规审查，基于GB50016规范检查图纸违规项。此工具免费使用。",  # assignment
-                    inputSchema={  # assignment
-                        "type": "object",  # 字段
-                        "properties": {  # 字段
-                            "file_path": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "图纸文件路径（支持 dxf/dwg）",  # 字段
-                            },  # code
-                            "building_type": {  # 字段
-                                "type": "string",  # 字段
-                                "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil",  # 字段
-                            },  # code
-                        },  # code
-                        "required": ["file_path"],  # 字段
-                    },  # code
-                ),  # code
-            ]  # code
-
-        @self.server.call_tool()  # function call
-        async def call_tool(name: str, arguments: dict) -> list[TextContent]:  # function call
-            # 异常保护
-            try:  # 尝试
-                # 条件分支：if name == "baa_deconstruct"
-                if name == "baa_deconstruct":  # condition: name == "baa_deconstruct":
-                    result = await self._handle_deconstruct(arguments)  # function call
-                # 条件分支：elif name == "baa_reconstruct"
-                elif name == "baa_reconstruct":  # 分支
-                    result = await self._handle_reconstruct(arguments)  # function call
-                # 条件分支：elif name == "baa_review"
-                elif name == "baa_review":  # 分支
-                    result = await self._handle_review(arguments)  # function call
-                # 其他情况处理
-                else:  # 否则
-                    raise ValueError(f"未知工具: {name}")  # 抛出
-
-                return [
-                    TextContent(  # return: list
-                        type="text",  # assignment
-                        text=json.dumps(result, ensure_ascii=False, indent=2),  # serialize JSON
-                    )
-                ]  # code
-            # 异常处理
-            except Exception as e:  # 捕获异常
-                return [
-                    TextContent(  # return: list
-                        type="text",  # assignment
-                        text=json.dumps(
-                            {  # assignment
-                                "status": "error",  # 字段
-                                "error_code": type(e).__name__,  # 字段
-                                "message": str(e),  # 字段
-                            },
-                            ensure_ascii=False,
-                        ),  # assignment
-                    )
-                ]  # code
-
-    def _ensure_engine(self):  # function: def _ensure_engine(self):
-        """懒加载引擎模块"""
-        # 条件分支：if self._drawing_parser is not None
-        if self._drawing_parser is not None:  # check: value is not None
-            return  # code
-        self._drawing_parser = DrawingParser()  # function call
-        self._semantic_analyzer = SemanticAnalyzer()  # function call
-        self._func_registry = FuncRegistry()  # function call
-        self._attribution_analyzer = AttributionAnalyzer()  # function call
-        self._spec_repo = SpecRepository()  # function call
-
-    async def _handle_deconstruct(self, args: dict) -> dict:  # function call
-        """图纸解构"""
-        self._ensure_engine()  # function call
-        file_path = args["file_path"]  # assignment
-        building_type = args.get("building_type", "civil")  # function call
-
-        # 检查文件存在
-        if not os.path.exists(file_path):  # check: negated condition
-            return {
-                "status": "error",
-                "error_code": "FILE_NOT_FOUND",  # return: dict
-                "message": f"文件不存在: {file_path}",
-            }  # 字段
-
-        # Step 1: 图纸解析
-        file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # path operation
-        result = self._drawing_parser.parse(file_path, file_id=file_id)  # function call
-        if not result.success:  # check: negated condition
-            return {
-                "status": "error",
-                "error_code": "PARSE_FAILED",  # return: dict
-                "message": f"图纸解析失败: {result.error}",
-            }  # 字段
-
-        # Step 2: 语义分析
-        semantic = self._semantic_analyzer.analyze(  # assignment
-            result.primitives, result.dimensions, building_type=building_type  # 解包
-        )  # code
-        entities = semantic["entities"]  # assignment
-
-        # 统计构件
-        type_stats = {}  # assignment
-        for e in entities:  # 循环
-            t = e["type"]  # assignment
-            if t not in type_stats:  # check: membership test
-                type_stats[t] = {"count": 0, "bbox_areas": []}  # 操作
-            type_stats[t]["count"] += 1  # 操作
-            bbox = e["bbox"]  # assignment
-            type_stats[t]["bbox_areas"].append(  # 操作
-                bbox.get("width", 0) * bbox.get("height", 0)  # function call
-            )  # code
-
-        elements = []  # assignment
-        # 遍历处理
-        for t, stats in sorted(type_stats.items()):  # 循环
-            areas = stats["bbox_areas"]  # assignment
-            elem = {"type": t, "count": stats["count"]}  # assignment
-            total_area = sum(areas) if areas else 0  # aggregate sum
-            # 条件分支：if t in ("wall", "corridor", "stair")
-            if t in ("wall", "corridor", "stair"):  # check: membership test
-                elem["total_length_m"] = round(total_area**0.5, 1)  # 操作
-            # 条件分支：elif t in ("door", "fire_door", "window")
-            elif t in ("door", "fire_door", "window"):  # 分支
-                elem["total_count"] = stats["count"]  # 操作
-            # 条件分支：elif t == "fire_zone"
-            elif t == "fire_zone":  # 分支
-                elem["total_area_sqm"] = round(total_area, 1)  # 操作
-            elements.append(elem)  # append to list
-
-        return {  # return: dict
-            "status": "success",  # 字段
-            "elements": elements,  # 字段
-            "entity_count": len(entities),  # 字段
-            "relations": len(semantic["relations"]),  # 字段
-            "confidence": 0.85 if len(entities) > 0 else 0,  # 字段
-            "file_id": file_id,  # 字段
-            "building_type": building_type,  # 字段
-        }  # code
-
-    async def _handle_reconstruct(self, args: dict) -> dict:  # function call
-        """BIM 重构"""
-        self._ensure_engine()  # function call
-        file_id = args["file_id"]  # assignment
-        auth_token = args["auth_token"]  # assignment
-
-        # 验证授权
-        auth_payload = verify_auth_token(auth_token)  # function call
-        if auth_payload is None:  # check: value is None
-            return {
-                "status": "error",
-                "error_code": "AUTH_FAILED",  # return: dict
-                "message": "支付授权验证失败，请确认订单已支付",
-            }  # 字段
-
-        # 生成 mock IFC 输出
-        order_id = f"baa-order-mcp-{file_id[-8:]}"  # assignment
-        options = args.get("options", {})  # function call
-        lod = options.get("lod", 200) if isinstance(options, dict) else 200  # type check
-        fmt = options.get("format", "ifc") if isinstance(options, dict) else "ifc"  # type check
-
-        return {  # return: dict
-            "status": "success",  # 字段
-            "order_id": order_id,  # 字段
-            "model_file": f"{order_id}.{fmt}",  # 字段
-            "lod": lod,  # 字段
-            "format": fmt,  # 字段
-            "elements_count": len(args.get("elements", [])),  # 字段
-            "auth_info": {  # 字段
-                "client_id": auth_payload.get("client_id", "unknown"),  # 字段
-                "service": auth_payload.get("service", "reconstruct"),  # 字段
-                "expires_at": auth_payload.get("expires_at", "unknown"),  # 字段
-            },  # code
-        }  # code
-
-    async def _handle_review(self, args: dict) -> dict:  # function call
-        """图纸合规审查"""
-        self._ensure_engine()  # function call
-        file_path = args["file_path"]  # assignment
-        building_type = args.get("building_type", "civil")  # function call
-
-        # 条件分支：if not os.path.exists(file_path)
-        if not os.path.exists(file_path):  # check: negated condition
-            return {
-                "status": "error",
-                "error_code": "FILE_NOT_FOUND",  # return: dict
-                "message": f"文件不存在: {file_path}",
-            }  # 字段
-
-        file_id = f"baa-file-mcp-{os.path.basename(file_path)}"  # path operation
-        result = self._drawing_parser.parse(file_path, file_id=file_id)  # function call
-        # 条件分支：if not result.success
-        if not result.success:  # check: negated condition
-            return {
-                "status": "error",
-                "error_code": "PARSE_FAILED",  # return: dict
-                "message": f"图纸解析失败: {result.error}",
-            }  # 字段
-
-        semantic = self._semantic_analyzer.analyze(  # assignment
-            result.primitives, result.dimensions, building_type=building_type  # 解包
-        )  # code
-        entities = semantic["entities"]  # assignment
-
-        # 规范判定
-        findings = []  # assignment
-        from collections import Counter  # stdlib: collections
-
-        clause_results = Counter()  # function call
-        registry_funcs = self._func_registry.list_all()  # check all true
-        total_checks = 0  # assignment
-
-        # 遍历处理
-        for e in entities:  # 循环
-            # 遍历处理
-            for func in registry_funcs:  # 循环
-                total_checks += 1  # accumulate
-                threshold_val, unit, op = self._spec_repo.get_threshold(  # assignment
-                    func.clause_id, building_type  # 解包
-                )  # code
-                func.threshold = threshold_val  # assignment
-                func.unit = unit  # assignment
-                func.operator = op  # assignment
-                r = func.execute(e)  # function call
-                # 条件分支：if r is None
-                if r is None:  # check: value is None
-                    continue  # 继续循环
-                clause_results[func.clause_id] += 1  # accumulate
-                # 条件分支：if r.result != "PASS"
-                if r.result != "PASS":  # condition: r.result != "PASS":
-                    clause = {  # assignment
-                        "standard": "GB50016",  # 字段
-                        "clause_id": func.clause_id,  # 字段
-                        "title": func.name,  # 字段
-                        "text": func.description,  # 字段
-                        "category": func.category.value,  # 字段
-                    }  # code
-                    f = self._attribution_analyzer.build_finding(  # assignment
-                        r, clause, e, entities[:5]  # 操作
-                    )  # code
-                    findings.append(
-                        {  # code
-                            "entity_id": e["id"],  # 字段
-                            "entity_type": e["type"],  # 字段
-                            "clause_id": f.clause.get("clause_id", ""),  # 字段
-                            "clause_title": f.clause.get("title", ""),  # 字段
-                            "result": f.judgement["result"],  # 字段
-                            "extracted_value": r.actual,  # 字段
-                            "required_value": r.threshold,  # 字段
-                            "difference": abs(r.delta),  # 字段
-                            "explanation": f.explanation[:200] if f.explanation else "",  # 字段
-                        }
-                    )  # code
-
-        entity_types = Counter(e["type"] for e in entities)  # function call
-        violation_count = Counter(f["clause_id"] for f in findings)  # function call
-
-        return {  # return: dict
-            "status": "success",  # 字段
-            "summary": {  # 字段
-                "total_entities": len(entities),  # 字段
-                "entity_types": dict(entity_types),  # 字段
-                "total_checks": total_checks,  # 字段
-                "violations": len(findings),  # 字段
-                "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
-            },  # code
-            "findings": findings[:50],  # 字段
-            "file_id": file_id,  # 字段
-            "building_type": building_type,  # 字段
-        }  # code
-
-    async def run_stdio(self):  # function call
-        """通过 stdio 运行 MCP Server"""
-        from mcp.server.stdio import stdio_server  # import
-
-        async with stdio_server() as (read_stream, write_stream):  # 操作
-            await self.server.run(  # 操作
-                read_stream,  # 解包
-                write_stream,  # 解包
-                InitializationOptions(  # code
-                    server_name="baa-blueprint",  # assignment
-                    server_version="1.2.0",  # assignment
-                    capabilities=self.server.get_capabilities(  # assignment
-                        notification_options=NotificationOptions(),  # function call
-                        experimental_capabilities={},  # assignment
-                    ),  # code
-                ),  # code
-            )  # code
-
-    async def run_http(self, host: str = "0.0.0.0", port: int = 8080):  # function call
-        """通过 Streamable HTTP 运行 MCP Server"""
-        from mcp.server.http import run_server  # import
-
-        await run_server(self.server, host=host, port=port)  # function call
+from src.baa_engine.drawing_parser import DrawingParser
+from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+from src.baa_engine.atomic_functions import FuncRegistry
+from src.baa_engine.attribution_analyzer import AttributionAnalyzer
+from src.baa_engine.spec_repository import SpecRepository
+from src.api.baa_api import generate_auth_token, verify_auth_token
 
 
-def main():  # function: def main():
-    import argparse  # import
+class BAAMCPServer:
+    """BAA MCP Server — 将图纸审查能力封装为 MCP 工具"""
 
-    parser = argparse.ArgumentParser(description="BAA MCP Server")  # function call
-    parser.add_argument(
-        "--transport", choices=["stdio", "streamable-http"], default="stdio"  # assignment
-    )  # assignment
-    parser.add_argument("--port", type=int, default=8080)  # function call
-    parser.add_argument("--host", default="0.0.0.0")  # function call
-    args = parser.parse_args()  # function call
+    def __init__(self):
+        self._drawing_parser: Optional[DrawingParser] = None
+        self._semantic_analyzer: Optional[SemanticAnalyzer] = None
+        self._func_registry: Optional[FuncRegistry] = None
+        self._attribution_analyzer: Optional[AttributionAnalyzer] = None
+        self._spec_repo: Optional[SpecRepository] = None
+        self._thread_pool = ThreadPoolExecutor(max_workers=2)
 
-    server = BAAMCPServer()  # function call
+        self.server = Server("baa-blueprint")
 
-    # 条件分支：if args.transport == "stdio"
-    if args.transport == "stdio":  # check: OR condition
-        asyncio.run(server.run_stdio())  # function call
-    # 其他情况处理
-    else:  # 否则
-        asyncio.run(server.run_http(host=args.host, port=args.port))  # function call
+        @self.server.list_tools()
+        async def list_tools() -> list[Tool]:
+            return [
+                Tool(name="baa_deconstruct",
+                     description="解构工程图纸，识别墙、柱、梁、板、门、窗、楼梯、电梯等构件，返回结构化数据。此工具免费使用。",
+                     inputSchema={"type": "object", "properties": {
+                         "file_path": {"type": "string", "description": "图纸文件路径（支持 dxf/dwg）"},
+                         "building_type": {"type": "string", "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil"},
+                     }, "required": ["file_path"]}),
+                Tool(name="baa_review",
+                     description="图纸合规审查，基于 GB50016/GB50974/GB50763/GB50067 规范检查图纸违规项。此工具免费使用。",
+                     inputSchema={"type": "object", "properties": {
+                         "file_path": {"type": "string", "description": "图纸文件路径（支持 dxf/dwg）"},
+                         "building_type": {"type": "string", "description": "建筑类型: civil(民用) / industrial(工业)，默认 civil"},
+                     }, "required": ["file_path"]}),
+                Tool(name="baa_reconstruct",
+
+                     description="检查 BAA 引擎健康状态，包括各子系统就绪状态、原子函数数、规范数。此工具免费使用。",
+                     inputSchema={"type": "object", "properties": {}, "required": []}),
+                Tool(name="baa_list_functions",
+                     description="列出所有注册的原子函数，支持按类别筛选。此工具免费使用。",
+                     inputSchema={"type": "object", "properties": {
+                         "category": {"type": "string", "description": "筛选类别: dim / dist / exist / count / area / attr / access / evac"},
+                     }, "required": []}),
+                Tool(name="baa_review_from_data",
+                     description="从已有实体数据（而非图纸文件）执行规范审查。此工具免费使用。",
+                     inputSchema={"type": "object", "properties": {
+                         "entities": {"type": "array", "description": "实体列表", "items": {"type": "object"}},
+                         "building_type": {"type": "string", "description": "建筑类型，默认 civil"},
+                     }, "required": ["entities"]}),
+            ]
+
+        @self.server.list_resources()
+        async def list_resources() -> list[Resource]:
+            return [
+                Resource(uri="baa://functions/count", name="原子函数总数",
+                         description=f"当前注册原子函数数: {self._get_func_count()} / 260", mimeType="application/json"),
+                Resource(uri="baa://specs/list", name="已加载规范列表",
+                         description="BAA 支持的所有建筑规范", mimeType="application/json"),
+            ]
+
+        @self.server.read_resource()
+        async def read_resource(uri: str) -> ReadResourceContents:
+            self._ensure_engine()
+            if uri == "baa://functions/count":
+                return ReadResourceContents(
+                    content=json.dumps({"count": self._func_registry.count, "capacity": self._func_registry.capacity},
+                                      ensure_ascii=False),
+                    mime_type="application/json")
+            elif uri == "baa://specs/list":
+                return ReadResourceContents(
+                    content=json.dumps({"GB50016": "建筑设计防火规范", "GB50067": "汽车库设计防火规范",
+                                       "GB50763": "无障碍设计规范", "GB50974": "消防给水及消火栓系统技术规范"},
+                                      ensure_ascii=False),
+                    mime_type="application/json")
+            raise ValueError(f"未知 resource URI: {uri}")
+
+        @self.server.call_tool()
+        async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+            try:
+                handlers = {"baa_deconstruct": self._handle_deconstruct, "baa_review": self._handle_review,
+                            "baa_reconstruct": self._handle_reconstruct, "baa_health": self._handle_health,
+                            "baa_list_functions": self._handle_list_functions,
+                            "baa_review_from_data": self._handle_review_from_data}
+                handler = handlers.get(name)
+                if handler is None:
+                    raise ValueError(f"未知工具: {name}")
+                result = await handler(arguments)
+                return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+            except Exception as e:
+                return [TextContent(type="text",
+                                    text=json.dumps({"status": "error", "error_code": type(e).__name__, "message": str(e)},
+                                                    ensure_ascii=False))]
+
+    def _get_func_count(self) -> int:
+        return self._func_registry.count if self._func_registry else 0
+
+    def _ensure_engine(self):
+        if self._drawing_parser is not None:
+            return
+        self._drawing_parser = DrawingParser()
+        self._semantic_analyzer = SemanticAnalyzer()
+        self._func_registry = FuncRegistry()
+        self._attribution_analyzer = AttributionAnalyzer()
+        self._spec_repo = SpecRepository()
+
+    async def _handle_health(self, args: dict) -> dict:
+        self._ensure_engine()
+        return {"status": "ok", "version": "1.25.0",
+                "engine": {"drawing_parser": "ready", "semantic_analyzer": "ready",
+                           "func_registry": f"{self._func_registry.count}/{self._func_registry.capacity}",
+                           "spec_repo": f"{self._spec_repo.count} 条规范"}}
+
+    async def _handle_list_functions(self, args: dict) -> dict:
+        self._ensure_engine()
+        cat = args.get("category", "").strip().lower()
+        funcs = self._func_registry.list_all()
+        if cat:
+            funcs = [f for f in funcs if f.category.value == cat]
+        return {"total": len(funcs), "capacity": self._func_registry.capacity,
+                "categories": dict(Counter(f.category.value for f in funcs)),
+                "functions": [{"id": f.func_id, "name": f.name, "category": f.category.value,
+                               "clause": f.clause_id, "description": f.description,
+                               "threshold": f.threshold, "unit": f.unit, "operator": f.operator} for f in funcs]}
+
+    async def _handle_deconstruct(self, args: dict) -> dict:
+        self._ensure_engine()
+        file_path = args["file_path"]
+        building_type = args.get("building_type", "civil")
+        if not os.path.exists(file_path):
+            return {"status": "error", "error_code": "FILE_NOT_FOUND", "message": f"文件不存在: {file_path}"}
+        file_id = f"baa-file-mcp-{os.path.basename(file_path)}"
+        result = self._drawing_parser.parse(file_path, file_id=file_id)
+        if not result.success:
+            return {"status": "error", "error_code": "PARSE_FAILED", "message": f"图纸解析失败: {result.error}"}
+        semantic = self._semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
+        entities = semantic["entities"]
+        type_stats = {}
+        for e in entities:
+            t = e["type"]
+            if t not in type_stats:
+                type_stats[t] = {"count": 0, "bbox_areas": []}
+            type_stats[t]["count"] += 1
+            type_stats[t]["bbox_areas"].append(e["bbox"].get("width", 0) * e["bbox"].get("height", 0))
+        elements = []
+        for t, stats in sorted(type_stats.items()):
+            areas = stats["bbox_areas"]
+            total_area = sum(areas) if areas else 0
+            elem = {"type": t, "count": stats["count"]}
+            if t in ("wall", "corridor", "stair"):
+                elem["total_length_m"] = round(total_area**0.5, 1)
+            elif t in ("door", "fire_door", "window"):
+                elem["total_count"] = stats["count"]
+            elif t == "fire_zone":
+                elem["total_area_sqm"] = round(total_area, 1)
+            elements.append(elem)
+        return {"status": "success", "elements": elements, "entity_count": len(entities),
+                "relations": len(semantic["relations"]), "confidence": 0.85 if entities else 0,
+                "file_id": file_id, "building_type": building_type}
+
+    async def _handle_review(self, args: dict) -> dict:
+        self._ensure_engine()
+        file_path = args["file_path"]
+        building_type = args.get("building_type", "civil")
+        if not os.path.exists(file_path):
+            return {"status": "error", "error_code": "FILE_NOT_FOUND", "message": f"文件不存在: {file_path}"}
+        file_id = f"baa-file-mcp-{os.path.basename(file_path)}"
+        result = self._drawing_parser.parse(file_path, file_id=file_id)
+        if not result.success:
+            return {"status": "error", "error_code": "PARSE_FAILED", "message": f"图纸解析失败: {result.error}"}
+        semantic = self._semantic_analyzer.analyze(result.primitives, result.dimensions, building_type=building_type)
+        entities = semantic["entities"]
+        loop = asyncio.get_event_loop()
+        findings, total_checks = await loop.run_in_executor(self._thread_pool, self._do_clustering, entities, building_type)
+        return {"status": "success",
+                "summary": {"total_entities": len(entities),
+                            "entity_types": dict(Counter(e["type"] for e in entities)),
+                            "total_checks": total_checks, "violations": len(findings),
+                            "violation_by_clause": dict(Counter(f["clause_id"] for f in findings).most_common(10))},
+                "findings": findings[:50], "file_id": file_id, "building_type": building_type}
+
+    def _do_clustering(self, entities: list, building_type: str) -> tuple:
+        findings = []
+        registry_funcs = self._func_registry.list_all()
+        total_checks = 0
+        for e in entities:
+            for func in registry_funcs:
+                total_checks += 1
+                try:
+                    tv, u, op = self._spec_repo.get_threshold(func.clause_id, building_type)
+                    func.threshold = tv; func.unit = u; func.operator = op
+                except Exception:
+                    pass
+                r = func.execute(e)
+                if r is None or r.result == "PASS":
+                    continue
+                clause = {"standard": "GB50016", "clause_id": func.clause_id, "title": func.name,
+                          "text": func.description, "category": func.category.value}
+                f = self._attribution_analyzer.build_finding(r, clause, e, entities[:5])
+                findings.append({"entity_id": e["id"], "entity_type": e["type"],
+                                 "clause_id": f.clause.get("clause_id", ""),
+                                 "clause_title": f.clause.get("title", ""),
+                                 "result": f.judgement["result"], "extracted_value": r.actual,
+                                 "required_value": r.threshold, "difference": abs(r.delta),
+                                 "explanation": (f.explanation[:200] if f.explanation else "")})
+        return findings, total_checks
+
+    async def _handle_review_from_data(self, args: dict) -> dict:
+        self._ensure_engine()
+        entities = args["entities"]
+        building_type = args.get("building_type", "civil")
+        loop = asyncio.get_event_loop()
+        findings, total_checks = await loop.run_in_executor(self._thread_pool, self._do_clustering, entities, building_type)
+        return {"status": "success",
+                "summary": {"total_entities": len(entities), "total_checks": total_checks, "violations": len(findings)},
+                "findings": findings[:50]}
+
+    async def _handle_reconstruct(self, args: dict) -> dict:
+        self._ensure_engine()
+        auth_payload = verify_auth_token(args["auth_token"])
+        if auth_payload is None:
+            return {"status": "error", "error_code": "AUTH_FAILED", "message": "支付授权验证失败"}
+        file_id = args["file_id"]
+        order_id = f"baa-order-mcp-{file_id[-8:]}"
+        options = args.get("options", {})
+        lod = options.get("lod", 200) if isinstance(options, dict) else 200
+        fmt = options.get("format", "ifc") if isinstance(options, dict) else "ifc"
+        return {"status": "success", "order_id": order_id, "model_file": f"{order_id}.{fmt}",
+                "lod": lod, "format": fmt, "elements_count": len(args.get("elements", [])),
+                "auth_info": {"client_id": auth_payload.get("client_id", "unknown"),
+                              "service": auth_payload.get("service", "reconstruct")}}
+
+    async def run_stdio(self):
+        from mcp.server.stdio import stdio_server
+        async with stdio_server() as (rs, ws):
+            await self.server.run(rs, ws,
+                                  InitializationOptions(server_name="baa-blueprint", server_version="1.3.0",
+                                                       capabilities=self.server.get_capabilities(
+                                                           notification_options=NotificationOptions(),
+                                                           experimental_capabilities={})))
+
+    async def run_http(self, host="0.0.0.0", port=8080):
+        from mcp.server.http import run_server
+        await run_server(self.server, host=host, port=port)
 
 
-# 条件分支：if __name__ == "__main__"
-if __name__ == "__main__":  # condition: __name__ == "__main__":
-    main()  # function call
+def main():
+    import argparse
+    p = argparse.ArgumentParser(description="BAA MCP Server")
+    p.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio")
+    p.add_argument("--port", type=int, default=8080)
+    p.add_argument("--host", default="0.0.0.0")
+    args = p.parse_args()
+    srv = BAAMCPServer()
+    if args.transport == "stdio":
+        asyncio.run(srv.run_stdio())
+    else:
+        asyncio.run(srv.run_http(host=args.host, port=args.port))
+
+
+if __name__ == "__main__":
+    main()
