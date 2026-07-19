@@ -350,20 +350,31 @@ function renderHistoryList() {
     return;
   }
   el.innerHTML = filtered.map(r => {
-    const viols = r.details?.length || 0;
+    const viols = r.violationCount || r.details?.length || 0;
     const btLabel = r.buildingType === 'civil' ? '民用' : r.buildingType === 'industrial' ? '工业' : '--';
-    const criticalCount = (r.details || []).filter(v => v.severity === 'critical').length;
-    const timeStr = new Date(r.reviewedAt).toLocaleString();
-    const color = viols === 0 ? 'green' : criticalCount > 0 ? 'red' : 'orange';
-    return '<div class="card p-3 cursor-pointer hover:shadow-md transition-shadow" onclick="viewHistoryDetail(\'' + r.id + '\')">' +
+    const timeStr = new Date(r.reviewedAt || r.createdAt || Date.now()).toLocaleString();
+    const color = viols === 0 ? 'green' : 'red';
+    return '<div class="card p-3 hover:shadow-md transition-shadow">' +
       '<div class="flex items-center justify-between">' +
-      '<div class="flex items-center gap-3">' +
-      '<span class="text-' + color + '-500 text-lg">' + (viols === 0 ? '✅' : criticalCount > 0 ? '🔴' : '🟡') + '</span>' +
+      '<div class="flex items-center gap-3 cursor-pointer flex-1" onclick="viewHistoryDetail(\'' + r.id + '\')">' +
+      '<span class="text-' + color + '-500 text-lg">' + (viols === 0 ? '✅' : '🔴') + '</span>' +
       '<div><div class="font-medium text-sm">' + r.drawingName + '</div>' +
       '<div class="text-xs text-gray-400">' + btLabel + ' · ' + timeStr + '</div></div></div>' +
-      '<div class="text-right"><div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项</div>' +
-      '<div class="text-xs text-gray-400">违规</div></div></div></div>';
+      '<div class="text-right mr-3">' +
+      '<div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div></div>' +
+      '<button onclick="event.stopPropagation();deleteReviewRecord(\'' + r.id + '\')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button>' +
+      '</div></div>';
   }).join('');
+}
+async function deleteReviewRecord(id) {
+  if (!confirm('确定删除此审查记录？')) return;
+  try {
+    await fetch(API_BASE() + '/review/history/' + id, {method: 'DELETE', headers: getHeaders()});
+    reviewResults = reviewResults.filter(r => r.id !== id);
+    renderHistoryList();
+  } catch(e) {
+    alert('删除失败: ' + e.message);
+  }
 }
 async function viewHistoryDetail(id) {
   const r = reviewResults.find(x => x.id === id);
