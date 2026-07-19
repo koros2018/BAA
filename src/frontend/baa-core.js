@@ -620,7 +620,9 @@ function getHeaders() {
 
 async function apiGet(path) {
   const r = await fetch(API_BASE() + path, {method: 'GET', headers: getHeaders()});
-  return r.json();
+  const data = await r.json();
+  if (!r.ok) throw new Error('API错误 (' + r.status + '): ' + (data.detail || data.message || JSON.stringify(data)));
+  return data;
 }
 
 async function apiPost(path, body) {
@@ -629,7 +631,9 @@ async function apiPost(path, body) {
     headers: { 'Content-Type': 'application/json', ...getHeaders() },
     body: JSON.stringify(body),
   });
-  return r.json();
+  const data = await r.json();
+  if (!r.ok) throw new Error('API错误 (' + r.status + '): ' + (data.detail || data.message || JSON.stringify(data)));
+  return data;
 }
 
 async function apiFetch(path, options = {}) {
@@ -646,7 +650,9 @@ async function apiPostFile(path, file, extraParams = {}) {
   const params = new URLSearchParams(extraParams);
   const url = API_BASE() + path + (params.toString() ? '?' + params.toString() : '');
   const r = await fetch(url, {method: 'POST', headers: HEADERS(), body: form});
-  return r.json();
+  const data = await r.json();
+  if (!r.ok) throw new Error('上传失败 (' + r.status + '): ' + (data.detail || data.message || JSON.stringify(data)));
+  return data;
 }
 
 // ── 测试连接 ──────────────────────────────────────────────
