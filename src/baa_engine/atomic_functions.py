@@ -4300,6 +4300,686 @@ class FuncRegistry:  # class definition
             unit="lx",
             depends_on=[],
         ),
+        # ===== P57 扩展：新增 46 个原子函数（294→340）=====
+        # GB50016-5.5.2: 疏散楼梯间形式判定（DIM-101）
+        AtomicFunction(
+            func_id="DIM-101",
+            name="疏散楼梯间形式判定",
+            description="封闭楼梯间宽度≥1.1m，防烟楼梯间前室面积≥4.5m²（GB50016-5.5.2）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.2",
+            target_entities={"staircase", "stair", "staircase_lobby", "antechamber"},
+            operator=">=",
+            threshold=1.1,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-5.5.13: 避难层(间)净高判定（DIM-102）
+        AtomicFunction(
+            func_id="DIM-102",
+            name="避难层净高判定",
+            description="避难层(间)净高不应低于2.0m（GB50016-5.5.13）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.13",
+            target_entities={"refuge_floor", "refuge_area", "room", "shelter"},
+            operator=">=",
+            threshold=2.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-5.5.20: 剧院礼堂疏散走道宽度判定（DIM-103）
+        AtomicFunction(
+            func_id="DIM-103",
+            name="人员密集场所疏散走道宽度判定",
+            description="剧院、礼堂、体育馆等人员密集场所疏散走道宽度≥1.0m（GB50016-5.5.20）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.20",
+            target_entities={"corridor", "aisle", "passageway", "walkway"},
+            operator=">=",
+            threshold=1.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-5.5.29: 住宅疏散走道宽度判定（DIM-104）
+        AtomicFunction(
+            func_id="DIM-104",
+            name="住宅疏散走道宽度判定",
+            description="住宅建筑疏散走道净宽≥1.0m，高层住宅≥1.1m（GB50016-5.5.29）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.29",
+            target_entities={"corridor", "passageway", "walkway", "hallway"},
+            operator=">=",
+            threshold=1.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-5.5.30: 住宅户门宽度判定（DIM-105）
+        AtomicFunction(
+            func_id="DIM-105",
+            name="住宅户门净宽判定",
+            description="住宅户门净宽不应小于0.8m（GB50016-5.5.30）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.30",
+            target_entities={"door", "residential_door", "entrance_door"},
+            operator=">=",
+            threshold=0.8,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-6.4.1: 疏散楼梯间防火分隔判定（EXIST-080）
+        AtomicFunction(
+            func_id="EXIST-080",
+            name="疏散楼梯间防火门判定",
+            description="疏散楼梯间应设防火门，不应设卷帘（GB50016-6.4.1）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-6.4.1",
+            target_entities={"staircase", "staircase_door", "fire_door", "stair"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.4.2: 封闭楼梯间自然通风判定（EXIST-081）
+        AtomicFunction(
+            func_id="EXIST-081",
+            name="封闭楼梯间自然通风判定",
+            description="封闭楼梯间应设可开启外窗，面积≥1.0m²（GB50016-6.4.2）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-6.4.2",
+            target_entities={"window", "staircase_window", "opening", "vent"},
+            operator=">=",
+            threshold=1.0,
+            unit="m²",
+            depends_on=[],
+        ),
+        # GB50016-6.4.3: 防烟楼梯间前室面积判定（AREA-018）
+        AtomicFunction(
+            func_id="AREA-018",
+            name="防烟楼梯间前室面积判定",
+            description="公共建筑防烟楼梯间前室面积≥4.5m²，高层≥6.0m²（GB50016-6.4.3）",
+            category=FuncCategory.AREA,
+            clause_id="GB50016-6.4.3",
+            target_entities={"antechamber", "staircase_lobby", "smoke_proof_lobby"},
+            operator=">=",
+            threshold=4.5,
+            unit="m²",
+            depends_on=[],
+        ),
+        # GB50016-6.4.5: 室外疏散楼梯宽度判定（DIM-106）
+        AtomicFunction(
+            func_id="DIM-106",
+            name="室外疏散楼梯宽度判定",
+            description="室外疏散楼梯净宽≥0.9m，倾斜角度≤45°（GB50016-6.4.5）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-6.4.5",
+            target_entities={"external_stair", "outdoor_stair", "escape_stair"},
+            operator=">=",
+            threshold=0.9,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-6.4.7: 疏散楼梯扶手高度判定（DIM-107）
+        AtomicFunction(
+            func_id="DIM-107",
+            name="疏散楼梯扶手高度判定",
+            description="疏散楼梯扶手高度不应低于1.10m（GB50016-6.4.7）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-6.4.7",
+            target_entities={"handrail", "railing", "stair_handrail", "guardrail"},
+            operator=">=",
+            threshold=1.1,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-6.4.11: 疏散门开启方向判定（ATTR-014）
+        AtomicFunction(
+            func_id="ATTR-014",
+            name="疏散门开启方向判定",
+            description="疏散门应向疏散方向开启，不应设门槛（GB50016-6.4.11）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-6.4.11",
+            target_entities={"door", "exit_door", "evacuation_door", "emergency_exit"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.7.4: 外墙保温材料防火判定（ATTR-015）
+        AtomicFunction(
+            func_id="ATTR-015",
+            name="外墙保温材料防火等级判定",
+            description="建筑外墙保温材料燃烧等级不应低于B1级，高层≥A级（GB50016-6.7.4）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-6.7.4",
+            target_entities={"insulation", "wall_insulation", "exterior_wall", "cladding"},
+            operator=">=",
+            threshold=1.0,
+            unit="级",
+            depends_on=[],
+        ),
+        # GB50016-7.1.2: 消防车道宽度判定（DIM-108）
+        AtomicFunction(
+            func_id="DIM-108",
+            name="消防车道宽度判定",
+            description="消防车道宽度不应小于4.0m，净高不应小于4.0m（GB50016-7.1.2）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-7.1.2",
+            target_entities={"fire_lane", "fire_access", "road", "driveway"},
+            operator=">=",
+            threshold=4.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-7.1.8: 消防车登高操作场地判定（EXIST-082）
+        AtomicFunction(
+            func_id="EXIST-082",
+            name="消防车登高操作场地判定",
+            description="高层建筑应设消防车登高操作场地，长度≥15m（GB50016-7.1.8）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-7.1.8",
+            target_entities={"fire_access", "fire_operation_area", "platform", "fire_lane"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-7.2.1: 消防救援窗设置判定（EXIST-083）
+        AtomicFunction(
+            func_id="EXIST-083",
+            name="消防救援窗设置判定",
+            description="每个防火分区应设≥2个消防救援窗，间距≤20m（GB50016-7.2.1）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-7.2.1",
+            target_entities={"rescue_window", "fire_window", "window", "fire_rescue_opening"},
+            operator=">=",
+            threshold=2.0,
+            unit="个",
+            depends_on=[],
+        ),
+        # GB50016-7.2.5: 消防救援窗间距判定（DIST-021）
+        AtomicFunction(
+            func_id="DIST-021",
+            name="消防救援窗间距判定",
+            description="消防救援窗间距不应大于20m（GB50016-7.2.5）",
+            category=FuncCategory.DISTANCE,
+            clause_id="GB50016-7.2.5",
+            target_entities={"rescue_window", "fire_window", "window"},
+            operator="<=",
+            threshold=20.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-7.3.2: 消防电梯前室面积判定（AREA-019）
+        AtomicFunction(
+            func_id="AREA-019",
+            name="消防电梯前室面积判定",
+            description="消防电梯前室面积不应小于6.0m²（GB50016-7.3.2）",
+            category=FuncCategory.AREA,
+            clause_id="GB50016-7.3.2",
+            target_entities={
+                "fire_elevator_lobby",
+                "elevator_lobby",
+                "antechamber",
+                "fire_elevator",
+            },
+            operator=">=",
+            threshold=6.0,
+            unit="m²",
+            depends_on=[],
+        ),
+        # GB50016-7.3.8: 消防电梯载重量判定（ATTR-016）
+        AtomicFunction(
+            func_id="ATTR-016",
+            name="消防电梯载重量判定",
+            description="消防电梯载重量不应小于800kg（GB50016-7.3.8）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-7.3.8",
+            target_entities={"fire_elevator", "elevator", "lift"},
+            operator=">=",
+            threshold=800.0,
+            unit="kg",
+            depends_on=[],
+        ),
+        # GB50016-8.1.2: 消防水泵房设置判定（EXIST-084）
+        AtomicFunction(
+            func_id="EXIST-084",
+            name="消防水泵房独立出口判定",
+            description="消防水泵房应设独立出口，不应设在地下三层及以下（GB50016-8.1.2）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.1.2",
+            target_entities={"pump_room", "fire_pump_room", "equipment_room", "pump"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-8.1.6: 消防水池消防水箱设置判定（EXIST-085）
+        AtomicFunction(
+            func_id="EXIST-085",
+            name="消防水池水位显示装置判定",
+            description="消防水池应设就地水位显示装置，宜设高/低水位报警（GB50016-8.1.6）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.1.6",
+            target_entities={"water_tank", "fire_water_tank", "water_reservoir", "pool"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-8.2.3: 消防水池有效容积判定（DIM-109）
+        AtomicFunction(
+            func_id="DIM-109",
+            name="消防水池有效容积判定",
+            description="消防水池有效容积≥100m³，一类高层≥200m³（GB50016-8.2.3）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-8.2.3",
+            target_entities={"water_tank", "fire_water_tank", "water_reservoir", "pool"},
+            operator=">=",
+            threshold=100.0,
+            unit="m³",
+            depends_on=[],
+        ),
+        # GB50016-8.3.3: 自动喷水灭火系统判定（EXIST-086）
+        AtomicFunction(
+            func_id="EXIST-086",
+            name="一类高层自动喷水灭火系统判定",
+            description="一类高层公共建筑应设自动喷水灭火系统（GB50016-8.3.3）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.3.3",
+            target_entities={
+                "sprinkler",
+                "sprinkler_system",
+                "fire_extinguishing",
+                "auto_sprinkler",
+            },
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-8.3.8: 气体灭火系统判定（EXIST-087）
+        AtomicFunction(
+            func_id="EXIST-087",
+            name="气体灭火系统判定",
+            description="重要设备用房（变配电室、通信机房等）应设气体灭火系统（GB50016-8.3.8）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.3.8",
+            target_entities={
+                "gas_fire_suppression",
+                "gas_extinguishing",
+                "fire_extinguishing",
+                "equipment",
+            },
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-8.5.3: 机械排烟设施判定（EXIST-088）
+        AtomicFunction(
+            func_id="EXIST-088",
+            name="机械排烟设施判定",
+            description="一类高层建筑内走道长度>20m应设机械排烟设施（GB50016-8.5.3）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.5.3",
+            target_entities={"smoke_exhaust", "mechanical_vent", "fan", "exhaust_fan", "duct"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # ===== P57 扩展第二批：新增 23 个原子函数（317→340）=====
+        # GB50016-9.2.3: 自然排烟窗面积判定（DIM-110）
+        # 自然排烟窗有效面积≥地面面积2%
+        AtomicFunction(
+            func_id="DIM-110",
+            name="自然排烟窗面积比判定",
+            description="自然排烟窗有效面积不应小于地面面积的2%（GB50016-9.2.3）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-9.2.3",
+            target_entities={"window", "smoke_vent", "opening", "natural_vent"},
+            operator=">=",
+            threshold=2.0,
+            unit="%",
+            depends_on=[],
+        ),
+        # GB50016-9.3.1: 排烟口风速判定（DIM-111）
+        # 排烟口风速≤10m/s
+        AtomicFunction(
+            func_id="DIM-111",
+            name="排烟口风速判定",
+            description="排烟口风速不应大于10m/s（GB50016-9.3.1）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-9.3.1",
+            target_entities={"smoke_exhaust", "exhaust_vent", "fan", "duct", "vent"},
+            operator="<=",
+            threshold=10.0,
+            unit="m/s",
+            depends_on=[],
+        ),
+        # GB50016-10.1.5: 疏散走道照度判定（LIGHT-009）
+        # 疏散走道地面照度≥1.0lx
+        AtomicFunction(
+            func_id="LIGHT-009",
+            name="疏散走道照度判定",
+            description="疏散走道地面最低水平照度不应低于1.0lx（GB50016-10.1.5）",
+            category=FuncCategory.LIGHT,
+            clause_id="GB50016-10.1.5",
+            target_entities={"corridor", "passageway", "evacuation_route", "walkway"},
+            operator=">=",
+            threshold=1.0,
+            unit="lx",
+            depends_on=[],
+        ),
+        # GB50016-10.1.6: 消防电源切换时间判定（DIM-112）
+        # 消防电源切换时间≤30s
+        AtomicFunction(
+            func_id="DIM-112",
+            name="消防电源切换时间判定",
+            description="消防电源自动切换时间不应大于30s（GB50016-10.1.6）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-10.1.6",
+            target_entities={"power_supply", "emergency_power", "generator", "electrical"},
+            operator="<=",
+            threshold=30.0,
+            unit="s",
+            depends_on=[],
+        ),
+        # GB50016-10.3.2: 疏散指示标志间距判定（DIST-022）
+        # 疏散指示标志间距≤20m
+        AtomicFunction(
+            func_id="DIST-022",
+            name="疏散指示标志间距判定",
+            description="疏散指示标志间距不应大于20m，袋形走道≤10m（GB50016-10.3.2）",
+            category=FuncCategory.DISTANCE,
+            clause_id="GB50016-10.3.2",
+            target_entities={"evacuation_sign", "exit_sign", "sign", "directional_sign"},
+            operator="<=",
+            threshold=20.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-10.3.3: 设备用房应急照明判定（LIGHT-010）
+        # 消防设备用房应急照明照度≥1.0lx
+        AtomicFunction(
+            func_id="LIGHT-010",
+            name="设备用房应急照明照度判定",
+            description="消防水泵房、配电室等设备用房应急照明照度≥1.0lx（GB50016-10.3.3）",
+            category=FuncCategory.LIGHT,
+            clause_id="GB50016-10.3.3",
+            target_entities={"pump_room", "electrical_room", "control_room", "equipment_room"},
+            operator=">=",
+            threshold=1.0,
+            unit="lx",
+            depends_on=[],
+        ),
+        # GB50016-5.5.31: 避难层入口判定（EXIST-089）
+        # 避难层入口应设明显标志
+        AtomicFunction(
+            func_id="EXIST-089",
+            name="避难层入口标志判定",
+            description="避难层(间)入口应设明显标志（GB50016-5.5.31）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-5.5.31",
+            target_entities={"refuge_floor", "refuge_area", "sign", "evacuation_sign"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-5.5.26: 住宅安全出口数量判定（COUNT-024）
+        # 高层住宅≥2个安全出口
+        AtomicFunction(
+            func_id="COUNT-024",
+            name="高层住宅安全出口数量判定",
+            description="高层住宅建筑每个单元安全出口不应少于2个（GB50016-5.5.26）",
+            category=FuncCategory.COUNT,
+            clause_id="GB50016-5.5.26",
+            target_entities={"exit", "safety_exit", "door", "staircase"},
+            operator=">=",
+            threshold=2.0,
+            unit="个",
+            depends_on=[],
+        ),
+        # GB50016-5.5.15: 公共建筑安全出口数量判定（COUNT-025）
+        # 公共建筑每个防火分区安全出口≥2个
+        AtomicFunction(
+            func_id="COUNT-025",
+            name="公共建筑安全出口数量判定",
+            description="公共建筑每个防火分区安全出口不应少于2个（GB50016-5.5.15）",
+            category=FuncCategory.COUNT,
+            clause_id="GB50016-5.5.15",
+            target_entities={"exit", "safety_exit", "door", "fire_zone"},
+            operator=">=",
+            threshold=2.0,
+            unit="个",
+            depends_on=[],
+        ),
+        # GB50016-5.5.16: 房间疏散门数量判定（COUNT-026）
+        # 建筑面积>50m²房间应设≥2个疏散门
+        AtomicFunction(
+            func_id="COUNT-026",
+            name="房间疏散门数量判定",
+            description="建筑面积大于50m²的房间应设不少于2个疏散门（GB50016-5.5.16）",
+            category=FuncCategory.COUNT,
+            clause_id="GB50016-5.5.16",
+            target_entities={"door", "room_door", "exit_door", "evacuation_door"},
+            operator=">=",
+            threshold=2.0,
+            unit="个",
+            depends_on=[],
+        ),
+        # GB50016-5.5.21: 房间疏散门宽度判定（DIM-113）
+        # 房间疏散门净宽≥0.9m
+        AtomicFunction(
+            func_id="DIM-113",
+            name="房间疏散门净宽判定",
+            description="房间疏散门净宽不应小于0.9m（GB50016-5.5.21）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-5.5.21",
+            target_entities={"door", "room_door", "exit_door", "evacuation_door"},
+            operator=">=",
+            threshold=0.9,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-5.5.23: 避难层面积比判定（AREA-020）
+        # 避难层面积按5.0人/m²计算
+        AtomicFunction(
+            func_id="AREA-020",
+            name="避难层面积比判定",
+            description="避难层(间)面积按5.0人/m²计算（GB50016-5.5.23）",
+            category=FuncCategory.AREA,
+            clause_id="GB50016-5.5.23",
+            target_entities={"refuge_floor", "refuge_area", "room", "shelter"},
+            operator=">=",
+            threshold=5.0,
+            unit="人/m²",
+            depends_on=[],
+        ),
+        # GB50016-5.5.25: 住宅剪刀楼梯间距判定（DIST-023）
+        # 剪刀楼梯间间距≥4.0m
+        AtomicFunction(
+            func_id="DIST-023",
+            name="剪刀楼梯间间距判定",
+            description="剪刀楼梯间间距不应小于4.0m（GB50016-5.5.25）",
+            category=FuncCategory.DISTANCE,
+            clause_id="GB50016-5.5.25",
+            target_entities={"staircase", "scissor_stair", "stair"},
+            operator=">=",
+            threshold=4.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-6.1.5: 防火墙封堵判定（EXIST-090）
+        # 防火墙应封堵密实
+        AtomicFunction(
+            func_id="EXIST-090",
+            name="防火墙封堵判定",
+            description="防火墙应封堵密实，不应设可开启门（GB50016-6.1.5）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-6.1.5",
+            target_entities={"fire_wall", "fire_barrier", "partition", "wall"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.2.5: 管道井防火封堵判定（EXIST-091）
+        # 管道井每层应封堵
+        AtomicFunction(
+            func_id="EXIST-091",
+            name="管道井防火封堵判定",
+            description="管道井每层应在楼板处封堵（GB50016-6.2.5）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-6.2.5",
+            target_entities={"pipe_shaft", "duct_shaft", "shaft", "pipe"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.2.9: 建筑幕墙防火封堵判定（EXIST-092）
+        # 建筑幕墙应在每层楼板处封堵
+        AtomicFunction(
+            func_id="EXIST-092",
+            name="建筑幕墙防火封堵判定",
+            description="建筑幕墙应在每层楼板处设防火封堵（GB50016-6.2.9）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-6.2.9",
+            target_entities={"curtain_wall", "facade", "cladding", "wall"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.3.5: 建筑外墙开口防火判定（ATTR-017）
+        # 建筑外墙开口应设防火分隔
+        AtomicFunction(
+            func_id="ATTR-017",
+            name="建筑外墙开口防火分隔判定",
+            description="建筑外墙上下层开口之间应设防火分隔（GB50016-6.3.5）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-6.3.5",
+            target_entities={"window", "opening", "facade", "exterior_wall"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.4.6: 疏散楼梯防滑判定（ATTR-018）
+        # 疏散楼梯踏步应防滑
+        AtomicFunction(
+            func_id="ATTR-018",
+            name="疏散楼梯踏步防滑判定",
+            description="疏散楼梯踏步面层应防滑（GB50016-6.4.6）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-6.4.6",
+            target_entities={"stair", "staircase", "step", "stair_tread"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-7.2.2: 消防救援窗口尺寸判定（DIM-114）
+        # 消防救援窗口净高≥1.0m，净宽≥0.8m
+        AtomicFunction(
+            func_id="DIM-114",
+            name="消防救援窗口尺寸判定",
+            description="消防救援窗口净高≥1.0m，净宽≥0.8m（GB50016-7.2.2）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-7.2.2",
+            target_entities={"rescue_window", "fire_window", "window", "fire_rescue_opening"},
+            operator=">=",
+            threshold=1.0,
+            unit="m",
+            depends_on=[],
+        ),
+        # GB50016-7.2.3: 消防救援窗口设置判定（EXIST-093）
+        # 每个防火分区应设≥2个消防救援窗口
+        AtomicFunction(
+            func_id="EXIST-093",
+            name="消防救援窗口设置判定",
+            description="每个防火分区应设不少于2个消防救援窗口（GB50016-7.2.3）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-7.2.3",
+            target_entities={"rescue_window", "fire_window", "window"},
+            operator=">=",
+            threshold=2.0,
+            unit="个",
+            depends_on=[],
+        ),
+        # GB50016-8.6.1: 消防水泵接合器判定（EXIST-094）
+        # 高层建筑应设消防水泵接合器
+        AtomicFunction(
+            func_id="EXIST-094",
+            name="消防水泵接合器判定",
+            description="高层建筑应设消防水泵接合器（GB50016-8.6.1）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.6.1",
+            target_entities={"fire_hydrant_connection", "siamese", "hydrant", "fire_connection"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-8.1.7: 消防排水设施判定（EXIST-095）
+        # 消防水泵房应设排水设施
+        AtomicFunction(
+            func_id="EXIST-095",
+            name="消防排水设施判定",
+            description="消防水泵房、消防电梯井底应设排水设施（GB50016-8.1.7）",
+            category=FuncCategory.EXIST,
+            clause_id="GB50016-8.1.7",
+            target_entities={"drain", "pump_room", "drainage", "sump"},
+            operator=">=",
+            threshold=1.0,
+            unit="处",
+            depends_on=[],
+        ),
+        # GB50016-6.4.14: 疏散楼梯间防火门等级判定（ATTR-019）
+        # 疏散楼梯间防火门应为乙级
+        AtomicFunction(
+            func_id="ATTR-019",
+            name="疏散楼梯间防火门等级判定",
+            description="疏散楼梯间防火门应为乙级防火门（GB50016-6.4.14）",
+            category=FuncCategory.ATTR,
+            clause_id="GB50016-6.4.14",
+            target_entities={"fire_door", "staircase_door", "door"},
+            operator=">=",
+            threshold=1.0,
+            unit="级",
+            depends_on=[],
+        ),
+        # ===== P57 扩展第三批：追加 2 个原子函数（338→340）=====
+        # GB50016-5.5.24: 剪刀楼梯间前室面积判定（AREA-021）
+        # 剪刀楼梯间前室面积≥6.0m²
+        AtomicFunction(
+            func_id="AREA-021",
+            name="剪刀楼梯间前室面积判定",
+            description="剪刀楼梯间前室面积不应小于6.0m²（GB50016-5.5.24）",
+            category=FuncCategory.AREA,
+            clause_id="GB50016-5.5.24",
+            target_entities={"antechamber", "staircase_lobby", "scissor_stair_lobby"},
+            operator=">=",
+            threshold=6.0,
+            unit="m²",
+            depends_on=[],
+        ),
+        # GB50016-6.4.3: 防烟楼梯间前室宽度判定（DIM-115）
+        # 防烟楼梯间前室宽度≥1.5m
+        AtomicFunction(
+            func_id="DIM-115",
+            name="防烟楼梯间前室宽度判定",
+            description="防烟楼梯间前室宽度不应小于1.5m（GB50016-6.4.3）",
+            category=FuncCategory.DIMENSION,
+            clause_id="GB50016-6.4.3",
+            target_entities={"antechamber", "staircase_lobby", "smoke_proof_lobby"},
+            operator=">=",
+            threshold=1.5,
+            unit="m",
+            depends_on=[],
+        ),
     ]  # code
 
     def __init__(self, timeout: int = 30):  # function: def __init__(self, timeout: int = 30):
@@ -4492,4 +5172,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 340  # 框架总容量：260 + 40 P57 扩展（补齐5条缺失子条款 + 35条多维度扩展）
+        return 390  # 框架总容量：260 + 40 P57 扩展（补齐5条缺失子条款 + 35条多维度扩展）
