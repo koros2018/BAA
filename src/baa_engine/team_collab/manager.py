@@ -1,4 +1,3 @@
-"""
 
 BAA 协作模块 — 业务逻辑管理器
 
@@ -18,7 +17,6 @@ CollaborationManager 提供：
 
 - 审批流（ApprovalFlow + ApprovalStep）
 
-"""
 
 
 
@@ -150,7 +148,6 @@ class CollaborationManager:
 
     def __new__(cls, db_path: str = DEFAULT_DB_PATH):
 
-        """单例模式：确保 CollaborationManager 只有一个实例"""
         with cls._lock:
 
             if cls._instance is None:
@@ -165,7 +162,6 @@ class CollaborationManager:
 
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
 
-        """初始化：创建 SQLite 引擎和数据库表"""
         if self._initialized:
 
             return
@@ -198,7 +194,6 @@ class CollaborationManager:
 
     def _close_session(self, session: Session):
 
-        """关闭数据库会话"""
         session.close()
 
 
@@ -232,7 +227,7 @@ class CollaborationManager:
         self, username: str, password: str, email: str = "", display_name: str = ""
 
     ) -> Tuple[Optional[dict], str]:
-
+        """注册用户：username 唯一约束，密码存 salt+sha256 哈希"""
         session = self._get_session()
 
         try:
@@ -290,6 +285,7 @@ class CollaborationManager:
 
 
     def login_user(self, username: str, password: str) -> Tuple[Optional[dict], str]:
+        """登录：验证密码，生成 token，更新 last_login_at"""
 
         session = self._get_session()
 
@@ -328,6 +324,7 @@ class CollaborationManager:
 
 
     def get_user(self, user_id: str) -> Optional[dict]:
+        """获取用户详情：返回 dict 或 None"""
 
         session = self._get_session()
 
@@ -344,6 +341,7 @@ class CollaborationManager:
 
 
     def update_user(self, user_id: str, updates: dict) -> Tuple[Optional[dict], str]:
+        """更新用户信息：不可修改 password_hash"""
 
         session = self._get_session()
 
@@ -382,6 +380,7 @@ class CollaborationManager:
 
 
     def list_users(self, query: str = "", limit: int = 50) -> List[dict]:
+        """用户列表：按 username/display_name 模糊搜索"""
 
         session = self._get_session()
 
@@ -396,6 +395,7 @@ class CollaborationManager:
                     (User.username.ilike(f"%{query}%")) | (User.display_name.ilike(f"%{query}%"))
 
                 )
+                    """用户列表：按 username/display_name 模糊搜索，limit 分页"""
 
             return [u.to_dict() for u in q.limit(limit).all()]
 
@@ -406,10 +406,12 @@ class CollaborationManager:
 
 
     def create_team(
+        """创建团队：创建者自动成为 owner"""
 
         self, name: str, owner_id: str, description: str = "", is_public: bool = False
 
     ) -> Tuple[Optional[dict], str]:
+        """创建团队：创建者自动成为 owner，max_members 默认 50"""
 
         session = self._get_session()
 
@@ -426,6 +428,7 @@ class CollaborationManager:
                 team_id=team.id, user_id=owner_id, role=TeamRole.OWNER.value, invited_by=owner_id
 
             )
+                """创建团队：创建者自动成为 owner，max_members 默认 50"""
 
             session.add(member)
 
@@ -448,6 +451,7 @@ class CollaborationManager:
 
 
     def get_team(self, team_id: str) -> Optional[dict]:
+        """获取团队详情：含成员列表"""
 
         session = self._get_session()
 
@@ -472,6 +476,7 @@ class CollaborationManager:
 
 
     def list_user_teams(self, user_id: str) -> List[dict]:
+        """用户所属团队列表"""
 
         session = self._get_session()
 
@@ -502,10 +507,12 @@ class CollaborationManager:
 
 
     def add_team_member(
+        """添加团队成员：需要 manager 以上权限"""
 
         self, team_id: str, inviter_id: str, user_id: str, role: str = TeamRole.MEMBER.value
 
     ) -> Tuple[Optional[dict], str]:
+        """添加团队成员：需要 requester 有 manager 以上权限"""
 
         session = self._get_session()
 
@@ -520,6 +527,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """添加团队成员：需要 requester 有 manager 以上权限"""
 
             if not inviter or not _check_team_role(inviter.role, TeamRole.MANAGER.value):
 
@@ -534,6 +542,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """添加团队成员：需要 requester 有 manager 以上权限"""
 
             if existing:
 
@@ -560,6 +569,7 @@ class CollaborationManager:
 
 
     def remove_team_member(self, team_id: str, requester_id: str, user_id: str) -> Tuple[bool, str]:
+        """移除团队成员：不可移除 owner"""
 
         session = self._get_session()
 
@@ -574,6 +584,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """移除团队成员：不可移除 owner，不可自移除"""
 
             if not requester or not _check_team_role(requester.role, TeamRole.MANAGER.value):
 
@@ -588,6 +599,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """移除团队成员：不可移除 owner，不可自移除"""
 
             if not target:
 
@@ -616,6 +628,7 @@ class CollaborationManager:
 
 
     def create_project(
+        """创建项目：关联团队，创建者自动成为 owner"""
 
         self,
 
@@ -632,6 +645,7 @@ class CollaborationManager:
         building_area: float = 0.0,
 
     ) -> Tuple[Optional[dict], str]:
+        """创建项目：关联团队（可选），创建者自动成为 owner"""
 
         session = self._get_session()
 
@@ -650,6 +664,7 @@ class CollaborationManager:
                 building_area=building_area,
 
             )
+                """创建项目：关联团队（可选），创建者自动成为 owner"""
 
             if team_id:
 
@@ -664,6 +679,7 @@ class CollaborationManager:
                     .first()
 
                 )
+                    """创建项目：关联团队（可选），创建者自动成为 owner"""
 
                 if not member:
 
@@ -678,6 +694,7 @@ class CollaborationManager:
                 project_id=project.id, user_id=owner_id, permission=ProjectPermission.OWNER.value
 
             )
+                """创建项目：关联团队（可选），创建者自动成为 owner"""
 
             session.add(pm)
 
@@ -700,6 +717,7 @@ class CollaborationManager:
 
 
     def get_project(self, project_id: str, user_id: str = "") -> Optional[dict]:
+        """获取项目详情"""
 
         session = self._get_session()
 
@@ -728,6 +746,7 @@ class CollaborationManager:
 
 
     def list_user_projects(self, user_id: str, status: str = "active") -> List[dict]:
+        """用户参与的项目列表"""
 
         session = self._get_session()
 
@@ -738,6 +757,7 @@ class CollaborationManager:
                 session.query(ProjectMember).filter(ProjectMember.user_id == user_id).all()
 
             )
+                """用户参与的项目列表：按 status 筛选"""
 
             project_ids = [m.project_id for m in memberships]
 
@@ -760,6 +780,7 @@ class CollaborationManager:
 
 
     def list_team_projects(self, team_id: str, user_id: str = "") -> List[dict]:
+        """团队项目列表"""
 
         session = self._get_session()
 
@@ -774,6 +795,7 @@ class CollaborationManager:
                     session.query(ProjectMember).filter(ProjectMember.user_id == user_id).all()
 
                 )
+                    """团队项目列表：需要团队成员权限"""
 
                 allowed_ids = {m.project_id for m in memberships}
 
@@ -788,6 +810,7 @@ class CollaborationManager:
 
 
     def add_project_member(
+        """添加项目成员"""
 
         self,
 
@@ -800,6 +823,7 @@ class CollaborationManager:
         permission: str = ProjectPermission.VIEW.value,
 
     ) -> Tuple[Optional[dict], str]:
+        """添加项目成员：需要 project owner/edit 权限"""
 
         session = self._get_session()
 
@@ -820,6 +844,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """添加项目成员：需要 project owner/edit 权限"""
 
             if existing:
 
@@ -846,10 +871,12 @@ class CollaborationManager:
 
 
     def update_project_member_permission(
+        """更新项目成员权限"""
 
         self, project_id: str, requester_id: str, user_id: str, new_permission: str
 
     ) -> Tuple[bool, str]:
+        """更新项目成员权限：不可修改 owner 权限"""
 
         session = self._get_session()
 
@@ -870,6 +897,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """更新项目成员权限：不可修改 owner 权限"""
 
             if not pm:
 
@@ -898,10 +926,12 @@ class CollaborationManager:
 
 
     def remove_project_member(
+        """移除项目成员"""
 
         self, project_id: str, requester_id: str, user_id: str
 
     ) -> Tuple[bool, str]:
+        """移除项目成员：不可移除 owner"""
 
         session = self._get_session()
 
@@ -922,6 +952,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """移除项目成员：不可移除 owner"""
 
             if not pm:
 
@@ -950,6 +981,7 @@ class CollaborationManager:
 
 
     def _get_project_permission(self, session: Session, project_id: str, user_id: str) -> str:
+        """获取用户项目实际权限"""
 
         pm = (
 
@@ -960,12 +992,14 @@ class CollaborationManager:
             .first()
 
         )
+            """内部方法：获取用户在项目中的实际权限（团队继承 + 项目直接）"""
 
         return pm.permission if pm else ProjectPermission.VIEW.value
 
 
 
     def create_review_session(
+        """创建审查会话"""
 
         self,
 
@@ -980,6 +1014,7 @@ class CollaborationManager:
         file_ids: List[str] = None,
 
     ) -> Tuple[Optional[dict], str]:
+        """创建审查会话：基于项目实体创建新的审查实例"""
 
         session = self._get_session()
 
@@ -1004,6 +1039,7 @@ class CollaborationManager:
                 file_ids=file_ids or [],
 
             )
+                """创建审查会话：基于项目实体创建新的审查实例"""
 
             session.add(rs)
 
@@ -1030,6 +1066,7 @@ class CollaborationManager:
 
 
     def get_review_session(self, session_id: str, user_id: str = "") -> Optional[dict]:
+        """获取审查会话详情"""
 
         session = self._get_session()
 
@@ -1050,6 +1087,7 @@ class CollaborationManager:
                     session, rs.project_id, user_id
 
                 )
+                    """获取审查会话详情：含审批流程和评论摘要"""
 
             return result
 
@@ -1060,6 +1098,7 @@ class CollaborationManager:
 
 
     def list_review_sessions(self, project_id: str, user_id: str = "") -> List[dict]:
+        """项目审查会话列表"""
 
         session = self._get_session()
 
@@ -1094,10 +1133,12 @@ class CollaborationManager:
 
 
     def update_review_session_status(
+        """更新审查会话状态"""
 
         self, session_id: str, user_id: str, status: str
 
     ) -> Tuple[bool, str]:
+        """更新审查会话状态：DRAFT→PENDING→APPROVED/REJECTED"""
 
         session = self._get_session()
 
@@ -1142,6 +1183,7 @@ class CollaborationManager:
 
 
     def add_comment(
+        """添加审查评论"""
 
         self,
 
@@ -1162,6 +1204,7 @@ class CollaborationManager:
         severity: str = "info",
 
     ) -> Tuple[Optional[dict], str]:
+        """添加审查评论：支持父子层级回复"""
 
         session = self._get_session()
 
@@ -1198,6 +1241,7 @@ class CollaborationManager:
                 severity=severity,
 
             )
+                """添加审查评论：支持父子层级回复"""
 
             session.add(comment)
 
@@ -1218,10 +1262,12 @@ class CollaborationManager:
 
 
     def list_comments(
+        """审查评论列表"""
 
         self, review_session_id: str, user_id: str = "", include_resolved: bool = True
 
     ) -> List[dict]:
+        """审查评论列表：按时间排序，支持 clause_id 筛选"""
 
         session = self._get_session()
 
@@ -1238,6 +1284,7 @@ class CollaborationManager:
                     .first()
 
                 )
+                    """审查评论列表：按时间排序，支持 clause_id 筛选"""
 
                 if rs:
 
@@ -1252,6 +1299,7 @@ class CollaborationManager:
                 ReviewComment.review_session_id == review_session_id
 
             )
+                """审查评论列表：按时间排序，支持 clause_id 筛选"""
 
             if not include_resolved:
 
@@ -1266,6 +1314,7 @@ class CollaborationManager:
 
 
     def resolve_comment(self, comment_id: str, user_id: str) -> Tuple[bool, str]:
+        """标记评论为已处理"""
 
         session = self._get_session()
 
@@ -1286,6 +1335,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """标记评论为已处理：记录处理人和处理时间"""
 
             if rs:
 
@@ -1318,6 +1368,7 @@ class CollaborationManager:
 
 
     def create_approval_flow(
+        """创建审批流程"""
 
         self,
 
@@ -1330,6 +1381,7 @@ class CollaborationManager:
         assignee_ids: List[str] = None,
 
     ) -> Tuple[Optional[dict], str]:
+        """创建审批流程：含多级审批步骤，一个审查会话只能有一个流程"""
 
         session = self._get_session()
 
@@ -1364,6 +1416,7 @@ class CollaborationManager:
                 review_session_id=review_session_id, name=name, created_by=created_by
 
             )
+                """创建审批流程：含多级审批步骤，一个审查会话只能有一个流程"""
 
             session.add(flow)
 
@@ -1394,6 +1447,7 @@ class CollaborationManager:
 
 
     def approve_step(self, step_id: str, user_id: str, comment: str = "") -> Tuple[bool, str]:
+        """审批通过当前步骤"""
 
         session = self._get_session()
 
@@ -1436,10 +1490,12 @@ class CollaborationManager:
                         ApprovalStep.status == ApprovalStatus.PENDING.value,
 
                     )
+                        """审批通过当前步骤：全部通过后自动更新流程状态为 APPROVED"""
 
                     .first()
 
                 )
+                    """审批通过当前步骤：全部通过后自动更新流程状态为 APPROVED"""
 
                 if not next_step:
 
@@ -1456,6 +1512,7 @@ class CollaborationManager:
                         .first()
 
                     )
+                        """审批通过当前步骤：全部通过后自动更新流程状态为 APPROVED"""
 
                     if rs:
 
@@ -1478,6 +1535,7 @@ class CollaborationManager:
 
 
     def reject_step(self, step_id: str, user_id: str, comment: str = "") -> Tuple[bool, str]:
+        """驳回当前步骤"""
 
         session = self._get_session()
 
@@ -1520,6 +1578,7 @@ class CollaborationManager:
                     .first()
 
                 )
+                    """驳回当前步骤：流程状态变为 REJECTED"""
 
                 if rs:
 
@@ -1542,6 +1601,7 @@ class CollaborationManager:
 
 
     def get_approval_flow(self, review_session_id: str) -> Optional[dict]:
+        """获取审批流程"""
 
         session = self._get_session()
 
@@ -1556,6 +1616,7 @@ class CollaborationManager:
                 .first()
 
             )
+                """获取审批流程：含各步骤状态"""
 
             return flow.to_dict() if flow else None
 
@@ -1566,6 +1627,7 @@ class CollaborationManager:
 
 
     def get_stats(self) -> dict:
+        """获取系统统计"""
 
         session = self._get_session()
 
