@@ -202,7 +202,7 @@ def registry():  # function: def registry():
 # ── 参数化测试 ──
 
 
-@pytest.mark.slow  # code
+@pytest.mark.real_drawing  # code
 @pytest.mark.parametrize(
     "dxf_name",
     [  # code
@@ -272,7 +272,7 @@ def test_real_parse_and_analyze(
             ), f"{dxf_name}: {func_id} 预期 FAIL, 但未找到 FAIL 结果 (matches={len(matches)})"  # 断言: 至少有一个 FAIL
 
 
-@pytest.mark.slow  # code
+@pytest.mark.real_drawing  # code
 def test_all_real_drawings_parseable(
     parser,
 ):  # function: def test_all_real_drawings_parseable(parser):
@@ -303,7 +303,7 @@ def test_all_real_drawings_parseable(
     )  # function call
 
 
-@pytest.mark.slow  # code
+@pytest.mark.real_drawing  # code
 def test_fire_equipment_detection(
     parser, analyzer, registry
 ):  # function: def test_fire_equipment_detection(parser, analyzer, registry
