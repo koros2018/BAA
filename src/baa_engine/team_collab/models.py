@@ -38,12 +38,16 @@ COLLAB_SECRET = os.getenv("BAA_COLLAB_SECRET", secrets.token_hex(32))
 TOKEN_EXPIRE_HOURS = 72
 
 
+# 用户角色枚举：admin 管理员 / user 普通用户 / viewer 只读用户
+# 用于 API 鉴权时区分操作权限级别
 class UserRole(str, Enum):
     ADMIN = "admin"
     USER = "user"
     VIEWER = "viewer"
 
 
+# 团队角色枚举：owner 创建者 / manager 管理者 / member 成员 / guest 访客
+# owner 有解散团队权限，manager 可管理成员
 class TeamRole(str, Enum):
     OWNER = "owner"
     MANAGER = "manager"
@@ -51,6 +55,8 @@ class TeamRole(str, Enum):
     GUEST = "guest"
 
 
+# 项目权限枚举：owner 所有者 / edit 编辑 / review 审查 / comment 评论 / view 只读
+# 越靠前权限越大，按位运算比较
 class ProjectPermission(str, Enum):
     OWNER = "owner"
     EDIT = "edit"
@@ -59,6 +65,8 @@ class ProjectPermission(str, Enum):
     VIEW = "view"
 
 
+# 评论类型枚举：issue 问题 / suggestion 建议 / question 疑问 / approval 审批 / note 备注
+# 用于审查评论的快速分类和过滤
 class CommentType(str, Enum):
     ISSUE = "issue"
     SUGGESTION = "suggestion"
@@ -67,6 +75,8 @@ class CommentType(str, Enum):
     NOTE = "note"
 
 
+# 审批状态枚举：pending 待审 / approved 通过 / rejected 驳回 / revoked 撤回 / skipped 跳过
+# 多级审批流程中每个步骤独立状态
 class ApprovalStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -75,6 +85,7 @@ class ApprovalStatus(str, Enum):
     SKIPPED = "skipped"
 
 
+# 审查会话状态枚举：draft 草稿 / pending 待审 / in_progress 进行中 / approved 通过 / rejected 驳回 / archived 归档
 class ReviewStatus(str, Enum):
     DRAFT = "draft"
     PENDING = "pending"
@@ -87,6 +98,8 @@ class ReviewStatus(str, Enum):
 Base = declarative_base()
 
 
+# 用户模型：存密码哈希而非明文，使用 salt+sha256 散列
+# token 字段用于 API 鉴权，72h 过期
 class User(Base):
     __tablename__ = "users"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -106,10 +119,14 @@ class User(Base):
     comments = relationship("ReviewComment", back_populates="author", lazy="dynamic")
     owned_teams = relationship("Team", back_populates="owner", lazy="dynamic")
 
+# 设置密码：salt 随机生成 16 字节，与密码拼接后 sha256 散列
+# 存储格式 salt$hash，防止彩虹表攻击
     def set_password(self, password: str):
         salt = secrets.token_hex(16)
         self.password_hash = f"{salt}${hashlib.sha256((salt + password).encode()).hexdigest()}"
 
+# 验证密码：从存储的 hash 中提取 salt，重新计算后比对
+# 返回 False 时上层应记录登录失败次数
     def verify_password(self, password: str) -> bool:
         if "$" not in self.password_hash:
             return False
@@ -130,6 +147,8 @@ class User(Base):
         }
 
 
+# 团队模型：owner_id 关联用户表，max_members 限制团队规模
+# is_public 控制是否允许外部用户申请加入
 class Team(Base):
     __tablename__ = "teams"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -159,6 +178,8 @@ class Team(Base):
         }
 
 
+# 团队成员关联表：联合唯一约束 (team_id, user_id) 防止重复加入
+# invited_by 记录邀请人，用于审计
 class TeamMember(Base):
     __tablename__ = "team_members"
     __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_user"),)
@@ -183,6 +204,8 @@ class TeamMember(Base):
         }
 
 
+# 项目模型：关联团队和创建者，building_type/area 用于审查上下文
+# tags 字段存 JSON 数组，支持灵活标签过滤
 class Project(Base):
     __tablename__ = "projects"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -225,6 +248,8 @@ class Project(Base):
         }
 
 
+# 项目成员关联表：permission 控制成员在项目内的操作权限
+# 联合唯一约束防止重复添加
 class ProjectMember(Base):
     __tablename__ = "project_members"
     __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_user"),)
@@ -248,6 +273,8 @@ class ProjectMember(Base):
         }
 
 
+# 审查会话模型：一次审查的完整记录，包含审查结果摘要
+# file_ids 存 JSON 数组，支持多文件审查
 class ReviewSession(Base):
     __tablename__ = "review_sessions"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -290,6 +317,8 @@ class ReviewSession(Base):
         }
 
 
+# 审查评论模型：支持父子层级（parent_id），clause_id 关联规范条款
+# is_resolved 标记已处理，resolved_by 记录处理人
 class ReviewComment(Base):
     __tablename__ = "review_comments"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -326,6 +355,8 @@ class ReviewComment(Base):
         }
 
 
+# 审批流程模型：一次审查对应一个审批流程（一对一）
+# 多级审批由 ApprovalStep 实现
 class ApprovalFlow(Base):
     __tablename__ = "approval_flows"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
@@ -363,6 +394,8 @@ class ApprovalFlow(Base):
         }
 
 
+# 审批步骤模型：step_order 控制顺序，assignee 指定审批人
+# 联合唯一约束 (flow_id, step_order) 防止顺序冲突
 class ApprovalStep(Base):
     __tablename__ = "approval_steps"
     __table_args__ = (UniqueConstraint("flow_id", "step_order", name="uq_flow_step"),)
