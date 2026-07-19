@@ -278,8 +278,8 @@ def test_review_pdf_not_found():
 def test_review_from_data_accepts_json():
     """review-from-data 应接受实体 JSON"""
     with (
-        patch("src.api.review_routes._get_fr") as mock_fr,
-        patch("src.api.review_routes._get_sr") as mock_sr,
+        patch("src.api.review.review_routes._get_fr") as mock_fr,
+        patch("src.api.review.review_routes._get_sr") as mock_sr,
     ):
         mock_sr.return_value.get_relevant_functions = MagicMock(return_value=lambda: [])
         response = client.post(
