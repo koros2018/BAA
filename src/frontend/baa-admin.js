@@ -16,7 +16,7 @@ async function loadSpecs() {
   if (specCount) specCount.textContent = SPEC_DATA.length;
 }
 
-async function loadSpecs() {
+function renderSpecList() {
   const tbody = document.getElementById('spec-list');
   tbody.innerHTML = '';
   SPEC_DATA.forEach((s, i) => {
@@ -428,16 +428,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // 引擎状态
   try {
     const health = JSON.parse(document.getElementById('health-status').textContent || '{}');
-    const specCount = SPEC_DATA.length;
+    const specCount = SPEC_DATA.length || 0;
+    const funcCount = health?.engine?.func_registry?.split('/')?.[0] || '340';
+    const funcCap = health?.engine?.func_registry?.split('/')?.[1] || '390';
     document.getElementById('engine-status').innerHTML =
-      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
-      '<div class="flex justify-between"><span>规范库</span><span>' + specCount + '条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>原子函数</span><span>' + funcCount + '/' + funcCap + ' 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>' + specCount + '条 (L1~L3)</span></div>' +
       '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
-      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
+      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配</span></div>';
   } catch(e) {
     document.getElementById('engine-status').innerHTML =
-      '<div class="flex justify-between"><span>原子函数</span><span>30/30 已注册</span></div>' +
-      '<div class="flex justify-between"><span>规范库</span><span>30条 (10L1+10L2+11L3)</span></div>' +
+      '<div class="flex justify-between"><span>原子函数</span><span>340/390 已注册</span></div>' +
+      '<div class="flex justify-between"><span>规范库</span><span>199条 (L1~L3)</span></span></div>' +
       '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
       '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
   }
