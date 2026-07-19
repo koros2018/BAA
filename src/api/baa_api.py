@@ -305,7 +305,7 @@ app.include_router(collab_router)  # function call
 from src.api.admin_routes import router as admin_router  # import
 
 app.include_router(admin_router)  # function call
-from src.api.review_routes import router as review_router  # import
+from src.api.review import router as review_router  # import
 
 app.include_router(review_router)  # function call
 
