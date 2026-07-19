@@ -583,7 +583,7 @@ class TestSpecRepository:  # class definition
 
     def test_count(self, repo):  # function: def test_count(self, repo):
         # 31 GB + 11 NFPA = 42
-        assert repo.count == 42  # equality check
+        assert repo.count == 199  # equality check (42 原始 + 157 扩展条款)
 
     def test_get(self, repo):  # function: def test_get(self, repo):
         c = repo.get("GB50016-5.5.18")  # function call
@@ -640,7 +640,7 @@ class TestSpecRepository:  # class definition
 
     def test_to_json(self, repo):  # function: def test_to_json(self, repo):
         data = json.loads(repo.to_json())  # deserialize JSON
-        assert len(data) == 42  # get length
+        assert len(data) == 199  # get length (42 原始 + 157 扩展条款)
 
     def test_l1_l2_l3_distribution(
         self, repo
