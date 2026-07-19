@@ -1,50 +1,37 @@
 // ── 规范库 ──────────────────────────────────────────────
-const SPEC_DATA = [
-  {clause_id:'GB50016-5.5.18', name:'疏散楼梯净宽判定', description:'疏散楼梯净宽度不应小于1.2m', category:'dim', target:['staircase','stair']},
-  {clause_id:'GB50016-6.1.1', name:'防火分区面积判定', description:'防火分区面积不应大于2500㎡', category:'dim', target:['fire_zone','room','floor']},
-  {clause_id:'GB50016-7.1.1', name:'消防车道宽度判定', description:'消防车道宽度不应小于4m', category:'dim', target:['fire_lane','road','driveway']},
-  {clause_id:'GB50016-5.5.17', name:'疏散距离判定', description:'疏散距离不应大于30m', category:'dist', target:['room','floor','space']},
-  {clause_id:'GB50016-5.5.8', name:'安全出口数量判定', description:'安全出口不应少于2个', category:'count', target:['floor','fire_zone']},
-  {clause_id:'GB50016-6.5.1', name:'防火门等级判定', description:'防火门等级应为甲级', category:'attr', target:['fire_door','door']},
-  {clause_id:'GB50016-5.5.18', name:'疏散走道宽度判定', description:'疏散走道净宽度不应小于1.1m', category:'dim', target:['corridor','aisle','passage']},
-  {clause_id:'GB50016-7.4.1', name:'避难层面积判定', description:'避难层净面积不宜小于5㎡/人', category:'area', target:['refuge_floor','refuge_area','floor']},
-  {clause_id:'GB50016-5.5.12', name:'楼梯间存在判定', description:'建筑应设置楼梯间', category:'exist', target:['staircase','stair']},
-  {clause_id:'GB50016-7.2.4', name:'窗净面积判定', description:'消防窗净面积不应小于1.0㎡', category:'dim', target:['fire_window','window']},
-  {clause_id:'GB50016-5.5.19', name:'疏散门净宽判定', description:'人员密集场所疏散门净宽不应小于1.4m', category:'dim', target:['exit_door','door']},
-  {clause_id:'GB50016-6.5.3', name:'防火卷帘宽度判定', description:'防火分隔防火卷帘宽度不应大于10m', category:'dim', target:['fire_curtain','curtain']},
-  {clause_id:'GB50016-6.6.1', name:'管道井封堵判定', description:'管道井应每层用不燃材料封堵', category:'exist', target:['shaft','pipe_shaft','cable_shaft']},
-  {clause_id:'GB50016-5.5.24', name:'剪刀楼梯分隔判定', description:'剪刀楼梯梯段间应设置防火隔墙', category:'exist', target:['scissor_staircase','staircase']},
-  {clause_id:'GB50016-10.3.1', name:'疏散指示标志判定', description:'疏散走道和安全出口应设疏散指示标志', category:'exist', target:['exit_sign','sign','corridor']},
-  {clause_id:'GB50016-8.3.1', name:'自动灭火系统判定', description:'一类高层应设置自动灭火系统', category:'exist', target:['sprinkler_system','sprinkler','fire_system']},
-  {clause_id:'GB50016-8.4.1', name:'火灾报警系统判定', description:'一类高层应设置火灾自动报警系统', category:'exist', target:['fire_alarm','alarm_system','fire_system']},
-  {clause_id:'GB50016-6.7.1', name:'保温材料等级判定', description:'保温材料应选用A或B1级', category:'attr', target:['insulation','wall_insulation','roof_insulation']},
-  {clause_id:'GB50016-10.1.5', name:'应急照明照度判定', description:'疏散照明照度不应低于1.0lx', category:'dim', target:['evacuation_lighting','light','lighting']},
-  // L3 新增（11个）
-  {clause_id:'GB50016-3.4.1', name:'防火间距判定', description:'厂房之间防火间距不应小于12m', category:'dist', target:['building','factory','warehouse']},
-  {clause_id:'GB50016-9.2.1', name:'排烟窗面积判定', description:'排烟窗净面积不应小于房间面积2%', category:'dim', target:['smoke_exhaust_window','window','room']},
-  {clause_id:'GB50016-7.3.1', name:'消防电梯判定', description:'一类高层公共建筑应设消防电梯', category:'exist', target:['fire_elevator','elevator']},
-  {clause_id:'GB50016-7.3.5', name:'消防电梯前室面积判定', description:'消防电梯前室面积不应小于6㎡', category:'area', target:['elevator_lobby','lobby','room']},
-  {clause_id:'GB50016-5.5.17', name:'袋形走道长度判定', description:'袋形走道长度不应大于20m', category:'dist', target:['corridor','aisle','passage']},
-  {clause_id:'GB50016-5.5.18', name:'疏散出口宽度判定', description:'疏散出口净宽度不应小于0.9m', category:'dim', target:['exit','exit_door','door']},
-  {clause_id:'GB50016-6.5.1', name:'防火窗等级判定', description:'防火窗耐火极限不应低于1.0h', category:'attr', target:['fire_window','window']},
-  {clause_id:'GB50016-8.2.1', name:'消防水箱判定', description:'一类高层应设消防水箱', category:'exist', target:['water_tank','fire_system']},
-  {clause_id:'GB50016-8.1.3', name:'消防水池判定', description:'市政供水不足时应设消防水池', category:'exist', target:['water_reservoir','fire_system']},
-  {clause_id:'GB50016-7.2.4', name:'消防救援窗面积判定', description:'消防救援窗口净面积不应小于1.0㎡', category:'dim', target:['rescue_window','window']},
-  {clause_id:'GB50016-8.5.1', name:'应急广播判定', description:'一类高层应设应急广播系统', category:'exist', target:['emergency_broadcast','speaker','fire_system']},
-];
+let SPEC_DATA = [];  // 从后端 API 加载
+
+async function loadSpecs() {
+  try {
+    const r = await fetch(API_BASE() + '/api/v1/specs', {headers: getHeaders()});
+    const data = await r.json();
+    if (data.status === 'ok') {
+      SPEC_DATA = data.specs;
+    }
+  } catch(e) {
+    console.warn('规范库加载失败', e);
+  }
+  renderSpecList();
+  const specCount = document.getElementById('home-stats')?.querySelectorAll('.stat-card')[1]?.querySelector('.text-2xl');
+  if (specCount) specCount.textContent = SPEC_DATA.length;
+}
 
 async function loadSpecs() {
   const tbody = document.getElementById('spec-list');
   tbody.innerHTML = '';
   SPEC_DATA.forEach((s, i) => {
-    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积'};
+    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积',evac:'疏散',light:'照明',access:'无障碍'};
+    const title = s.title || s.name || '';
+    const desc = s.text || s.description || '';
+    const cat = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
+    const target = s.target_entities || s.target || [];
     tbody.innerHTML += '<tr class="border-b border-gray-50">' +
       '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
-      '<td class="py-2 px-2 text-sm">' + s.name + '<br/><span class="text-xs text-gray-400">' + s.description + '</span></td>' +
-      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">L1</span></td>' +
-      '<td class="py-2 px-2 text-xs">' + (catLabels[s.category] || s.category) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + s.target.join(', ') + '</td></tr>';
+      '<td class="py-2 px-2 font-mono text-xs">' + (s.clause_id || '') + '</td>' +
+      '<td class="py-2 px-2 text-sm">' + title + '<br/><span class="text-xs text-gray-400">' + desc + '</span></td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">' + (s.level || 'L1') + '</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : '') + '</td></tr>';
   });
 }
 

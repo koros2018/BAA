@@ -79,14 +79,18 @@ async function loadSpecs() {
   const tbody = document.getElementById('spec-list');
   tbody.innerHTML = '';
   SPEC_DATA.forEach((s, i) => {
-    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积'};
+    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积',evac:'疏散',light:'照明',access:'无障碍'};
+    const title = s.title || s.name || '';
+    const desc = s.text || s.description || '';
+    const cat = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
+    const target = s.target_entities || s.target || [];
     tbody.innerHTML += '<tr class="border-b border-gray-50">' +
       '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs">' + s.clause_id + '</td>' +
-      '<td class="py-2 px-2 text-sm">' + s.name + '<br/><span class="text-xs text-gray-400">' + s.description + '</span></td>' +
-      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">L1</span></td>' +
-      '<td class="py-2 px-2 text-xs">' + (catLabels[s.category] || s.category) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + s.target.join(', ') + '</td></tr>';
+      '<td class="py-2 px-2 font-mono text-xs">' + (s.clause_id || '') + '</td>' +
+      '<td class="py-2 px-2 text-sm">' + title + '<br/><span class="text-xs text-gray-400">' + desc + '</span></td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">' + (s.level || 'L1') + '</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : '') + '</td></tr>';
   });
 }
 

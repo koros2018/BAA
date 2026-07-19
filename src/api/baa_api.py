@@ -791,6 +791,26 @@ async def list_functions(api_key: str = Depends(verify_api_key)):
     return {"status": "ok", "count": len(funcs), "functions": funcs}
 
 
+@app.get("/api/v1/specs")
+async def list_specs(api_key: str = Depends(verify_api_key)):
+    """获取规范库列表（含所有条款）"""
+    specs = []
+    for c in _spec_repo.list_all():
+        specs.append(
+            {
+                "clause_id": c.clause_id,
+                "standard": c.standard,
+                "title": c.title,
+                "text": c.text,
+                "level": c.level,
+                "func_id": c.func_id,
+                "category": c.category,
+                "params": c.params,
+            }
+        )
+    return {"status": "ok", "count": len(specs), "specs": specs}
+
+
 @app.post("/api/v1/functions/{func_id}/update")
 async def update_function(func_id: str, body: dict, api_key: str = Depends(verify_api_key)):
     """更新原子函数的阈值/运算符等参数"""
