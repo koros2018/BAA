@@ -76,7 +76,11 @@ async function viewHistoryDetail(id) {
       '</div>' +
       '<div class="text-xs text-gray-400 mb-2">建筑类型: ' + (detail.buildingType === 'civil' ? '民用' : '工业') + ' · 审查时间: ' + new Date(detail.reviewedAt || r.reviewedAt).toLocaleString() + '</div>' +
       '<div class="space-y-2">' +
-      details.slice(0, 50).map(v => {
+      details.slice().sort((a, b) => {
+        // 按严重程度排序：critical > major > 其他
+        const order = {critical: 0, major: 1};
+        return (order[a.severity] !== undefined ? order[a.severity] : 2) - (order[b.severity] !== undefined ? order[b.severity] : 2);
+      }).slice(0, 50).map(v => {
         const sevColor = v.severity === 'critical' ? 'red' : v.severity === 'major' ? 'orange' : 'yellow';
         const sevLabel = v.severity === 'critical' ? '严重' : v.severity === 'major' ? '主要' : '轻微';
         return '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs">' +
