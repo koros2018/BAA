@@ -80,6 +80,7 @@ function clearReviewHistory() {
   if (!confirm('确定清空所有审查历史记录？此操作不可恢复。')) return;
   localStorage.removeItem('baa_review_results');
   reviewResults = [];
+  fetch(API_BASE() + '/review/history', { method: 'DELETE' }).catch(() => {});
   renderHistoryList();
   loadDashboard();
 }

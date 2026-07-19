@@ -353,6 +353,7 @@ async function runReview() {
           };
           reviewResults.unshift(reviewResult);
           try { localStorage.setItem('baa_review_results', JSON.stringify(reviewResults.slice(0, 50))); } catch(e) {}
+          // 审查结果已由后端 /review 自动保存到数据库
         }
       }
     } else {
@@ -934,10 +935,31 @@ function downloadReviewJSON() {
   URL.revokeObjectURL(a.href);
 }
 
-// ── 旧的对比函数（保留给其他页面引用） ──────────────────
+// ── 审查结果存储（localStorage + 后端持久化） ──────────
 let reviewResults = [];
 
 function loadReviewResults() {
+  // 先尝试从后端 API 加载
+  const apiBase = API_BASE();
+  fetch(apiBase + '/review/history?limit=200')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.items && data.items.length > 0) {
+        reviewResults = data.items;
+        // 同时更新 localStorage 作为缓存
+        try { localStorage.setItem('baa_review_results', JSON.stringify(reviewResults)); } catch(e) {}
+        return;
+      }
+      // 后端无数据，回退到 localStorage
+      fallbackLoadReviewResults();
+    })
+    .catch(() => {
+      // 后端不可用，回退到 localStorage
+      fallbackLoadReviewResults();
+    });
+}
+
+function fallbackLoadReviewResults() {
   try {
     const stored = localStorage.getItem('baa_review_results');
     if (stored) reviewResults = JSON.parse(stored);
