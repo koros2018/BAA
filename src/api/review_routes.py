@@ -241,9 +241,7 @@ async def review(  # code
                             "clause_title": f.clause.get("title", ""),
                             "result": f.judgement["result"],
                             "extracted_value": f.extracted_params["extracted_value"],
-                            "required_value": f.extracted_params.get(
-                                "required_value", 1.2
-                            ),
+                            "required_value": f.extracted_params.get("required_value", 1.2),
                             "difference": f.extracted_params.get("difference", 0),
                             "explanation": f.explanation[:120],
                         }
@@ -273,12 +271,8 @@ async def review(  # code
                             "clause_title": f.clause.get("title", ""),
                             "result": f.judgement["result"],
                             "extracted_value": 0.0,
-                            "required_value": f.extracted_params.get(
-                                "required_value", 1.0
-                            ),
-                            "difference": -f.extracted_params.get(
-                                "required_value", 1.0
-                            ),
+                            "required_value": f.extracted_params.get("required_value", 1.0),
+                            "difference": -f.extracted_params.get("required_value", 1.0),
                             "explanation": f.explanation[:120],
                         }
                     )
@@ -286,9 +280,7 @@ async def review(  # code
         return clause_results, details
 
     try:
-        clause_results, details = await loop.run_in_executor(
-            _get_pool(), _do_clustering, entities
-        )
+        clause_results, details = await loop.run_in_executor(_get_pool(), _do_clustering, entities)
     except Exception as e:
         _get_rq().fail(task_id, str(e))
         raise
@@ -873,12 +865,8 @@ async def review_from_data(  # code
                                 "clause_id": f.clause.get("clause_id", ""),
                                 "clause_title": f.clause.get("title", ""),
                                 "result": f.judgement["result"],
-                                "extracted_value": f.extracted_params[
-                                    "extracted_value"
-                                ],
-                                "required_value": f.extracted_params.get(
-                                    "required_value", 1.2
-                                ),
+                                "extracted_value": f.extracted_params["extracted_value"],
+                                "required_value": f.extracted_params.get("required_value", 1.2),
                                 "difference": f.extracted_params.get("difference", 0),
                                 "severity": f.judgement.get("severity", "major"),
                                 "explanation": f.explanation[:120],
@@ -910,12 +898,8 @@ async def review_from_data(  # code
                                 "result": f.judgement["result"],
                                 "severity": "critical",
                                 "extracted_value": 0.0,
-                                "required_value": f.extracted_params.get(
-                                    "required_value", 1.0
-                                ),
-                                "difference": -f.extracted_params.get(
-                                    "required_value", 1.0
-                                ),
+                                "required_value": f.extracted_params.get("required_value", 1.0),
+                                "difference": -f.extracted_params.get("required_value", 1.0),
                                 "explanation": f.explanation[:120],
                             }
                         )

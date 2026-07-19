@@ -59,6 +59,7 @@ def _sanitize_for_json(obj):
         return [_sanitize_for_json(v) for v in obj]
     try:
         import numpy as _np
+
         if isinstance(obj, _np.bool_):
             return bool(obj)
         if isinstance(obj, _np.integer):
@@ -620,9 +621,7 @@ async def deconstruct(  # code
                         "text": func.description,
                         "category": func.category.value,
                     }
-                    f = _attribution_analyzer.build_finding(
-                        r, clause, e, entities[:5]
-                    )
+                    f = _attribution_analyzer.build_finding(r, clause, e, entities[:5])
                     finding_detail = {
                         "finding_id": f.finding_id,
                         "clause_id": func.clause_id,
@@ -631,16 +630,12 @@ async def deconstruct(  # code
                         "entity_type": etype,
                         "result": r.result,
                         "severity": getattr(r, "severity", "major"),
-                        "extracted_value": getattr(
-                            r, "extracted_value", getattr(r, "value", 0)
-                        ),
+                        "extracted_value": getattr(r, "extracted_value", getattr(r, "value", 0)),
                         "required_value": threshold_val,
                         "explanation": getattr(
                             f,
                             "explanation",
-                            f.description[:100]
-                            if hasattr(f, "description")
-                            else "",
+                            f.description[:100] if hasattr(f, "description") else "",
                         ),
                         "is_duplicate": is_dup,
                     }
@@ -666,9 +661,7 @@ async def deconstruct(  # code
                         "text": func.description,
                         "category": func.category.value,
                     }
-                    f = _attribution_analyzer.build_finding(
-                        r, clause, {}, entities[:5]
-                    )
+                    f = _attribution_analyzer.build_finding(r, clause, {}, entities[:5])
                     finding_detail = {
                         "finding_id": f.finding_id,
                         "clause_id": func.clause_id,
@@ -679,9 +672,7 @@ async def deconstruct(  # code
                         "severity": "critical",
                         "extracted_value": 0,
                         "required_value": 1,
-                        "explanation": (
-                            f"缺少{func.name}相关实体（{func.description}）"
-                        ),
+                        "explanation": (f"缺少{func.name}相关实体（{func.description}）"),
                         "is_duplicate": is_dup,
                     }
                     findings.append(finding_detail)
@@ -694,9 +685,7 @@ async def deconstruct(  # code
                 type_stats[t] = {"count": 0, "bbox_areas": []}
             type_stats[t]["count"] += 1
             bbox = e["bbox"]
-            type_stats[t]["bbox_areas"].append(
-                bbox.get("width", 0) * bbox.get("height", 0)
-            )
+            type_stats[t]["bbox_areas"].append(bbox.get("width", 0) * bbox.get("height", 0))
 
         elements = []
         for t, stats in sorted(type_stats.items()):
@@ -718,10 +707,8 @@ async def deconstruct(  # code
         return findings, registry_funcs, total_checks, elements
 
     try:
-        findings, registry_funcs, total_checks, elements = (
-            await loop.run_in_executor(
-                ENGINE_THREAD_POOL, _do_deconstruct_step3, entities
-            )
+        findings, registry_funcs, total_checks, elements = await loop.run_in_executor(
+            ENGINE_THREAD_POOL, _do_deconstruct_step3, entities
         )
     except Exception as e:
         return {
