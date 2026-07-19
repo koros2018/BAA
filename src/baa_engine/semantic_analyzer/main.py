@@ -6,7 +6,7 @@ import os  # stdlib: filesystem ops
 import math  # stdlib: math functions
 from collections import deque  # stdlib: O(1) queue for BFS
 from typing import List, Dict, Any, Optional, Tuple  # typing: type hints
-from .drawing_parser import RawPrimitive  # 导入
+from ..drawing_parser import RawPrimitive  # 导入
 import logging  # 导入
 
 logger = logging.getLogger(__name__)  # assign
@@ -2282,87 +2282,41 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
     # ── 几何工具函数 ────────────────────────────────────
 
-    @staticmethod  # code
-    def _compute_iou(
-        bbox1: Dict, bbox2: Dict
-    ) -> float:  # method: def _compute_iou(bbox1: Dict, bbox2: Dict) -> float:
-        """计算 IoU"""
-        x1 = max(bbox1["x"], bbox2["x"])  # assign
-        y1 = max(bbox1["y"], bbox2["y"])  # assign
-        x2 = min(bbox1["x"] + bbox1["width"], bbox2["x"] + bbox2["width"])  # assign
-        y2 = min(bbox1["y"] + bbox1["height"], bbox2["y"] + bbox2["height"])  # assign
+    @staticmethod
+    def _compute_iou(bbox1, bbox2):
+        from .geometry import compute_iou
 
-        if x2 <= x1 or y2 <= y1:  # check: numeric comparison
-            return 0.0  # return
+        return compute_iou(bbox1, bbox2)
 
-        intersection = (x2 - x1) * (y2 - y1)  # assign
-        area1 = bbox1["width"] * bbox1["height"]  # assign
-        area2 = bbox2["width"] * bbox2["height"]  # assign
-        union = area1 + area2 - intersection  # assign
+    @staticmethod
+    def _union_bbox(bboxes):
+        from .geometry import union_bbox
 
-        return intersection / union if union > 0 else 0.0  # return
+        return union_bbox(bboxes)
 
-    @staticmethod  # code
-    def _union_bbox(
-        bboxes: List[Dict],
-    ) -> Dict[str, float]:  # method: def _union_bbox(bboxes: List[Dict]) -> Dict[str, float]:
-        """合并多个边界框"""
-        xs = [b["x"] for b in bboxes]  # assign: membership check
-        ys = [b["y"] for b in bboxes]  # assign: membership check
-        x2s = [b["x"] + b["width"] for b in bboxes]  # assign: membership check
-        y2s = [b["y"] + b["height"] for b in bboxes]  # assign: membership check
-        return {  # return: dict result
-            "x": min(xs),
-            "y": min(ys),  # 字段
-            "width": max(x2s) - min(xs),  # 字段
-            "height": max(y2s) - min(ys),  # 字段
-        }  # code
+    @staticmethod
+    def _min_edge_distance(bbox1, bbox2):
+        from .geometry import min_edge_distance
 
-    @staticmethod  # code
-    def _min_edge_distance(
-        bbox1: Dict, bbox2: Dict
-    ) -> float:  # method: def _min_edge_distance(bbox1: Dict, bbox2: Dict) -> float:
-        """最小边缘距离"""
-        x1a, y1a = bbox1["x"], bbox1["y"]  # 操作
-        x2a = x1a + bbox1["width"]  # assign
-        y2a = y1a + bbox1["height"]  # assign
-        x1b, y1b = bbox2["x"], bbox2["y"]  # 操作
-        x2b = x1b + bbox2["width"]  # assign
-        y2b = y1b + bbox2["height"]  # assign
+        return min_edge_distance(bbox1, bbox2)
 
-        dx = max(x1b - x2a, x1a - x2b, 0)  # assign
-        dy = max(y1b - y2a, y1a - y2b, 0)  # assign
-        return (dx**2 + dy**2) ** 0.5  # return: tuple
+    @staticmethod
+    def _is_inside(inner, outer):
+        from .geometry import is_inside
 
-    @staticmethod  # code
-    def _is_inside(
-        inner: Dict, outer: Dict
-    ) -> bool:  # method: def _is_inside(inner: Dict, outer: Dict) -> bool:
-        """判断内部"""
-        return (
-            inner["x"] >= outer["x"]  # return: tuple
-            and inner["y"] >= outer["y"]  # 操作
-            and inner["x"] + inner["width"] <= outer["x"] + outer["width"]  # 操作
-            and inner["y"] + inner["height"] <= outer["y"] + outer["height"]
-        )  # 操作
+        return is_inside(inner, outer)
 
-    @staticmethod  # code
-    def _bbox_center(
-        bbox: Dict,
-    ) -> Dict[str, float]:  # method: def _bbox_center(bbox: Dict) -> Dict[str, float]:
-        return {
-            "x": bbox["x"] + bbox["width"] / 2,  # return: dict result
-            "y": bbox["y"] + bbox["height"] / 2,
-        }  # 字段
+    @staticmethod
+    def _bbox_center(bbox):
+        from .geometry import bbox_center
 
-    @staticmethod  # code
-    def _point_distance(
-        p1: Dict, p2: Dict
-    ) -> float:  # method: def _point_distance(p1: Dict, p2: Dict) -> float:
-        return (
-            (p1.get("x", 0) - p2.get("x", 0)) ** 2  # return: tuple
-            + (p1.get("y", 0) - p2.get("y", 0)) ** 2
-        ) ** 0.5  # 欧氏距离计算
+        return bbox_center(bbox)
+
+    @staticmethod
+    def _point_distance(p1, p2):
+        from .geometry import point_distance
+
+        return point_distance(p1, p2)
 
     @staticmethod  # code
     def _infer_attribute_name(
@@ -2388,548 +2342,27 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
     # ── 走廊拓扑网络 ────────────────────────────────────
 
-    def build_corridor_topology(
-        self,
-        entities: List[
-            SemanticEntity
-        ],  # method: def build_corridor_topology(self, entities: List[SemanticEnt
-        relations: List[SpatialRelation],
-    ) -> Dict[str, Any]:  # 操作
-        """构建走廊拓扑网络
+    def build_corridor_topology(self, entities, relations):
+        from .evacuation import _build_corridor_topology_impl
 
-        将走廊实体按空间相邻关系连接为图，识别：
-        - 连通分量（哪些走廊连通）
-        - 死胡同（只有一条连接的走廊段）
-        - 疏散路径（走廊到出口的可达性）
-        """
-        corridor_map = {e.id: e for e in entities if e.type == "corridor"}  # compare: equality
+        return _build_corridor_topology_impl(self, entities, relations)
 
-        if len(corridor_map) < 2:  # check: numeric comparison
-            return {  # return: dict result
-                "corridors": [e.to_dict() for e in corridor_map.values()],  # 字段
-                "components": 1,  # 字段
-                "dead_ends": [],  # 字段
-                "network": {"nodes": list(corridor_map.keys()), "edges": []},  # 字段
-            }  # code
+    def analyze_evacuation_routes(self, entities, topology=None):
+        from .evacuation import _analyze_evacuation_routes_impl
 
-        # 构建走廊-走廊相邻图
-        adjacency: Dict[str, List[Tuple[str, float]]] = {eid: [] for eid in corridor_map}  # 操作
+        return _analyze_evacuation_routes_impl(self, entities, topology)
 
-        for rel in relations:  # 循环
-            src = rel.source_id  # assign
-            tgt = rel.target_id  # assign
-            if (
-                src in corridor_map and tgt in corridor_map and rel.type == "adjacent"
-            ):  # check: membership test
-                adjacency[src].append((tgt, rel.distance))  # 操作
-                adjacency[tgt].append((src, rel.distance))  # 操作
+    def verify_evacuation_connectivity(self, entities, relations=None, evacuation_routes=None):
+        from .evacuation import _verify_evacuation_connectivity_impl
 
-        # 门连接：门关联的走廊也算连通
-        for rel in relations:  # 循环
-            if rel.type != "connects_to":  # condition: rel.type != "connects_to":
-                continue  # 继续循环
-            door_id = rel.target_id  # assign
-            corridor_id = rel.source_id  # assign
-            if corridor_id not in corridor_map:  # check: membership test
-                continue  # 继续循环
-            # 找门连接的另一侧（room或其他走廊）
-            for rel2 in relations:  # 循环
-                if (
-                    rel2.source_id == door_id and rel2.target_id != corridor_id
-                ):  # check: OR condition
-                    other_id = rel2.target_id  # assign
-                    if other_id in corridor_map:  # check: membership test
-                        adjacency[corridor_id].append((other_id, rel2.distance))  # 操作
-                        adjacency[other_id].append((corridor_id, rel2.distance))  # 操作
+        return _verify_evacuation_connectivity_impl(self, entities, relations, evacuation_routes)
 
-        # 找连通分量（BFS）
-        visited = set()  # init: empty set
-        components = []  # init: empty list
-        for eid in corridor_map:  # 循环
-            if eid in visited:  # check: membership test
-                continue  # 继续循环
-            comp = []  # init: empty list
-            queue = deque([eid])  # assign: O(1) pop from left
-            while queue:  # 循环
-                current = queue.popleft()  # assign
-                if current in visited:  # check: membership test
-                    continue  # 继续循环
-                visited.add(current)  # call
-                comp.append(current)  # append: add to list
-                for neighbor, _ in adjacency.get(current, []):  # 循环
-                    if neighbor not in visited:  # check: membership test
-                        queue.append(neighbor)  # append: add to list
-            if comp:  # condition: comp:
-                components.append(comp)  # append: add to list
+    def _yolo_enhance(self, dxf_path):
+        from .enhancement import _yolo_enhance_impl
 
-        # 找死胡同（度=1的走廊节点）
-        dead_ends = []  # init: empty list
-        for eid, neighbors in adjacency.items():  # 循环
-            if len(neighbors) == 1:  # check: length
-                ent = corridor_map[eid]  # assign
-                dead_ends.append(
-                    {  # code
-                        "id": eid,  # 字段
-                        "width": ent.properties.get("width", 0),  # 字段
-                        "length": ent.properties.get("length", 0),  # 字段
-                        "bbox": ent.bbox,  # 字段
-                    }
-                )  # code
+        return _yolo_enhance_impl(self, dxf_path)
 
-        # 走廊宽度统计
-        widths = [
-            e.properties.get("width", 0) for e in corridor_map.values()
-        ]  # assign: membership check
-        valid_widths = [w for w in widths if w > 0]  # assign: membership check
+    def _merge_yolo_results(self, rule_entities, yolo_detections):
+        from .enhancement import _merge_yolo_results_impl
 
-        return {  # return: dict result
-            "corridors": [e.to_dict() for e in corridor_map.values()],  # 字段
-            "components": len(components),  # 字段
-            "component_sizes": [len(c) for c in components],  # 字段
-            "dead_ends": dead_ends,  # 字段
-            "dead_end_count": len(dead_ends),  # 字段
-            "width_avg": (
-                round(sum(valid_widths) / len(valid_widths), 2) if valid_widths else 0
-            ),  # 字段
-            "width_min": round(min(valid_widths), 2) if valid_widths else 0,  # 字段
-            "width_max": round(max(valid_widths), 2) if valid_widths else 0,  # 字段
-            "network": {  # 字段
-                "nodes": list(corridor_map.keys()),  # 字段
-                "edges": [  # 字段
-                    {"source": s, "target": t, "distance": d}  # 字面量
-                    for s, neighbors in adjacency.items()  # 循环
-                    for t, d in neighbors  # 循环
-                    if s < t  # 去重
-                ],  # code
-            },  # code
-        }  # code
-
-    def analyze_evacuation_routes(
-        self,
-        entities: List[
-            SemanticEntity
-        ],  # method: def analyze_evacuation_routes(self, entities: List[SemanticE
-        relations: List[SpatialRelation],
-    ) -> List[Dict]:  # 操作
-        """疏散路径分析
-
-        检查从每个 room 到最近 exit 的路径：
-        1. 是否所有房间都有通往出口的路径
-        2. 路径长度是否超过疏散距离阈值
-        3. 路径上的走廊宽度是否满足要求
-        """
-        # 构建全量实体邻接表
-        adj: Dict[str, List[Tuple[str, str, float]]] = {}  # 操作
-        for e in entities:  # 循环
-            adj[e.id] = []  # init: empty list
-
-        for rel in relations:  # 循环
-            if rel.type not in ("adjacent", "connects_to", "contains"):  # check: membership test
-                continue  # 继续循环
-            adj.setdefault(rel.source_id, []).append(
-                (rel.target_id, rel.type, rel.distance)
-            )  # append: add to list
-            adj.setdefault(rel.target_id, []).append(
-                (rel.source_id, rel.type, rel.distance)
-            )  # append: add to list
-
-            # 出口识别：优先用明确的 exit/exit_door/stair
-        strict_exits = [
-            e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
-        ]  # assign: membership check
-        fallback_exits = [
-            e for e in entities if e.type in ("door", "fire_door")
-        ]  # assign: membership check
-        # 有明确出口就用明确出口，否则用 door/fire_door 兜底
-        exits = strict_exits if strict_exits else fallback_exits  # assign
-
-        rooms = [e for e in entities if e.type == "room"]  # compare: equality
-
-        if not exits:  # check: negated condition
-            return []  # return: list of items
-
-        # 如果没有 room 但有 corridor，用 corridor 作为起点分析连通性
-        if not rooms:  # check: condition: not rooms:
-            corridors = [e for e in entities if e.type == "corridor"]  # assign
-            if corridors:  # check: OR condition
-                rooms = corridors  # 兜底：用走廊代替房间作为起点
-            else:  # 否则
-                return []  # return: list of items
-
-        # exit 查找集合（提前构建，避免循环内重复构造）
-        exit_id_set = {e.id for e in exits}  # assign: membership check
-
-        routes = []  # init: empty list
-        for room in rooms:  # 循环
-            # BFS 找最近出口：所有 room 都走 BFS，不再跳过
-            visited = {room.id}  # assign
-            queue = deque([(room.id, [room.id], 0.0)])  # assign: O(1) BFS queue
-            found_route = None  # init: set to None
-
-            while queue:  # 循环
-                current, path, distance = queue.popleft()  # 解包: O(1)
-                if current in exit_id_set:  # check: membership test
-                    found_route = (path, distance)  # assign
-                    break  # 跳出循环
-                for neighbor, rel_type, dist in adj.get(current, []):  # 循环
-                    if neighbor not in visited:  # check: membership test
-                        visited.add(neighbor)  # call
-                        queue.append(
-                            (neighbor, path + [neighbor], distance + dist)
-                        )  # append: add to list
-
-            route_info = {  # assign
-                "room_id": room.id,  # 字段
-                "room_type": room.type,  # 字段
-                "room_bbox": room.bbox,  # 字段
-                "has_route": found_route is not None,  # 字段
-                "path_length": round(found_route[1], 2) if found_route else None,  # 字段
-                "path": found_route[0] if found_route else [],  # 字段
-                "is_dead_end_room": room.properties.get("is_dead_end", False),  # 字段
-                # 死胡同走廊（袋形走道）：疏散距离 ≤ 20m（GB50016-5.5.17注1）
-                # 其他走廊/房间：≤ 30m
-                "evac_distance_limit": (
-                    20.0 if room.properties.get("is_dead_end", False) else 30.0
-                ),  # 字段
-                "exceeds_max_distance": found_route is not None
-                and found_route[1]
-                > (20.0 if room.properties.get("is_dead_end", False) else 30.0),  # 字段
-            }  # code
-            routes.append(route_info)  # append: add to list
-
-        return routes  # return
-
-    def verify_evacuation_connectivity(
-        self,  # method: def verify_evacuation_connectivity(self,
-        entities: List[SemanticEntity],  # code
-        relations: List[SpatialRelation],  # code
-        evacuation_routes: List[Dict],
-    ) -> List[Dict]:  # code
-        """疏散路径连通性验证（P33）
-
-        在 analyze_evacuation_routes 的基础上，验证路径实际可通行性：
-        1. 路径上走廊宽度是否满足最小值（≥ 1.2m 疏散走道）
-        2. 路径上是否存在瓶颈（宽度骤变）
-        3. 路径是否被堵塞（door 宽度过小 < 0.8m）
-        4. 路径中的 room 是否有通向走廊的门连接
-
-        参数:
-            entities: 语义实体列表
-            relations: 空间关系列表
-            evacuation_routes: analyze_evacuation_routes 的返回结果
-
-        返回:
-            每个房间的连通性验证结果列表
-        """
-        # 构建实体查找表
-        entity_map = {e.id: e for e in entities}  # assign: membership check
-
-        # 构建邻接表（同 analyze_evacuation_routes 逻辑）
-        adj: Dict[str, List[Tuple[str, str, float]]] = {}  # init: empty dict
-        for e in entities:  # loop: for e in entities:
-            adj[e.id] = []  # init: empty list
-        for rel in relations:  # loop: for rel in relations:
-            if rel.type not in ("adjacent", "connects_to", "contains"):  # check: membership test
-                continue  # code
-            adj.setdefault(rel.source_id, []).append(
-                (rel.target_id, rel.type, rel.distance)
-            )  # append: add to list
-            adj.setdefault(rel.target_id, []).append(
-                (rel.source_id, rel.type, rel.distance)
-            )  # append: add to list
-
-        # 出口识别
-        strict_exits = [
-            e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
-        ]  # assign: membership check
-        fallback_exits = [
-            e for e in entities if e.type in ("door", "fire_door")
-        ]  # assign: membership check
-        exits = strict_exits if strict_exits else fallback_exits  # assign
-        exit_ids = {e.id for e in exits}  # assign: membership check
-
-        results = []  # init: empty list
-
-        for route in evacuation_routes:  # loop: for route in evacuation_routes:
-            room_id = route["room_id"]  # assign
-            path = route.get("path", [])  # assign
-            has_route = route.get("has_route", False)  # assign
-
-            if not has_route or not path:  # check: negated condition
-                results.append(
-                    {  # code
-                        "room_id": room_id,  # code
-                        "room_type": route.get("room_type", ""),  # call
-                        "connected": False,  # code
-                        "bottleneck": False,  # code
-                        "bottleneck_details": None,  # code
-                        "path": path,  # code
-                    }
-                )  # code
-                continue  # code
-
-            # 分析路径上的瓶颈
-            bottleneck = False  # assign
-            bottleneck_details = None  # init: set to None
-            min_width = float("inf")  # assign
-
-            for node_id in path:  # loop: for node_id in path:
-                ent = entity_map.get(node_id)  # assign
-                if ent is None:  # check: value is None
-                    continue  # code
-
-                # 走廊宽度检查
-                if ent.type == "corridor":  # check: OR condition
-                    width = ent.properties.get("width", 0)  # assign
-                    if width > 0:  # check: numeric comparison
-                        min_width = min(min_width, width)  # assign
-                        # GB50016-5.5.18：疏散走道净宽不应小于 1.2m
-                        if width < 1.2:  # check: numeric comparison
-                            bottleneck = True  # assign
-                            bottleneck_details = {  # assign
-                                "type": "corridor_too_narrow",  # code
-                                "entity_id": ent.id,  # code
-                                "width": width,  # code
-                                "threshold": 1.2,  # code
-                            }  # code
-
-                # 门宽度检查
-                if ent.type in ("door", "fire_door"):  # check: membership test
-                    width = ent.properties.get("width", 0)  # assign
-                    if width > 0 and width < 0.8:  # check: numeric comparison
-                        bottleneck = True  # assign
-                        bottleneck_details = {  # assign
-                            "type": "door_too_narrow",  # code
-                            "entity_id": ent.id,  # code
-                            "width": width,  # code
-                            "threshold": 0.8,  # code
-                        }  # code
-
-                # 检查 room 是否有门连接走廊（不是直接通到出口的 room）
-                if ent.type == "room" and node_id not in exit_ids:  # check: membership test
-                    has_door_to_corridor = False  # assign
-                    for neighbor, rel_type, _ in adj.get(
-                        node_id, []
-                    ):  # loop: for neighbor, rel_type, _ in adj.get(node_id, []):
-                        neighbor_ent = entity_map.get(neighbor)  # assign
-                        if neighbor_ent and neighbor_ent.type == "corridor":  # check: OR condition
-                            has_door_to_corridor = True  # assign
-                            break  # code
-                    if not has_door_to_corridor and len(path) > 1:  # check: numeric comparison
-                        # 房间没有直接的门连接走廊（除非房间本身就是出口）
-                        pass  # 不标记为 bottleneck，仅记录
-
-            results.append(
-                {  # code
-                    "room_id": room_id,  # code
-                    "room_type": route.get("room_type", ""),  # call
-                    "connected": has_route,  # code
-                    "bottleneck": bottleneck,  # code
-                    "bottleneck_details": bottleneck_details,  # code
-                    "path": path,  # code
-                    "min_corridor_width": (
-                        min_width if min_width != float("inf") else None
-                    ),  # compare: inequality
-                }
-            )  # code
-
-        # 对有 BFS 路径但无出口在路径中的 room 标记为未连通
-        for room in entities:  # loop: for room in entities:
-            if room.type != "room":  # condition: room.type != "room":
-                continue  # code
-            if room.id not in {r["room_id"] for r in results}:  # check: membership test
-                # 检查是否有间接路径
-                visited = {room.id}  # assign
-                queue = deque([room.id])  # assign: O(1) BFS queue
-                found_exit = False  # assign
-                while queue:  # loop: while queue:
-                    current = queue.popleft()  # assign
-                    if current in exit_ids:  # check: membership test
-                        found_exit = True  # assign
-                        break  # code
-                    for neighbor, _, _ in adj.get(
-                        current, []
-                    ):  # loop: for neighbor, _, _ in adj.get(current, []):
-                        if neighbor not in visited:  # check: membership test
-                            visited.add(neighbor)  # call
-                            queue.append(neighbor)  # append: add to list
-
-                results.append(
-                    {  # code
-                        "room_id": room.id,  # code
-                        "room_type": room.type,  # code
-                        "connected": found_exit,  # code
-                        "bottleneck": False,  # code
-                        "bottleneck_details": None,  # code
-                        "path": list(visited),  # call
-                        "min_corridor_width": None,  # code
-                    }
-                )  # code
-
-        return results  # return
-
-    def _yolo_enhance(
-        self, dxf_path: str
-    ) -> List[
-        SemanticEntity
-    ]:  # method: def _yolo_enhance(self, dxf_path: str) -> List[SemanticEntit
-        """对 DXF 执行 YOLO 检测，返回增强实体列表
-
-        当前只保留 YOLO 检测精度高的实体类型：
-        - room (mAP50=0.995)：房间检测极准确
-        - corridor (mAP50=0.709)：走廊检测良好
-        """
-        from .yolo_integrator import YOLODetectionIntegrator  # 导入
-
-        integrator = YOLODetectionIntegrator()  # assign
-        if not integrator.load_model():  # check: negated condition
-            logger.warning("YOLO 模型加载失败")  # call
-            return []  # return: list of items
-
-        # 渲染 DXF 并预测
-        image_path, detections = integrator.render_and_predict(dxf_path, dpi=72)  # assign
-        if not image_path or not detections:  # check: negated condition
-            return []  # return: list of items
-
-        # 只保留高精度类型（room, corridor）
-        # room mAP50=0.995, corridor mAP50=0.709
-        HIGH_CONF_TYPES = {"room", "corridor"}  # assign
-        filtered = [
-            d for d in detections if d["type"] in HIGH_CONF_TYPES and d["confidence"] >= 0.35
-        ]  # assign: membership check
-
-        # 对 room 类型：过滤掉 bbox 面积过小或过大的（不合理房间）
-        # YOLO 的 bbox 是像素坐标，需要先转为世界坐标再判断面积
-        # 用 bbox 的像素宽高比辅助判断：房间应该是矩形（宽高比 < 3）
-        filtered = [
-            d
-            for d in filtered
-            if d["type"] != "room"
-            or (  # compare: inequality
-                d["bbox"]["width"] > 20
-                and d["bbox"]["height"] > 20  # 最小尺寸 20 像素
-                and max(d["bbox"]["width"], d["bbox"]["height"])
-                / max(d["bbox"]["height"], d["bbox"]["width"], 1)
-                < 5.0  # 宽高比 < 5
-            )
-        ]  # code
-
-        # P25: YOLO 后置规则层兜底过滤
-        from .yolo_integrator import filter_yolo_detections  # import: YOLO integrator
-
-        filtered = filter_yolo_detections(filtered, verbose=True)  # assign
-
-        if not filtered:  # check: negated condition
-            return []  # return: list of items
-
-        # 转换为 SemanticEntity
-        entities = []  # init: empty list
-        for det in filtered:  # 循环
-            self._entity_counter += 1  # assign: self attribute
-            entity = SemanticEntity(  # assign
-                entity_id=f"YOLO_{det['type'].upper()}_{self._entity_counter:03d}",  # assign
-                entity_type=det["type"],  # assign
-                bbox=det["bbox"],  # assign
-                layer="YOLO",  # assign
-                confidence=det["confidence"],  # assign
-                properties={  # assign
-                    **det.get("properties", {}),  # 展开
-                    "detection_source": "yolo",  # 字段
-                },  # code
-            )  # code
-            entities.append(entity)  # append: add to list
-
-        # 清理临时图片
-        try:  # 尝试
-            os.remove(image_path)  # remove: delete item
-        except Exception:  # 捕获异常
-            pass  # 忽略
-
-        return entities  # return
-
-    def _merge_yolo_results(
-        self,
-        rule_entities: List[
-            SemanticEntity
-        ],  # method: def _merge_yolo_results(self, rule_entities: List[SemanticEn
-        yolo_entities: List[SemanticEntity],
-    ) -> List[SemanticEntity]:  # code
-        """合并规则解析和 YOLO 检测的实体
-
-        策略：
-        1. 规则解析的实体优先保留（含已识别的 room）
-        2. YOLO 检测的 room/corridor 只在规则未识别到时添加
-        3. 通过 IOU 判断重叠——YOLO 框与规则框高度重叠时不重复添加
-        4. YOLO 实体标记 detection_source="yolo"，原子函数对 YOLO 实体放宽判定
-        """
-        if not yolo_entities:  # check: negated condition
-            return rule_entities  # return
-
-        merged = list(rule_entities)  # assign
-        added_ids = set()  # init: empty set
-
-        for yolo_ent in yolo_entities:  # 循环
-            yolo_bbox = yolo_ent.bbox  # assign
-            yolo_center_x = yolo_bbox["x"] + yolo_bbox["width"] / 2  # assign
-            yolo_center_y = yolo_bbox["y"] + yolo_bbox["height"] / 2  # assign
-
-            # 检查是否与规则实体重叠
-            is_duplicate = False  # assign
-            for rule_ent in rule_entities:  # 循环
-                # 只检查同类型（room 可能被归为 wall，所以放宽限制）
-                if yolo_ent.type == "room" and rule_ent.type not in (
-                    "room",
-                    "wall",
-                ):  # check: membership test
-                    continue  # 继续循环
-                if (
-                    yolo_ent.type == "corridor" and rule_ent.type != "corridor"
-                ):  # check: OR condition
-                    continue  # 继续循环
-
-                rule_bbox = rule_ent.bbox  # assign
-                # 检查 YOLO 中心点是否在规则实体的 bbox 内
-                if (
-                    rule_bbox["x"]
-                    <= yolo_center_x
-                    <= rule_bbox["x"] + rule_bbox["width"]  # check: numeric comparison
-                    and rule_bbox["y"] <= yolo_center_y <= rule_bbox["y"] + rule_bbox["height"]
-                ):  # assign
-                    is_duplicate = True  # assign
-                    break  # 跳出循环
-
-                # 计算 IOU
-                inter_x = max(
-                    0,
-                    min(
-                        yolo_bbox["x"] + yolo_bbox["width"], rule_bbox["x"] + rule_bbox["width"]
-                    )  # assign
-                    - max(yolo_bbox["x"], rule_bbox["x"]),
-                )  # max: get maximum
-                inter_y = max(
-                    0,
-                    min(
-                        yolo_bbox["y"] + yolo_bbox["height"], rule_bbox["y"] + rule_bbox["height"]
-                    )  # assign
-                    - max(yolo_bbox["y"], rule_bbox["y"]),
-                )  # max: get maximum
-                union = (
-                    yolo_bbox["width"] * yolo_bbox["height"]
-                    + rule_bbox["width"] * rule_bbox["height"]
-                    - inter_x * inter_y
-                )  # assign
-                iou = (inter_x * inter_y) / max(union, 1)  # assign
-                if iou > 0.3:  # check: numeric comparison
-                    is_duplicate = True  # assign
-                    break  # 跳出循环
-
-            if not is_duplicate and yolo_ent.id not in added_ids:  # check: membership test
-                # YOLO 实体标记检测来源，原子函数会据此放宽尺寸相关判定
-                yolo_ent.properties["detection_source"] = "yolo"  # 操作
-                # 对 YOLO 检测的 room 不设置 area 属性（bbox 映射不精确）
-                if yolo_ent.type == "room":  # condition: yolo_ent.type == "room":
-                    yolo_ent.properties.pop("area", None)  # 操作
-                merged.append(yolo_ent)  # append: add to list
-                added_ids.add(yolo_ent.id)  # call
-
-        return merged  # return
+        return _merge_yolo_results_impl(self, rule_entities, yolo_detections)
