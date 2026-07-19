@@ -49,9 +49,9 @@ class TestFuncRegistry:  # class definition
         """注册表初始数量：30 INITIAL + 4 EVAC"""
         registry = FuncRegistry()  # function call
         assert (
-            registry.count == 294
-        )  # P57 扩展：260 + 34 = 294（补齐5条缺失子条款 + 29条多维度扩展）
-        assert registry.capacity == 340  # P57 扩展后框架总容量（260 + 80）
+            registry.count == 340
+        )  # P57 扩展：294 + 46 = 340（新增 GB50016 第5/6/7/8/9/10章条款）
+        assert registry.capacity == 390  # P57 扩展后框架总容量（294 + 96 余量）
 
     def test_get_by_id(self):  # function: def test_get_by_id(self):
         registry = FuncRegistry()  # function call
@@ -75,8 +75,8 @@ class TestFuncRegistry:  # class definition
         registry = FuncRegistry()  # function call
         all_funcs = registry.list_all()  # check all true
         assert (
-            len(all_funcs) == 294
-        )  # P57 扩展：260 + 34 = 294（补齐5条缺失子条款 + 29条多维度扩展）
+            len(all_funcs) == 340
+        )  # P57 扩展：294 + 46 = 340（新增 GB50016 第5/6/7/8/9/10章条款）
         categories = set(f.category for f in all_funcs)  # function call
         for cat in [
             FuncCategory.DIMENSION,
