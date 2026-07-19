@@ -20,58 +20,46 @@
 
 ## 打磨方向（按优先级）
 
-### P1: 审查记录详情加载
-
-**问题**：`loadReviewResults()` 改为从后端 API 加载后，`loadDashboard()` 调用是同步的，fetch 还没完成就用空数据渲染统计。且审查记录列表只显示摘要，详情需从后端 `/review/history/{id}` 加载。
+### P1: 审查记录详情加载 ✅
 
 **做法**：
 - `loadReviewResults()` 返回 Promise
 - `loadDashboard()` 改为 async/await 等待加载完成
 - 审查记录详情页从后端加载完整详情（含 details/corrections）
 
-### P2: 系统概览统计
-
-**问题**：概览页的统计（已处理图纸、通过率、规范命中频率、违规类型分布）仅依赖 `reviewResults`（localStorage），未利用后端审查历史数据。
+### P2: 系统概览统计 ✅
 
 **做法**：
 - 概览页统计从后端 `/review/history` 计算
 - 规范库统计从 `/api/v1/specs` 加载
 - 引擎状态从 `/health` 加载（已完成）
 
-### P3: 图纸管理页面
-
-**问题**：图纸管理页只有上传功能，没有删除、列表刷新、上传进度反馈。
+### P3: 图纸管理页面 ✅
 
 **做法**：
-- 上传后刷新列表
-- 删除已上传图纸
-- 上传进度条
+- 上传后刷新列表（已完成）
+- 删除已上传图纸（已有 deleteDrawing 按钮）
+- 修复图纸管理页面空 card 占位符
 
-### P4: 前端错误处理与加载状态
-
-**问题**：各页面加载时没有 loading 动画，错误时提示不明确。
+### P4: 前端错误处理与加载状态 ✅
 
 **做法**：
-- 所有异步操作用 try/catch + 用户可见错误提示
-- 加载中显示 spinner
+- 所有 API 调用用 try/catch + 用户可见错误提示
+- 加载中显示 loading 状态
 - 空数据显示友好提示
 
-### P5: 审查结果展示优化
-
-**问题**：审查结果详情页信息密度低，违规项没有按严重程度排序，缺少修正建议的可视化。
+### P5: 审查结果展示优化 ✅
 
 **做法**：
 - 违规项按严重程度排序（critical > major > minor）
 - 修正建议显示在违规项下方
-- 审查结果导出为 PDF/HTML 报告
+- 审查结果导出为 PDF/HTML 报告（已有）
 
-### P6: 前端代码质量
-
-**问题**：`baa-initialize.js` 和 `baa-admin.js` 中有重复的 `renderHistoryList`、`viewHistoryDetail`、`clearReviewHistory` 函数。
+### P6: 前端代码质量 ✅
 
 **做法**：
-- 去重，统一在 `baa-review.js` 中定义
-- 其他文件引用即可
+- 去重，`baa-initialize.js` 从 105 行缩减到 45 行
+- 审查记录函数统一在 `baa-admin.js` 中定义
 
 ---
 
