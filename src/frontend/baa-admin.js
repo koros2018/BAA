@@ -327,7 +327,11 @@ function onReviewDrawingSelect() {
 }
 
 // ── 审查记录 ──────────────────────────────────────────────
+let historyPage = 0;
+const HISTORY_PAGE_SIZE = 20;
+
 function renderHistoryList() {
+  historyPage = 0; // 搜索/筛选时重置到第一页
   const el = document.getElementById('history-list');
   if (!el) return;
   loadReviewResults();
@@ -344,12 +348,16 @@ function renderHistoryList() {
       (r.details || []).some(v => (v.clause_id || '').toLowerCase().includes(search) || (v.clause_title || '').toLowerCase().includes(search))
     );
   }
+  const totalPages = Math.ceil(filtered.length / HISTORY_PAGE_SIZE) || 1;
+  if (historyPage >= totalPages) historyPage = totalPages - 1;
+  const pageData = filtered.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE);
   document.getElementById('history-total-count').textContent = filtered.length;
   if (filtered.length === 0) {
     el.innerHTML = '<div class="text-center text-gray-400 py-8">无匹配记录</div>';
+    renderPagination(0);
     return;
   }
-  el.innerHTML = filtered.map(r => {
+  el.innerHTML = pageData.map(r => {
     const viols = r.violationCount || r.details?.length || 0;
     const btLabel = r.buildingType === 'civil' ? '民用' : r.buildingType === 'industrial' ? '工业' : '--';
     const timeStr = new Date(r.reviewedAt || r.createdAt || Date.now()).toLocaleString();
@@ -364,7 +372,16 @@ function renderHistoryList() {
       '<div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div></div>' +
       '<button onclick="event.stopPropagation();deleteReviewRecord(\'' + r.id + '\')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button>' +
       '</div></div>';
-  }).join('');
+  }).join('') + renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  if (totalPages <= 1) return '';
+  return '<div class="flex items-center justify-center gap-3 mt-4 text-sm">' +
+    '<button onclick="historyPage=Math.max(0,historyPage-1);renderHistoryList()" class="px-3 py-1 border rounded ' + (historyPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100') + '" ' + (historyPage === 0 ? 'disabled' : '') + '>上一页</button>' +
+    '<span class="text-gray-500">第 ' + (historyPage + 1) + ' / ' + totalPages + ' 页</span>' +
+    '<button onclick="historyPage=Math.min(' + (totalPages - 1) + ',historyPage+1);renderHistoryList()" class="px-3 py-1 border rounded ' + (historyPage >= totalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100') + '" ' + (historyPage >= totalPages - 1 ? 'disabled' : '') + '>下一页</button>' +
+    '</div>';
 }
 async function deleteReviewRecord(id) {
   if (!confirm('确定删除此审查记录？')) return;
