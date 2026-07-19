@@ -248,8 +248,15 @@ async def review(  # code
                     )
 
         # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
+        # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
+        # 如果图纸类型完全不包含该函数关心的实体类型（如泵房图纸不含汽车库），跳过
+        entity_types_in_drawing = set(e.get('type', '') for e in entities)
         for func in registry_funcs:
             if func.category.value != "exist":
+                continue
+            # 跳过：目标实体类型与图纸实体类型无交集
+            func_targets = set(func.target_entities) if func.target_entities else set()
+            if func_targets and not func_targets.intersection(entity_types_in_drawing):
                 continue
             has_match = any(func.matches(e) for e in entities)
             if not has_match:
@@ -625,9 +632,15 @@ async def batch_review(  # code
                         )  # code
 
             # ── 缺失检查 ──────────────────────────────────────
+            # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
+            entity_types_in_drawing = set(e.get('type', '') for e in entities)
             for func in registry_funcs:  # loop: iterate
                 if func.category.value != "exist":  # check: OR condition
                     continue  # code
+                # 跳过：目标实体类型与图纸实体类型无交集
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                if func_targets and not func_targets.intersection(entity_types_in_drawing):
+                    continue
                 has_match = any(func.matches(e) for e in entities)  # check any true
                 if not has_match:  # check: negated condition
                     r = _get_fr().execute_with_timeout(func, None)  # function call
@@ -874,8 +887,14 @@ async def review_from_data(  # code
                         )
 
             # 缺失检查
+            # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
+            entity_types_in_drawing = set(e.get('type', '') for e in entities)
             for func in registry_funcs:
                 if func.category.value != "exist":
+                    continue
+                # 跳过：目标实体类型与图纸实体类型无交集
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                if func_targets and not func_targets.intersection(entity_types_in_drawing):
                     continue
                 has_match = any(func.matches(e) for e in entities)
                 if not has_match:
@@ -1494,9 +1513,15 @@ async def review_pdf(  # code
                 continue  # code
 
     # ── 缺失检查 ──────────────────────────────────────────
+    # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
+    entity_types_in_drawing = set(e.get('type', '') for e in entities)
     for func in registry_funcs:  # loop: iterate
         if func.category.value != "exist":  # check: OR condition
             continue  # code
+        # 跳过：目标实体类型与图纸实体类型无交集
+        func_targets = set(func.target_entities) if func.target_entities else set()
+        if func_targets and not func_targets.intersection(entity_types_in_drawing):
+            continue
         has_match = any(func.matches(e) for e in entities)  # check any true
         if not has_match:  # check: negated condition
             r = _get_fr().execute_with_timeout(func, None)  # function call
@@ -1696,9 +1721,15 @@ async def review_compare(  # code
                     continue  # code
 
         # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
+        # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
+        entity_types_in_drawing = set(e.get('type', '') for e in entities)
         for func in registry_funcs:  # loop: iterate
             if func.category.value != "exist":  # check: OR condition
                 continue  # code
+            # 跳过：目标实体类型与图纸实体类型无交集
+            func_targets = set(func.target_entities) if func.target_entities else set()
+            if func_targets and not func_targets.intersection(entity_types_in_drawing):
+                continue
             has_match = any(func.matches(e) for e in entities)  # check any true
             if not has_match:  # check: negated condition
                 r = _get_fr().execute_with_timeout(func, None)  # function call
