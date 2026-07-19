@@ -607,6 +607,7 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
     if (item.dataset.page === 'home') loadDashboard();
     if (item.dataset.page === 'specs') loadSpecs();
     if (item.dataset.page === 'analysis') loadAnalysis();
+    if (item.dataset.page === 'history') renderHistoryList();
     if (item.dataset.page === 'apikeys') loadAdminKeys();
   });
 });

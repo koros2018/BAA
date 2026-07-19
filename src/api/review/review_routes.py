@@ -367,7 +367,64 @@ async def review(  # code
         # 异步写入持久化缓存（不阻塞响应）
         _get_pc().set(cache_key, response_data, "review_result")  # function call
 
+    # ── 保存审查历史到数据库 ────────────────────────────────
+    try:
+        from .review_history import save_review_result
+        review_id = file_id or task_id or str(uuid.uuid4())
+        save_review_result(review_id, filename, response_data)
+    except Exception:
+        pass  # 保存失败不影响审查结果返回
+
     return response_data  # return
+
+
+@router.get("/review/history")  # 审查历史列表
+async def list_review_history(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    drawing_name: Optional[str] = Query(None, description="图纸名称搜索"),
+    building_type: Optional[str] = Query(None, description="建筑类型筛选"),
+    api_key: str = Depends(verify_api_key),
+):
+    """查询审查历史记录列表（分页）"""
+    from .review_history import list_review_history as _list
+    return _list(limit=limit, offset=offset, drawing_name=drawing_name, building_type=building_type)
+
+
+@router.get("/review/history/{review_id}")  # 审查历史详情
+def get_review_detail(
+    review_id: str,
+    api_key: str = Depends(verify_api_key),
+):
+    """获取单条审查记录完整详情"""
+    from .review_history import get_review_detail as _get
+    result = _get(review_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="审查记录不存在")
+    return result
+
+
+@router.delete("/review/history/{review_id}")  # 删除审查历史
+def delete_review_history(
+    review_id: str,
+    api_key: str = Depends(verify_api_key),
+):
+    """删除单条审查记录"""
+    from .review_history import delete_review_history as _del
+    ok = _del(review_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="审查记录不存在")
+    return {"status": "success", "message": "已删除"}
+
+
+@router.delete("/review/history")  # 清空审查历史
+def clear_review_history(
+    api_key: str = Depends(verify_api_key),
+):
+    """清空所有审查历史记录"""
+    from .review_history import clear_review_history as _clear
+    count = _clear()
+    return {"status": "success", "deleted": count, "message": f"已清空 {count} 条记录"}
 
 
 @router.delete("/review/queue/{task_id}")  # function call
@@ -955,6 +1012,16 @@ async def review_from_data(  # code
         "task_id": task_id,
         "queue_position": queue_position,
     }
+
+    # ── 保存审查历史到数据库 ────────────────────────────────
+    try:
+        from .review_history import save_review_result
+        review_id = task_id or str(uuid.uuid4())
+        drawing_name = body.get("drawing_name", body.get("filename", "from-data"))
+        save_review_result(review_id, drawing_name, response_data)
+    except Exception:
+        pass
+
     return response_data  # return
 
 
