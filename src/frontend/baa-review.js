@@ -4,7 +4,7 @@ async function loadDashboard() {
     const health = await apiGet('/health');
     document.getElementById('version-info').textContent = health.version + ' · 引擎就绪';
     document.getElementById('health-status').textContent = JSON.stringify(health, null, 2);
-    loadReviewResults();
+    await loadReviewResults();
     const results = reviewResults;
     document.getElementById('home-stats').querySelectorAll('.stat-card')[0].querySelector('.text-2xl').textContent = results.length;
     document.getElementById('home-stats').querySelectorAll('.stat-card')[1].querySelector('.text-2xl').textContent = SPEC_DATA.length;
@@ -941,7 +941,7 @@ let reviewResults = [];
 function loadReviewResults() {
   // 先尝试从后端 API 加载
   const apiBase = API_BASE();
-  fetch(apiBase + '/review/history?limit=200')
+  return fetch(apiBase + '/review/history?limit=200')
     .then(r => r.json())
     .then(data => {
       if (data && data.items && data.items.length > 0) {
@@ -952,6 +952,7 @@ function loadReviewResults() {
       }
       // 后端无数据，回退到 localStorage
       fallbackLoadReviewResults();
+      return Promise.resolve();
     })
     .catch(() => {
       // 后端不可用，回退到 localStorage
