@@ -107,13 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 引擎状态由 baa-admin.js 中的 initAdminToken 更新
-  } catch(e) {
-    document.getElementById('engine-status').innerHTML =
-      '<div class="flex justify-between"><span>原子函数</span><span>340/390 已注册</span></div>' +
-      '<div class="flex justify-between"><span>规范库</span><span>199条 (L1~L3)</span></div>' +
-      '<div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div>' +
-      '<div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>';
-  }
 });
 
 // ── 预览缩放 ──────────────────────────────────────────────
