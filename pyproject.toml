@@ -6,9 +6,10 @@ description = "Blueprint AI Agent - 图纸合规智能体"
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
 python_files = ["test_*.py"]
-addopts = "-m 'not slow' --tb=short"
+addopts = "-m 'not slow and not real_drawing' --tb=short"
 markers = [
     "slow: slow-running tests (skip by default)",
+    "real_drawing: 真实图纸基线测试，默认跳过（CI 独立阶段运行）",
     "api: API-level integration tests",
 ]
 
