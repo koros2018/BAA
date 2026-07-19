@@ -1,6 +1,7 @@
 """
 BAA MCP Server 测试 — 功能/集成测试
 """
+
 import sys
 import os
 import json
@@ -27,8 +28,13 @@ class TestMCPServerCore:
 
     def test_request_handlers_registered(self, server):
         handlers = server.server.request_handlers
-        expected = ["PingRequest", "ListToolsRequest", "ListResourcesRequest",
-                     "ReadResourceRequest", "CallToolRequest"]
+        expected = [
+            "PingRequest",
+            "ListToolsRequest",
+            "ListResourcesRequest",
+            "ReadResourceRequest",
+            "CallToolRequest",
+        ]
         for h in expected:
             assert h in [k.__name__ for k in handlers], f"缺少 handler: {h}"
 
@@ -46,6 +52,7 @@ class TestMCPHealth:
 
     def test_health_ok(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_health({}))
         assert r["status"] == "ok"
         assert r["engine"]["drawing_parser"] == "ready"
@@ -54,6 +61,7 @@ class TestMCPHealth:
 
     def test_health_keys(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_health({}))
         assert "version" in r
         assert "status" in r
@@ -65,6 +73,7 @@ class TestMCPListFunctions:
 
     def test_list_all(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_list_functions({"category": ""}))
         assert r["total"] == 260
         assert r["capacity"] == 260
@@ -73,6 +82,7 @@ class TestMCPListFunctions:
 
     def test_list_by_category(self, server):
         import asyncio
+
         for cat in ["dim", "dist", "exist", "count", "area", "attr"]:
             r = asyncio.run(server._handle_list_functions({"category": cat}))
             assert r["total"] == len(r["functions"])
@@ -83,11 +93,13 @@ class TestMCPListFunctions:
 
     def test_list_invalid_category(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_list_functions({"category": "nonexistent"}))
         assert r["total"] == 0
 
     def test_list_function_fields(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_list_functions({"category": "dim"}))
         if r["total"] > 0:
             f = r["functions"][0]
@@ -103,6 +115,7 @@ class TestMCPReviewFromData:
 
     def test_empty_entities(self, server):
         import asyncio
+
         r = asyncio.run(server._handle_review_from_data({"entities": []}))
         assert r["status"] == "success"
         assert r["summary"]["violations"] == 0
@@ -111,11 +124,20 @@ class TestMCPReviewFromData:
 
     def test_entities_with_data(self, server):
         import asyncio
+
         entities = [
-            {"id": "e1", "type": "corridor", "bbox": {"x": 0, "y": 0, "width": 10, "height": 1.5},
-             "attributes": {"width": 1.5}},
-            {"id": "e2", "type": "door", "bbox": {"x": 5, "y": 0, "width": 0.9, "height": 2.1},
-             "attributes": {"width": 0.9}},
+            {
+                "id": "e1",
+                "type": "corridor",
+                "bbox": {"x": 0, "y": 0, "width": 10, "height": 1.5},
+                "attributes": {"width": 1.5},
+            },
+            {
+                "id": "e2",
+                "type": "door",
+                "bbox": {"x": 5, "y": 0, "width": 0.9, "height": 2.1},
+                "attributes": {"width": 0.9},
+            },
         ]
         r = asyncio.run(server._handle_review_from_data({"entities": entities}))
         assert r["status"] == "success"
@@ -129,30 +151,36 @@ class TestMCPReconstruct:
 
     def test_bad_token(self, server):
         import asyncio
-        r = asyncio.run(server._handle_reconstruct({
-            "file_id": "test123", "auth_token": "bad_token"
-        }))
+
+        r = asyncio.run(
+            server._handle_reconstruct({"file_id": "test123", "auth_token": "bad_token"})
+        )
         assert r["status"] == "error"
         assert r["error_code"] == "AUTH_FAILED"
 
     def test_missing_file_id(self, server):
         import asyncio
-        r = asyncio.run(server._handle_reconstruct({
-            "auth_token": "some_token"
-        }))
+
+        r = asyncio.run(server._handle_reconstruct({"auth_token": "some_token"}))
         assert r["status"] == "error"
         assert "error_code" in r
 
     def test_reconstruct_structure(self, server):
         import asyncio
+
         # 需要有真实 token，但我们可以验证返回格式
         from src.api.baa_api import generate_auth_token
+
         token = generate_auth_token({"client_id": "test_client", "service": "reconstruct"})
-        r = asyncio.run(server._handle_reconstruct({
-            "file_id": "test-file-12345678",
-            "auth_token": token,
-            "options": {"lod": 300, "format": "ifc"},
-        }))
+        r = asyncio.run(
+            server._handle_reconstruct(
+                {
+                    "file_id": "test-file-12345678",
+                    "auth_token": token,
+                    "options": {"lod": 300, "format": "ifc"},
+                }
+            )
+        )
         assert r["status"] == "success"
         assert "order_id" in r
         assert "model_file" in r
@@ -166,9 +194,13 @@ class TestMCPResource:
 
     def test_resource_count(self, server):
         import asyncio
+
         # 通过闭包内部函数测试
-        handler = next(v for k, v in server.server.request_handlers.items()
-                       if k.__name__ == "ReadResourceRequest")
+        handler = next(
+            v
+            for k, v in server.server.request_handlers.items()
+            if k.__name__ == "ReadResourceRequest"
+        )
         inner = handler.__closure__[0].cell_contents
         rc = asyncio.run(inner("baa://functions/count"))
         data = json.loads(rc.content)
@@ -179,8 +211,12 @@ class TestMCPResource:
 
     def test_resource_specs(self, server):
         import asyncio
-        handler = next(v for k, v in server.server.request_handlers.items()
-                       if k.__name__ == "ReadResourceRequest")
+
+        handler = next(
+            v
+            for k, v in server.server.request_handlers.items()
+            if k.__name__ == "ReadResourceRequest"
+        )
         inner = handler.__closure__[0].cell_contents
         rc = asyncio.run(inner("baa://specs/list"))
         data = json.loads(rc.content)
@@ -190,8 +226,12 @@ class TestMCPResource:
 
     def test_resource_unknown_uri(self, server):
         import asyncio
-        handler = next(v for k, v in server.server.request_handlers.items()
-                       if k.__name__ == "ReadResourceRequest")
+
+        handler = next(
+            v
+            for k, v in server.server.request_handlers.items()
+            if k.__name__ == "ReadResourceRequest"
+        )
         inner = handler.__closure__[0].cell_contents
         with pytest.raises(ValueError, match="未知 resource URI"):
             asyncio.run(inner("baa://unknown"))
@@ -202,8 +242,7 @@ class TestMCPDeconstruct:
 
     def test_file_not_found(self, server):
         import asyncio
-        r = asyncio.run(server._handle_deconstruct({
-            "file_path": "/nonexistent/file.dxf"
-        }))
+
+        r = asyncio.run(server._handle_deconstruct({"file_path": "/nonexistent/file.dxf"}))
         assert r["status"] == "error"
         assert r["error_code"] == "FILE_NOT_FOUND"

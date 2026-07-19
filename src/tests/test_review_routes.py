@@ -24,21 +24,56 @@ API_KEYS.add("test-review-key")
 # ── 共享测试数据 ──
 
 SAMPLE_ENTITIES = [
-    {"id": "door_001", "type": "door", "layer": "E-DOOR",
-     "bbox": {"x": 0, "y": 0, "width": 0.9, "height": 2.1},
-     "width": 0.9, "height": 2.1, "center": [0.45, 1.05], "attributes": {"防火": True}},
-    {"id": "wall_001", "type": "wall", "layer": "E-WALL",
-     "bbox": {"x": 0, "y": 0, "width": 10.0, "height": 0.2},
-     "width": 10.0, "height": 0.2, "center": [5.0, 0.1], "attributes": {"耐火": "2h"}},
-    {"id": "stair_001", "type": "staircase", "layer": "E-STRS",
-     "bbox": {"x": 5.0, "y": 5.0, "width": 3.0, "height": 4.0},
-     "width": 3.0, "height": 4.0, "center": [6.5, 7.0], "attributes": {}},
-    {"id": "exit_001", "type": "exit", "layer": "E-DOOR",
-     "bbox": {"x": 8.0, "y": 2.0, "width": 1.2, "height": 2.4},
-     "width": 1.2, "height": 2.4, "center": [8.6, 3.2], "attributes": {"安全出口": True}},
-    {"id": "room_001", "type": "room", "layer": "E-ROOM",
-     "bbox": {"x": 0, "y": 0, "width": 10.0, "height": 8.0},
-     "width": 10.0, "height": 8.0, "center": [5.0, 4.0], "attributes": {"名称": "办公室", "面积": 80.0}},
+    {
+        "id": "door_001",
+        "type": "door",
+        "layer": "E-DOOR",
+        "bbox": {"x": 0, "y": 0, "width": 0.9, "height": 2.1},
+        "width": 0.9,
+        "height": 2.1,
+        "center": [0.45, 1.05],
+        "attributes": {"防火": True},
+    },
+    {
+        "id": "wall_001",
+        "type": "wall",
+        "layer": "E-WALL",
+        "bbox": {"x": 0, "y": 0, "width": 10.0, "height": 0.2},
+        "width": 10.0,
+        "height": 0.2,
+        "center": [5.0, 0.1],
+        "attributes": {"耐火": "2h"},
+    },
+    {
+        "id": "stair_001",
+        "type": "staircase",
+        "layer": "E-STRS",
+        "bbox": {"x": 5.0, "y": 5.0, "width": 3.0, "height": 4.0},
+        "width": 3.0,
+        "height": 4.0,
+        "center": [6.5, 7.0],
+        "attributes": {},
+    },
+    {
+        "id": "exit_001",
+        "type": "exit",
+        "layer": "E-DOOR",
+        "bbox": {"x": 8.0, "y": 2.0, "width": 1.2, "height": 2.4},
+        "width": 1.2,
+        "height": 2.4,
+        "center": [8.6, 3.2],
+        "attributes": {"安全出口": True},
+    },
+    {
+        "id": "room_001",
+        "type": "room",
+        "layer": "E-ROOM",
+        "bbox": {"x": 0, "y": 0, "width": 10.0, "height": 8.0},
+        "width": 10.0,
+        "height": 8.0,
+        "center": [5.0, 4.0],
+        "attributes": {"名称": "办公室", "面积": 80.0},
+    },
 ]
 
 
@@ -62,10 +97,12 @@ def _make_mock_func_registry(entities):
 
 def _make_mock_attr_analyzer():
     analyzer = MagicMock()
-    analyzer.build_finding = MagicMock(return_value=MagicMock(
-        finding_id="test-001",
-        explanation="test explanation",
-    ))
+    analyzer.build_finding = MagicMock(
+        return_value=MagicMock(
+            finding_id="test-001",
+            explanation="test explanation",
+        )
+    )
     return analyzer
 
 
@@ -120,18 +157,24 @@ def test_deconstruct_returns_entities():
     func_registry = _make_mock_func_registry(entities)
     attr_analyzer = _make_mock_attr_analyzer()
 
-    with patch("src.api.baa_api._drawing_parser") as mock_dp, \
-         patch("src.api.baa_api._semantic_analyzer") as mock_sa:
+    with (
+        patch("src.api.baa_api._drawing_parser") as mock_dp,
+        patch("src.api.baa_api._semantic_analyzer") as mock_sa,
+    ):
 
         # 直接 patch 模块级变量
         import src.api.baa_api as baa_api
+
         baa_api._func_registry = func_registry
         baa_api._attribution_analyzer = attr_analyzer
 
         mock_dp.parse = MagicMock(return_value=parse_result)
-        mock_sa.analyze = MagicMock(return_value={
-            "entities": entities, "relations": [],
-        })
+        mock_sa.analyze = MagicMock(
+            return_value={
+                "entities": entities,
+                "relations": [],
+            }
+        )
 
         async def mock_run_in_executor(self, executor, func, *args):
             return func(*args)
@@ -158,28 +201,44 @@ def test_deconstruct_json_serializable():
     import numpy as np
 
     entities_with_numpy = [
-        {"id": "numpy_test", "type": "door", "layer": "E-DOOR",
-         "bbox": {"x": np.float64(0.0), "y": np.float64(0.0), "width": np.float64(1.0), "height": np.float64(2.0)},
-         "width": np.float32(0.9), "height": np.float32(2.1),
-         "center": [np.float64(0.45), np.float64(1.05)],
-         "attributes": {"flag": np.bool_(True), "count": np.int32(5)}},
+        {
+            "id": "numpy_test",
+            "type": "door",
+            "layer": "E-DOOR",
+            "bbox": {
+                "x": np.float64(0.0),
+                "y": np.float64(0.0),
+                "width": np.float64(1.0),
+                "height": np.float64(2.0),
+            },
+            "width": np.float32(0.9),
+            "height": np.float32(2.1),
+            "center": [np.float64(0.45), np.float64(1.05)],
+            "attributes": {"flag": np.bool_(True), "count": np.int32(5)},
+        },
     ]
 
     parse_result = _make_mock_parse_result()
     func_registry = _make_mock_func_registry(entities_with_numpy)
     attr_analyzer = _make_mock_attr_analyzer()
 
-    with patch("src.api.baa_api._drawing_parser") as mock_dp, \
-         patch("src.api.baa_api._semantic_analyzer") as mock_sa:
+    with (
+        patch("src.api.baa_api._drawing_parser") as mock_dp,
+        patch("src.api.baa_api._semantic_analyzer") as mock_sa,
+    ):
 
         import src.api.baa_api as baa_api
+
         baa_api._func_registry = func_registry
         baa_api._attribution_analyzer = attr_analyzer
 
         mock_dp.parse = MagicMock(return_value=parse_result)
-        mock_sa.analyze = MagicMock(return_value={
-            "entities": entities_with_numpy, "relations": [],
-        })
+        mock_sa.analyze = MagicMock(
+            return_value={
+                "entities": entities_with_numpy,
+                "relations": [],
+            }
+        )
 
         async def mock_run_in_executor(self, executor, func, *args):
             return func(*args)
@@ -218,18 +277,20 @@ def test_review_pdf_not_found():
 
 def test_review_from_data_accepts_json():
     """review-from-data 应接受实体 JSON"""
-    with patch("src.api.review_routes._get_fr") as mock_fr, \
-         patch("src.api.review_routes._get_sr") as mock_sr:
-        mock_sr.return_value.get_relevant_functions = MagicMock(
-            return_value=lambda: []
-        )
+    with (
+        patch("src.api.review_routes._get_fr") as mock_fr,
+        patch("src.api.review_routes._get_sr") as mock_sr,
+    ):
+        mock_sr.return_value.get_relevant_functions = MagicMock(return_value=lambda: [])
         response = client.post(
             "/review-from-data",
             json={"entities": SAMPLE_ENTITIES},
             headers={"Authorization": "Bearer test-review-key"},
         )
-    assert response.status_code in (200, 503), \
-        f"review-from-data failed: {response.status_code}: {response.text}"
+    assert response.status_code in (
+        200,
+        503,
+    ), f"review-from-data failed: {response.status_code}: {response.text}"
 
 
 # ── 测试 8: review 未认证 ──
