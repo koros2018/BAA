@@ -1,5 +1,5 @@
 // ── 规范库 ──────────────────────────────────────────────
-let SPEC_DATA = [];  // 从后端 API 加载
+// SPEC_DATA 定义在 baa-core.js 中（先加载，所有文件均可访问）
 
 async function loadSpecs() {
   try {
@@ -444,6 +444,23 @@ async function viewHistoryDetail(id) {
           '<span class="text-gray-500">' + (v.clause_id || '') + ' · ' + (v.entity_type || '') + '</span><br/>' +
           '<span class="text-gray-400">' + (v.explanation || '') + '</span></div>';
       }).join('') + (details.length > 50 ? '<div class="text-xs text-gray-400 text-center pt-2">... 仅显示前50项</div>' : '') +
+      '</div>' +
+      // 修正建议
+      (detail.corrections && detail.corrections.length > 0 ?
+        '<div class="mt-4 border-t pt-3">' +
+        '<p class="font-medium text-sm mb-2">💡 修正建议</p>' +
+        '<div class="space-y-2">' +
+        detail.corrections.slice(0, 20).map(c => {
+          const priColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'orange' : 'green';
+          return '<div class="p-2 bg-green-50 rounded text-xs">' +
+            '<span class="font-medium">' + (c.action || '') + '</span>' +
+            ' <span class="px-1.5 py-0.5 rounded bg-' + priColor + '-100 text-' + priColor + '-700">' + (c.priority || 'low') + '</span>' +
+            '<div class="text-gray-600 mt-1">' + (c.description || '') + '</div>' +
+            (c.recommendation ? '<div class="text-gray-500 mt-0.5">' + c.recommendation + '</div>' : '') +
+            '</div>';
+        }).join('') +
+        (detail.corrections.length > 20 ? '<div class="text-xs text-gray-400 text-center">... 仅显示前20条</div>' : '') +
+        '</div></div>' : '') +
       '</div></div></div>';
   } catch(e) {
     modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4"><div class="p-4 text-center text-red-500">加载失败: ' + e.message + '</div></div>';

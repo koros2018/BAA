@@ -1,4 +1,7 @@
 // ── 全局状态 ──────────────────────────────────────────────
+// 规范库数据（从后端 API 动态加载）
+let SPEC_DATA = [];
+
 // 从 localStorage 恢复API地址
 function loadApiBase() {
   const saved = localStorage.getItem('baa_api_base');
