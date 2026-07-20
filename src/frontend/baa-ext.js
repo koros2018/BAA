@@ -75,7 +75,7 @@ async function generateReverse() {
 
 function copyReverseDXF() {
     const dxf = document.getElementById('reverse-dxf');
-    if (dxf) { navigator.clipboard.writeText(dxf.textContent).then(() => alert('DXF 已复制到剪贴板')); }
+    if (dxf) { navigator.clipboard.writeText(dxf.textContent).then(() => showToast('DXF 已复制到剪贴板', 'info')); }
 }
 
 // ── P57 原子函数库 ──
@@ -165,9 +165,9 @@ async function updateFunction(funcId) {
             body: JSON.stringify({threshold: parseFloat(th.value), unit: unit.value}),
         });
         const data = await resp.json();
-        alert(data.message || '更新成功');
+        showToast(data.message || '更新成功', 'success');
     } catch(e) {
-        alert('更新失败: ' + e.message);
+        showToast('更新失败: ' + e.message, 'error');
     }
 }
 
@@ -454,7 +454,7 @@ function renderLayoutSVG(layout, validation) {
 /** 展开 SVG 到全屏弹窗 */
 function expandReverseSVG() {
     const layout = window._reverseSVGLayout;
-    if (!layout) return alert('先生成布局');
+    if (!layout) return showToast('先生成布局', 'info');
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4';
     modal.innerHTML = `
@@ -473,7 +473,7 @@ function expandReverseSVG() {
 /** 下载 SVG 文件 */
 function downloadReverseSVG() {
     const svgEl = document.querySelector('#reverse-svg svg');
-    if (!svgEl) return alert('先生成布局');
+    if (!svgEl) return showToast('先生成布局', 'info');
     const blob = new Blob([svgEl.outerHTML], {type: 'image/svg+xml'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

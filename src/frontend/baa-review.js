@@ -80,18 +80,17 @@ function renderViolationTypeBars() {
 async function runReview() {
   const select = document.getElementById('review-drawing-select');
   const id = select.value;
-  if (!id) { alert('请选择已解析的图纸'); return; }
+  if (!id) { showToast('请选择已解析的图纸', 'info'); return; }
   const drawing = parsedDrawings.find(d => d.id === id);
-  if (!drawing) { alert('图纸数据不存在'); return; }
+  if (!drawing) { showToast('图纸数据不存在', 'info'); return; }
   const bt = drawing.building_type;
 
   // 用缓存的数据直接提交审查，不需要重新上传文件
   const entities = drawing.entities || drawing.raw?.entities || [];
-  if (entities.length === 0) { alert('该图纸没有解析出实体数据，请重新上传解析'); return; }
+  if (entities.length === 0) { showToast('该图纸没有解析出实体数据，请重新上传解析', 'info'); return; }
 
   const loading = document.getElementById('review-loading');
-  loading.className = 'mt-3 text-sm text-gray-500';
-  loading.innerHTML = '⏳ 正在审查...';
+  renderProgress(loading, '审查中', 30);
 
   try {
     const url = API_BASE() + '/review-from-data';
@@ -459,7 +458,7 @@ async function submitFeedback() {
   const severity = document.getElementById('fb-severity').value;
 
   if (!taskId || !clauseId || !reason) {
-    alert('请填写任务 ID、规范条款和申诉理由');
+    showToast('请填写任务 ID、规范条款和申诉理由', 'info');
     return;
   }
 
@@ -480,7 +479,7 @@ async function submitFeedback() {
     });
 
     if (!data.status) throw new Error('提交失败');
-    alert('申诉提交成功！ID: ' + data.feedback.feedback_id);
+    showToast('申诉提交成功！ID: ' + data.feedback.feedback_id, 'success');
     document.getElementById('fb-task-id').value = '';
     document.getElementById('fb-clause-id').value = '';
     document.getElementById('fb-entity-id').value = '';
@@ -491,13 +490,13 @@ async function submitFeedback() {
     loadFeedbackStats();
     loadFeedbacks();
   } catch (e) {
-    alert('提交失败: ' + e.message);
+    showToast('提交失败: ' + e.message, 'error');
   }
 }
 
 async function runBatchReview() {
   if (batchFiles.length === 0) {
-    alert('请先选择至少一个图纸文件');
+    showToast('请先选择至少一个图纸文件', 'info');
     return;
   }
 
@@ -612,13 +611,13 @@ _onDiffFileSelect('diff-file2', 'diff-file2-name');
 async function runDiffComparison() {
   const file1 = document.getElementById('diff-file1').files[0];
   const file2 = document.getElementById('diff-file2').files[0];
-  if (!file1 || !file2) { alert('请选择两个版本的图纸文件'); return; }
+  if (!file1 || !file2) { showToast('请选择两个版本的图纸文件', 'info'); return; }
 
   const bt = document.getElementById('diff-building-type').value;
   const std = document.getElementById('diff-standard').value;
   const loading = document.getElementById('diff-loading');
-  loading.className = 'mt-3 text-sm text-gray-500';
-  loading.innerHTML = '⏳ 正在审查并对比...';
+  loading.className = 'mt-3';
+  renderProgress(loading, '审查并对比', 20);
 
   try {
     const form = new FormData();
@@ -635,7 +634,7 @@ async function runDiffComparison() {
     loading.className = 'hidden';
 
     if (resp.status !== 200) {
-      alert('对比失败: ' + (data.detail?.message || JSON.stringify(data)));
+      showToast('对比失败: ' + (data.detail?.message || JSON.stringify(data)), 'error');
       return;
     }
 
@@ -877,7 +876,7 @@ function downloadReviewPdf(fileId) {
       URL.revokeObjectURL(a.href);
     })
     .catch(err => {
-      alert('❌ ' + err.message);
+      showToast('❌ ' + err.message, 'error');
     });
 }
 
@@ -885,7 +884,7 @@ function downloadReviewPdf(fileId) {
 function downloadReviewJSON() {
   const violations = window._reviewViolations || [];
   if (violations.length === 0) {
-    alert('没有可导出的审查结果');
+    showToast('没有可导出的审查结果', 'info');
     return;
   }
   const exportData = {
