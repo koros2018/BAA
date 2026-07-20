@@ -472,7 +472,7 @@ async function createAdminKey() {
       document.getElementById('key-created-modal').classList.remove('hidden');
       loadAdminKeys();
     } else {
-      showToast('创建失败: ' + (data.detail?.message || JSON.stringify(data)), 'error'));
+      showToast('创建失败: ' + (data.detail?.message || JSON.stringify(data)), 'error');
     }
   } catch (e) {
     showToast('请求失败: ' + e.message, 'error');
@@ -597,7 +597,7 @@ async function confirmRevokeKey(keyId) {
       loadAdminKeys();
       showToast('密钥已撤销', 'info');
     } else {
-      showToast('撤销失败: ' + (data.detail?.message || JSON.stringify(data)), 'error'));
+      showToast('撤销失败: ' + (data.detail?.message || JSON.stringify(data)), 'error');
     }
   } catch (e) {
     showToast('请求失败: ' + e.message, 'error');
