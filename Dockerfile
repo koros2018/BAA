@@ -29,7 +29,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="BAA - Blueprint AI Agent"
 LABEL org.opencontainers.image.description="图纸合规智能体 - DXF/DWG 图纸 AI 审查系统"
-LABEL org.opencontainers.image.version="2.5.4"
+LABEL org.opencontainers.image.version="2.5.11"
 LABEL org.opencontainers.image.source="https://github.com/koros2018/BAA"
 
 # 系统运行依赖（ezdwg/ezdxf 需要）

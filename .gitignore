@@ -6,6 +6,12 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.db-journal
+.pytest_cache/
+*.db-journal
 
 # 日志
 data/*.dwg
