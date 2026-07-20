@@ -24,6 +24,7 @@ async def list_review_history(
 ):
     """查询审查历史记录列表（分页）"""
     from .review_history import list_review_history as _list
+
     return _list(limit=limit, offset=offset, drawing_name=drawing_name, building_type=building_type)
 
 
@@ -34,6 +35,7 @@ def get_review_detail(
 ):
     """获取单条审查记录完整详情"""
     from .review_history import get_review_detail as _get
+
     result = _get(review_id)
     if result is None:
         raise HTTPException(status_code=404, detail="审查记录不存在")
@@ -47,6 +49,7 @@ def delete_review_history(
 ):
     """删除单条审查记录"""
     from .review_history import delete_review_history as _del
+
     ok = _del(review_id)
     if not ok:
         raise HTTPException(status_code=404, detail="审查记录不存在")
@@ -59,6 +62,7 @@ def clear_review_history(
 ):
     """清空所有审查历史记录"""
     from .review_history import clear_review_history as _clear
+
     count = _clear()
     return {"status": "success", "deleted": count, "message": f"已清空 {count} 条记录"}
 
