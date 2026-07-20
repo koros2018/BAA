@@ -25,13 +25,15 @@ try:
 except ImportError:
     try:
         import sys as _sys
+
         _sys.path.insert(0, "/home/kezhigang/.local/lib/python3.12/site-packages")
         from ezdwg import raw as _ezdwg_raw
     except ImportError:
         pass
 
 
-def _detect_dwg_format(path: Path
+def _detect_dwg_format(
+    path: Path,
 ) -> Optional[str]:  # method: def _detect_dwg_format(self, path: Path) -> Optional[str]:
     """检测 DWG 文件格式问题，返回诊断信息
 
@@ -62,7 +64,9 @@ def _detect_dwg_format(path: Path
     except Exception:  # catch exception
         return None  # return: None
 
-def _try_same_dir_dxf(path: Path
+
+def _try_same_dir_dxf(
+    path: Path,
 ) -> Optional[Any]:  # method: def _try_same_dir_dxf(self, path: Path) -> Optional[Any]:
     """尝试加载同目录的 DXF 文件作为兜底
 
@@ -89,9 +93,7 @@ def _try_same_dir_dxf(path: Path
         for dxf_file in parent_dir.rglob("*.dxf"):  # loop: iterate
             dxf_stem = dxf_file.stem  # assignment
             # 匹配规则：去掉编号、_t3 后缀后比较核心名称
-            if _names_match(
-                dwg_name, dxf_stem
-            ):  # condition: _names_match(dwg_name, dxf_stem):
+            if _names_match(dwg_name, dxf_stem):  # condition: _names_match(dwg_name, dxf_stem):
                 try:  # try block
                     dxf_doc = ezdxf.readfile(str(dxf_file))  # str conversion
                     msp = dxf_doc.modelspace()  # function call
@@ -103,7 +105,9 @@ def _try_same_dir_dxf(path: Path
 
     return None  # return: None
 
-def _names_match(dwg_name: str, dxf_name: str
+
+def _names_match(
+    dwg_name: str, dxf_name: str
 ) -> bool:  # method: def _names_match(self, dwg_name: str, dxf_name: str) -> bool
     """检查 DWG 和 DXF 文件名是否匹配
 
@@ -128,7 +132,9 @@ def _names_match(dwg_name: str, dxf_name: str
     dxf_norm = normalize(dxf_name)  # function call
     return dwg_norm == dxf_norm or dwg_norm in dxf_norm or dxf_norm in dwg_norm  # return
 
-def _try_librecad_convert(path: Path
+
+def _try_librecad_convert(
+    path: Path,
 ) -> Optional[Any]:  # method: def _try_librecad_convert(self, path: Path) -> Optional[Any]
     """尝试用 LibreCAD CLI 将 DWG 转换为 DXF
 
@@ -138,7 +144,9 @@ def _try_librecad_convert(path: Path
     # LibreCAD CLI 不支持 DWG→DXF 转换，跳过
     return None  # return: None
 
-def _try_aspose_cad_convert(path: Path
+
+def _try_aspose_cad_convert(
+    path: Path,
 ) -> Optional[Any]:  # method: def _try_aspose_cad_convert(self, path: Path) -> Optional[An
     """尝试用 aspose-cad 将 DWG 转换为 DXF
 
@@ -197,6 +205,7 @@ sys.exit(2)
         Path(tmp_path).unlink(missing_ok=True)
     return None
 
+
 def _try_ezdwg_export_dxf(self, path: Path) -> Optional[Any]:
     """第 1 级：ezdwg.read() + export_dxf() 直转"""
     try:  # try block
@@ -212,6 +221,7 @@ def _try_ezdwg_export_dxf(self, path: Path) -> Optional[Any]:
         return dxf_doc  # return
     except Exception:  # catch exception
         return None  # return: None
+
 
 def _resolve_xref_external(
     xref_names: List[str],
@@ -335,9 +345,7 @@ def _resolve_xref_external(
                     elif dxf_type == "LWPOLYLINE":  # # LWPOLYLINE 类型
                         pts = [(p[0], p[1]) for p in getattr(ent.dxf, "points", [])]
                         if len(pts) >= 2:  # # 至少 2 个点才构成线段
-                            msp_dst.add_lwpolyline(
-                                pts, dxfattribs={"color": color, "layer": layer}
-                            )
+                            msp_dst.add_lwpolyline(pts, dxfattribs={"color": color, "layer": layer})
                     elif dxf_type == "CIRCLE":  # # CIRCLE 类型
                         msp_dst.add_circle(
                             (ent.dxf.center[0], ent.dxf.center[1]),
@@ -356,9 +364,7 @@ def _resolve_xref_external(
                         ins_pt = getattr(ent.dxf, "insert", (0, 0, 0))
                         name = getattr(ent.dxf, "name", "UNKNOWN")
                         x, y = ins_pt[0], ins_pt[1]
-                        scale = (
-                            getattr(ent.dxf, "x_scale", getattr(ent.dxf, "y_scale", 1.0)) or 1.0
-                        )
+                        scale = getattr(ent.dxf, "x_scale", getattr(ent.dxf, "y_scale", 1.0)) or 1.0
                         rotation = getattr(ent.dxf, "rotation", 0.0) or 0.0
                         expanded = False
                         for (
@@ -411,7 +417,9 @@ def _resolve_xref_external(
 
     return unresolved  # # 返回未解析的 xref 列表
 
-def _try_manual_convert(path: Path
+
+def _try_manual_convert(
+    path: Path,
 ) -> Optional[Any]:  # method: def _try_manual_convert(self, path: Path) -> Optional[Any]:
     """第 2 级：ezdwg Entity.dxf 字典手动逐元素重建
 
@@ -617,7 +625,9 @@ def _try_manual_convert(path: Path
         pass  # code
     return None  # return: None
 
-def _try_raw_decode(path: Path
+
+def _try_raw_decode(
+    path: Path,
 ) -> Optional[Any]:  # method: def _try_raw_decode(self, path: Path) -> Optional[Any]:
     """第 3 级：ezdwg raw 逐个类型解码（跳过格式错误的类型）
 
@@ -760,6 +770,7 @@ def _try_raw_decode(path: Path
         pass  # code
     return None  # return: None
 
+
 def _parse_dwg(self, path: Path):  # method: def _parse_dwg(self, path: Path):
     """解析 DWG 文件，六级兜底策略
 
@@ -803,6 +814,7 @@ def _parse_dwg(self, path: Path):  # method: def _parse_dwg(self, path: Path):
 
     # ── 第 5 级：所有方案都失败 ──
     return None  # return: None
+
 
 def _insert_block_expand(
     block_entities,
@@ -876,9 +888,7 @@ def _insert_block_expand(
                                 break  # code
                     continue  # code
                 elif dxf_type == "LINE":  # elif condition
-                    start = transform_point(
-                        (ent.dxf.start[0], ent.dxf.start[1])
-                    )  # int conversion
+                    start = transform_point((ent.dxf.start[0], ent.dxf.start[1]))  # int conversion
                     end = transform_point((ent.dxf.end[0], ent.dxf.end[1]))  # int conversion
                     msp_dst.add_line(
                         start, end, dxfattribs={"color": ent_color, "layer": ent_layer}

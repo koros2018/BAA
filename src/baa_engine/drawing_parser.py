@@ -435,14 +435,35 @@ class DrawingParser:
     # ── 委托方法：保持外部（测试）调用兼容 ────────────────────
     # 以下方法已拆到 parsers.dwg_convert，保留实例方法代理
     # 供已有测试（test_engine.py）和第三方代码调用
-    def _insert_block_expand(self, block_entities, msp, base_x, base_y, scale,
-                              rotation, color, layer, block_defs=None,
-                              depth=0, max_depth=10):
+    def _insert_block_expand(
+        self,
+        block_entities,
+        msp,
+        base_x,
+        base_y,
+        scale,
+        rotation,
+        color,
+        layer,
+        block_defs=None,
+        depth=0,
+        max_depth=10,
+    ):
         """委托到 parsers.dwg_convert._insert_block_expand"""
-        return _insert_block_expand(block_entities, msp, base_x, base_y, scale,
-                                    rotation, color, layer, block_defs, depth, max_depth)
+        return _insert_block_expand(
+            block_entities,
+            msp,
+            base_x,
+            base_y,
+            scale,
+            rotation,
+            color,
+            layer,
+            block_defs,
+            depth,
+            max_depth,
+        )
 
     def _resolve_xref_external(self, doc, xref_path, msp):
         """委托到 parsers.dwg_convert._resolve_xref_external"""
         return _resolve_xref_external(doc, xref_path, msp)
-

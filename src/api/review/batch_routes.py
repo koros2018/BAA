@@ -28,12 +28,8 @@ from collections import Counter
 @router.post("/batch-review")
 async def batch_review(
     files: List[UploadFile] = File(...),
-    building_type: str = Query(
-        "civil", description="建筑类型: civil(民用) / industrial(工业)"
-    ),
-    building_types: Optional[List[str]] = Query(
-        None, description="多建筑类型列表（混合建筑场景）"
-    ),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表（混合建筑场景）"),
     api_key: str = Depends(verify_api_key),
 ):
     """多文件批量审查
@@ -80,9 +76,7 @@ async def batch_review(
             }
 
         try:
-            ext = (
-                file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-            )
+            ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             if ext not in SUPPORTED_FORMATS:
                 completed_files += 1
                 _get_rq().fail(task_id, f"不支持的文件格式: {ext}")
@@ -170,12 +164,8 @@ async def batch_review(
                                 "clause_title": f.clause.get("title", ""),
                                 "result": f.judgement["result"],
                                 "extracted_value": f.extracted_params["extracted_value"],
-                                "required_value": f.extracted_params.get(
-                                    "required_value", 1.2
-                                ),
-                                "difference": f.extracted_params.get(
-                                    "difference", 0
-                                ),
+                                "required_value": f.extracted_params.get("required_value", 1.2),
+                                "difference": f.extracted_params.get("difference", 0),
                                 "explanation": f.explanation[:120],
                                 "confidence": r.confidence,
                                 "severity": r.severity.value,
@@ -210,12 +200,8 @@ async def batch_review(
                                 "clause_title": f.clause.get("title", ""),
                                 "result": f.judgement["result"],
                                 "extracted_value": 0.0,
-                                "required_value": f.extracted_params.get(
-                                    "required_value", 1.0
-                                ),
-                                "difference": -f.extracted_params.get(
-                                    "required_value", 1.0
-                                ),
+                                "required_value": f.extracted_params.get("required_value", 1.0),
+                                "difference": -f.extracted_params.get("required_value", 1.0),
                                 "explanation": f.explanation[:120],
                             }
                         )
@@ -227,15 +213,9 @@ async def batch_review(
             score = 100.0
             if details:
                 violation_deduction = len(details) * 5.0
-                critical_count = sum(
-                    1 for d in details if d.get("severity") == "critical"
-                )
-                major_count = sum(
-                    1 for d in details if d.get("severity") == "major"
-                )
-                score = max(
-                    0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3
-                )
+                critical_count = sum(1 for d in details if d.get("severity") == "critical")
+                major_count = sum(1 for d in details if d.get("severity") == "major")
+                score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)
 
             completed_files += 1
             return {
@@ -291,9 +271,7 @@ async def batch_review(
             all_entities_list.extend(file_result.get("entities", []))
             for d in file_result["details"]:
                 severity_counter[d.get("severity", "major")] += 1
-            for etype, count in (
-                file_result["summary"].get("entity_types", {}).items()
-            ):
+            for etype, count in file_result["summary"].get("entity_types", {}).items():
                 entity_type_counter[etype] += count
 
     # 交叉分析：跨图纸找出同一违规类别
@@ -323,12 +301,8 @@ async def batch_review(
         "status": "success",
         "batch_summary": {
             "total_files": len(files),
-            "success_files": sum(
-                1 for r in file_results if r["status"] == "success"
-            ),
-            "failed_files": sum(
-                1 for r in file_results if r["status"] != "success"
-            ),
+            "success_files": sum(1 for r in file_results if r["status"] == "success"),
+            "failed_files": sum(1 for r in file_results if r["status"] != "success"),
             "total_violations": total_violations,
             "total_checks": total_checks,
             "total_entities": len(all_entities_list),

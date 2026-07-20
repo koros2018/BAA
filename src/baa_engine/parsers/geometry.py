@@ -133,13 +133,9 @@ def extract_properties(entity) -> Dict[str, Any]:
 
         elif entity.dxftype() == "INSERT":
             try:
-                block_name = (
-                    entity.dxf.name if hasattr(entity.dxf, "name") else ""
-                )
+                block_name = entity.dxf.name if hasattr(entity.dxf, "name") else ""
                 props["block_name"] = block_name or ""
-                ins = (
-                    entity.dxf.insert if hasattr(entity.dxf, "insert") else None
-                )
+                ins = entity.dxf.insert if hasattr(entity.dxf, "insert") else None
                 if ins:
                     props["insert_x"] = ins[0] if hasattr(ins, "__getitem__") else ins.x
                     props["insert_y"] = ins[1] if hasattr(ins, "__getitem__") else ins.y
@@ -149,7 +145,9 @@ def extract_properties(entity) -> Dict[str, Any]:
         # DIMENSION
         elif entity.dxftype() == "DIMENSION":
             try:
-                props["measured_length"] = float(entity.measure) if hasattr(entity, "measure") else None
+                props["measured_length"] = (
+                    float(entity.measure) if hasattr(entity, "measure") else None
+                )
             except Exception:
                 pass
 

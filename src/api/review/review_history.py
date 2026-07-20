@@ -176,18 +176,20 @@ def list_review_history(
 
         items = []
         for row in rows:
-            items.append({
-                "id": row["id"],
-                "drawingName": row["drawing_name"],
-                "buildingType": row["building_type"],
-                "standard": row["standard"],
-                "status": row["status"],
-                "score": row["score"],
-                "violationCount": row["violation_count"],
-                "entityCount": row["entity_count"],
-                "processingTimeMs": row["processing_time_ms"],
-                "reviewedAt": row["created_at"],
-            })
+            items.append(
+                {
+                    "id": row["id"],
+                    "drawingName": row["drawing_name"],
+                    "buildingType": row["building_type"],
+                    "standard": row["standard"],
+                    "status": row["status"],
+                    "score": row["score"],
+                    "violationCount": row["violation_count"],
+                    "entityCount": row["entity_count"],
+                    "processingTimeMs": row["processing_time_ms"],
+                    "reviewedAt": row["created_at"],
+                }
+            )
 
         return {"total": total, "items": items}
     finally:
@@ -199,9 +201,7 @@ def get_review_detail(review_id: str) -> Optional[Dict]:
     _init_db()
     conn = _get_conn()
     try:
-        row = conn.execute(
-            "SELECT * FROM review_history WHERE id = ?", (review_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM review_history WHERE id = ?", (review_id,)).fetchone()
         if not row:
             return None
         return {
@@ -229,9 +229,7 @@ def delete_review_history(review_id: str) -> bool:
     _init_db()
     conn = _get_conn()
     try:
-        cursor = conn.execute(
-            "DELETE FROM review_history WHERE id = ?", (review_id,)
-        )
+        cursor = conn.execute("DELETE FROM review_history WHERE id = ?", (review_id,))
         conn.commit()
         return cursor.rowcount > 0
     finally:

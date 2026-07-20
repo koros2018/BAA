@@ -119,14 +119,14 @@ class User(Base):
     comments = relationship("ReviewComment", back_populates="author", lazy="dynamic")
     owned_teams = relationship("Team", back_populates="owner", lazy="dynamic")
 
-# 设置密码：salt 随机生成 16 字节，与密码拼接后 sha256 散列
-# 存储格式 salt$hash，防止彩虹表攻击
+    # 设置密码：salt 随机生成 16 字节，与密码拼接后 sha256 散列
+    # 存储格式 salt$hash，防止彩虹表攻击
     def set_password(self, password: str):
         salt = secrets.token_hex(16)
         self.password_hash = f"{salt}${hashlib.sha256((salt + password).encode()).hexdigest()}"
 
-# 验证密码：从存储的 hash 中提取 salt，重新计算后比对
-# 返回 False 时上层应记录登录失败次数
+    # 验证密码：从存储的 hash 中提取 salt，重新计算后比对
+    # 返回 False 时上层应记录登录失败次数
     def verify_password(self, password: str) -> bool:
         if "$" not in self.password_hash:
             return False
