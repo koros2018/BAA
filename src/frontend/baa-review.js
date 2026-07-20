@@ -102,6 +102,9 @@ async function runReview() {
     loading.className = 'hidden';
 
     const summary = document.getElementById('review-summary');
+    // 保存最新审查结果，供修正建议生成复用
+    window._currentReviewResult = result;
+    window._currentReviewEntities = entities;
     if (result.status === 'success') {
       const vs = result.summary || {};
       summary.innerHTML =
@@ -1263,6 +1266,73 @@ function onCompareSelect() {
 
   // 修正后预览
   renderAfterPreview(r);
+}
+
+// ── AI 修正建议（P41） ───────────────────────────────────
+async function generateCorrectionSuggestions() {
+  const result = window._currentReviewResult;
+  const entities = window._currentReviewEntities;
+  if (!result || !entities) {
+    showToast('请先运行审查', 'info'); return;
+  }
+
+  const findings = (result.findings || []).filter(f => f.result === 'FAIL' && !f.is_duplicate);
+  if (findings.length === 0) {
+    document.getElementById('correction-results').innerHTML = '<div class="text-green-600">✅ 无违规，无需修正建议</div>';
+    return;
+  }
+
+  const panel = document.getElementById('review-correction-panel');
+  const loading = document.getElementById('correction-loading');
+  const resultsDiv = document.getElementById('correction-results');
+  const btn = document.getElementById('correction-generate-btn');
+  const modeSelect = document.getElementById('correction-mode-select');
+
+  panel.className = panel.className.replace(/hidden/g, '').trim();
+  loading.className = '';
+  resultsDiv.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const mode = modeSelect.value;
+    const r = await fetch(API_BASE() + '/correction/suggestions', {
+      method: 'POST',
+      headers: {...HEADERS(), 'Content-Type': 'application/json'},
+      body: JSON.stringify({findings: findings, entities: entities, mode: mode}),
+    });
+    const data = await r.json();
+    loading.className = 'hidden';
+
+    if (!data.suggestions || data.suggestions.length === 0) {
+      resultsDiv.innerHTML = '<div class="text-gray-500">未生成修正建议（规则引擎无匹配）</div>';
+      return;
+    }
+
+    // 按优先级排序
+    const priorityOrder = {high: 0, medium: 1, low: 2};
+    const sorted = data.suggestions.slice().sort((a, b) => (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3));
+
+    let html = '<p class="mb-1 text-gray-500">共 ' + sorted.length + ' 条建议（' + mode + ' 模式）</p>';
+    for (const s of sorted) {
+      const pColor = s.priority === 'high' ? 'red' : s.priority === 'medium' ? 'orange' : 'yellow';
+      const pLabel = s.priority === 'high' ? '🔴 高' : s.priority === 'medium' ? '🟠 中' : '🟡 低';
+      html += '<div class="p-1.5 bg-gray-50 rounded border-l-2 border-' + pColor + '-400">';
+      html += '<p class="font-medium"><span class="text-' + pColor + '-600">' + pLabel + '</span> [' + s.clause_id + '] ' + s.description + '</p>';
+      html += '<p class="text-gray-600 mt-0.5">💡 ' + s.recommendation + '</p>';
+      if (Object.keys(s.parameters || {}).length > 0) {
+        html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(s.parameters) + '</p>';
+      }
+      html += '</div>';
+    }
+    resultsDiv.innerHTML = html;
+  } catch (e) {
+    loading.className = 'hidden';
+    resultsDiv.innerHTML = '<div class="text-red-600">生成失败: ' + (e.message || e) + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '生成';
+  }
 }
 
 // ── 修正建议交互 ──────────────────────────────────────────
