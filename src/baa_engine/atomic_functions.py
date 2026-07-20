@@ -76,6 +76,23 @@ class AtomicFunction:  # class definition
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
     depends_on: List[str] = field(default_factory=list)  # 依赖的前置函数ID列表
 
+    def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
+        """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
+        if isinstance(self.target_entities, set):  # condition: set passed
+            self.target_entities = sorted(self.target_entities)  # normalize
+        if isinstance(self.depends_on, set):  # condition: set passed
+            self.depends_on = sorted(self.depends_on)  # normalize
+        # 操作符归一化：部分模块用短名 ge/le/eq/lt/exist，execute() 需要标准符号
+        OP_MAP = {  # code
+            "ge": ">=",  # normalize
+            "le": "<=",  # normalize
+            "eq": "==",  # normalize
+            "lt": "<",  # normalize
+            "exist": ">=",  # normalize: 存在性检查 actual 为 1/0，>=0 即通过
+            "not_exist": "<=",  # normalize: 不应存在 actual 为 1/0，<=0 即通过
+        }  # code
+        self.operator = OP_MAP.get(self.operator, self.operator)  # normalize
+
     # 原子函数默认超时时间（秒），30s 内应完成
     DEFAULT_TIMEOUT: int = 30  # assignment
 
@@ -133,29 +150,46 @@ class AtomicFunction:  # class definition
         # 真实图纸实体：实体存在即 PASS（无 exists 属性视为存在）
         if self.category in (FuncCategory.EXIST,):  # check: membership test
             props = entity.get("properties", {})  # function call
-            exists = props.get("exists", None)  # function call
-            count = props.get("count", 0)  # function call
-            # 兼容：字符串 'False'/'true' 转为布尔
-            if isinstance(exists, str):  # condition: isinstance(exists, str):
-                exists = exists.lower() in ("true", "1", "yes")  # function call
-            if isinstance(count, str):  # condition: isinstance(count, str):
-                try:  # 尝试
-                    count = float(count)  # function call
-                except ValueError:  # 捕获异常
-                    count = 0  # assignment
-            if exists is not None:  # check: value is not None
-                actual = 1.0 if exists else 0.0  # assignment
-            elif count > 0:  # 条件分支
-                actual = 1.0  # assignment
-            elif len(props) > 0:  # 条件分支
-                # 真实图纸：实体有任何属性 → 存在
-                actual = 1.0  # assignment
+            # 测试注入：_test_value 直接返回，跳过 exists/count 推断
+            if "_test_value" in props:  # condition: test injection
+                actual = float(props["_test_value"])  # assignment
+            else:
+                exists = props.get("exists", None)  # function call
+                count = props.get("count", 0)  # function call
+                # 兼容：字符串 'False'/'true' 转为布尔
+                if isinstance(exists, str):  # condition: isinstance(exists, str):
+                    exists = exists.lower() in ("true", "1", "yes")  # function call
+                if isinstance(count, str):  # condition: isinstance(count, str):
+                    try:  # 尝试
+                        count = float(count)  # function call
+                    except ValueError:  # 捕获异常
+                        count = 0  # assignment
+                if exists is not None:  # check: value is not None
+                    actual = 1.0 if exists else 0.0  # assignment
+                elif count > 0:  # 条件分支
+                    actual = 1.0  # assignment
+                elif len(props) > 0:  # 条件分支
+                    # 真实图纸：实体有任何属性 → 存在
+                    actual = 1.0  # assignment
+                else:  # 否则
+                    # 兼容：使用原 _extract_value 逻辑（检查 META 图层无属性实体的存在性）
+                    actual = (
+                        1.0 if (props.get("exists", False) or props.get("count", 0) > 0) else 0.0
+                    )  # function call
+            # 尊重 operator 字段（P57 后部分 EXIST 函数使用 == / <=）
+            # 生产环境 actual 为 0.0 或 1.0，语义等价
+            if self.operator == ">=":  # check: numeric comparison
+                passed = actual >= self.threshold  # assignment
+            elif self.operator == "<=":  # 分支
+                passed = actual <= self.threshold  # assignment
+            elif self.operator == "==":  # 分支
+                passed = abs(actual - self.threshold) < 1e-6  # function call
+            elif self.operator == ">":  # 分支
+                passed = actual > self.threshold  # assignment
+            elif self.operator == "<":  # 分支
+                passed = actual < self.threshold  # assignment
             else:  # 否则
-                # 兼容：使用原 _extract_value 逻辑（检查 META 图层无属性实体的存在性）
-                actual = (
-                    1.0 if (props.get("exists", False) or props.get("count", 0) > 0) else 0.0
-                )  # function call
-            passed = actual >= self.threshold  # assignment
+                passed = False  # assignment
             return FuncResult(  # return
                 func_id=self.func_id,  # assignment
                 func_name=self.name,  # assignment
@@ -309,6 +343,11 @@ class AtomicFunction:  # class definition
         props = entity.get("properties", {})  # function call
         entity_type = entity.get("type", "")  # function call
         func_id = self.func_id  # assignment
+
+        # 测试注入：_test_value 优先返回，跳过所有属性推断和单位转换
+        # 生产环境 entity 不含此 key，无影响
+        if "_test_value" in props:  # condition: test injection
+            return float(props["_test_value"])  # return
 
         # 如果有明确unit字段，直接按unit判断
         unit = props.get("unit", "")  # function call
@@ -686,6 +725,7 @@ class FuncRegistry:  # class definition
         self._timeout = timeout  # assignment
         # P7: 从 atomic/ 子包导入所有原子函数（去重后按 func_id 注册）
         from .atomic import ATOMIC_FUNCTIONS  # import from atomic subpackage
+
         for func in ATOMIC_FUNCTIONS:  # 循环
             self.register(func)  # function call
 
