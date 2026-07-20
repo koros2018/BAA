@@ -52,6 +52,43 @@ function maskKey(key) {
   return key.slice(0, 4) + '...' + key.slice(-4);
 }
 
+/* ── Toast 通知系统 ──
+ * 替代 window.alert，提供轻量级右下角通知。
+ * 自动 4s 后消失，最多同时 5 个。
+ */
+function showToast(message, type = 'info', duration = 4000) {
+  if (typeof message !== 'string' || !message) return;
+  const icons = { info: 'ℹ️', success: '✅', error: '❌', warn: '⚠️' };
+  const container = (() => {
+    let c = document.getElementById('toast-container');
+    if (!c) {
+      c = document.createElement('div');
+      c.id = 'toast-container';
+      c.className = 'toast-container';
+      document.body.appendChild(c);
+    }
+    return c;
+  })();
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.innerHTML = '<span>' + (icons[type] || 'ℹ️') + '</span><span>' + message + '</span>';
+  container.appendChild(toast);
+  if (container.children.length > 5) container.firstChild.remove();
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(20px)'; }, duration);
+  setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, duration + 300);
+}
+
+/* ── 审查进度条 ──
+ * 渲染为 <div class="review-progress"> 结构，替换纯文本 "⏳ 正在审查"
+ */
+function renderProgress(el, label, pct) {
+  if (!el) return;
+  el.className = 'review-progress';
+  el.innerHTML =
+    '<div class="review-progress-text"><span>' + (label || '处理中') + '</span><span>' + (pct || 0) + '%</span></div>' +
+    '<div class="review-progress-bar"><div class="review-progress-fill" style="width:' + (pct || 0) + '%"></div></div>';
+}
+
 function getActiveKeyValue() {
   const k = apiKeys.find(k => k.id === activeKey);
   return k ? k.key : '';
@@ -64,7 +101,7 @@ function switchApiKey(id) {
 }
 
 function deleteCurrentApiKey() {
-  if (!activeKey) { alert('当前没有选中任何令牌'); return; }
+  if (!activeKey) { showToast('当前没有选中任何令牌', 'info'); return; }
   if (!confirm('确认删除当前令牌？')) return;
   deleteApiKey(activeKey);
 }
@@ -120,9 +157,9 @@ function copyApiKey(id) {
   const k = apiKeys.find(k => k.id === id);
   if (!k) return;
   navigator.clipboard.writeText(k.key).then(() => {
-    alert('令牌已复制到剪贴板');
+    showToast('令牌已复制到剪贴板', 'info');
   }).catch(() => {
-    alert('复制失败，请手动复制');
+    showToast('复制失败，请手动复制', 'error');
   });
 }
 
@@ -159,7 +196,7 @@ async function importServerKey() {
   }
 
   const list = document.getElementById('import-key-list');
-  if (!list) { alert('页面元素异常'); return; }
+  if (!list) { showToast('页面元素异常', 'info'); return; }
   list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">⏳ 加载中...</div>';
   document.getElementById('import-key-modal').classList.remove('hidden');
   
@@ -216,9 +253,9 @@ async function importSelectedKey(keyId) {
       localStorage.setItem('baa_active_key', activeKey);
       populateTokenSelect();
       closeImportKeyModal();
-      alert('✅ 密钥验证通过，已添加到本地令牌列表');
+      showToast('✅ 密钥验证通过，已添加到本地令牌列表', 'success');
     } else {
-      alert('❌ 密钥验证失败：' + (verifyResult.message || '密钥无效或已过期'));
+      showToast('❌ 密钥验证失败：' + (verifyResult.message || '密钥无效或已过期'), 'error');
     }
   } catch (e) {
     // 后端验证不可用时，回退到直接保存
@@ -435,10 +472,10 @@ async function createAdminKey() {
       document.getElementById('key-created-modal').classList.remove('hidden');
       loadAdminKeys();
     } else {
-      alert('创建失败: ' + (data.detail?.message || JSON.stringify(data)));
+      showToast('创建失败: ' + (data.detail?.message || JSON.stringify(data)), 'error'));
     }
   } catch (e) {
-    alert('请求失败: ' + e.message);
+    showToast('请求失败: ' + e.message, 'error');
   } finally {
     btn.textContent = '创建';
     btn.disabled = false;
@@ -450,7 +487,7 @@ let _createdRawKey = '';
 function copyCreatedKey() {
   const txt = document.getElementById('created-raw-key').textContent;
   navigator.clipboard.writeText(txt).then(() => {
-    alert('已复制到剪贴板');
+    showToast('已复制到剪贴板', 'info');
   });
 }
 
@@ -506,7 +543,7 @@ async function showKeyDetail(keyId) {
 
 function showDetailRawKey() {
   if (!_detailRawKey) {
-    alert('密钥原文不可用（可能是旧版创建的密钥，仅初创时可见）');
+    showToast('密钥原文不可用（可能是旧版创建的密钥，仅初创时可见）', 'error');
     return;
   }
   const section = document.getElementById('detail-raw-key-section');
@@ -518,7 +555,7 @@ function showDetailRawKey() {
 function copyDetailRawKey() {
   if (!_detailRawKey) return;
   navigator.clipboard.writeText(_detailRawKey).then(() => {
-    alert('✅ 密钥已复制到剪贴板');
+    showToast('✅ 密钥已复制到剪贴板', 'success');
   }).catch(() => {
     // 降级：选中文本让用户手动复制
     const el = document.getElementById('detail-raw-key-value');
@@ -527,7 +564,7 @@ function copyDetailRawKey() {
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    alert('自动复制失败，请手动 Ctrl+C 复制选中的密钥');
+    showToast('自动复制失败，请手动 Ctrl+C 复制选中的密钥', 'error');
   });
 }
 
@@ -537,12 +574,12 @@ async function copyKeyFromDetail(keyId) {
     const data = await adminGet('/admin/keys/' + keyId);
     if (data && data.data && data.data.raw_key) {
       await navigator.clipboard.writeText(data.data.raw_key);
-      alert('✅ 密钥已复制到剪贴板');
+      showToast('✅ 密钥已复制到剪贴板', 'success');
     } else {
-      alert('❌ 密钥原文不可用（旧版创建的密钥仅初创时可见）');
+      showToast('❌ 密钥原文不可用（旧版创建的密钥仅初创时可见）', 'error');
     }
   } catch (e) {
-    alert('❌ 获取密钥失败: ' + e.message);
+    showToast('❌ 获取密钥失败: ' + e.message, 'error');
   }
 }
 
@@ -558,12 +595,12 @@ async function confirmRevokeKey(keyId) {
     const data = await adminPost('/admin/keys/' + keyId + '/revoke', {});
     if (data.status === 'success') {
       loadAdminKeys();
-      alert('密钥已撤销');
+      showToast('密钥已撤销', 'info');
     } else {
-      alert('撤销失败: ' + (data.detail?.message || JSON.stringify(data)));
+      showToast('撤销失败: ' + (data.detail?.message || JSON.stringify(data)), 'error'));
     }
   } catch (e) {
-    alert('请求失败: ' + e.message);
+    showToast('请求失败: ' + e.message, 'error');
   }
 }
 
@@ -578,19 +615,19 @@ async function confirmDeleteKey(keyId) {
     const data = await resp.json();
     if (resp.ok && data.status === 'success') {
       loadAdminKeys();
-      alert('密钥已永久删除');
+      showToast('密钥已永久删除', 'info');
     } else {
       const msg = data.detail?.message || JSON.stringify(data);
       if (resp.status === 403) {
-        alert('❌ 权限不足：当前令牌无admin权限。\n请先在「连接配置」页选择一个admin令牌后再试。\n\n详情: ' + msg);
+        showToast('❌ 权限不足：当前令牌无admin权限。\n请先在「连接配置」页选择一个admin令牌后再试。\n\n详情: ' + msg, 'error');
       } else if (resp.status === 404) {
-        alert('❌ 密钥不存在或已被删除: ' + msg);
+        showToast('❌ 密钥不存在或已被删除: ' + msg, 'error');
       } else {
-        alert('删除失败 (' + resp.status + '): ' + msg);
+        showToast('删除失败 (' + resp.status + '): ' + msg, 'error');
       }
     }
   } catch (e) {
-    alert('请求失败: ' + e.message);
+    showToast('请求失败: ' + e.message, 'error');
   }
 }
 

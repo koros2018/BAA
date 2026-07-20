@@ -43,9 +43,9 @@ let fileCache = {};
 
 async function uploadDrawing() {
   const file = document.getElementById('file-input').files[0];
-  if (!file) { alert('请先选择图纸文件'); return; }
+  if (!file) { showToast('请先选择图纸文件', 'info'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'dxf') { alert('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。'); return; }
+  if (ext !== 'dxf') { showToast('仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。', 'warn'); return; }
 
   const bt = document.getElementById('drawing-bt').value;
 
@@ -179,7 +179,7 @@ function updateBatchButton() {
 
 async function batchReview() {
   const selected = parsedDrawings.filter(d => d._selected);
-  if (selected.length === 0) { alert('请先勾选要送审的图纸'); return; }
+  if (selected.length === 0) { showToast('请先勾选要送审的图纸', 'info'); return; }
   
   const progress = document.getElementById('upload-progress');
   progress.className = 'card mb-4 text-sm text-gray-500';
@@ -225,9 +225,9 @@ async function batchReview() {
 async function uploadAndReview() {
   // 先执行上传+解析
   const file = document.getElementById('file-input').files[0];
-  if (!file) { alert('请先选择图纸文件'); return; }
+  if (!file) { showToast('请先选择图纸文件', 'info'); return; }
   const ext = file.name.split('.').pop().toLowerCase();
-  if (ext !== 'dxf') { alert('仅支持 .dxf 和 .dwg 格式'); return; }
+  if (ext !== 'dxf') { showToast('仅支持 .dxf 和 .dwg 格式', 'warn'); return; }
   const bt = document.getElementById('drawing-bt').value;
   const progress = document.getElementById('upload-progress');
   progress.className = 'card mb-4 text-sm text-gray-500';
@@ -390,7 +390,7 @@ async function deleteReviewRecord(id) {
     reviewResults = reviewResults.filter(r => r.id !== id);
     renderHistoryList();
   } catch(e) {
-    alert('删除失败: ' + e.message);
+    showToast('删除失败: ' + e.message, 'error');
   }
 }
 async function viewHistoryDetail(id) {
@@ -648,7 +648,7 @@ function createTeam() {
   if (!name) return;
   var desc = document.getElementById('modal-team-desc').value.trim();
   collabApi('/collab/teams', { method: 'POST', body: JSON.stringify({name: name, description: desc}) }).then(function(d) {
-    if (d.status === 'success') { closeCollabModal(); collabRefresh(); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+    if (d.status === 'success') { closeCollabModal(); collabRefresh(); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
   });
 }
 
@@ -685,7 +685,7 @@ function createProject(teamId) {
   var desc = document.getElementById('modal-proj-desc').value.trim();
   var btype = document.getElementById('modal-proj-type').value.trim();
   collabApi('/collab/projects', { method: 'POST', body: JSON.stringify({name: name, team_id: teamId, description: desc, building_type: btype}) }).then(function(d) {
-    if (d.status === 'success') { showTeamDetail(teamId); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+    if (d.status === 'success') { showTeamDetail(teamId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
   });
 }
 
@@ -721,7 +721,7 @@ function createReviewSession(projectId) {
   if (!name) return;
   var desc = document.getElementById('modal-rs-desc').value.trim();
   collabApi('/collab/review-sessions', { method: 'POST', body: JSON.stringify({project_id: projectId, name: name, description: desc}) }).then(function(d) {
-    if (d.status === 'success') { showProjectDetail(projectId); } else { alert(d.detail || '\u521b\u5efa\u5931\u8d25'); }
+    if (d.status === 'success') { showProjectDetail(projectId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
   });
 }
 
