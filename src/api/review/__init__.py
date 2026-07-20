@@ -65,3 +65,5 @@ router = APIRouter()
 from . import review_routes
 from . import render_routes
 from . import compare_routes
+from . import batch_routes
+from . import history_routes
