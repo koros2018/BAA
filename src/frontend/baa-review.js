@@ -171,9 +171,11 @@ async function runReview() {
       // 存储到全局供分页使用
       window._reviewViolations = violations;
       window._reviewThermalViolations = violations.filter(f => f.func_id && f.func_id.startsWith('THERM-'));
+      window._reviewStructuralViolations = violations.filter(f => f.func_id && f.func_id.startsWith('STR-'));
       window._reviewThermalSummary = null;
-      // 渲染热工违规列表
+      // 渲染热工/结构违规列表
       renderThermalViolations(window._reviewThermalViolations);
+      renderStructuralViolations(window._reviewStructuralViolations);
       window._reviewPageSize = 15;
       window._reviewPage = 1;
       window._reviewFilter = 'all';
@@ -367,13 +369,25 @@ function switchReviewTab(tab) {
   document.getElementById('review-tab-thermal').className = tab === 'thermal'
     ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
     : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
+  document.getElementById('review-tab-structural').className = tab === 'structural'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
   document.getElementById('review-panel-single').className = tab === 'single' ? '' : 'hidden';
   document.getElementById('review-panel-batch').className = tab === 'batch' ? '' : 'hidden';
   document.getElementById('review-panel-feedback').className = tab === 'feedback' ? '' : 'hidden';
   document.getElementById('review-panel-thermal').className = tab === 'thermal' ? '' : 'hidden';
+  document.getElementById('review-panel-structural').className = tab === 'structural' ? '' : 'hidden';
   if (tab === 'feedback') {
     loadFeedbackStats();
     loadFeedbacks();
+  }
+  if (tab === 'structural') {
+    renderStructuralThresholds();
+    renderStructuralViolations(window._reviewStructuralViolations || []);
+  }
+  if (tab === 'thermal') {
+    renderThermalThresholds();
+    renderThermalViolations(window._reviewThermalViolations || []);
   }
 }
 
@@ -1613,3 +1627,123 @@ function computeMultiLayerK() {
   }
 }
 
+
+// ── P46 结构荷载验算 ────────────────────────────────────────
+
+// 各构件类型的结构参数（GB50009/GB50010/GB55008）
+const STRUCTURAL_PARAMS = {
+  floor_live:       { label: '楼面活荷载',       clause: 'GB50009-5.1.1',   unit: 'kN/㎡', threshold: { 住宅: 2.0, 办公: 2.5, 商业: 3.5, 图书馆: 4.0, 档案: 5.0, 车库: 2.5 },   op: '>=' },
+  beam_reinforcement:{ label: '梁最小配筋率',     clause: 'GB50010-9.2.1',   unit: '%',     threshold: { 默认: 0.20 },                                                      op: '>=' },
+  column_reinforcement:{label: '柱纵向配筋率下限',clause: 'GB50010-11.4.12', unit: '%',     threshold: { 抗震一级: 0.55, 抗震二级: 0.50, 抗震三级: 0.55, 抗震四级: 0.50 }, op: '>=' },
+  foundation_depth:  { label: '基础最小埋深',     clause: 'GB50007-5.1.3',   unit: 'm',     threshold: { 默认: 0.50, 冻土区: 1.00 },                                       op: '>=' },
+  slab_thickness:    { label: '楼板最小厚度',     clause: 'GB50010-9.1.2',   unit: 'mm',    threshold: { 默认: 80, 屋面板: 90 },                                          op: '>=' },
+  beam_height:       { label: '梁高跨比',         clause: 'GB50010-9.2.3',   unit: '1/跨',  threshold: { 简支: 0.083, 连续: 0.067 },                                       op: '>=' },
+  concrete_strength: { label: '混凝土最低强度等级',clause:'GB50010-4.1.2',   unit: 'MPa',   threshold: { 默认: 20, 预应力: 40 },                                          op: '>=' },
+  seismic_grade:     { label: '抗震等级标注',     clause: 'GB55008-3.2.1',   unit: '有/无', threshold: { 必须: 1 },                                                        op: '==' },
+  seismic_intensity: { label: '抗震设防烈度',     clause: 'GB55008-3.1.1',   unit: '度',    threshold: { 最小: 6 },                                                         op: '>=' },
+  shear_wall_thickness:{label: '剪力墙最小厚度',  clause: 'GB55008-4.3.1',   unit: 'mm',    threshold: { 默认: 160, 框支层: 200 },                                         op: '>=' },
+  pile_count:        { label: '柱下独立桩基数量', clause: 'GB55008-4.1.1',   unit: '根',    threshold: { 默认: 2, 条形桩基: 3 },                                          op: '>=' },
+};
+
+function renderStructuralThresholds() {
+  const el = document.getElementById('structural-thresholds');
+  if (!el) return;
+  let html = '<table class="w-full"><thead><tr class="text-gray-400 border-b">' +
+    '<th class="text-left py-1">构件</th><th>要求</th><th>单位</th><th>规范</th></tr></thead><tbody>';
+  for (const [key, p] of Object.entries(STRUCTURAL_PARAMS)) {
+    const threshText = Object.entries(p.threshold).map(([k, v]) => k + ':' + v).join(' / ');
+    html += '<tr class="border-b"><td class="py-1">' + p.label + '</td>';
+    html += '<td class="text-center">' + p.op + ' ' + threshText + '</td>';
+    html += '<td class="text-center">' + p.unit + '</td>';
+    html += '<td class="text-gray-500">' + p.clause + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function onStructuralCompTypeChange() {
+  // 重置为默认值
+  const type = document.getElementById('structural-comp-type').value;
+  const p = STRUCTURAL_PARAMS[type];
+  if (p) {
+    const firstKey = Object.keys(p.threshold)[0];
+    document.getElementById('structural-value').value = p.threshold[firstKey];
+  }
+}
+
+async function computeStructuralCheck() {
+  const compType = document.getElementById('structural-comp-type').value;
+  const value = parseFloat(document.getElementById('structural-value').value);
+  const note = document.getElementById('structural-note').value;
+  const resultDiv = document.getElementById('structural-result');
+
+  if (isNaN(value)) {
+    resultDiv.innerHTML = '<span class="text-red-600">输入值无效</span>';
+    return;
+  }
+
+  const p = STRUCTURAL_PARAMS[compType];
+  if (!p) return;
+
+  // 选择适用阈值：优先按备注匹配，否则取第一个
+  let activeThreshold = null;
+  let activeThresholdLabel = '';
+  for (const [label, t] of Object.entries(p.threshold)) {
+    if (note && note.includes(label)) {
+      activeThreshold = t;
+      activeThresholdLabel = label;
+      break;
+    }
+  }
+  if (activeThreshold === null) {
+    const keys = Object.keys(p.threshold);
+    activeThreshold = p.threshold[keys[0]];
+    activeThresholdLabel = keys[0];
+  }
+
+  let passed;
+  if (p.op === '>=') passed = value >= activeThreshold;
+  else if (p.op === '<=') passed = value <= activeThreshold;
+  else if (p.op === '==') passed = value === activeThreshold;
+  else if (p.op === '>')  passed = value > activeThreshold;
+  else if (p.op === '<')  passed = value < activeThreshold;
+  else passed = value === activeThreshold;
+
+  const sign = p.op === '>=' ? '≥' : p.op === '<=' ? '≤' : p.op === '==' ? '=' : p.op;
+
+  let html = '<div class="mt-2 p-2 ' + (passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') + ' rounded">';
+  html += '<p class="font-medium ' + (passed ? 'text-green-700' : 'text-red-700') + '">';
+  html += p.label + ': ' + value + ' ' + p.unit + ' ' + (passed ? '✅ ' : '❌ ') + sign + ' ' + activeThreshold + ' ' + p.unit;
+  html += '</p>';
+  html += '<p class="text-xs text-gray-500">规范: ' + p.clause + ' · 适用条件: ' + activeThresholdLabel + '</p>';
+  if (!passed) {
+    html += '<p class="text-orange-600 text-xs mt-1">→ 当前值不满足规范要求，建议修正至 ' + sign + ' ' + activeThreshold + ' ' + p.unit + '</p>';
+  }
+  html += '</div>';
+  resultDiv.innerHTML = html;
+}
+
+// 渲染结构违规列表（审查结果联动）
+function renderStructuralViolations(structuralViolations) {
+  const el = document.getElementById('structural-review-list');
+  if (!el) return;
+  if (!structuralViolations || structuralViolations.length === 0) {
+    el.innerHTML = '<span class="text-gray-400">✅ 单图审查后自动展示结构违规项</span>';
+    return;
+  }
+  let html = '';
+  structuralViolations.forEach(f => {
+    const funcId = f.func_id || 'STR-xxx';
+    const title = f.clause_title || f.description || '未知条款';
+    const clauseId = f.clause_id || '';
+    const actual = f.extracted_value || f.actual_value || '?';
+    const required = f.required_value || f.threshold || '?';
+    const isFail = f.result === 'FAIL';
+    html += '<div class="p-1.5 rounded ' + (isFail ? 'bg-red-50 border-l-2 border-red-400' : 'bg-green-50 border-l-2 border-green-400') + ' mb-1">';
+    html += '<p class="font-medium ' + (isFail ? 'text-red-700' : 'text-green-700') + '">' + funcId + '</p>';
+    html += '<p class="text-gray-600">' + title + '</p>';
+    html += '<p class="text-xs text-gray-500">实测: ' + (typeof actual === 'number' ? actual.toFixed(3) : actual) + ' · 要求: ' + (typeof required === 'number' ? required.toFixed(3) : required) + ' · [' + clauseId + ']</p>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
