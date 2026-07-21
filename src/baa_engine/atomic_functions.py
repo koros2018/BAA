@@ -28,6 +28,7 @@ class FuncCategory(Enum):  # class definition
     EVAC = "evac"  # 疏散路径判定（V2新增）
     ACCESS = "access"  # 无障碍设计判定（P47 新增）
     LIGHT = "light"  # 照明/照度判定（P57 扩展）
+    THERMAL = "thermal"  # 热工性能判定（P45 新增）
 
 
 class Severity(Enum):  # class definition
@@ -714,7 +715,7 @@ class AtomicFunction:  # class definition
 
 
 class FuncRegistry:  # class definition
-    """原子函数注册表 - 从 atomic/ 子包加载 390 条原子函数"""
+    """原子函数注册表 - 从 atomic/ 子包加载 406 条原子函数"""
 
     # P7: 原子函数已从巨型单文件拆分为 atomic/ 子包，此处直接导入
     # atomic/__init__.py 合并了所有模块的 ATOMIC_FUNCTIONS 列表
@@ -912,4 +913,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 390  # 框架总容量：260 + 40 P57 扩展（补齐5条缺失子条款 + 35条多维度扩展）
+        return 406  # 框架总容量：390 + 16 P45 thermal（GB50176/GB50189/GB55015 热工性能）
