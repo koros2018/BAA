@@ -303,6 +303,78 @@ CORRECTION_TEMPLATES = {  # 赋值: CORRECTION_TEMPLATES
             "min_lighting_duration_h": 0.5,
         },  # 赋值: parameters
     ),
+    # ── 热工性能修正建议（P45）────────────────────────────
+    "THERM-001": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "exterior_wall"),  # 安全获取值
+        clause_id="GB55015-3.2.2",  # 赋值: clause_id
+        clause_title="外墙传热系数",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"外墙传热系数超标：当前{r.actual:.3f} W/(m²·K)，需要≤{r.threshold:.3f} W/(m²·K)",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"外墙K值需降至{r.threshold:.3f} W/(m²·K)以下。建议：①加厚外墙保温层（岩棉/聚苯板）；②采用外保温系统；③消除热桥部位保温连续性。",  # 赋值: recommendation
+        parameters={"target_k_value": r.threshold, "current_k_value": r.actual},  # 赋值: parameters
+    ),
+    "THERM-002": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "roof"),  # 安全获取值
+        clause_id="GB55015-3.2.2",  # 赋值: clause_id
+        clause_title="屋顶传热系数",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"屋顶传热系数超标：当前{r.actual:.3f} W/(m²·K)，需要≤{r.threshold:.3f} W/(m²·K)",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"屋顶K值需降至{r.threshold:.3f} W/(m²·K)以下。建议：①加厚屋顶保温层（聚氨酯/岩棉）；②设置通风隔热层；③采用反射屋面或种植屋面。",  # 赋值: recommendation
+        parameters={"target_k_value": r.threshold, "current_k_value": r.actual},  # 赋值: parameters
+    ),
+    "THERM-004": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "exterior_window"),  # 安全获取值
+        clause_id="GB55015-3.2.2",  # 赋值: clause_id
+        clause_title="外窗传热系数",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"外窗传热系数超标：当前{r.actual:.3f} W/(m²·K)，需要≤{r.threshold:.3f} W/(m²·K)",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"外窗K值需降至{r.threshold:.3f} W/(m²·K)以下。建议：①更换为断热铝合金/塑钢窗；②采用双层或三层中空玻璃；③充惰性气体（氩气）。",  # 赋值: recommendation
+        parameters={"target_k_value": r.threshold, "current_k_value": r.actual},  # 赋值: parameters
+    ),
+    "THERM-008": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "insulation"),  # 安全获取值
+        clause_id="GB55015-3.2.2",  # 赋值: clause_id
+        clause_title="外墙保温层厚度",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"外墙保温层厚度不足：当前{r.actual:.1f}mm，需要≥{r.threshold:.1f}mm",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"外墙保温层需增厚至{r.threshold:.1f}mm以上。建议按实际K值反算所需厚度，优先采用外保温系统。",  # 赋值: recommendation
+        parameters={
+            "min_thickness_mm": r.threshold,
+            "current_thickness_mm": r.actual,
+        },  # 赋值: parameters
+    ),
+    "THERM-012": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "exterior_window"),  # 安全获取值
+        clause_id="GB7106-5.1",  # 赋值: clause_id
+        clause_title="外窗气密性等级",  # 赋值: clause_title
+        action=CorrectionAction.UPGRADE,  # 赋值: action
+        description=f"外窗气密性等级不足：当前{r.actual:.0f}级，需要≥{r.threshold:.0f}级",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"外窗气密性需提升至{r.threshold:.0f}级以上。建议：①更换为高气密性窗型（如内开内倒、推拉窗改为平开窗）；②加强密封胶条；③提高五金件密封性能。",  # 赋值: recommendation
+        parameters={
+            "target_sealing_level": r.threshold,
+            "current_sealing_level": r.actual,
+        },  # 赋值: parameters
+    ),
 }
 
 
