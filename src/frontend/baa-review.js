@@ -241,6 +241,14 @@ async function runReview() {
             const confPct = Math.round(conf * 100);
             const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
             const confLabel = conf >= 0.85 ? '高置信' : conf >= 0.6 ? '中置信' : '低置信';
+            // 修正建议：从 result.corrections 中按 clause_id 匹配
+            // corrections 的 clause_id 是规范ID（如 GB50016-5.5.18），与 detail 的 clause_id 对齐
+            const corrKey = (f.clause_id || f.func_id || '').trim();
+            const corrs = (window._currentReviewResult && window._currentReviewResult.corrections || [])
+              .filter(c => c.clause_id === corrKey);
+            const hasCorr = corrs.length > 0;
+            const uid = 'corr-' + (f.func_id || f.clause_id || 'x') + '-' + (f.entity_id || '') + '-' + Math.random().toString(36).slice(2, 6);
+
             html +=
               '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5">' +
               '<div class="flex justify-between items-start">' +
@@ -251,8 +259,21 @@ async function runReview() {
               '<span class="text-' + sevColor + '-600 font-medium">' + (f.result || '') + '</span></div></div>' +
               '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + ' · 要求: ' + (f.required_value != null ? Number(f.required_value).toFixed(2) : '-') + '</span><br/>' +
               '<div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="' + confColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></div>' +
-              '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
-              '</div>';
+              '<span class="text-gray-400">' + (f.explanation || '') + '</span>';
+            // 修正建议内联折叠
+            if (hasCorr) {
+              const top = corrs[0];
+              const pColor = top.priority === 'high' ? 'red' : top.priority === 'medium' ? 'orange' : 'yellow';
+              const pLabel = top.priority === 'high' ? '🔴 高' : top.priority === 'medium' ? '🟠 中' : '🟡 低';
+              html += '<details class="mt-1"><summary class="cursor-pointer text-purple-600 font-medium">💡 修正建议 (' + corrs.length + '条)</summary>';
+              html += '<div class="mt-0.5 p-1 bg-' + pColor + '-50 rounded border-l-2 border-' + pColor + '-400">';
+              html += '<p class="text-xs"><span class="text-' + pColor + '-600">' + pLabel + '</span> ' + top.recommendation + '</p>';
+              if (Object.keys(top.parameters || {}).length > 0) {
+                html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(top.parameters) + '</p>';
+              }
+              html += '</div></details>';
+            }
+            html += '</div>';
           });
         }
 
@@ -269,6 +290,63 @@ async function runReview() {
         }
 
         document.getElementById('review-details').innerHTML = html;
+      }
+
+      // ── 违规热力图（按 func_id 前缀分组） ──────────────
+      function renderViolationHeatmap(violations) {
+        if (violations.length === 0) return '';
+
+        // 按 func_id 前缀分组（如 DIM-, EXIST-, STR-, THERM-, EVAC-）
+        const groups = {};
+        violations.forEach(f => {
+          const fid = f.func_id || f.clause_id || 'UNKNOWN';
+          const prefix = fid.split('-')[0];
+          if (!groups[prefix]) groups[prefix] = { total: 0, confSum: 0, critical: 0, major: 0, minor: 0, items: [] };
+          groups[prefix].total++;
+          groups[prefix].confSum += (f.confidence != null ? f.confidence : 1.0);
+          const sev = f.severity || 'minor';
+          if (sev === 'critical') groups[prefix].critical++;
+          else if (sev === 'major') groups[prefix].major++;
+          else groups[prefix].minor++;
+          groups[prefix].items.push(f);
+        });
+
+        // 前缀显示名
+        const prefixNames = {
+          'DIM': '尺寸', 'EXIST': '存在性', 'DIST': '距离', 'COUNT': '数量',
+          'AREA': '面积', 'ATTR': '属性', 'LIGHT': '照明', 'THERM': '热工',
+          'STR': '结构', 'EVAC': '疏散'
+        };
+        const sortedGroups = Object.entries(groups).sort((a, b) => b[1].total - a[1].total);
+
+        let html = '<div class="card p-2 text-xs mb-3">';
+        html += '<p class="font-medium text-sm mb-2 text-gray-600">🔥 违规热力图（按规范类型）</p>';
+        html += '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">';
+        sortedGroups.forEach(([prefix, g]) => {
+          const avgConf = g.total > 0 ? g.confSum / g.total : 1.0;
+          const confPct = Math.round(avgConf * 100);
+          const density = g.total; // 违规数代表密度
+          // 颜色：高违规+低置信 = 深红，低违规+高置信 = 浅绿
+          const heatColor = density >= 10 ? 'red' : density >= 5 ? 'orange' : density >= 2 ? 'yellow' : 'green';
+          html += '<div class="bg-' + heatColor + '-50 rounded p-1.5 cursor-pointer' + (density >= 5 ? ' ring-1 ring-' + heatColor + '-300' : '') + '" onclick="window._reviewFilter=\'' + prefix + '\';window._reviewPage=1;renderViolationPage()">' +
+            '<p class="font-medium text-' + heatColor + '-700">' + (prefixNames[prefix] || prefix) + '</p>' +
+            '<p class="text-xs text-gray-500">' + g.total + ' 项</p>' +
+            // 迷你柱状图
+            '<div class="mt-1 bg-gray-200 rounded h-1.5 overflow-hidden">' +
+            '<div class="' + heatColor + '-500 h-full rounded" style="width:' + Math.min(100, density * 8) + '%"></div>' +
+            '</div>' +
+            // 置信度条
+            '<div class="mt-0.5 flex items-center gap-0.5"><span class="text-[9px] text-gray-400">置信</span>' +
+            '<div class="flex-1 bg-gray-200 rounded h-1 overflow-hidden"><div class="' + (avgConf >= 0.85 ? 'green' : avgConf >= 0.6 ? 'yellow' : 'red') + '-500 h-full rounded" style="width:' + confPct + '%"></div></div></div>' +
+            // 严重度分布
+            '<div class="mt-0.5 text-[9px] text-gray-400'>
+              + (g.critical > 0 ? '<span class="text-red-500">●' + g.critical + '</span> ' : '')
+              + (g.major > 0 ? '<span class="text-orange-500">●' + g.major + '</span>' : '')
+            + '</div>' +
+            '</div>';
+        });
+        html += '</div></div>';
+        return html;
       }
 
       // ── 结构荷载违规汇总表 ──
@@ -389,10 +467,16 @@ async function runReview() {
         return html;
       }
 
-      // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载）
+      // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载）+ 热力图
       const summaryHtml = renderEvacCorridorSummary(violations) + renderStructuralSummary(violations);
       if (summaryHtml) {
         document.getElementById('review-details').insertAdjacentHTML('beforebegin', summaryHtml);
+      }
+
+      // 热力图：按 func_id 前缀分组，柱状图展示违规密度
+      const heatHtml = renderViolationHeatmap(violations);
+      if (heatHtml) {
+        document.getElementById('review-details').insertAdjacentHTML('beforebegin', heatHtml);
       }
 
       if (violations.length > 0) {
