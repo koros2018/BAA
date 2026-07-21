@@ -12,6 +12,7 @@ from .fire_sprinkler import MODULE_FUNCS as _fire_sprinkler  # 自动喷水灭�
 from .fire_alarm import MODULE_FUNCS as _fire_alarm  # 火灾自动报警
 from .accessibility import MODULE_FUNCS as _accessibility  # 无障碍
 from .thermal import MODULE_FUNCS as _thermal  # 建筑热工 + 节能
+from .structural import MODULE_FUNCS as _structural  # 结构荷载
 
 
 def _merge_modules(*modules):
@@ -30,6 +31,7 @@ ATOMIC_FUNCTIONS = _merge_modules(
     _fire_alarm,
     _accessibility,
     _thermal,
+    _structural,
 )
 
 __all__ = ["ATOMIC_FUNCTIONS"]

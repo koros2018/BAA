@@ -611,21 +611,26 @@ async def review_from_data(  # code
 # ── P45 热工性能 K 值计算 ──────────────────────────────────
 
 THERMAL_MATERIALS = {
-    "rockwool":  {"name": "岩棉板",      "lambda": 0.035, "density": 800},
-    "eps":       {"name": "EPS聚苯板",  "lambda": 0.040, "density": 20},
-    "xps":       {"name": "XPS挤塑板",  "lambda": 0.030, "density": 35},
-    "pu":        {"name": "聚氨酯",     "lambda": 0.024, "density": 40},
-    "aerogel":   {"name": "气凝胶",     "lambda": 0.012, "density": 120},
+    "rockwool": {"name": "岩棉板", "lambda": 0.035, "density": 800},
+    "eps": {"name": "EPS聚苯板", "lambda": 0.040, "density": 20},
+    "xps": {"name": "XPS挤塑板", "lambda": 0.030, "density": 35},
+    "pu": {"name": "聚氨酯", "lambda": 0.024, "density": 40},
+    "aerogel": {"name": "气凝胶", "lambda": 0.012, "density": 120},
 }
 
 THERMAL_THRESHOLDS = {
-    "severe_cold": {"exterior_wall": 0.45, "roof": 0.35, "ground_floor": 0.30, "exterior_window": 2.0},
-    "cold":        {"exterior_wall": 0.60, "roof": 0.50, "ground_floor": 0.45, "exterior_window": 2.4},
-    "hot_cold":    {"exterior_wall": 1.50, "roof": 1.20, "ground_floor": 0.60, "exterior_window": 3.2},
-    "hot_warm":    {"exterior_wall": 2.00, "roof": 1.50, "ground_floor": 0.80, "exterior_window": 4.0},
+    "severe_cold": {
+        "exterior_wall": 0.45,
+        "roof": 0.35,
+        "ground_floor": 0.30,
+        "exterior_window": 2.0,
+    },
+    "cold": {"exterior_wall": 0.60, "roof": 0.50, "ground_floor": 0.45, "exterior_window": 2.4},
+    "hot_cold": {"exterior_wall": 1.50, "roof": 1.20, "ground_floor": 0.60, "exterior_window": 3.2},
+    "hot_warm": {"exterior_wall": 2.00, "roof": 1.50, "ground_floor": 0.80, "exterior_window": 4.0},
 }
 
-HI = 8.7   # 内表面传热系数 W/(m²·K)
+HI = 8.7  # 内表面传热系数 W/(m²·K)
 HO = 23.0  # 外表面传热系数 W/(m²·K)
 
 
