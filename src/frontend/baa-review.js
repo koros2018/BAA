@@ -236,14 +236,21 @@ async function runReview() {
           pageItems.forEach(f => {
             const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
             const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
+            // 置信度可视化（后端 detail 已传 confidence 字段）
+            const conf = f.confidence != null ? f.confidence : 1.0;
+            const confPct = Math.round(conf * 100);
+            const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
+            const confLabel = conf >= 0.85 ? '高置信' : conf >= 0.6 ? '中置信' : '低置信';
             html +=
               '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5">' +
               '<div class="flex justify-between items-start">' +
-              '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
+              '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.func_id || f.clause_id || '') + ')</span></div>' +
               '<div class="flex gap-1">' +
               '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
+              '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + confColor + '-100 text-' + confColor + '-700" title="置信度 ' + confPct + '%">' + confLabel + '</span>' +
               '<span class="text-' + sevColor + '-600 font-medium">' + (f.result || '') + '</span></div></div>' +
-              '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
+              '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + ' · 要求: ' + (f.required_value != null ? Number(f.required_value).toFixed(2) : '-') + '</span><br/>' +
+              '<div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="' + confColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></div>' +
               '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
               '</div>';
           });
@@ -262,6 +269,35 @@ async function runReview() {
         }
 
         document.getElementById('review-details').innerHTML = html;
+      }
+
+      // ── 结构荷载违规汇总表 ──
+      function renderStructuralSummary(violations) {
+        const strViols = violations.filter(f =>
+          f.func_id && f.func_id.startsWith('STR-')
+        );
+        if (strViols.length === 0) return '';
+
+        let html = '<div class="card p-2 text-xs mb-3">';
+        html += '<p class="font-medium text-sm mb-1 text-purple-600">🏗️ 结构荷载违规 (' + strViols.length + '项)</p>';
+        html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+          '<th class="pb-1 pr-1">函数</th><th class="pb-1 pr-1">构件</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1 pr-1">置信</th><th class="pb-1">严重</th></tr></thead><tbody>';
+        strViols.slice(0, 10).forEach(f => {
+          const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+          const conf = f.confidence != null ? f.confidence : 1.0;
+          const confPct = Math.round(conf * 100);
+          const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
+          html += '<tr class="border-b border-gray-50">' +
+            '<td class="py-1 pr-1">' + (f.func_id || '') + '</td>' +
+            '<td class="py-1 pr-1 truncate max-w-16" title="' + (f.entity_id || '') + '">' + (f.entity_type || '') + '</td>' +
+            '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + '</td>' +
+            '<td class="py-1 pr-1">' + (f.required_value != null ? Number(f.required_value).toFixed(2) : '-') + '</td>' +
+            '<td class="py-1 pr-1"><div class="w-10 bg-gray-200 rounded-full h-1"><div class="' + confColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></td>' +
+            '<td class="py-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + (f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微') + '</span></td></tr>';
+        });
+        if (strViols.length > 10) html += '<tr><td colspan="6" class="pt-1 text-gray-400 text-center">… 还有 ' + (strViols.length - 10) + ' 项</td></tr>';
+        html += '</tbody></table></div>';
+        return html;
       }
 
       // ── EVAC + 走廊宽度汇总表 ──
@@ -318,8 +354,8 @@ async function runReview() {
         return html;
       }
 
-      // 在渲染违规列表前插入汇总表
-      const summaryHtml = renderEvacCorridorSummary(violations);
+      // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载）
+      const summaryHtml = renderEvacCorridorSummary(violations) + renderStructuralSummary(violations);
       if (summaryHtml) {
         document.getElementById('review-details').insertAdjacentHTML('beforebegin', summaryHtml);
       }
