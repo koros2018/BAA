@@ -375,6 +375,84 @@ CORRECTION_TEMPLATES = {  # 赋值: CORRECTION_TEMPLATES
             "current_sealing_level": r.actual,
         },  # 赋值: parameters
     ),
+    # ── 结构荷载修正建议（P46）────────────────────────────
+    "STR-001": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "floor"),  # 安全获取值
+        clause_id="GB50009-5.1.1",  # 赋值: clause_id
+        clause_title="楼面活荷载",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"楼面活荷载不足：当前{r.actual:.2f} kN/㎡，需要≥{r.threshold:.2f} kN/㎡",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"楼面活荷载需提升至{r.threshold:.2f} kN/㎡以上。建议：①复核楼板厚度及配筋；②采用高强度混凝土；③必要时增设梁或提高结构等级。",  # 赋值: recommendation
+        parameters={
+            "required_load_kN_m2": r.threshold,
+            "current_load_kN_m2": r.actual,
+        },  # 赋值: parameters
+    ),
+    "STR-005": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "beam"),  # 安全获取值
+        clause_id="GB50010-9.2.1",  # 赋值: clause_id
+        clause_title="梁最小配筋率",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"梁配筋率不足：当前{r.actual:.3f}%，需要≥{r.threshold:.3f}%",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"梁受拉纵筋配筋率需≥{r.threshold:.3f}%。建议：①增大受拉钢筋直径或数量；②提高混凝土等级；③复核梁截面尺寸。",  # 赋值: recommendation
+        parameters={
+            "min_reinforcement_ratio": r.threshold,
+            "current_reinforcement_ratio": r.actual,
+        },  # 赋值: parameters
+    ),
+    "STR-008": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "foundation"),  # 安全获取值
+        clause_id="GB50007-5.1.3",  # 赋值: clause_id
+        clause_title="基础埋深",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"基础埋深不足：当前{r.actual:.2f}m，需要≥{r.threshold:.2f}m",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"基础埋深需≥{r.threshold:.2f}m。建议：①加深基础；②采用桩基础；③考虑冻结深度影响。",  # 赋值: recommendation
+        parameters={"min_depth_m": r.threshold, "current_depth_m": r.actual},  # 赋值: parameters
+    ),
+    "STR-014": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "concrete"),  # 安全获取值
+        clause_id="GB50010-4.1.2",  # 赋值: clause_id
+        clause_title="混凝土强度等级",  # 赋值: clause_title
+        action=CorrectionAction.UPGRADE,  # 赋值: action
+        description=f"混凝土强度不足：当前{r.actual:.0f}MPa，需要≥{r.threshold:.0f}MPa",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"混凝土强度等级需提升至C{r.threshold:.0f}以上。建议：①改用高强度水泥；②添加矿物掺合料（粉煤灰/矿渣）；③调整水胶比和养护工艺。",  # 赋值: recommendation
+        parameters={
+            "min_concrete_grade_MPa": r.threshold,
+            "current_concrete_grade_MPa": r.actual,
+        },  # 赋值: parameters
+    ),
+    "STR-015": lambda e, r: CorrectionSuggestion(  # 模板定义
+        entity_id=e.get("id", ""),  # 安全获取值
+        entity_type=e.get("type", "slab"),  # 安全获取值
+        clause_id="GB50010-9.1.2",  # 赋值: clause_id
+        clause_title="楼板厚度",  # 赋值: clause_title
+        action=CorrectionAction.REPLACE,  # 赋值: action
+        description=f"楼板厚度不足：当前{r.actual:.1f}mm，需要≥{r.threshold:.1f}mm",  # 赋值: description
+        current_value=r.actual,  # 赋值: current_value
+        required_value=r.threshold,  # 赋值: required_value
+        delta=r.delta,  # 赋值: delta
+        recommendation=f"楼板厚度需≥{r.threshold:.1f}mm。建议：①增大楼板厚度；②增加配筋量；③采用预应力混凝土。",  # 赋值: recommendation
+        parameters={
+            "min_slab_thickness_mm": r.threshold,
+            "current_slab_thickness_mm": r.actual,
+        },  # 赋值: parameters
+    ),
 }
 
 
