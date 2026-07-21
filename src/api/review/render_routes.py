@@ -453,11 +453,13 @@ async def review_pdf(  # code
                             "entity_type": e.get("type", ""),  # function call
                             "clause_id": f.clause.get("clause_id", ""),  # function call
                             "clause_title": f.clause.get("title", ""),  # function call
+                            "func_id": func.func_id,  # code
                             "result": f.judgement["result"],  # code
                             "extracted_value": r.actual,  # code
                             "required_value": threshold_val,  # code
                             "difference": (r.actual or 0) - threshold_val,  # function call
                             "explanation": f.explanation[:120],  # code
+                            "confidence": r.confidence,  # code
                         }
                     )  # code
             except Exception:  # catch exception
@@ -491,6 +493,7 @@ async def review_pdf(  # code
                         "entity_type": "missing",  # code
                         "clause_id": f.clause.get("clause_id", ""),  # function call
                         "clause_title": f.clause.get("title", ""),  # function call
+                        "func_id": func.func_id,  # code
                         "result": f.judgement["result"],  # code
                         "extracted_value": 0.0,  # code
                         "required_value": f.extracted_params.get(
@@ -500,6 +503,8 @@ async def review_pdf(  # code
                             "required_value", 1.0
                         ),  # function call
                         "explanation": f.explanation[:120],  # code
+                        "severity": "critical",  # code
+                        "confidence": r.confidence,  # code
                     }
                 )  # code
 
