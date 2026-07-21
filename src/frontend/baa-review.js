@@ -170,6 +170,10 @@ async function runReview() {
 
       // 存储到全局供分页使用
       window._reviewViolations = violations;
+      window._reviewThermalViolations = violations.filter(f => f.func_id && f.func_id.startsWith('THERM-'));
+      window._reviewThermalSummary = null;
+      // 渲染热工违规列表
+      renderThermalViolations(window._reviewThermalViolations);
       window._reviewPageSize = 15;
       window._reviewPage = 1;
       window._reviewFilter = 'all';
@@ -1350,6 +1354,9 @@ function confirmCorrection(reviewId, corrIdx, accepted) {
 
 // ── P45 热工性能计算 ────────────────────────────────────────
 
+// 气候带名称映射
+const climateNames = { severe_cold:'严寒', cold:'寒冷', hot_cold:'夏热冬冷', hot_warm:'夏热冬暖' };
+
 // 保温材料的导热系数（W/(m·K)）
 const THERMAL_MATERIALS = {
   rockwool:  { name: '岩棉板',     lambda: 0.035, density: 800 },
@@ -1452,8 +1459,157 @@ async function computeThermalK() {
   }
 }
 
-const climateNames = { severe_cold:'严寒', cold:'寒冷', hot_cold:'夏热冬冷', hot_warm:'夏热冬暖' };
+// 渲染热工违规列表
+function renderThermalViolations(thermalViolations) {
+  const el = document.getElementById('thermal-review-list');
+  if (!el) return;
+  if (!thermalViolations || thermalViolations.length === 0) {
+    el.innerHTML = '<span class="text-gray-400">✅ 单图审查后自动展示热工违规项</span>';
+    return;
+  }
+  let html = '';
+  const colorMap = { THERM: 'orange', EXIST: 'red' };
+  thermalViolations.forEach(f => {
+    const funcId = f.func_id || 'THERM-xxx';
+    const title = f.clause_title || f.description || '未知条款';
+    const clauseId = f.clause_id || '';
+    const actual = f.extracted_value || f.actual_value || '?';
+    const required = f.required_value || f.threshold || '?';
+    const isFail = f.result === 'FAIL';
+    html += '<div class="p-1.5 rounded ' + (isFail ? 'bg-red-50 border-l-2 border-red-400' : 'bg-green-50 border-l-2 border-green-400') + ' mb-1">';
+    html += '<p class="font-medium ' + (isFail ? 'text-red-700' : 'text-green-700') + '">' + funcId + '</p>';
+    html += '<p class="text-gray-600">' + title + '</p>';
+    html += '<p class="text-xs text-gray-500">实测: ' + (typeof actual === 'number' ? actual.toFixed(3) : actual) + ' · 要求: ' + (typeof required === 'number' ? required.toFixed(3) : required) + ' · [' + clauseId + ']</p>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
 
 // 页面加载后渲染阈值表
 renderThermalThresholds();
+renderMultiLayerEditor();
+
+// ── P45 多材料复合层计算 ─────────────────────────────────────
+
+function renderMultiLayerEditor() {
+  const container = document.getElementById('multi-layer-editor');
+  if (!container) return;
+  container.innerHTML = '';
+  let html = '<div class="text-xs text-gray-500 mb-2">从上到下添加保温层/结构层</div>';
+  html += '<div id="multi-layer-rows" class="space-y-2 mb-2"></div>';
+  html += '<div class="flex gap-2 mb-3">';
+  html += '<button onclick="addMultiLayerRow()" class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">+ 添加层</button>';
+  html += '<button onclick="computeMultiLayerK()" class="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700">计算 K 值</button>';
+  html += '</div>';
+  container.innerHTML = html;
+  // 初始化默认层：内外表面换热 + 保温层
+  addMultiLayerRow('surface_inside', '内表面换热', 0.0, 'm²·K/W');
+  addMultiLayerRow('insulation', '保温层', 0.05, 'm');
+  addMultiLayerRow('structure', '结构层(混凝土)', 0.2, 'm');
+  addMultiLayerRow('surface_outside', '外表面换热', 0.0, 'm²·K/W');
+}
+
+function addMultiLayerRow(type, name, thickness, unit) {
+  const rows = document.getElementById('multi-layer-rows');
+  if (!rows) return;
+  const idx = rows.children.length;
+  const defaultName = name || (type === 'surface_inside' ? '内表面换热' : type === 'surface_outside' ? '外表面换热' : '保温层');
+  const defaultThick = thickness ?? (type === 'surface_inside' || type === 'surface_outside' ? 0 : 0.05);
+  const defaultUnit = unit || (type === 'surface_inside' || type === 'surface_outside' ? 'm²·K/W' : 'm');
+  const rowsHtml = '<div class="flex gap-2 items-center" data-idx="' + idx + '">' +
+    '<select onchange="updateMultiLayerRow(' + idx + ',0,this.value)" class="text-xs border rounded px-1 py-0.5 flex-1">' +
+    '<option value="surface_inside" ' + (type==='surface_inside'?'selected':'') + '>内表面换热</option>' +
+    '<option value="surface_outside" ' + (type==='surface_outside'?'selected':'') + '>外表面换热</option>' +
+    '<option value="eps" ' + (type==='eps'?'selected':'') + '>EPS聚苯板(λ=0.040)</option>' +
+    '<option value="xps" ' + (type==='xps'?'selected':'') + '>XPS挤塑板(λ=0.030)</option>' +
+    '<option value="rockwool" ' + (type==='rockwool'?'selected':'') + '>岩棉板(λ=0.035)</option>' +
+    '<option value="pu" ' + (type==='pu'?'selected':'') + '>聚氨酯(λ=0.024)</option>' +
+    '<option value="concrete" ' + (type==='concrete'?'selected':'') + '>混凝土(λ=1.74)</option>' +
+    '<option value="brick" ' + (type==='brick'?'selected':'') + '>砖(λ=0.81)</option>' +
+    '<option value="glass" ' + (type==='glass'?'selected':'') + '>玻璃(λ=0.8)</option>' +
+    '<option value="steel" ' + (type==='steel'?'selected':'') + '>钢材(λ=50)</option>' +
+    '</select>' +
+    '<input type="number" step="0.01" value="' + defaultThick + '" onchange="updateMultiLayerRow(' + idx + ',1,this.value)" class="text-xs border rounded px-1 py-0.5 w-20" placeholder="厚度/热阻" />' +
+    '<span class="text-xs text-gray-400 w-12">' + defaultUnit + '</span>' +
+    '<button onclick="removeMultiLayerRow(' + idx + ')" class="px-1 text-red-500 text-xs hover:text-red-700">×</button>' +
+    '</div>';
+  rows.insertAdjacentHTML('beforeend', rowsHtml);
+}
+
+function removeMultiLayerRow(idx) {
+  const rows = document.getElementById('multi-layer-rows');
+  if (rows.children.length <= 1) return; // 至少保留1层
+  rows.children[idx].remove();
+}
+
+function updateMultiLayerRow(idx, field, value) {
+  // 仅触发重新计算，不存全局状态
+}
+
+function computeMultiLayerK() {
+  const rows = document.getElementById('multi-layer-rows');
+  if (!rows) return;
+  const resultEl = document.getElementById('multi-layer-result');
+  const materials = {
+    eps: 0.040, xps: 0.030, rockwool: 0.035, pu: 0.024,
+    concrete: 1.74, brick: 0.81, glass: 0.8, steel: 50,
+    surface_inside: null, surface_outside: null,
+  };
+
+  let totalR = 0;
+  const layerInfo = [];
+  const climate = document.getElementById('thermal-climate').value || 'severe_cold';
+  const compType = document.getElementById('thermal-comp-type').value || 'exterior_wall';
+
+  for (const row of rows.children) {
+    const selects = row.querySelectorAll('select');
+    const inputs = row.querySelectorAll('input[type=number]');
+    if (selects.length === 0 || inputs.length === 0) continue;
+    const matType = selects[0].value;
+    const value = parseFloat(inputs[0].value) || 0;
+
+    if (matType === 'surface_inside') {
+      // 内表面换热：R = 1/HI
+      totalR += 1.0 / 8.7;
+      layerInfo.push({ type: matType, R: 1/8.7 });
+    } else if (matType === 'surface_outside') {
+      // 外表面换热：R = 1/HO
+      totalR += 1.0 / 23.0;
+      layerInfo.push({ type: matType, R: 1/23.0 });
+    } else {
+      const lambda = materials[matType] || 0.04;
+      const R = value / lambda;
+      totalR += R;
+      layerInfo.push({ type: matType, thickness: value, lambda, R });
+    }
+  }
+
+  const K = 1.0 / totalR;
+  const threshold = THERMAL_THRESHOLDS[climate][compType] || THERMAL_THRESHOLDS.severe_cold.exterior_wall;
+  const passed = K <= threshold;
+
+  // 渲染每层明细
+  let detailHtml = '<table class="w-full border-collapse text-xs"><thead><tr class="bg-gray-100 border-b"><th class="py-1 text-left">层</th><th>厚度(m)</th><th>λ(W/m·K)</th><th>R(m²·K/W)</th></tr></thead><tbody>';
+  layerInfo.forEach(l => {
+    if (l.type === 'surface_inside') {
+      detailHtml += '<tr><td>内表面换热</td><td>-</td><td>-</td><td>' + l.R.toFixed(4) + '</td></tr>';
+    } else if (l.type === 'surface_outside') {
+      detailHtml += '<tr><td>外表面换热</td><td>-</td><td>-</td><td>' + l.R.toFixed(4) + '</td></tr>';
+    } else {
+      detailHtml += '<tr><td>' + l.type + '</td><td>' + (l.thickness||'-') + '</td><td>' + (l.lambda||'-') + '</td><td>' + (l.R||'-').toFixed(4) + '</td></tr>';
+    }
+  });
+  detailHtml += '</tbody></table>';
+
+  const html = '<div class="mt-3 p-2 rounded ' + (passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') + ' border">' +
+    '<p class="font-medium ' + (passed ? 'text-green-700' : 'text-red-700') + '">' +
+    'K = ' + K.toFixed(4) + ' W/(m²·K) · R_total = ' + totalR.toFixed(4) + ' m²·K/W ' +
+    (passed ? '✅ ≤ ' + threshold : '❌ > ' + threshold) + '</p>' +
+    '<p class="text-xs text-gray-500">气候: ' + climateNames[climate] + ' · 构件: ' + compType + '</p>' +
+    '</div>' + detailHtml;
+
+  if (resultEl) {
+    resultEl.innerHTML = html;
+  }
+}
 
