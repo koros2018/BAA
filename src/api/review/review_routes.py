@@ -608,6 +608,81 @@ async def review_from_data(  # code
     return response_data  # return
 
 
+# ── P45 热工性能 K 值计算 ──────────────────────────────────
+
+THERMAL_MATERIALS = {
+    "rockwool":  {"name": "岩棉板",      "lambda": 0.035, "density": 800},
+    "eps":       {"name": "EPS聚苯板",  "lambda": 0.040, "density": 20},
+    "xps":       {"name": "XPS挤塑板",  "lambda": 0.030, "density": 35},
+    "pu":        {"name": "聚氨酯",     "lambda": 0.024, "density": 40},
+    "aerogel":   {"name": "气凝胶",     "lambda": 0.012, "density": 120},
+}
+
+THERMAL_THRESHOLDS = {
+    "severe_cold": {"exterior_wall": 0.45, "roof": 0.35, "ground_floor": 0.30, "exterior_window": 2.0},
+    "cold":        {"exterior_wall": 0.60, "roof": 0.50, "ground_floor": 0.45, "exterior_window": 2.4},
+    "hot_cold":    {"exterior_wall": 1.50, "roof": 1.20, "ground_floor": 0.60, "exterior_window": 3.2},
+    "hot_warm":    {"exterior_wall": 2.00, "roof": 1.50, "ground_floor": 0.80, "exterior_window": 4.0},
+}
+
+HI = 8.7   # 内表面传热系数 W/(m²·K)
+HO = 23.0  # 外表面传热系数 W/(m²·K)
+
+
+@router.post("/thermal/k-value")  # function call
+async def compute_thermal_k(  # code
+    body: dict,
+):
+    """P45 热工性能 K 值计算
+
+    输入：构件类型(compType)、保温材料(material)、厚度(mm)、气候带(climate)
+    返回：K值、阈值对比、建议厚度
+    """
+    comp_type = body.get("compType", "exterior_wall")
+    material_key = body.get("material", "rockwool")
+    thickness_mm = body.get("thicknessMm", 50)
+    climate = body.get("climate", "severe_cold")
+
+    if comp_type not in THERMAL_THRESHOLDS["severe_cold"]:
+        comp_type = "exterior_wall"
+    if material_key not in THERMAL_MATERIALS:
+        material_key = "rockwool"
+    if climate not in THERMAL_THRESHOLDS:
+        climate = "severe_cold"
+    if not isinstance(thickness_mm, (int, float)) or thickness_mm <= 0:
+        thickness_mm = 50
+
+    mat = THERMAL_MATERIALS[material_key]
+    d_m = thickness_mm / 1000.0
+    R = 1.0 / HI + d_m / mat["lambda"] + 1.0 / HO
+    K = 1.0 / R
+    threshold = THERMAL_THRESHOLDS[climate][comp_type]
+    passed = K <= threshold
+
+    result = {
+        "status": "success",
+        "K": round(K, 4),
+        "R": round(R, 3),
+        "threshold": threshold,
+        "passed": passed,
+        "compType": comp_type,
+        "material": mat["name"],
+        "lambda": mat["lambda"],
+        "thicknessMm": thickness_mm,
+        "climate": climate,
+    }
+
+    if not passed:
+        # 反算当前材料满足要求所需的最小厚度
+        R_needed = 1.0 / threshold
+        d_needed_m = (R_needed - 1.0 / HI - 1.0 / HO) * mat["lambda"]
+        d_needed_mm = max(0, d_needed_m * 1000)
+        result["requiredThicknessMm"] = round(d_needed_mm, 1)
+        result["additionalThicknessMm"] = round(max(0, d_needed_mm - thickness_mm), 1)
+
+    return result
+
+
 @router.post("/reconstruct")  # function call
 async def reconstruct(  # code
     body: dict,  # 操作
