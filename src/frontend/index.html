@@ -141,6 +141,7 @@
         <button id="review-tab-single" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700" onclick="switchReviewTab('single')">📄 单图审查</button>
         <button id="review-tab-batch" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('batch')">📚 批量审查</button>
         <button id="review-tab-feedback" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('feedback')">💬 反馈申诉</button>
+        <button id="review-tab-thermal" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('thermal')">🌡️ 热工性能</button>
       </div>
       <div id="review-panel-single">
       <div class="grid grid-cols-2 gap-4 mb-4">
@@ -242,6 +243,60 @@
           <button onclick="loadFeedbacks()" class="px-4 py-2 bg-gray-100 text-sm rounded-lg hover:bg-gray-200 w-full mt-3">
             🔄 刷新列表
           </button>
+        </div>
+      </div>
+      </div>
+      <!-- ── 热工性能面板 ── -->
+      <div id="review-panel-thermal" class="hidden">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">🌡️ 热工性能计算</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-gray-500">构件类型</label>
+              <select id="thermal-comp-type" class="text-sm border rounded px-2 py-1 w-full" onchange="onThermalCompTypeChange()">
+                <option value="exterior_wall">外墙</option>
+                <option value="roof">屋顶</option>
+                <option value="ground_floor">地面</option>
+                <option value="exterior_window">外窗</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">保温材料</label>
+              <select id="thermal-material" class="text-sm border rounded px-2 py-1 w-full">
+                <option value="rockwool" data-lambda="0.035" data-density="800">岩棉板 (λ=0.035)</option>
+                <option value="eps" data-lambda="0.040" data-density="20">EPS聚苯板 (λ=0.040)</option>
+                <option value="xps" data-lambda="0.030" data-density="35">XPS挤塑板 (λ=0.030)</option>
+                <option value="pu" data-lambda="0.024" data-density="40">聚氨酯 (λ=0.024)</option>
+                <option value="aerogel" data-lambda="0.012" data-density="120">气凝胶 (λ=0.012)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">保温层厚度 (mm)</label>
+              <input id="thermal-thickness" type="number" value="50" min="10" max="500" class="text-sm border rounded px-2 py-1 w-full" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">气候带</label>
+              <select id="thermal-climate" class="text-sm border rounded px-2 py-1 w-full">
+                <option value="severe_cold">严寒地区</option>
+                <option value="cold">寒冷地区</option>
+                <option value="hot_cold">夏热冬冷</option>
+                <option value="hot_warm">夏热冬暖</option>
+              </select>
+            </div>
+            <button onclick="computeThermalK()" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 w-full">
+              🔥 计算 K 值
+            </button>
+            <div id="thermal-result" class="text-xs text-gray-500 mt-2"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">📊 热工规范阈值（GB55015-3.2.2）</h3>
+          <div id="thermal-thresholds" class="text-xs space-y-1"></div>
+          <h3 class="text-sm font-medium mb-3 mt-4">🧱 最近热工审查结果</h3>
+          <div id="thermal-review-list" class="text-xs space-y-1 text-gray-500 max-h-48 overflow-y-auto">
+            请在单图审查中上传图纸后查看热工违规项
+          </div>
         </div>
       </div>
       </div>

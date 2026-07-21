@@ -360,9 +360,13 @@ function switchReviewTab(tab) {
   document.getElementById('review-tab-feedback').className = tab === 'feedback'
     ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
     : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
+  document.getElementById('review-tab-thermal').className = tab === 'thermal'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
   document.getElementById('review-panel-single').className = tab === 'single' ? '' : 'hidden';
   document.getElementById('review-panel-batch').className = tab === 'batch' ? '' : 'hidden';
   document.getElementById('review-panel-feedback').className = tab === 'feedback' ? '' : 'hidden';
+  document.getElementById('review-panel-thermal').className = tab === 'thermal' ? '' : 'hidden';
   if (tab === 'feedback') {
     loadFeedbackStats();
     loadFeedbacks();
@@ -1343,4 +1347,113 @@ function confirmCorrection(reviewId, corrIdx, accepted) {
   const select = document.getElementById('compare-drawing-select');
   if (select && select.value) onCompareSelect();
 }
+
+// ── P45 热工性能计算 ────────────────────────────────────────
+
+// 保温材料的导热系数（W/(m·K)）
+const THERMAL_MATERIALS = {
+  rockwool:  { name: '岩棉板',     lambda: 0.035, density: 800 },
+  eps:       { name: 'EPS聚苯板', lambda: 0.040, density: 20  },
+  xps:       { name: 'XPS挤塑板', lambda: 0.030, density: 35  },
+  pu:        { name: '聚氨酯',    lambda: 0.024, density: 40  },
+  aerogel:   { name: '气凝胶',    lambda: 0.012, density: 120 },
+};
+
+// 各气候带 GB55015-3.2.2 K 值阈值（W/(m²·K)）
+const THERMAL_THRESHOLDS = {
+  severe_cold: { exterior_wall: 0.45, roof: 0.35, ground_floor: 0.30, exterior_window: 2.0 },
+  cold:        { exterior_wall: 0.60, roof: 0.50, ground_floor: 0.45, exterior_window: 2.4 },
+  hot_cold:    { exterior_wall: 1.50, roof: 1.20, ground_floor: 0.60, exterior_window: 3.2 },
+  hot_warm:    { exterior_wall: 2.00, roof: 1.50, ground_floor: 0.80, exterior_window: 4.0 },
+};
+
+// 内外表面传热系数（W/(m²·K)）
+const HI = 8.7;   // 内表面
+const HO = 23.0;  // 外表面
+
+// 默认保温层厚度（mm）按构件类型
+const DEFAULT_THERMAL_THICKNESS = {
+  exterior_wall: 50,
+  roof: 60,
+  ground_floor: 80,
+  exterior_window: 30,
+};
+
+function onThermalCompTypeChange() {
+  const compType = document.getElementById('thermal-comp-type').value;
+  document.getElementById('thermal-thickness').value = DEFAULT_THERMAL_THICKNESS[compType] || 50;
+}
+
+function renderThermalThresholds() {
+  const el = document.getElementById('thermal-thresholds');
+  if (!el) return;
+  let html = '<table class="w-full"><thead><tr class="text-gray-400 border-b">' +
+    '<th class="text-left py-1">气候带</th><th>外墙</th><th>屋顶</th><th>地面</th><th>外窗</th></tr></thead><tbody>';
+  const climateNames = { severe_cold:'严寒', cold:'寒冷', hot_cold:'夏热冬冷', hot_warm:'夏热冬暖' };
+  for (const [key, thresholds] of Object.entries(THERMAL_THRESHOLDS)) {
+    html += '<tr class="border-b"><td class="py-1">' + climateNames[key] + '</td>';
+    for (const comp of ['exterior_wall','roof','ground_floor','exterior_window']) {
+      html += '<td class="text-center">' + thresholds[comp].toFixed(2) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// 计算传热系数 K 值：调用后端 /api/v1/review/thermal/k-value API
+async function computeThermalK() {
+  const compType = document.getElementById('thermal-comp-type').value;
+  const materialKey = document.getElementById('thermal-material').value;
+  const thicknessMm = parseFloat(document.getElementById('thermal-thickness').value);
+  const climate = document.getElementById('thermal-climate').value;
+  const resultDiv = document.getElementById('thermal-result');
+
+  if (isNaN(thicknessMm) || thicknessMm <= 0) {
+    resultDiv.innerHTML = '<span class="text-red-600">厚度无效</span>';
+    return;
+  }
+
+  resultDiv.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
+
+  try {
+    const data = await fetch(API_BASE() + '/api/v1/review/thermal/k-value', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ compType, material: materialKey, thicknessMm, climate }),
+    }).then(r => r.json());
+
+    if (data.status !== 'success') {
+      resultDiv.innerHTML = '<span class="text-red-600">后端返回异常</span>';
+      return;
+    }
+
+    const pass = data.passed;
+    let html = '';
+    html += '<div class="mt-2 p-2 ' + (pass ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200') + ' rounded">';
+    html += '<p class="font-medium ' + (pass ? 'text-green-700' : 'text-red-700') + '">';
+    html += 'K = ' + data.K + ' W/(m²·K) ' + (pass ? '✅ ≤ ' : '❌ > ') + data.threshold;
+    html += '</p>';
+    html += '<p>材料: ' + data.material + ' (λ=' + data['lambda'] + ') · 厚度: ' + data.thicknessMm + 'mm · R=' + data.R + ' m²·K/W</p>';
+
+    if (!pass) {
+      html += '<p class="text-orange-600 mt-1">→ 改用当前材料需厚度 ≥ ' + data.requiredThicknessMm + 'mm（当前差 ' + data.additionalThicknessMm + 'mm）</p>';
+    } else {
+      const climateLabel = { severe_cold:'严寒', cold:'寒冷', hot_cold:'夏热冬冷', hot_warm:'夏热冬暖' }[data.climate] || data.climate;
+      html += '<p class="text-gray-500 mt-1">→ 满足 GB55015-3.2.2 ' + climateLabel + ' 要求</p>';
+    }
+    html += '</div>';
+    resultDiv.innerHTML = html;
+
+    // 缓存最近结果到 localStorage 供热工审查结果面板引用
+    try { localStorage.setItem('baa_last_thermal_result', JSON.stringify(data)); } catch(e) {}
+  } catch (e) {
+    resultDiv.innerHTML = '<span class="text-red-600">计算失败: ' + (e.message || e) + '</span>';
+  }
+}
+
+const climateNames = { severe_cold:'严寒', cold:'寒冷', hot_cold:'夏热冬冷', hot_warm:'夏热冬暖' };
+
+// 页面加载后渲染阈值表
+renderThermalThresholds();
 
