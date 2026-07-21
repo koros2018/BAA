@@ -142,6 +142,7 @@
         <button id="review-tab-batch" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('batch')">📚 批量审查</button>
         <button id="review-tab-feedback" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('feedback')">💬 反馈申诉</button>
         <button id="review-tab-thermal" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('thermal')">🌡️ 热工性能</button>
+        <button id="review-tab-structural" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('structural')">🏗️ 结构荷载</button>
       </div>
       <div id="review-panel-single">
       <div class="grid grid-cols-2 gap-4 mb-4">
@@ -305,6 +306,53 @@
         <div id="multi-layer-editor"></div>
         <div id="multi-layer-result" class="text-xs mt-2"></div>
       </div>
+      </div>
+
+      <!-- ── 结构荷载面板 ── -->
+      <div id="review-panel-structural" class="hidden">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="card">
+            <h3 class="text-sm font-medium mb-3">🏗️ 结构荷载验算</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-gray-500">构件类型</label>
+                <select id="structural-comp-type" class="text-sm border rounded px-2 py-1 w-full" onchange="onStructuralCompTypeChange()">
+                  <option value="floor_live">楼面活荷载</option>
+                  <option value="beam_reinforcement">梁配筋率</option>
+                  <option value="column_reinforcement">柱配筋率</option>
+                  <option value="foundation_depth">基础埋深</option>
+                  <option value="slab_thickness">楼板厚度</option>
+                  <option value="beam_height">梁高跨比</option>
+                  <option value="concrete_strength">混凝土强度</option>
+                  <option value="seismic_grade">抗震等级</option>
+                  <option value="seismic_intensity">抗震设防烈度</option>
+                  <option value="shear_wall_thickness">剪力墙厚度</option>
+                  <option value="pile_count">桩基数量</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">实测值</label>
+                <input id="structural-value" type="number" value="2.0" step="0.01" class="text-sm border rounded px-2 py-1 w-full" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">备注</label>
+                <input id="structural-note" type="text" placeholder="如：住宅/办公/商业、抗震等级等" class="text-sm border rounded px-2 py-1 w-full" />
+              </div>
+              <button onclick="computeStructuralCheck()" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 w-full">
+                🏗️ 验算
+              </button>
+              <div id="structural-result" class="text-xs text-gray-500 mt-2"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="text-sm font-medium mb-3">📊 结构荷载规范阈值（GB50009/GB50010/GB55008）</h3>
+            <div id="structural-thresholds" class="text-xs space-y-1"></div>
+            <h3 class="text-sm font-medium mb-3 mt-4">🧱 最近结构审查结果</h3>
+            <div id="structural-review-list" class="text-xs space-y-1 text-gray-500 max-h-48 overflow-y-auto">
+              请在单图审查中上传图纸后查看结构违规项
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
