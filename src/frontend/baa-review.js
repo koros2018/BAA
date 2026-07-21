@@ -278,8 +278,43 @@ async function runReview() {
         );
         if (strViols.length === 0) return '';
 
+        // 按 func_id 分组，计算平均置信度
+        const funcGroups = {};
+        strViols.forEach(f => {
+          const fid = f.func_id || 'STR-?';
+          if (!funcGroups[fid]) funcGroups[fid] = { count: 0, confSum: 0, viols: [] };
+          funcGroups[fid].count++;
+          funcGroups[fid].confSum += (f.confidence != null ? f.confidence : 1.0);
+          funcGroups[fid].viols.push(f);
+        });
+        const sortedFuncs = Object.entries(funcGroups).sort((a, b) => {
+          const avgA = a[1].confSum / a[1].count;
+          const avgB = b[1].confSum / b[1].count;
+          return avgA - avgB; // 低置信度在前，提醒优先复查
+        });
+
         let html = '<div class="card p-2 text-xs mb-3">';
-        html += '<p class="font-medium text-sm mb-1 text-purple-600">🏗️ 结构荷载违规 (' + strViols.length + '项)</p>';
+        html += '<p class="font-medium text-sm mb-2 text-purple-600">🏗️ 结构荷载违规 (' + strViols.length + '项)</p>';
+
+        // ── 置信度迷你柱状图（按 func_id 分组，低置信度优先） ──
+        html += '<div class="mb-2">';
+        sortedFuncs.forEach(([fid, g]) => {
+          const avgConf = g.confSum / g.count;
+          const confPct = Math.round(avgConf * 100);
+          const confColor = avgConf >= 0.85 ? 'green' : avgConf >= 0.6 ? 'yellow' : 'red';
+          // 柱状高度用 100% 满，条宽代表置信度百分比
+          html += '<div class="flex items-center gap-1 mb-0.5">' +
+            '<span class="text-gray-500 w-16 text-[10px]">' + fid + '</span>' +
+            '<div class="flex-1 bg-gray-200 rounded h-2 overflow-hidden">' +
+            '<div class="' + confColor + '-500 h-full rounded" style="width:' + confPct + '%"></div>' +
+            '</div>' +
+            '<span class="text-' + confColor + '-600 text-[10px] w-6 text-right">' + confPct + '%</span>' +
+            '<span class="text-gray-400 text-[10px] w-6 text-right">(' + g.count + ')</span>' +
+            '</div>';
+        });
+        html += '</div>';
+
+        // ── 明细表格 ──
         html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
           '<th class="pb-1 pr-1">函数</th><th class="pb-1 pr-1">构件</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1 pr-1">置信</th><th class="pb-1">严重</th></tr></thead><tbody>';
         strViols.slice(0, 10).forEach(f => {
@@ -292,7 +327,7 @@ async function runReview() {
             '<td class="py-1 pr-1 truncate max-w-16" title="' + (f.entity_id || '') + '">' + (f.entity_type || '') + '</td>' +
             '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + '</td>' +
             '<td class="py-1 pr-1">' + (f.required_value != null ? Number(f.required_value).toFixed(2) : '-') + '</td>' +
-            '<td class="py-1 pr-1"><div class="w-10 bg-gray-200 rounded-full h-1"><div class="' + confColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></td>' +
+            '<td class="py-1 pr-1"><div class="w-10 bg-gray-200 rounded-full h-1.5 overflow-hidden"><div class="' + confColor + '-500 h-full rounded-full" style="width:' + confPct + '%"></div></div></td>' +
             '<td class="py-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + (f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微') + '</span></td></tr>';
         });
         if (strViols.length > 10) html += '<tr><td colspan="6" class="pt-1 text-gray-400 text-center">… 还有 ' + (strViols.length - 10) + ' 项</td></tr>';
