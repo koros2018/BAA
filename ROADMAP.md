@@ -313,16 +313,30 @@
 
 ### 当前版本
 
-- **v2.5.12-stable**（2026-07-20，HEAD `2ab9ad9`，已 push）
-- 全量测试 1847/1847 ✅，真实图纸 8/8 ✅，原子函数 390
+- **v2.5.13-stable**（2026-07-21，`b984769`，已 push）
+- **HEAD**（`11422b5`，v2.5.13-stable 后 10 commits）
+- 全量测试 1975/1975 ✅，black 76 文件 ✅，JS 语法正确 ✅
+- 原子函数 422（dim:124, exist:128, dist:34, count:30, area:26, 等）
+
+### 后稳定版改进（v2.5.13-stable → HEAD）
+
+| 改动 | 内容 |
+|------|------|
+| P45/P46 修正模板补全 | THERM 16 条 + STR 16 条（原仅 5 条） |
+| manager.py BOM 修复 | 移除 39 条孤立 docstring |
+| P46 前端面板 | 11 种结构构件验算 + STR 审查联动 |
+| 置信度可视化 | 后端 4 处 detail 补 confidence，前端违规卡置信度条 |
+| STR 违规汇总表 | 按 func_id 分组，低置信度优先，彩色进度条 |
+| spec_repository 重构 | 3528→32 行，拆为 spec_data/ 6 个标准分片 |
+| 批量/对比/渲染路由 | details 补 func_id/confidence/severity |
 
 ### 下一步（待定）
 
 - 云端部署优化 / API 文档 SDK（原 P49/P50）
-- 能耗分析 / 结构荷载（原 P45/P46）
 - 施工图审查标准（原 P48）
 - AI 辅助修正建议（原 P41）
 - 反向重构：从原型走向生产（DXF→DWG 导出、复杂布局求解）
+- 修正建议 UI 联动（后端 correction_engine 已有数据，前端未对接）
 
 ---
 
