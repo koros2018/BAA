@@ -149,7 +149,7 @@ MODULE_FUNCS = [
     AtomicFunction(
         "THERM-013",
         "外窗存在判定",
-        FuncCategory.EXIST,
+        FuncCategory.THERMAL,
         "GB50016-6.3.2",
         "建筑外墙应设置外窗",
         "==",
