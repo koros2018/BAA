@@ -198,11 +198,14 @@ async def batch_review(
                                 "entity_type": "missing",
                                 "clause_id": f.clause.get("clause_id", ""),
                                 "clause_title": f.clause.get("title", ""),
+                                "func_id": func.func_id,
                                 "result": f.judgement["result"],
                                 "extracted_value": 0.0,
                                 "required_value": f.extracted_params.get("required_value", 1.0),
                                 "difference": -f.extracted_params.get("required_value", 1.0),
                                 "explanation": f.explanation[:120],
+                                "severity": "critical",
+                                "confidence": r.confidence,
                             }
                         )
 
