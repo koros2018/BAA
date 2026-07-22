@@ -312,9 +312,7 @@ async def review(  # code
 
     # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────
     try:
-        correction_mode = query_params.get(
-            "correction_mode", os.environ.get("BAA_CORRECTION_MODE", "hybrid")
-        )
+        correction_mode = os.environ.get("BAA_CORRECTION_MODE", "rule")
 
         # 构建 findings 列表（与 correction_engine 兼容）
         review_result_for_correction = {
@@ -552,9 +550,7 @@ async def review_from_data(  # code
 
         # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────
         try:
-            correction_mode = request_params.get(
-                "correction_mode", os.environ.get("BAA_CORRECTION_MODE", "hybrid")
-            )
+            correction_mode = os.environ.get("BAA_CORRECTION_MODE", "rule")
 
             review_result_for_correction = {
                 "findings": [
