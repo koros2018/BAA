@@ -89,16 +89,100 @@ function renderTrendBars() {
   if (!el) return;
   loadReviewResults();
   if (reviewResults.length === 0) { el.innerHTML = '<div class="text-gray-400">审查图纸后自动统计</div>'; return; }
-  const recent = reviewResults.slice(0, 10).reverse();
+
+  const recent = reviewResults.slice(0, 20).reverse();
   const maxV = Math.max(...recent.map(r => r.details?.length || 0), 1);
-  el.innerHTML = recent.map(r => {
+  const totalV = recent.reduce((s, r) => s + (r.details?.length || 0), 0);
+  const avgV = Math.round(totalV / recent.length * 10) / 10;
+  const cleanCount = recent.filter(r => (r.details?.length || 0) === 0).length;
+  const maxDate = recent.length > 0 ? recent[recent.length - 1] : null;
+  const minDate = recent.length > 0 ? recent[0] : null;
+  const firstDate = minDate ? new Date(minDate.reviewedAt || minDate.createdAt || Date.now()).toLocaleDateString() : '--';
+  const lastDate = maxDate ? new Date(maxDate.reviewedAt || maxDate.createdAt || Date.now()).toLocaleDateString() : '--';
+
+  // 按类别统计违规分布（最近审查）
+  const recentViolations = recent.reduce((acc, r) => {
+    (r.details || []).forEach(v => {
+      const cat = (v.func_id || '').split('-')[0] || 'other';
+      if (!acc[cat]) acc[cat] = { count: 0, critical: 0, major: 0, minor: 0 };
+      acc[cat].count++;
+      const sev = v.severity || 'major';
+      if (acc[cat][sev]) acc[cat][sev]++;
+      else acc[cat].major++;
+    });
+    return acc;
+  }, {});
+
+  // 按日期分组（如果审查集中在几天）
+  const dailyStats = {};
+  recent.forEach(r => {
+    const d = new Date(r.reviewedAt || r.createdAt || Date.now());
+    const key = d.toLocaleDateString();
+    if (!dailyStats[key]) dailyStats[key] = { count: 0, violations: 0, clean: 0 };
+    dailyStats[key].count++;
+    const v = r.details?.length || 0;
+    dailyStats[key].violations += v;
+    if (v === 0) dailyStats[key].clean++;
+  });
+
+  // 趋势图表（交互式柱状图 + 数据标签）
+  let chartHtml = '';
+
+  // 统计卡片
+  chartHtml += '<div class="grid grid-cols-4 gap-1 mb-2 text-xs">' +
+    '<div class="bg-blue-50 rounded p-1 text-center"><div class="text-blue-600 font-bold">' + recent.length + '</div><div class="text-gray-500 text-[10px]">审查次数</div></div>' +
+    '<div class="bg-red-50 rounded p-1 text-center"><div class="text-red-600 font-bold">' + totalV + '</div><div class="text-gray-500 text-[10px]">违规总数</div></div>' +
+    '<div class="bg-yellow-50 rounded p-1 text-center"><div class="text-yellow-600 font-bold">' + avgV + '</div><div class="text-gray-500 text-[10px]">平均违规/次</div></div>' +
+    '<div class="bg-green-50 rounded p-1 text-center"><div class="text-green-600 font-bold">' + (recent.length - cleanCount) + '/' + recent.length + '</div><div class="text-gray-500 text-[10px]">有违规比率</div></div>' +
+    '</div>';
+
+  // 时间跨度
+  chartHtml += '<div class="text-[10px] text-gray-400 mb-1 flex justify-between">' +
+    '<span>📅 ' + firstDate + ' → ' + lastDate + '</span>' +
+    '<span id="trend-max-v" class="text-gray-500">最大: ' + maxV + '</span>' +
+    '</div>';
+
+  // 柱状图区域（鼠标悬停显示详情）
+  chartHtml += '<div id="trend-chart-area" class="relative mb-1">';
+  chartHtml += '<div class="flex items-end gap-0.5 h-24 border-b border-gray-200 pb-0.5 overflow-x-auto">';
+  recent.forEach((r, i) => {
     const v = r.details?.length || 0;
     const pct = Math.round(v / maxV * 100);
+    const height = Math.max(1, Math.round(pct / 100 * 96));
+    const color = v === 0 ? 'green' : v > maxV * 0.5 ? 'red' : 'orange';
     const name = r.drawingName.length > 10 ? r.drawingName.slice(0, 10) + '…' : r.drawingName;
-    return '<div class="flex items-center gap-2"><span class="w-20 truncate text-xs" title="' + r.drawingName + '">' + name + '</span>' +
-      '<div class="flex-1 bg-gray-100 rounded-full h-4 relative"><div class="bg-' + (v > 0 ? 'red' : 'green') + '-500 h-4 rounded-full" style="width:' + pct + '%"></div></div>' +
-      '<span class="w-6 text-right text-xs">' + v + '</span></div>';
-  }).join('');
+    const timeStr = new Date(r.reviewedAt || r.createdAt || Date.now()).toLocaleDateString();
+    const critCount = (r.details || []).filter(v => v.severity === 'critical').length;
+    chartHtml += '<div class="flex-1 min-w-[24px] flex flex-col items-center cursor-pointer group" '
+      + 'title="' + name + '\n违规: ' + v + '\n严重: ' + critCount + '\n时间: ' + timeStr + '">' +
+      '<span class="text-[9px] text-' + color + '-600 mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity">' + v + '</span>' +
+      '<div class="w-full bg-' + color + '-500 rounded-t transition-all duration-200 group-hover:bg-' + color + '-700" style="height:' + height + 'px"></div>' +
+      '<span class="text-[8px] text-gray-400 mt-0.5 rotate-45 origin-center whitespace-nowrap" title="' + name + '">' + name.slice(0, 4) + '</span>' +
+      '</div>';
+  });
+  chartHtml += '</div></div>';
+
+  // 类别分布（最近审查汇总）
+  if (Object.keys(recentViolations).length > 0) {
+    chartHtml += '<div class="mt-2 text-xs">' +
+      '<span class="font-medium text-gray-500">类别分布</span>';
+    const sortedCats = Object.entries(recentViolations).sort((a, b) => b[1].count - a[1].count);
+    const catColors = {
+      'EVAC': 'red', 'DIM': 'orange', 'DIST': 'yellow', 'COUNT': 'blue',
+      'THERM': 'purple', 'STR': 'indigo', 'AREA': 'teal', 'LIGHT': 'cyan',
+      'EXIST': 'lime', 'ATTR': 'pink', 'other': 'gray'
+    };
+    chartHtml += '<div class="flex flex-wrap gap-1 mt-1">';
+    sortedCats.forEach(([cat, data]) => {
+      const c = catColors[cat] || 'gray';
+      chartHtml += '<span class="px-1 py-0.5 rounded bg-' + c + '-100 text-' + c + '-700 text-[10px]" '
+        + 'title="违规: ' + data.count + ' | 严重: ' + data.critical + ' | 主要: ' + data.major + '">' +
+        cat + ': ' + data.count + '</span>';
+    });
+    chartHtml += '</div></div>';
+  }
+
+  el.innerHTML = chartHtml;
 }
 
 function renderViolationDistBars() {
