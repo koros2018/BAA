@@ -3,6 +3,26 @@
 """
 
 from fastapi import Depends, HTTPException, Query, File, UploadFile, Request, Response
+from enum import Enum
+
+
+class ConfidenceTier(str, Enum):
+    """置信度语义分级（P61）"""
+
+    CONFIRMED = "confirmed"  # ≥0.85，确认违规
+    SUSPECTED = "suspected"  # 0.60~0.85，疑似违规
+    NEEDS_REVIEW = "needs_review"  # <0.60，建议人工复核
+
+
+def _confidence_tier(confidence: float) -> str:
+    """将 0~1 置信度映射为语义分级标签。"""
+    if confidence >= 0.85:
+        return ConfidenceTier.CONFIRMED.value
+    if confidence >= 0.60:
+        return ConfidenceTier.SUSPECTED.value
+    return ConfidenceTier.NEEDS_REVIEW.value
+
+
 from . import (
     _get_dp,
     _get_sa,
@@ -220,6 +240,7 @@ async def review(  # code
                             "difference": f.extracted_params.get("difference", 0),
                             "explanation": f.explanation[:120],
                             "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
                         }
                     )
 
@@ -260,6 +281,7 @@ async def review(  # code
                             "explanation": f.explanation[:120],
                             "severity": "critical",
                             "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
                         }
                     )
 
@@ -292,6 +314,12 @@ async def review(  # code
     if confidences:  # condition: confidences:
         avg_confidence = sum(confidences) / len(confidences)  # get length
 
+    # ── 置信度分级统计（P61） ─────────────────────────────
+    tier_counts = {"confirmed": 0, "suspected": 0, "needs_review": 0}
+    for d in details:
+        tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+
     response_data = {  # assignment
         "status": "success",  # 字段
         "summary": {  # 字段
@@ -302,6 +330,7 @@ async def review(  # code
             "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
             "score": total_score,  # 字段
             "avg_confidence": round(avg_confidence, 2),  # 字段
+            "confidence_tier_counts": tier_counts,  # P61: 置信度分级统计
         },  # code
         "details": details[:100],  # 最多返回100条详情
         "file_id": file_id,  # 字段
@@ -315,6 +344,7 @@ async def review(  # code
         correction_mode = os.environ.get("BAA_CORRECTION_MODE", "rule")
 
         # 构建 findings 列表（与 correction_engine 兼容）
+        # func_id 是修正建议模板匹配的关键字段，必须透传
         review_result_for_correction = {
             "findings": [
                 {
@@ -322,6 +352,7 @@ async def review(  # code
                     "entity_type": d["entity_type"],
                     "clause_id": d["clause_id"],
                     "clause_title": d["clause_title"],
+                    "func_id": d.get("func_id", ""),
                     "extracted_value": d["extracted_value"],
                     "required_value": d["required_value"],
                     "difference": d["difference"],
@@ -470,6 +501,7 @@ async def review_from_data(  # code
                                 "severity": f.judgement.get("severity", "major"),
                                 "explanation": f.explanation[:120],
                                 "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
                             }
                         )
 
@@ -509,6 +541,7 @@ async def review_from_data(  # code
                                 "difference": -f.extracted_params.get("required_value", 1.0),
                                 "explanation": f.explanation[:120],
                                 "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
                             }
                         )
 
@@ -534,6 +567,14 @@ async def review_from_data(  # code
         entity_types = Counter(e["type"] for e in entities)  # function call
         violation_count = Counter(d["clause_id"] for d in details)  # function call
 
+        # ── 置信度分级统计（P61） ─────────────────────────────
+        tier_counts = {"confirmed": 0, "suspected": 0, "needs_review": 0}
+        confidences = [d.get("confidence", 1.0) for d in details]
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 1.0
+        for d in details:
+            tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
+            tier_counts[tier] = tier_counts.get(tier, 0) + 1
+
         response_data = {  # assignment
             "status": "success",  # 字段
             "summary": {  # 字段
@@ -542,6 +583,8 @@ async def review_from_data(  # code
                 "total_checks": len(entities) * len(registry_funcs),  # 字段
                 "violations": len(details),  # 字段
                 "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
+                "avg_confidence": round(avg_confidence, 2),  # P61
+                "confidence_tier_counts": tier_counts,  # P61
             },  # code
             "details": details[:100],  # 字段
             "building_type": building_type,  # 字段

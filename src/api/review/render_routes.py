@@ -3,6 +3,16 @@
 """
 
 from fastapi import Depends, HTTPException, Query, File, UploadFile, Request, Response
+
+
+def _confidence_tier(confidence: float) -> str:
+    if confidence >= 0.85:
+        return "confirmed"
+    if confidence >= 0.60:
+        return "suspected"
+    return "needs_review"
+
+
 from . import (
     _get_dp,
     _get_sa,
@@ -460,6 +470,7 @@ async def review_pdf(  # code
                             "difference": (r.actual or 0) - threshold_val,  # function call
                             "explanation": f.explanation[:120],  # code
                             "confidence": r.confidence,  # code
+                            "confidence_tier": _confidence_tier(r.confidence),  # P61
                         }
                     )  # code
             except Exception:  # catch exception
@@ -505,12 +516,21 @@ async def review_pdf(  # code
                         "explanation": f.explanation[:120],  # code
                         "severity": "critical",  # code
                         "confidence": r.confidence,  # code
+                        "confidence_tier": _confidence_tier(r.confidence),  # P61
                     }
                 )  # code
 
     elapsed = int((time.time() - start) * 1000)  # get current time
     entity_types = Counter(e["type"] for e in entities)  # function call
     violation_count = Counter(d["clause_id"] for d in details)  # function call
+
+    # ── 置信度分级统计（P61） ─────────────────────────────
+    confidences = [d.get("confidence", 1.0) for d in details]
+    avg_confidence = sum(confidences) / len(confidences) if confidences else 1.0
+    tier_counts = {"confirmed": 0, "suspected": 0, "needs_review": 0}
+    for d in details:
+        tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
     summary = {  # assignment
         "total_entities": len(entities),  # get length
@@ -519,6 +539,8 @@ async def review_pdf(  # code
         "violations": len(details),  # get length
         "violation_by_clause": dict(violation_count.most_common(10)),  # function call
         "building_type": "civil",  # code
+        "avg_confidence": round(avg_confidence, 2),  # P61
+        "confidence_tier_counts": tier_counts,  # P61
         "processing_time_ms": elapsed,  # code
     }  # code
 

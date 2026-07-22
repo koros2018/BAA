@@ -107,12 +107,14 @@ async function runReview() {
     window._currentReviewEntities = entities;
     if (result.status === 'success') {
       const vs = result.summary || {};
+      // ── P61 置信度分级统计 ──────────────────────────────
+      const tc = vs.confidence_tier_counts || {confirmed:0, suspected:0, needs_review:0};
       summary.innerHTML =
         '<div class="grid grid-cols-4 gap-2 mb-3">' +
-        '<div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (vs.total_violations || 0) + '</div><div class="text-xs text-gray-400">违规</div></div>' +
-        '<div class="card p-2 text-center"><div class="text-lg font-bold ' + (vs.critical > 0 ? 'text-red-600' : 'text-green-600') + '">' + (vs.critical || 0) + '</div><div class="text-xs text-gray-400">严重</div></div>' +
-        '<div class="card p-2 text-center"><div class="text-lg font-bold text-gray-600">' + (vs.total_checks || 0) + '</div><div class="text-xs text-gray-400">总检查</div></div>' +
-        '<div class="card p-2 text-center"><div class="text-lg font-bold text-gray-600">' + (result.elements?.length || 0) + '</div><div class="text-xs text-gray-400">构件</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (vs.violations || 0) + '</div><div class="text-xs text-gray-400">违规</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + tc.confirmed + '</div><div class="text-xs text-gray-400">✅ 确认违规</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + tc.suspected + '</div><div class="text-xs text-gray-400">🟡 疑似违规</div></div>' +
+        '<div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + tc.needs_review + '</div><div class="text-xs text-gray-400">🔴 建议复核</div></div>' +
         '</div>';
 
       if (result.summary?.entity_types) {
@@ -229,7 +231,7 @@ async function runReview() {
         let filterOpts = Object.entries(selVals).map(([k,v]) => '<option value="'+k+'"'+(filter===k?' selected':'')+'>'+v+'</option>').join('');
 
         // 置信度过滤下拉
-        const confSelVals = {all:'全部置信度',high:'高(≥85%)',medium:'中(60-85%)',low:'低(<60%)'};
+        const confSelVals = {all:'全部置信度',high:'确认违规(≥85%)',medium:'疑似违规(60-85%)',low:'建议复核(<60%)'};
         const confFilterOpts = Object.entries(confSelVals).map(([k,v]) => '<option value="'+k+'"'+(confFilter===k?' selected':'')+'>'+v+'</option>').join('');
 
         // 按规范分组标签
@@ -268,7 +270,7 @@ async function runReview() {
             const conf = f.confidence != null ? f.confidence : 1.0;
             const confPct = Math.round(conf * 100);
             const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
-            const confLabel = conf >= 0.85 ? '高置信' : conf >= 0.6 ? '中置信' : '低置信';
+            const confLabel = f.confidence_tier === 'confirmed' ? '确认违规' : f.confidence_tier === 'suspected' ? '疑似违规' : '建议复核';
             // 修正建议：从 result.corrections 中按 clause_id 匹配
             // corrections 的 clause_id 是规范ID（如 GB50016-5.5.18），与 detail 的 clause_id 对齐
             const corrKey = (f.clause_id || f.func_id || '').trim();
