@@ -13,6 +13,7 @@ BAA API 服务层 - FastAPI 实现
 """
 
 # ── 标准库导入 ──────────────────────────────────────────────
+from __future__ import annotations  # noqa: F401 必须在所有 import 之前，保证 Optional 等类型注解可用
 import time  # 时间戳、超时控制
 import gc  # 垃圾回收
 import json  # JSON 序列化/反序列化
