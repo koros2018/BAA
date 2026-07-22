@@ -441,6 +441,70 @@ async function runReview() {
         return html;
       }
 
+      // ── 热工汇总表 ──
+      function renderThermalSummary(violations) {
+        const thermViols = violations.filter(f =>
+          f.func_id && f.func_id.startsWith('THERM-')
+        );
+        if (thermViols.length === 0) return '';
+
+        // 按 func_id 分组，计算平均置信度
+        const funcGroups = {};
+        thermViols.forEach(f => {
+          const fid = f.func_id || 'THERM-?';
+          if (!funcGroups[fid]) funcGroups[fid] = { count: 0, confSum: 0, viols: [] };
+          funcGroups[fid].count++;
+          funcGroups[fid].confSum += (f.confidence != null ? f.confidence : 1.0);
+          funcGroups[fid].viols.push(f);
+        });
+        const sortedFuncs = Object.entries(funcGroups).sort((a, b) => {
+          const avgA = a[1].confSum / a[1].count;
+          const avgB = b[1].confSum / b[1].count;
+          return avgA - avgB;
+        });
+
+        let html = '<div class="card p-2 text-xs mb-3">';
+        html += '<p class="font-medium text-sm mb-2 text-orange-600">🌡️ 热工性能违规 (' + thermViols.length + '项)</p>';
+
+        // ── 置信度迷你柱状图 ──
+        html += '<div class="mb-2">';
+        sortedFuncs.forEach(([fid, g]) => {
+          const avgConf = g.confSum / g.count;
+          const confPct = Math.round(avgConf * 100);
+          const confColor = avgConf >= 0.85 ? 'green' : avgConf >= 0.6 ? 'yellow' : 'red';
+          html += '<div class="flex items-center gap-1 mb-0.5">' +
+            '<span class="text-gray-500 w-16 text-[10px]">' + fid + '</span>' +
+            '<div class="flex-1 bg-gray-200 rounded h-2 overflow-hidden">' +
+            '<div class="' + confColor + '-500 h-full rounded" style="width:' + confPct + '%"></div>' +
+            '</div>' +
+            '<span class="text-' + confColor + '-600 text-[10px] w-6 text-right">' + confPct + '%</span>' +
+            '<span class="text-gray-400 text-[10px] w-6 text-right">(' + g.count + ')</span>' +
+            '</div>';
+        });
+        html += '</div>';
+
+        // ── 明细表格 ──
+        html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
+          '<th class="pb-1 pr-1">函数</th><th class="pb-1 pr-1">条款</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1 pr-1">置信</th><th class="pb-1">严重</th></tr></thead><tbody>';
+        thermViols.slice(0, 10).forEach(f => {
+          const sev = f.severity || 'major';
+          const sevColor = sev === 'critical' ? 'red' : sev === 'major' ? 'orange' : 'yellow';
+          const conf = f.confidence != null ? f.confidence : 1.0;
+          const confPct = Math.round(conf * 100);
+          const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
+          html += '<tr class="border-b border-gray-50">' +
+            '<td class="py-1 pr-1">' + (f.func_id || '') + '</td>' +
+            '<td class="py-1 pr-1 truncate max-w-20" title="' + (f.clause_title || '') + '">' + (f.clause_id || '') + '</td>' +
+            '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(3) : '-') + '</td>' +
+            '<td class="py-1 pr-1">' + (f.required_value != null ? Number(f.required_value).toFixed(3) : '-') + '</td>' +
+            '<td class="py-1 pr-1"><div class="w-10 bg-gray-200 rounded-full h-1.5 overflow-hidden"><div class="' + confColor + '-500 h-full rounded-full" style="width:' + confPct + '%"></div></div></td>' +
+            '<td class="py-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + (sev === 'critical' ? '严重' : sev === 'major' ? '主要' : '轻微') + '</span></td></tr>';
+        });
+        if (thermViols.length > 10) html += '<tr><td colspan="6" class="pt-1 text-gray-400 text-center">… 还有 ' + (thermViols.length - 10) + ' 项</td></tr>';
+        html += '</tbody></table></div>';
+        return html;
+      }
+
       // ── EVAC + 走廊宽度汇总表 ──
       function renderEvacCorridorSummary(violations) {
         const evacViols = violations.filter(f =>
@@ -506,8 +570,9 @@ async function runReview() {
         details.previousElementSibling.remove();
       }
 
-      // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载）+ 热力图
-      const summaryHtml = renderEvacCorridorSummary(violations) + renderStructuralSummary(violations);
+      // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载/热工）+ 热力图
+      const thermalSummaryHtml = renderThermalSummary(violations);
+      const summaryHtml = renderEvacCorridorSummary(violations) + renderStructuralSummary(violations) + thermalSummaryHtml;
       if (summaryHtml) {
         document.getElementById('review-details').insertAdjacentHTML('beforebegin', summaryHtml);
       }
@@ -1667,7 +1732,7 @@ async function computeThermalK() {
   }
 }
 
-// 渲染热工违规列表
+// 渲染热工违规列表（与 STR/EVAC 对齐：置信度+严重度+修正建议）
 function renderThermalViolations(thermalViolations) {
   const el = document.getElementById('thermal-review-list');
   if (!el) return;
@@ -1675,7 +1740,7 @@ function renderThermalViolations(thermalViolations) {
     el.innerHTML = '<span class="text-gray-400">✅ 单图审查后自动展示热工违规项</span>';
     return;
   }
-  let html = '';
+  let html = '<p class="font-medium text-sm mb-1 text-orange-600">🌡️ 热工违规 (' + thermalViolations.length + '项)</p>';
   const colorMap = { THERM: 'orange', EXIST: 'red' };
   thermalViolations.forEach(f => {
     const funcId = f.func_id || 'THERM-xxx';
@@ -1684,10 +1749,35 @@ function renderThermalViolations(thermalViolations) {
     const actual = f.extracted_value || f.actual_value || '?';
     const required = f.required_value || f.threshold || '?';
     const isFail = f.result === 'FAIL';
-    html += '<div class="p-1.5 rounded ' + (isFail ? 'bg-red-50 border-l-2 border-red-400' : 'bg-green-50 border-l-2 border-green-400') + ' mb-1">';
-    html += '<p class="font-medium ' + (isFail ? 'text-red-700' : 'text-green-700') + '">' + funcId + '</p>';
-    html += '<p class="text-gray-600">' + title + '</p>';
-    html += '<p class="text-xs text-gray-500">实测: ' + (typeof actual === 'number' ? actual.toFixed(3) : actual) + ' · 要求: ' + (typeof required === 'number' ? required.toFixed(3) : required) + ' · [' + clauseId + ']</p>';
+    const sev = f.severity || 'major';
+    const sevColor = sev === 'critical' ? 'red' : sev === 'major' ? 'orange' : 'yellow';
+    const sevLabel = sev === 'critical' ? '严重' : sev === 'major' ? '主要' : '轻微';
+    // 置信度
+    const conf = f.confidence != null ? f.confidence : 1.0;
+    const confPct = Math.round(conf * 100);
+    const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
+    // 修正建议匹配
+    const corrKey = (f.clause_id || f.func_id || '').trim();
+    const corrs = (window._currentReviewResult && window._currentReviewResult.corrections || [])
+      .filter(c => c.clause_id === corrKey);
+    const hasCorr = corrs.length > 0;
+    html += '<div class="p-1.5 rounded bg-' + sevColor + '-50 border-l-2 border-' + sevColor + '-400 mb-1">';
+    html += '<div class="flex justify-between items-start"><p class="font-medium text-' + sevColor + '-700">' + funcId + '</p>' +
+      '<div class="flex gap-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
+      '<span class="px-1 rounded text-xs bg-' + confColor + '-100 text-' + confColor + '-700" title="置信度 '+confPct+'%">' +
+      (conf >= 0.85 ? '高' : conf >= 0.6 ? '中' : '低') + '</span></div></div>' +
+      '<p class="text-xs text-gray-600">' + title + '</p>' +
+      '<p class="text-xs text-gray-500">实测: ' + (typeof actual === 'number' ? actual.toFixed(3) : actual) + ' · 要求: ' + (typeof required === 'number' ? required.toFixed(3) : required) + ' · [' + clauseId + ']</p>' +
+      '<div class="mt-1 bg-gray-200 rounded-full h-1 overflow-hidden"><div class="' + confColor + '-500 h-full rounded-full" style="width:' + confPct + '%"></div></div>';
+    if (hasCorr) {
+      const top = corrs[0];
+      const pColor = top.priority === 'high' ? 'red' : top.priority === 'medium' ? 'orange' : 'yellow';
+      const pLabel = top.priority === 'high' ? '🔴 高' : top.priority === 'medium' ? '🟠 中' : '🟡 低';
+      const uid = 'corr-thermal-' + (f.func_id || 'x') + '-' + Math.random().toString(36).slice(2, 6);
+      html += '<details class="mt-0.5"><summary class="cursor-pointer text-purple-600 font-medium text-xs">💡 修正建议 (' + corrs.length + '条)</summary>' +
+        '<div class="mt-0.5 p-1 bg-' + pColor + '-50 rounded border-l-2 border-' + pColor + '-400">' +
+        '<p class="text-xs"><span class="text-' + pColor + '-600">' + pLabel + '</span> ' + top.recommendation + '</p></div></details>';
+    }
     html += '</div>';
   });
   el.innerHTML = html;
