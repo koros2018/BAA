@@ -343,7 +343,9 @@ async def _run_review_task(
                     "text": func.description,  # 字段
                     "category": func.category.value,  # 字段
                 }  # code
-                f = _ag._attribution_analyzer.build_finding(r, clause, e, entities[:5])  # function call
+                f = _ag._attribution_analyzer.build_finding(
+                    r, clause, e, entities[:5]
+                )  # function call
                 details.append(
                     {  # code
                         "entity_id": e.get("id", e.get("type", "")),  # 字段
@@ -498,7 +500,9 @@ async def create_review_task(  # code
 
 
 @router.get("/api/v1/tasks/{task_id}", tags=["EMA2"])  # function call
-async def get_task_status(task_id: str, api_key: str = Depends(_ag.verify_api_key)):  # function call
+async def get_task_status(
+    task_id: str, api_key: str = Depends(_ag.verify_api_key)
+):  # function call
     """查询任务状态（EMA2 对接）"""
     task = _ag._tasks.get(task_id)  # function call
     if not task:  # check: negated condition
@@ -523,7 +527,9 @@ async def get_task_status(task_id: str, api_key: str = Depends(_ag.verify_api_ke
 
 
 @router.get("/api/v1/tasks/{task_id}/result", tags=["EMA2"])  # function call
-async def get_task_result(task_id: str, api_key: str = Depends(_ag.verify_api_key)):  # function call
+async def get_task_result(
+    task_id: str, api_key: str = Depends(_ag.verify_api_key)
+):  # function call
     """获取审查结果（EMA2 对接）"""
     task = _ag._tasks.get(task_id)  # function call
     if not task:  # check: negated condition
@@ -601,7 +607,9 @@ async def list_webhooks(api_key: str = Depends(_ag.verify_api_key)):  # function
 
 
 @router.delete("/api/v1/webhooks/{webhook_id}", tags=["EMA2"])  # function call
-async def delete_webhook(webhook_id: str, api_key: str = Depends(_ag.verify_api_key)):  # function call
+async def delete_webhook(
+    webhook_id: str, api_key: str = Depends(_ag.verify_api_key)
+):  # function call
     """删除 Webhook（EMA2 对接）"""
     if webhook_id not in _ag._webhooks:  # check: membership test
         raise HTTPException(
