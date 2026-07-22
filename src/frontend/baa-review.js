@@ -200,12 +200,37 @@ async function runReview() {
           (f.entity_type || '').toLowerCase().includes(search)
         );
 
+        // ── 置信度过滤：筛出低置信度需要人工复核的违规 ──
+        const confFilter = window._reviewConfFilter || 'all';
+        if (confFilter !== 'all') {
+          filtered = filtered.filter(f => {
+            const c = f.confidence != null ? f.confidence : 1.0;
+            if (confFilter === 'high') return c >= 0.85;
+            if (confFilter === 'medium') return c >= 0.6 && c < 0.85;
+            if (confFilter === 'low') return c < 0.6;
+            return true;
+          });
+        }
+
+        // ── 置信度排序（低置信度在前，优先人工复核）──
+        if (confFilter !== 'all') {
+          filtered.sort((a, b) => {
+            const ca = a.confidence != null ? a.confidence : 1.0;
+            const cb = b.confidence != null ? b.confidence : 1.0;
+            return ca - cb;
+          });
+        }
+
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const start = (page - 1) * pageSize;
         const pageItems = filtered.slice(start, start + pageSize);
 
         const selVals = {all:'全部',critical:'严重',major:'主要',minor:'轻微'};
         let filterOpts = Object.entries(selVals).map(([k,v]) => '<option value="'+k+'"'+(filter===k?' selected':'')+'>'+v+'</option>').join('');
+
+        // 置信度过滤下拉
+        const confSelVals = {all:'全部置信度',high:'高(≥85%)',medium:'中(60-85%)',low:'低(<60%)'};
+        const confFilterOpts = Object.entries(confSelVals).map(([k,v]) => '<option value="'+k+'"'+(confFilter===k?' selected':'')+'>'+v+'</option>').join('');
 
         // 按规范分组标签
         const clauseGroups = {};
@@ -221,6 +246,9 @@ async function runReview() {
           '<div class="flex gap-1 text-xs">' +
           '<select id="violation-filter" onchange="window._reviewFilter=this.value; window._reviewPage=1; renderViolationPage()" class="border rounded px-1 py-0.5 text-xs">' +
           filterOpts +
+          '</select>' +
+          '<select id="violation-conf-filter" onchange="window._reviewConfFilter=this.value; window._reviewPage=1; renderViolationPage()" class="border rounded px-1 py-0.5 text-xs">' +
+          confFilterOpts +
           '</select>' +
           '<input id="violation-search" placeholder="搜索..." class="border rounded px-1 py-0.5 text-xs w-20" value="' + (window._reviewSearch || '') + '" oninput="window._reviewSearch=this.value; window._reviewPage=1; renderViolationPage()" />' +
           '</div></div>' +
@@ -433,17 +461,21 @@ async function runReview() {
           html += '<div class="card p-2 text-xs">';
           html += '<p class="font-medium text-sm mb-1 text-red-600">🚪 疏散路径违规 (' + evacViols.length + '项)</p>';
           html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b">' +
-            '<th class="pb-1 pr-1">类型</th><th class="pb-1 pr-1">实体</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1">判定</th></tr></thead><tbody>';
+            '<th class="pb-1 pr-1">类型</th><th class="pb-1 pr-1">实体</th><th class="pb-1 pr-1">实测</th><th class="pb-1 pr-1">要求</th><th class="pb-1 pr-1">置信</th><th class="pb-1">判定</th></tr></thead><tbody>';
           evacViols.slice(0, 10).forEach(f => {
             const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
+            const conf = f.confidence != null ? f.confidence : 1.0;
+            const confPct = Math.round(conf * 100);
+            const confColor = conf >= 0.85 ? 'green' : conf >= 0.6 ? 'yellow' : 'red';
             html += '<tr class="border-b border-gray-50">' +
               '<td class="py-1 pr-1">' + (f.func_id || '') + '</td>' +
               '<td class="py-1 pr-1 truncate max-w-16" title="' + (f.entity_id || '') + '">' + (f.entity_type || '') + '</td>' +
               '<td class="py-1 pr-1">' + (f.extracted_value != null ? Number(f.extracted_value).toFixed(2) : '-') + '</td>' +
               '<td class="py-1 pr-1">' + (f.required_value != null ? f.required_value : '-') + '</td>' +
+              '<td class="py-1 pr-1"><div class="w-10 bg-gray-200 rounded-full h-1.5 overflow-hidden"><div class="' + confColor + '-500 h-full rounded-full" style="width:' + confPct + '%"></div></div></td>' +
               '<td class="py-1"><span class="px-1 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + (f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微') + '</span></td></tr>';
           });
-          if (evacViols.length > 10) html += '<tr><td colspan="5" class="pt-1 text-gray-400 text-center">… 还有 ' + (evacViols.length - 10) + ' 项</td></tr>';
+          if (evacViols.length > 10) html += '<tr><td colspan="6" class="pt-1 text-gray-400 text-center">… 还有 ' + (evacViols.length - 10) + ' 项</td></tr>';
           html += '</tbody></table></div>';
         }
         
@@ -465,6 +497,13 @@ async function runReview() {
         
         html += '</div>';
         return html;
+      }
+
+      // 清除上一次审查残留的汇总卡/热力图（避免多次审查累积重复卡）
+      while (details.previousElementSibling &&
+             (details.previousElementSibling.classList.contains('card') ||
+              details.previousElementSibling.classList.contains('heatmap-wrap'))) {
+        details.previousElementSibling.remove();
       }
 
       // 在渲染违规列表前插入汇总表（疏散/走廊/结构荷载）+ 热力图
