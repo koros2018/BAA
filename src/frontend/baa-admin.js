@@ -369,7 +369,8 @@ function renderHistoryList() {
       '<div><div class="font-medium text-sm">' + r.drawingName + '</div>' +
       '<div class="text-xs text-gray-400">' + btLabel + ' · ' + timeStr + '</div></div></div>' +
       '<div class="text-right mr-3">' +
-      '<div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div></div>' +
+      '<div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div>' +
+      '<div class="text-xs text-gray-400">💡 ' + (r.correctionCount || 0) + ' 条建议</div></div>' +
       '<button onclick="event.stopPropagation();deleteReviewRecord(\'' + r.id + '\')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button>' +
       '</div></div>';
   }).join('') + renderPagination(totalPages);
@@ -514,18 +515,171 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ── 预览缩放 ──────────────────────────────────────────────
+// ── 预览缩放/平移 ────────────────────────────────────────
+// 支持：鼠标滚轮缩放、拖拽平移、键盘快捷键
 function zoomImage(img) {
   if (!img || !img.src || img.style.display === 'none') return;
-  let modal = document.getElementById('zoom-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'zoom-modal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center cursor-zoom-out';
-    modal.onclick = function() { modal.remove(); };
-    document.body.appendChild(modal);
-  }
-  modal.innerHTML = '<img src="' + img.src + '" class="max-w-[95vw] max-h-[95vh] object-contain" />';
+
+  // 先移除旧的 viewer（如果有残留）
+  var old = document.getElementById('zoom-viewer');
+  if (old) old.remove();
+
+  var viewer = document.createElement('div');
+  viewer.id = 'zoom-viewer';
+  viewer.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 select-none';
+
+  viewer.innerHTML =
+    '<div class="absolute inset-0 flex items-center justify-center overflow-hidden" id="zoom-stage">' +
+      '<img id="zoom-img" src="' + img.src + '" alt="" draggable="false" ' +
+      'style="max-width:95vw;max-height:95vh;transition:transform .12s ease-out;cursor:grab" />' +
+    '</div>' +
+    '<div class="absolute top-3 left-3 flex gap-1 z-10" id="zoom-toolbar">' +
+      '<button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet("+1)">＋</button>' +
+      '<button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet(-1)">－</button>' +
+      '<button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomReset()" title="重置">⟲</button>' +
+      '<button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomFit()" title="适应窗口">⊡</button>' +
+      '<button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomClose()" title="关闭">✕</button>' +
+      '<span id="zoom-scale" class="bg-white bg-opacity-80 text-gray-700 px-2 py-1 rounded text-xs self-center ml-1">100%</span>' +
+    '</div>' +
+    '<div class="absolute bottom-3 right-3 bg-black bg-opacity-50 text-gray-300 text-xs px-2 py-1 rounded" id="zoom-hint">滚轮缩放 · 拖拽平移 · ←↑→↓ · 空格/ESC 关闭</div>';
+
+  document.body.appendChild(viewer);
+
+  var imgEl = document.getElementById('zoom-img');
+  var stage = document.getElementById('zoom-stage');
+  var scaleEl = document.getElementById('zoom-scale');
+
+  var state = {
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    isDragging: false,
+    lastX: 0,
+    lastY: 0
+  };
+  // 暴露到全局，让工具栏按钮（zoomSet/zoomReset/zoomFit）可访问
+  window.__zoomState = state;
+
+  var apply = function() {
+    var x = state.offsetX + (stage.clientWidth - stage.clientWidth * state.scale) / 2;
+    var y = state.offsetY + (stage.clientHeight - stage.clientHeight * state.scale) / 2;
+    imgEl.style.transform = 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px) scale(' + state.scale.toFixed(4) + ')';
+    imgEl.style.transformOrigin = '0 0';
+    scaleEl.textContent = Math.round(state.scale * 100) + '%';
+  };
+
+  // 拖拽平移
+  imgEl.addEventListener('mousedown', function(e) {
+    state.isDragging = true;
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+    imgEl.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', function(e) {
+    if (!state.isDragging) return;
+    state.offsetX += e.clientX - state.lastX;
+    state.offsetY += e.clientY - state.lastY;
+    state.lastX = e.clientX;
+    state.lastY = e.clientY;
+    apply();
+  });
+  window.addEventListener('mouseup', function() {
+    state.isDragging = false;
+    imgEl.style.cursor = 'grab';
+  });
+
+  // 滚轮缩放（以鼠标为中心）
+  stage.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY;
+    var factor = delta < 0 ? 1.12 : 1 / 1.12;
+    var newScale = Math.max(0.1, Math.min(20, state.scale * factor));
+
+    var rect = stage.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+
+    // 缩放前的中心偏移
+    var oldCx = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+    var oldCy = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+
+    // 鼠标在 img 内的相对位置（缩放前）
+    var relX = (mx - oldCx) / state.scale;
+    var relY = (my - oldCy) / state.scale;
+
+    // 缩放后保持鼠标在 img 同一点
+    var newCx = mx - relX * newScale;
+    var newCy = my - relY * newScale;
+
+    state.offsetX = newCx - (rect.width - rect.width * newScale) / 2;
+    state.offsetY = newCy - (rect.height - rect.height * newScale) / 2;
+    state.scale = newScale;
+    apply();
+  }, { passive: false });
+
+  // 点击关闭（点击黑色背景区域）
+  viewer.addEventListener('click', function(e) {
+    if (e.target === viewer || e.target === stage) zoomClose();
+  });
+
+  // 键盘快捷键
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { zoomClose(); return; }
+    if (e.key === ' ') { e.preventDefault(); zoomClose(); return; }
+    if (e.key === '+' || e.key === '=') { zoomSet(1); return; }
+    if (e.key === '-') { zoomSet(-1); return; }
+    if (e.key === 'ArrowLeft') { state.offsetX += 30; apply(); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { state.offsetX -= 30; apply(); e.preventDefault(); }
+    if (e.key === 'ArrowUp') { state.offsetY += 30; apply(); e.preventDefault(); }
+    if (e.key === 'ArrowDown') { state.offsetY -= 30; apply(); e.preventDefault(); }
+  });
+
+  apply();
+}
+
+function zoomSet(dir) {
+  var state = window.__zoomState;
+  if (!state) return;
+  var imgEl = document.getElementById('zoom-img');
+  var stage = document.getElementById('zoom-stage');
+  if (!imgEl || !stage) return;
+  var factor = dir > 0 ? 1.25 : 0.8;
+  var newScale = Math.max(0.1, Math.min(20, state.scale * factor));
+  var rect = stage.getBoundingClientRect();
+  var oldCx = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+  var oldCy = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+  state.offsetX = oldCx - (rect.width - rect.width * newScale) / 2;
+  state.offsetY = oldCy - (rect.height - rect.height * newScale) / 2;
+  state.scale = newScale;
+  var x = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+  var y = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+  imgEl.style.transform = 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px) scale(' + state.scale.toFixed(4) + ')';
+  imgEl.style.transformOrigin = '0 0';
+  var s = document.getElementById('zoom-scale');
+  if (s) s.textContent = Math.round(state.scale * 100) + '%';
+}
+
+function zoomReset() {
+  var state = window.__zoomState;
+  var imgEl = document.getElementById('zoom-img');
+  if (!state || !imgEl) return;
+  state.scale = 1;
+  state.offsetX = 0;
+  state.offsetY = 0;
+  imgEl.style.transform = 'none';
+  var s = document.getElementById('zoom-scale');
+  if (s) s.textContent = '100%';
+}
+
+function zoomFit() {
+  zoomReset();
+}
+
+function zoomClose() {
+  window.__zoomState = null;
+  var el = document.getElementById('zoom-viewer');
+  if (el) el.remove();
 }
 
 // P43 collab frontend

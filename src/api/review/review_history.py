@@ -167,7 +167,7 @@ def list_review_history(
         rows = conn.execute(
             f"""SELECT id, drawing_name, building_type, standard, status,
                        score, violation_count, entity_count, processing_time_ms,
-                       created_at
+                       corrections, created_at
                 FROM review_history {where}
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?""",
@@ -176,6 +176,7 @@ def list_review_history(
 
         items = []
         for row in rows:
+            corrections = json.loads(row["corrections"]) if row["corrections"] else []
             items.append(
                 {
                     "id": row["id"],
@@ -187,6 +188,7 @@ def list_review_history(
                     "violationCount": row["violation_count"],
                     "entityCount": row["entity_count"],
                     "processingTimeMs": row["processing_time_ms"],
+                    "correctionCount": len(corrections),
                     "reviewedAt": row["created_at"],
                 }
             )
