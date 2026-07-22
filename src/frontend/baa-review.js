@@ -603,6 +603,36 @@ async function runReview() {
           reviewResults.unshift(reviewResult);
           try { localStorage.setItem('baa_review_results', JSON.stringify(reviewResults.slice(0, 50))); } catch(e) {}
           // 审查结果已由后端 /review 自动保存到数据库
+
+          // ── 审查完成后自动展开修正建议面板 ──
+          const corrPanel = document.getElementById('review-correction-panel');
+          if (corrPanel) corrPanel.className = corrPanel.className.replace(/\bhidden\b/g, '').trim();
+          // 后端 /review-from-data 已自动生成 corrections，直接从 result 取
+          const loadedCorrs = result.corrections || [];
+          if (loadedCorrs.length > 0) {
+            const resultsDiv = document.getElementById('correction-results');
+            const sorted = loadedCorrs.slice().sort((a, b) => {
+              const order = {high: 0, medium: 1, low: 2};
+              return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
+            });
+            let html = '<p class="mb-1 text-gray-500">共 ' + sorted.length + ' 条建议（规则引擎自动生成）</p>';
+            for (const s of sorted) {
+              const pColor = s.priority === 'high' ? 'red' : s.priority === 'medium' ? 'orange' : 'yellow';
+              const pLabel = s.priority === 'high' ? '🔴 高' : s.priority === 'medium' ? '🟠 中' : '🟡 低';
+              html += '<div class="p-1.5 bg-gray-50 rounded border-l-2 border-' + pColor + '-400 mb-1">';
+              html += '<p class="font-medium"><span class="text-' + pColor + '-600">' + pLabel + '</span> [' + s.clause_id + '] ' + (s.description || s.clause_title || '') + '</p>';
+              if (s.recommendation) html += '<p class="text-gray-600 mt-0.5">💡 ' + s.recommendation + '</p>';
+              if (s.action) html += '<p class="text-xs text-gray-400 mt-0.5">操作: ' + s.action + ' · 实测: ' + (s.current_value != null ? Number(s.current_value).toFixed(2) : '-') + ' → 要求: ' + (s.required_value != null ? Number(s.required_value).toFixed(2) : '-') + '</p>';
+              if (Object.keys(s.parameters || {}).length > 0) {
+                html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(s.parameters) + '</p>';
+              }
+              html += '</div>';
+            }
+            resultsDiv.innerHTML = html;
+          } else {
+            const resultsDiv = document.getElementById('correction-results');
+            resultsDiv.innerHTML = '<p class="text-gray-400">✅ 无违规，无需修正建议</p>';
+          }
         }
       }
     } else {
