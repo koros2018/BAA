@@ -13,6 +13,24 @@ from typing import Optional, List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Request, Header, Query, Depends
 
+# ── 显式导出：确保 from ... import * 能导入以下划线开头的共享变量
+__all__ = [
+    'PROJECT_ROOT', 'DATA_DIR', 'MODELS_DIR',
+    '_tasks', '_webhooks',
+    '_persistent_cache', '_review_cache', '_REVIEW_CACHE_MAX',
+    'SUPPORTED_FORMATS', 'MAX_FILE_SIZE_MB', 'MAX_FILE_SIZE',
+    '_api_key', 'API_KEYS', 'AUTH_SECRETS',
+    'MAX_CONCURRENT_REVIEWS',
+    '_drawing_parser', '_semantic_analyzer', '_func_registry',
+    '_attribution_analyzer', '_spec_repo',
+    '_feedback_manager', '_learning_engine',
+    '_review_queue', '_review_semaphore',
+    'ENGINE_THREAD_POOL',
+    'verify_api_key',
+    'get_file_path',
+    'require_admin',
+]
+
 # ── 项目路径 ──────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # src/../
 import sys
