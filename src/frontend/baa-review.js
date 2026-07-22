@@ -846,24 +846,52 @@ async function runBatchReview() {
       details.innerHTML = crossHtml + details.innerHTML;
     }
 
-    // 各文件违规详情
-    let fileHtml = '<div class="card p-2 text-xs">';
-    fileHtml += '<p class="font-medium text-sm mb-1">📋 各文件违规详情</p>';
+    // ── 各文件违规详情（卡片式） ──
+    let fileHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">';
     resp.results.forEach(r => {
       if (r.status === 'error') {
-        fileHtml += `<div class="p-2 rounded bg-red-50 text-red-600 mb-1">❌ ${r.filename}: ${r.message}</div>`;
+        fileHtml += '<div class="card p-2 text-xs border-l-2 border-red-500 bg-red-50">' +
+          '<p class="font-medium text-red-600">❌ ' + r.filename + '</p>' +
+          '<p class="text-gray-500">' + r.message + '</p></div>';
         return;
       }
       const s = r.summary;
-      const sevColor = s.violations > 0 ? 'red' : 'green';
-      fileHtml += `<div class="p-2 rounded bg-${sevColor}-50 mb-1">`;
-      fileHtml += `<p class="font-medium">${r.filename} (${s.total_entities} 实体)</p>`;
-      fileHtml += `<p class="text-xs">违规: <span class="text-${sevColor}-600 font-medium">${s.violations}</span> 项`;
-      if (s.violation_by_clause) {
-        const top = Object.entries(s.violation_by_clause).slice(0, 3);
-        fileHtml += ' | 主要: ' + top.map(([k,v]) => `${k}(${v})`).join(', ');
-      }
-      fileHtml += '</p></div>';
+      const isClean = s.violations === 0;
+      const sevColor = isClean ? 'green' : (s.violations >= 20 ? 'red' : 'orange');
+      const total = s.total_checks || 0;
+      const passRate = total > 0 ? Math.round((1 - s.violations / total) * 100) : 100;
+
+      // 按严重度分组
+      const sevCount = { critical: 0, major: 0, minor: 0 };
+      (r.details || []).forEach(v => {
+        const sv = v.severity || 'major';
+        if (sv in sevCount) sevCount[sv]++;
+      });
+
+      // 顶部进度条（通过率）
+      let bar = '<div class="mt-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">' +
+        '<div class="' + sevColor + '-500 h-full rounded-full" style="width:' + passRate + '%"></div></div>' +
+        '<div class="flex justify-between text-[10px] text-gray-400 mt-0.5">' +
+        '<span>通过率 ' + passRate + '%</span><span>检查 ' + total.toLocaleString() + '</span></div>';
+
+      // 严重度徽章
+      let badges = '';
+      if (sevCount.critical > 0) badges += '<span class="px-1 rounded bg-red-100 text-red-700 text-[10px]">● ' + sevCount.critical + ' 严重</span>';
+      if (sevCount.major > 0) badges += '<span class="px-1 rounded bg-orange-100 text-orange-700 text-[10px]">● ' + sevCount.major + ' 主要</span>';
+      if (sevCount.minor > 0) badges += '<span class="px-1 rounded bg-yellow-100 text-yellow-700 text-[10px]">● ' + sevCount.minor + ' 轻微</span>';
+      if (!badges) badges = '<span class="px-1 rounded bg-green-100 text-green-700 text-[10px]">✓ 无违规</span>';
+
+      fileHtml += '<div class="card p-2 text-xs border-l-2 border-' + sevColor + '-500">' +
+        '<div class="flex items-center justify-between mb-1">' +
+        '<p class="font-medium truncate" title="' + r.filename + '">' + (r.filename.length > 24 ? r.filename.slice(0, 21) + '...' : r.filename) + '</p>' +
+        '<span class="text-' + sevColor + '-600 font-medium text-sm">' + (isClean ? '✓' : s.violations) + '</span>' +
+        '</div>' +
+        '<p class="text-gray-500 text-[10px]">' + s.total_entities + ' 实体 · ' + (r.buildingType === 'civil' ? '民用' : '工业') + '</p>' +
+        bar +
+        '<div class="mt-1 flex flex-wrap gap-0.5">' + badges + '</div>' +
+        (s.violation_by_clause ? '<p class="text-[10px] text-gray-400 mt-1">' +
+          '主要: ' + Object.entries(s.violation_by_clause).slice(0, 3).map(([k,v]) => k + '(' + v + ')').join(', ') + '</p>' : '') +
+        '</div>';
     });
     fileHtml += '</div>';
     details.innerHTML += fileHtml;
@@ -1321,6 +1349,9 @@ function renderViolationOverlay(r) {
   const cellW = (W - 60) / cols;
   const cellH = (H - 60) / rows;
 
+  // 收集每个圆圈的几何信息（用于悬停检测）
+  const circles = [];
+
   allTypes.forEach((t, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
@@ -1356,7 +1387,7 @@ function renderViolationOverlay(r) {
       ctx.fillText('✗', cx + radius + 8, cy - radius);
     }
 
-    // 详情提示
+    // 详情提示（画布内，保留原有）
     const hints = violClauses[t];
     if (hints && hints.length > 0) {
       ctx.fillStyle = '#6b7280';
@@ -1366,7 +1397,66 @@ function renderViolationOverlay(r) {
         ctx.fillText(h.length > 20 ? h.slice(0,18) + '..' : h, cx, cy + 12 + hi * 10);
       });
     }
+
+    // 记录几何信息供悬停检测
+    circles.push({
+      x: cx, y: cy, r: radius,
+      type: t, color: color,
+      severity: severity,
+      isViolated: isViolated,
+      hints: hints || []
+    });
   });
+
+  // ── 鼠标悬停 Tooltip ──
+  const tip = document.getElementById('compare-vis-tooltip');
+  if (!tip) {
+    const t = document.createElement('div');
+    t.id = 'compare-vis-tooltip';
+    t.className = 'fixed hidden bg-black bg-opacity-90 text-white text-xs rounded-lg p-2 pointer-events-none z-50 max-w-xs shadow-lg';
+    document.body.appendChild(t);
+  }
+  canvas.__circles = circles;
+  canvas.__tooltip = tip;
+
+  // 移除旧监听器避免重复绑定
+  if (canvas.__onMove) canvas.removeEventListener('mousemove', canvas.__onMove);
+  if (canvas.__onLeave) canvas.removeEventListener('mouseleave', canvas.__onLeave);
+
+  canvas.__onMove = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    let hit = null;
+    let hitDist = Infinity;
+    circles.forEach(c => {
+      const d = Math.hypot(mx - c.x, my - c.y);
+      if (d < c.r * 1.3 && d < hitDist) { hit = c; hitDist = d; }
+    });
+    if (!hit) { tip.classList.add('hidden'); return; }
+    const sevText = hit.severity === 'critical' ? '严重' : hit.severity === 'major' ? '主要' : '轻微';
+    let html = '<div class="font-medium mb-1">' + hit.type + (hit.isViolated ? ' ✗' : ' ✓') + '</div>';
+    if (hit.isViolated) {
+      html += '<div class="mb-1"><span class="text-' + (hit.severity === 'critical' ? 'red' : hit.severity === 'major' ? 'orange' : 'yellow') + '-400">● ' + sevText + '</span></div>';
+      if (hit.hints.length > 0) {
+        html += '<div class="text-gray-300 text-[10px]">' + hit.hints.slice(0, 4).join('<br>') + '</div>';
+        if (hit.hints.length > 4) html += '<div class="text-gray-500 text-[10px]">… 还有 ' + (hit.hints.length - 4) + ' 条</div>';
+      }
+    } else {
+      html += '<div class="text-gray-400 text-[10px]">无违规</div>';
+    }
+    tip.innerHTML = html;
+    tip.style.left = (e.clientX + 12) + 'px';
+    tip.style.top = (e.clientY + 12) + 'px';
+    tip.classList.remove('hidden');
+  };
+
+  canvas.__onLeave = function() { tip.classList.add('hidden'); };
+
+  canvas.addEventListener('mousemove', canvas.__onMove);
+  canvas.addEventListener('mouseleave', canvas.__onLeave);
 }
 
 // 渲染修正后预览文本
