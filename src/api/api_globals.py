@@ -29,6 +29,8 @@ __all__ = [
     'verify_api_key',
     'get_file_path',
     'require_admin',
+    'generate_file_id',
+    'store_file',
 ]
 
 # ── 项目路径 ──────────────────────────────────────────────

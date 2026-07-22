@@ -465,7 +465,7 @@ async def create_review_task(  # code
             },
         )  # code
 
-    file_id = generate_file_id()  # function call
+    file_id = _ag.generate_file_id()  # function call
     file_path = store_file(content, file_id, ext)  # function call
 
     # 创建任务
