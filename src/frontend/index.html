@@ -126,9 +126,61 @@
     <!-- ===== 规范库 ===== -->
     <div class="page" id="page-specs">
       <h2 class="text-xl font-bold mb-4">规范与图集库</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
+        <div class="card p-2 text-xs">
+          <span class="text-gray-400">总条目</span>
+          <p class="text-lg font-bold text-blue-600" id="spec-total-count">0</p>
+        </div>
+        <div class="card p-2 text-xs">
+          <span class="text-gray-400">L1（强制）</span>
+          <p class="text-lg font-bold text-red-600" id="spec-l1-count">0</p>
+        </div>
+        <div class="card p-2 text-xs">
+          <span class="text-gray-400">L2（推荐）</span>
+          <p class="text-lg font-bold text-orange-600" id="spec-l2-count">0</p>
+        </div>
+        <div class="card p-2 text-xs">
+          <span class="text-gray-400">L3（参考）</span>
+          <p class="text-lg font-bold text-green-600" id="spec-l3-count">0</p>
+        </div>
+      </div>
+      <div class="card p-2 mb-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="spec-search" placeholder="搜索条款编号/内容/标准编号..." class="text-sm border rounded px-2 py-1 flex-1 min-w-32" oninput="renderSpecList()" />
+          <select id="spec-filter-level" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
+            <option value="all">全部级别</option>
+            <option value="L1">L1 强制</option>
+            <option value="L2">L2 推荐</option>
+            <option value="L3">L3 参考</option>
+          </select>
+          <select id="spec-filter-cat" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
+            <option value="all">全部分类</option>
+            <option value="dim">尺寸</option>
+            <option value="exist">存在性</option>
+            <option value="attr">属性</option>
+            <option value="dist">距离</option>
+            <option value="count">数量</option>
+            <option value="area">面积</option>
+            <option value="evac">疏散</option>
+            <option value="light">照明</option>
+            <option value="thermal">热工</option>
+            <option value="str">结构</option>
+          </select>
+          <select id="spec-filter-std" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
+            <option value="all">全部标准</option>
+            <option value="GB 50016">GB 50016</option>
+            <option value="GB 50974">GB 50974</option>
+            <option value="GB 50763">GB 50763</option>
+            <option value="GB 50067">GB 50067</option>
+            <option value="GB 50116">GB 50116</option>
+            <option value="GB 50084">GB 50084</option>
+          </select>
+          <span class="text-xs text-gray-400" id="spec-filter-count">0 条</span>
+        </div>
+      </div>
       <div class="card overflow-x-auto">
         <table class="w-full text-sm">
-          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">规范内容</th><th class="pb-2 px-2">级别</th><th class="pb-2 px-2">分类</th><th class="pb-2 px-2">原子函数</th></tr></thead>
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">规范内容</th><th class="pb-2 px-2">标准</th><th class="pb-2 px-2">级别</th><th class="pb-2 px-2">分类</th><th class="pb-2 px-2">原子函数</th></tr></thead>
           <tbody id="spec-list"></tbody>
         </table>
       </div>

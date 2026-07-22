@@ -18,18 +18,73 @@ async function loadSpecs() {
 
 function renderSpecList() {
   const tbody = document.getElementById('spec-list');
+  if (!tbody) return;
+  const search = (document.getElementById('spec-search')?.value || '').toLowerCase();
+  const levelFilter = document.getElementById('spec-filter-level')?.value || 'all';
+  const catFilter = document.getElementById('spec-filter-cat')?.value || 'all';
+  const stdFilter = document.getElementById('spec-filter-std')?.value || 'all';
+
+  // 统计
+  const total = SPEC_DATA.length;
+  const l1 = SPEC_DATA.filter(s => (s.level || 'L1') === 'L1').length;
+  const l2 = SPEC_DATA.filter(s => (s.level || 'L1') === 'L2').length;
+  const l3 = SPEC_DATA.filter(s => (s.level || 'L1') === 'L3').length;
+  const tc = document.getElementById('spec-total-count'); if (tc) tc.textContent = total;
+  const l1c = document.getElementById('spec-l1-count'); if (l1c) l1c.textContent = l1;
+  const l2c = document.getElementById('spec-l2-count'); if (l2c) l2c.textContent = l2;
+  const l3c = document.getElementById('spec-l3-count'); if (l3c) l3c.textContent = l3;
+
+  // 过滤
+  let filtered = SPEC_DATA;
+  if (levelFilter !== 'all') filtered = filtered.filter(s => (s.level || 'L1') === levelFilter);
+  if (catFilter !== 'all') {
+    filtered = filtered.filter(s => {
+      const c = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
+      return c === catFilter;
+    });
+  }
+  if (stdFilter !== 'all') {
+    filtered = filtered.filter(s => {
+      const std = s.standard || s.std || s.code || '';
+      return std.toLowerCase().includes(stdFilter.toLowerCase());
+    });
+  }
+  if (search) {
+    filtered = filtered.filter(s =>
+      (s.clause_id || '').toLowerCase().includes(search) ||
+      (s.title || s.name || '').toLowerCase().includes(search) ||
+      (s.text || s.description || '').toLowerCase().includes(search) ||
+      (s.standard || s.std || '').toLowerCase().includes(search)
+    );
+  }
+  const fcount = document.getElementById('spec-filter-count');
+  if (fcount) fcount.textContent = filtered.length + ' 条' + (filtered.length < total ? ' / ' + total : '');
+
   tbody.innerHTML = '';
-  SPEC_DATA.forEach((s, i) => {
-    const catLabels = {dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积',evac:'疏散',light:'照明',access:'无障碍'};
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">无匹配记录</td></tr>';
+    return;
+  }
+  const catLabels = {
+    dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积',
+    evac:'疏散',light:'照明',access:'无障碍',thermal:'热工',str:'结构'
+  };
+  const levelColors = {L1:'red',L2:'orange',L3:'green'};
+  const stdAbbrev = {'GB 50016':'016','GB 50974':'974','GB 50763':'763','GB 50067':'067','GB 50116':'116','GB 50084':'084'};
+  filtered.forEach((s, i) => {
     const title = s.title || s.name || '';
     const desc = s.text || s.description || '';
     const cat = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
     const target = s.target_entities || s.target || [];
+    const level = s.level || 'L1';
+    const std = s.standard || s.std || '';
+    const stdShort = stdAbbrev[std] || (std ? std.slice(3, 6) : '--');
     tbody.innerHTML += '<tr class="border-b border-gray-50">' +
       '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
       '<td class="py-2 px-2 font-mono text-xs">' + (s.clause_id || '') + '</td>' +
       '<td class="py-2 px-2 text-sm">' + title + '<br/><span class="text-xs text-gray-400">' + desc + '</span></td>' +
-      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">' + (s.level || 'L1') + '</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + stdShort + '</span>' : '') + '</td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[level]||'gray') + '-100 text-' + (levelColors[level]||'gray') + '-700 rounded text-xs">' + level + '</span></td>' +
       '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
       '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : '') + '</td></tr>';
   });
