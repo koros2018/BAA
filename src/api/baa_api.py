@@ -840,6 +840,69 @@ async def list_specs(api_key: str = Depends(verify_api_key)):
     return {"status": "ok", "count": len(specs), "specs": specs}
 
 
+# ═══════════════════════════════════════════════════════════════
+# P66: 规范版本管理 — 版本列表 + 版本对比
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/specs/versions", tags=["API", "API v1"])
+async def list_spec_versions(
+    standard: str = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """获取支持的所有规范版本列表
+
+    Args:
+        standard: 指定标准名称（如 GB 50016），None 返回全部标准
+    """
+    from src.baa_engine.spec_data.versioning import VersionManager
+
+    mgr = VersionManager()
+    if standard:
+        versions = mgr.list_versions(standard)
+        return {"status": "ok", "standard": standard, "versions": versions}
+    return {"status": "ok", "versions": mgr.list_versions()}
+
+
+@app.get(
+    "/api/v1/specs/compare",
+    tags=["API", "API v1"],
+)
+async def compare_spec_versions(
+    standard: str,
+    old_version: str,
+    new_version: str = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """对比两个版本间的规范差异
+
+    Args:
+        standard: 标准名称（如 GB 50016）
+        old_version: 旧版本（如 2014）
+        new_version: 新版本（如 2025）；None 表示从 old_version 到最新版
+    """
+    from src.baa_engine.spec_data.versioning import VersionManager
+
+    mgr = VersionManager()
+    return mgr.compare_versions(standard, old_version, new_version)
+
+
+@app.get(
+    "/api/v1/specs/change-log",
+    tags=["API", "API v1"],
+)
+async def get_change_log(
+    standard: str,
+    old_version: str,
+    new_version: str = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """获取版本变更日志（详细条目）"""
+    from src.baa_engine.spec_data.versioning import VersionManager
+
+    mgr = VersionManager()
+    return mgr.get_change_log(standard, old_version, new_version)
+
+
 @app.post("/api/v1/functions/{func_id}/update", tags=["API", "API v1"])
 async def update_function(func_id: str, body: dict, api_key: str = Depends(verify_api_key)):
     """更新原子函数的阈值/运算符等参数"""
