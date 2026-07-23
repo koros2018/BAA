@@ -12,7 +12,10 @@ BAA 反向重构引擎 v1（原型）
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple
 from enum import Enum
+import logging
 from .atomic_functions import FuncRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class RoomType(str, Enum):
@@ -189,6 +192,95 @@ class ReverseEngine:
         with open(output_path, "w") as f:
             f.write(dxf_content)
         return output_path
+
+    def export_dwg(self, dxf_path: str, dwg_path: str) -> str:
+        """P67: 将 DXF 文件导出为 DWG 格式。
+
+        两步法：
+        1. LibreOffice/soffice 将 DXF 转换为 DWG（首选）
+        2. 降级：返回 DXF 文件路径
+
+        返回 DWG 输出路径（或降级返回 DXF 路径）。
+        """
+        import subprocess
+        import os
+        import shutil
+
+        os.makedirs(os.path.dirname(os.path.abspath(dwg_path)) or ".", exist_ok=True)
+
+        # 策略1: 使用 LibreOffice/soffice 转换 DXF -> DWG
+        if self._export_via_libreoffice(dxf_path, dwg_path):
+            return dwg_path
+
+        # 降级: 返回 DXF 路径（至少给用户一个文件）
+        logger.warning(
+            "P67: 所有 DWG 导出策略失败，降级返回 DXF 文件: %s", dxf_path
+        )
+        return dxf_path
+
+    def _export_via_libreoffice(
+        self, dxf_path: str, dwg_path: str
+    ) -> bool:
+        """尝试通过 LibreOffice/soffice 将 DXF 转换为 DWG。
+
+        LibreOffice Draw 组件支持 DXF -> DWG 转换（天正/AutoCAD 兼容）。
+        返回 True 表示转换成功。
+        """
+        import subprocess
+        import os
+        import tempfile
+
+        soffice = None
+        for candidate in ["soffice", "libreoffice"]:
+            p = subprocess.run(
+                ["which", candidate], capture_output=True, text=True
+            )
+            if p.returncode == 0:
+                soffice = candidate
+                break
+
+        if not soffice:
+            logger.debug("P67: LibreOffice 不可用")
+            return False
+
+        # 使用临时目录接收 LibreOffice 的输出
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = os.path.join(tmpdir, "out")
+            os.makedirs(out_dir, exist_ok=True)
+
+            cmd = [
+                soffice,
+                "--headless",
+                "--convert-to",
+                "dwg",
+                "--outdir",
+                out_dir,
+                dxf_path,
+            ]
+
+            try:
+                proc = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=60
+                )
+            except subprocess.TimeoutExpired:
+                logger.warning("P67: LibreOffice 转换超时")
+                return False
+
+            if proc.returncode == 0:
+                for f in os.listdir(out_dir):
+                    if f.lower().endswith(".dwg"):
+                        shutil.copy2(os.path.join(out_dir, f), dwg_path)
+                        logger.info(
+                            "P67: LibreOffice 导出 DWG 成功: %s", dwg_path
+                        )
+                        return True
+
+            logger.debug(
+                "P67: LibreOffice 转换失败 (rc=%d): %s",
+                proc.returncode,
+                proc.stderr[:200],
+            )
+            return False
 
     def _line(self, x1, y1, x2, y2, layer):
         return [
