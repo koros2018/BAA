@@ -60,7 +60,7 @@ store_file = _api_globals.store_file
 get_file_path = _api_globals.get_file_path
 MODELS_DIR = _api_globals.MODELS_DIR
 
-router = APIRouter()
+router = APIRouter(tags=["Review", "review"])  # P64: OpenAPI tag
 
 from . import review_routes
 from . import render_routes

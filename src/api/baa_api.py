@@ -298,23 +298,49 @@ async def lifespan(app: FastAPI):  # function call
     ENGINE_THREAD_POOL.shutdown(wait=False)  # function call
 
 
-app = FastAPI(title="BAA API", version="1.0.0", lifespan=lifespan)  # function call
+# P64: 增强 OpenAPI 元信息，方便文档生成和 SDK 生成
+app = FastAPI(
+    title="BAA API",
+    version="1.25.0",
+    description=(
+        "蓝图智能审查引擎（Blueprint AI Agent）— 建筑图纸 DWG/DXF 合规审查。\n"
+        "\n"
+        "**核心功能：**\n"
+        "- `/deconstruct`：图纸解构，提取墙/门/窗/楼梯/消防设备等实体\n"
+        "- `/review`：合规审查，按 GB50016/50974/50763/50116 等规范判定\n"
+        "- `/review-from-data`：从结构化数据直接审查（跳过图纸解析）\n"
+        "- `/batch-review`：批量多文件审查\n"
+        "- `/review/compare`：多文件对比审查\n"
+        "- `/review/project/summary`：项目级汇总报告\n"
+        "- `/api/v1/reverse`：反向重构 DXF 生成\n"
+        "- `/thermal/k-value`：热工 K 值反算\n"
+        "- `/render`：图纸渲染\n"
+        "- `/collab/*`：多用户协作（团队/项目/审批/评论）\n"
+        "- `/admin/keys/*`：API 密钥管理\n"
+        "\n"
+        "**认证：** `Authorization: Bearer ***` 通过 API 密钥验证。"
+    ),
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)  # function call
 security = HTTPBearer(auto_error=False)  # function call
 
 # ── 注册子路由模块 ──────────────────────────────────────
 from src.api.collab_routes import router as collab_router  # import
 
-app.include_router(collab_router)  # function call
+app.include_router(collab_router)  # tags 已在 collab_routes 中声明
 from src.api.admin_routes import router as admin_router  # import
 
-app.include_router(admin_router)  # function call
+app.include_router(admin_router)  # tags 已在 admin_routes 中声明
 from src.api.review import router as review_router  # import
 
-app.include_router(review_router)  # function call
+app.include_router(review_router)  # tags 已在 review/__init__ 中声明
 
 from src.api.render_endpoint import router as render_router  # import
 
-app.include_router(render_router)  # function call
+app.include_router(render_router)  # tags 已在 render_endpoint 中声明
 
 # ── 静态文件服务 ──────────────────────────────────────────
 SPECS_DIR = DATA_DIR / "specs"
@@ -330,7 +356,7 @@ if FRONTEND_DIR.exists():  # condition: FRONTEND_DIR.exists():
     )  # function call
 
 
-@app.get("/")  # function call
+@app.get("/", tags=["System"])  # function call
 async def root():  # function call
     """返回前端 UI 页面
 
@@ -386,7 +412,7 @@ _feedback_manager: Optional[FeedbackManager] = None  # assignment
 _learning_engine: Optional[LearningEngine] = None  # 操作
 
 
-@app.get("/health")  # function call
+@app.get("/health", tags=["System"])  # function call
 async def health():  # function call
     """增强型健康检查接口
 
@@ -450,7 +476,7 @@ async def health():  # function call
 _start_time = time.time()  # get current time
 
 
-@app.post("/deconstruct")  # function call
+@app.post("/deconstruct", tags=["Deconstruct"])  # function call
 async def deconstruct(  # code
     file: UploadFile = File(...),  # function call
     building_type: str = Query(
@@ -771,8 +797,8 @@ async def deconstruct(  # code
     return _sanitize_for_json(result)  # 操作
 
 
-@app.post("/review")  # function call
-@app.get("/api/v1/functions")
+@app.post("/review", tags=["Review"])  # function call
+@app.get("/api/v1/functions", tags=["API", "API v1"])
 async def list_functions(api_key: str = Depends(verify_api_key)):
     """获取原子函数库列表（含简介、参数、模型）"""
     funcs = []
@@ -794,7 +820,7 @@ async def list_functions(api_key: str = Depends(verify_api_key)):
     return {"status": "ok", "count": len(funcs), "functions": funcs}
 
 
-@app.get("/api/v1/specs")
+@app.get("/api/v1/specs", tags=["API", "API v1"])
 async def list_specs(api_key: str = Depends(verify_api_key)):
     """获取规范库列表（含所有条款）"""
     specs = []
@@ -814,7 +840,7 @@ async def list_specs(api_key: str = Depends(verify_api_key)):
     return {"status": "ok", "count": len(specs), "specs": specs}
 
 
-@app.post("/api/v1/functions/{func_id}/update")
+@app.post("/api/v1/functions/{func_id}/update", tags=["API", "API v1"])
 async def update_function(func_id: str, body: dict, api_key: str = Depends(verify_api_key)):
     """更新原子函数的阈值/运算符等参数"""
     f = _func_registry.get(func_id)
@@ -833,7 +859,7 @@ async def update_function(func_id: str, body: dict, api_key: str = Depends(verif
     return {"status": "ok", "message": f"{func_id} 已更新"}
 
 
-@app.post("/api/v1/reverse")
+@app.post("/api/v1/reverse", tags=["API", "API v1"])
 async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
     """反向重构：根据房间规格生成合规 DXF"""
     from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType, validate_roundtrip
@@ -885,7 +911,7 @@ async def reverse_generate(body: dict, api_key: str = Depends(verify_api_key)):
     }
 
 
-@app.post("/api/v1/reverse/multi")
+@app.post("/api/v1/reverse/multi", tags=["API", "API v1"])
 async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_key)):
     """多房间布局生成"""
     from src.baa_engine.reverse_engine import (
@@ -963,7 +989,7 @@ async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_k
 # ═══════════════════════════════════════════════════════════════
 
 
-@app.post("/api/v1/correction/suggestions")
+@app.post("/api/v1/correction/suggestions", tags=["API", "API v1"])
 async def generate_correction_suggestions(
     body: dict,
     api_key: str = Depends(verify_api_key),
