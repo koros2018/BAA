@@ -526,7 +526,7 @@ const _casePageSize = 15;
  */
 async function loadCaseStats() {
     try {
-        const r = await apiFetch('/cases/stats');
+        const r = await apiFetch('/api/v1/cases/stats');
         if (r.status !== 'ok') return;
         document.getElementById('case-total').textContent = r.totalCases ?? '-';
         document.getElementById('case-violations').textContent = r.totalViolations ?? '-';

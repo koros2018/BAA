@@ -344,7 +344,7 @@ app.include_router(render_router)  # tags 已在 render_endpoint 中声明
 
 from src.api.review.case_routes import router as case_router  # import
 
-app.include_router(case_router)  # P68 行业案例库
+app.include_router(case_router, prefix="/api/v1")  # P68 行业案例库
 
 # ── 静态文件服务 ──────────────────────────────────────────
 SPECS_DIR = DATA_DIR / "specs"
