@@ -1285,8 +1285,8 @@ function clearDiffResults() {
 }
 
 // ── PDF 下载 ──────────────────────────────────────────────
-function downloadReviewPdf(fileId) {
-  const url = API_BASE() + '/review/' + encodeURIComponent(fileId) + '/pdf';
+function downloadReviewPdf(reviewId) {
+  const url = API_BASE() + '/api/v1/review/pdf?review_id=' + encodeURIComponent(reviewId);
   const key = getActiveKeyValue();
   const headers = key ? { 'Authorization': '***' + key } : {};
 
