@@ -95,10 +95,13 @@ class TestLLMCorrectionEngine:
         assert suggestions == []
 
     def test_llm_mode_no_api_key(self):
-        """无 API key 时 LLM 模式应返回空列表"""
+        """无 API key 时 LLM 模式应返回降级建议（rule_fallback）"""
         engine = LLMCorrectionEngine(mode="llm", api_key="")
         suggestions = engine.generate(SAMPLE_FINDINGS, [])
-        assert suggestions == []
+        assert len(suggestions) == len(SAMPLE_FINDINGS)
+        for s in suggestions:
+            assert s.source == "rule_fallback"
+            assert s.recommendation != ""
 
     def test_llm_mode_with_mocked_api(self):
         """LLM 模式 mock API 返回"""
@@ -120,7 +123,7 @@ class TestLLMCorrectionEngine:
         assert "1.0m" in suggestions[0].recommendation
 
     def test_llm_mode_api_timeout(self):
-        """API 超时应返回空列表"""
+        """API 超时应返回降级建议（rule_fallback）"""
         engine = LLMCorrectionEngine(
             mode="llm",
             api_key="test-key",
@@ -134,7 +137,8 @@ class TestLLMCorrectionEngine:
                 "timeout"
             )
             suggestions = engine.generate(SAMPLE_FINDINGS[:1], [])
-        assert suggestions == []
+        assert len(suggestions) == 1
+        assert suggestions[0].source == "rule_fallback"
 
     def test_llm_mode_api_error(self):
         """API 异常应返回空列表"""
@@ -148,7 +152,8 @@ class TestLLMCorrectionEngine:
                 "connection error"
             )
             suggestions = engine.generate(SAMPLE_FINDINGS[:1], [])
-        assert suggestions == []
+        assert len(suggestions) == 1
+        assert suggestions[0].source == "rule_fallback"
 
     def test_hybrid_mode_no_api_key(self):
         """无 API key 时 hybrid 模式应回退到规则引擎"""
