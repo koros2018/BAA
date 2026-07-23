@@ -984,6 +984,53 @@ async def reverse_generate_multi(body: dict, api_key: str = Depends(verify_api_k
     }
 
 
+@app.post("/api/v1/reverse/export-dwg", tags=["API", "API v1"])
+async def reverse_export_dwg(
+    dxf_content: str,
+    filename: str = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """P67: 将反向重构生成的 DXF 内容导出为 DWG 文件。
+
+    请求体: {"dxf_content": "<DXF文本>", "filename": "output.dwg"}
+    返回: HTTP下载（DWG 或 DXF 降级）
+    """
+    from src.baa_engine.reverse_engine import ReverseEngine
+    import tempfile
+    import os
+
+    engine = ReverseEngine()
+
+    # 写入临时 DXF
+    tmp_dxf = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+    tmp_dxf.close()
+    with open(tmp_dxf.name, "w") as f:
+        f.write(dxf_content)
+
+    # 输出路径
+    fname = filename or "output.dwg"
+    tmp_dwg = tempfile.NamedTemporaryFile(
+        suffix=".dwg" if fname.endswith(".dwg") else ".dxf",
+        delete=False,
+    )
+    tmp_dwg.close()
+    out_path = tmp_dwg.name
+    # 如果请求的是 dwg，尝试导出；否则直接返回 dxf
+    if fname.endswith(".dwg"):
+        out_path = engine.export_dwg(tmp_dxf.name, tmp_dwg.name)
+
+    os.unlink(tmp_dxf.name)
+
+    # 返回文件下载
+    import mimetypes
+    mime, _ = mimetypes.guess_type(out_path) or ("application/octet-stream", None)
+    from fastapi.responses import FileResponse
+
+    # 使用正确的原始文件名
+    return FileResponse(out_path, media_type=mime, filename=fname)
+
+
+
 # ═══════════════════════════════════════════════════════════════
 # P41: AI 辅助修正建议（LLM 驱动）
 # ═══════════════════════════════════════════════════════════════
