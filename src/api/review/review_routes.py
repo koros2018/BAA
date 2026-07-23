@@ -560,6 +560,70 @@ async def review(  # code
     return response_data  # return
 
 
+@router.get("/review/pdf", tags=["Review"])  # P69: PDF 报告导出
+async def export_review_pdf(  # code
+    review_id: str = Query(..., description="审查记录 ID"),  # assignment
+    lang: str = Query("zh", description="报告语言: zh/cn/en"),  # assignment
+    api_key: str = Depends(verify_api_key),  # assignment
+):
+    """导出审查结果为 PDF 报告
+
+    基于审查记录 ID 生成完整 PDF 报告，包含：
+    - 封面（项目信息、审查概要）
+    - 合规度评分页
+    - 违规分类统计
+    - 违规详情（TOP-N）
+    - 修正建议
+    """
+    from fastapi.responses import StreamingResponse
+    from .review_history import get_review_detail
+
+    detail = get_review_detail(review_id)
+    if not detail:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "status": "error",
+                "error_code": "REVIEW_NOT_FOUND",
+                "message": f"审查记录 {review_id} 不存在",
+            },
+        )
+
+    summary = detail.get("summary", {})
+    details = detail.get("details", [])
+    corrections = detail.get("corrections", [])
+    filename = detail.get("drawingName", "review")
+
+    # 生成 PDF
+    try:
+        from src.baa_engine.report_generator import ReviewReport
+        reporter = ReviewReport()
+        pdf_bytes = reporter.generate(
+            filename=filename,
+            summary=summary,
+            details=details,
+            corrections=corrections,
+            lang=lang,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "error_code": "PDF_GENERATION_FAILED",
+                "message": f"PDF 生成失败: {str(e)}",
+            },
+        )
+
+    safe_name = filename.rsplit(".", 1)[0] if "." in filename else filename
+    pdf_name = f"{safe_name}_BAA_报告.pdf"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{pdf_name}"'},
+    )
+
+
 @router.post("/review-from-data")  # function call
 async def review_from_data(  # code
     body: dict,  # 操作
