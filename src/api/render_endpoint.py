@@ -7,7 +7,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from src.api.api_globals import get_file_path, verify_api_key
 
-router = APIRouter()  # function call
+router = APIRouter(tags=["Render", "render"])  # function call
 
 
 @router.get("/render/{file_id}")
