@@ -57,6 +57,142 @@ import json
 import hashlib
 from collections import Counter
 
+# ── P62: 结构化摘要 ────────────────────────────────────────
+
+COMPLIANCE_GUIDE = {
+    "critical": "必须整改，否则无法通过施工图审查，建议优先处理",
+    "major": "建议整改，影响建筑性能或施工便利性",
+    "minor": "可选择性优化，提升图纸质量",
+}
+
+COMPLIANCE_PATHS = {
+    "dim": "按规范限值调整构件尺寸（宽度/高度/净距）",
+    "exist": "补充缺失的消防/疏散设施实体",
+    "dist": "调整构件间距以满足最小安全距离",
+    "count": "增加设施数量满足最低配置要求",
+    "area": "优化平面布局以满足面积/分区要求",
+    "attr": "修正构件属性（材料/等级/标识）",
+    "light": "补充/调整照明设施以满足照度要求",
+    "vac": "优化疏散路径，确保连通性",
+}
+
+
+def _classify_priority(d: dict) -> str:
+    """P62: severity + confidence → 整改优先级 P0/P1/P2。
+
+    P0 = 高置信度 + critical，立即整改
+    P1 = 高置信度 + major 或 中置信度 + critical，尽快整改
+    P2 = 其余，计划性优化
+    """
+    sev = d.get("severity", "minor")
+    tier = d.get("confidence_tier", "")
+    if tier == "confirmed" and sev == "critical":
+        return "P0"
+    if (tier == "confirmed" and sev == "major") or (tier == "suspected" and sev == "critical"):
+        return "P1"
+    return "P2"
+
+
+def _derive_compliance_path(d: dict) -> str:
+    """P62: 从 func_id/clause_id 推导整改路径指引。"""
+    fid = (d.get("func_id") or d.get("clause_id") or "").lower()
+    for prefix, guide in COMPLIANCE_PATHS.items():
+        if prefix in fid:
+            return guide
+    return "参照对应规范条款，逐项整改"
+
+
+def _build_structured_summary(details: list[dict]) -> dict:
+    """P62: 从 details 生成结构化摘要。
+
+    返回:
+    - top_violations: TOP-5 违规，按优先级 + 置信度排序
+    - priority_distribution: P0/P1/P2 计数
+    - category_distribution: 按 category 分组
+    - compliance_actions: 整改路径指引（按优先级聚合）
+    """
+    if not details:
+        return {
+            "top_violations": [],
+            "priority_distribution": {"P0": 0, "P1": 0, "P2": 0},
+            "category_distribution": {},
+            "compliance_actions": [],
+        }
+
+    annotated = []
+    for d in details:
+        annotated.append(
+            {
+                **d,
+                "priority": _classify_priority(d),
+                "compliance_path": _derive_compliance_path(d),
+            }
+        )
+
+    priority_order = {"P0": 0, "P1": 1, "P2": 2}
+    annotated.sort(
+        key=lambda x: (priority_order.get(x["priority"], 9), -(x.get("confidence", 0.5)))
+    )
+
+    top_violations = annotated[:5]
+    top_violations_out = []
+    for i, v in enumerate(top_violations, 1):
+        top_violations_out.append(
+            {
+                "rank": i,
+                "priority": v["priority"],
+                "severity": v.get("severity", "minor"),
+                "confidence": v.get("confidence", 0.5),
+                "confidence_tier": v.get("confidence_tier", ""),
+                "clause_id": v.get("clause_id", ""),
+                "clause_title": v.get("clause_title", ""),
+                "func_id": v.get("func_id", ""),
+                "explanation": v.get("explanation", ""),
+                "compliance_path": v["compliance_path"],
+            }
+        )
+
+    priority_distribution = {"P0": 0, "P1": 0, "P2": 0}
+    for a in annotated:
+        p = a["priority"]
+        priority_distribution[p] = priority_distribution.get(p, 0) + 1
+
+    category_distribution = {}
+    for a in annotated:
+        cat = a.get("category", "other")
+        if cat not in category_distribution:
+            category_distribution[cat] = {"count": 0, "P0": 0, "P1": 0, "P2": 0}
+        category_distribution[cat]["count"] += 1
+        category_distribution[cat][a["priority"]] += 1
+
+    compliance_actions = []
+    for p_label in ("P0", "P1", "P2"):
+        matched = [a for a in annotated if a["priority"] == p_label]
+        if not matched:
+            continue
+        paths = set(a["compliance_path"] for a in matched)
+        compliance_actions.append(
+            {
+                "priority": p_label,
+                "priority_label": {"P0": "立即整改", "P1": "尽快整改", "P2": "计划优化"}[p_label],
+                "count": len(matched),
+                "description": COMPLIANCE_GUIDE.get(
+                    matched[0].get("severity", "minor"), "参照规范整改"
+                ),
+                "action_paths": list(paths),
+            }
+        )
+
+    return {
+        "top_violations": top_violations_out,
+        "priority_distribution": priority_distribution,
+        "category_distribution": category_distribution,
+        "compliance_actions": compliance_actions,
+    }
+
+
+# ── End P62 ────────────────────────────────────────────────
+
 
 @router.post("/review")  # function call
 async def review(  # code
@@ -238,6 +374,7 @@ async def review(  # code
                             "extracted_value": f.extracted_params["extracted_value"],
                             "required_value": f.extracted_params.get("required_value", 1.2),
                             "difference": f.extracted_params.get("difference", 0),
+                            "severity": f.judgement.get("severity", "major"),  # P62: 透传 severity 供优先级判定
                             "explanation": f.explanation[:120],
                             "confidence": r.confidence,
                             "confidence_tier": _confidence_tier(r.confidence),
@@ -320,6 +457,12 @@ async def review(  # code
         tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
+    # ── P62: 结构化摘要 ─────────────────────────────────
+    structured_summary = _build_structured_summary(details)
+
+    # 原子函数列表（_do_clustering 内部有局部定义，这里取一次用于响应）
+    registry_funcs = _get_fr().list_all()
+
     response_data = {  # assignment
         "status": "success",  # 字段
         "summary": {  # 字段
@@ -332,6 +475,7 @@ async def review(  # code
             "avg_confidence": round(avg_confidence, 2),  # 字段
             "confidence_tier_counts": tier_counts,  # P61: 置信度分级统计
         },  # code
+        "structured_summary": structured_summary,  # P62
         "details": details[:100],  # 最多返回100条详情
         "file_id": file_id,  # 字段
         "building_type": building_type,  # 字段
