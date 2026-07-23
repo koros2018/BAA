@@ -553,7 +553,7 @@ async function loadCases(page = 0) {
         // 有搜索关键词时使用 search 接口，否则使用 list + 筛选
         let data;
         if (q) {
-            data = await apiFetch(`/cases/search?q=${encodeURIComponent(q)}`);
+            data = await apiFetch(`/api/v1/cases/search?q=${encodeURIComponent(q)}`);
         } else {
             const params = new URLSearchParams({
                 limit: _casePageSize,
@@ -561,7 +561,7 @@ async function loadCases(page = 0) {
             });
             if (bt) params.set('building_type', bt);
             if (tag) params.set('tag', tag);
-            data = await apiFetch(`/cases?${params}`);
+            data = await apiFetch(`/api/v1/cases?${params}`);
         }
 
         if (data.status !== 'ok') {
@@ -667,7 +667,7 @@ async function openCaseDetail(caseId) {
     modal.classList.remove('hidden');
 
     try {
-        const data = await apiFetch(`/cases/${caseId}`);
+        const data = await apiFetch(`/api/v1/cases/${caseId}`);
         if (data.status !== 'ok') {
             contentEl.innerHTML = `<div class="text-center text-red-400 py-8">${escHtml(data.message || '加载失败')}</div>`;
             return;
