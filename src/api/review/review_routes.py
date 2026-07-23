@@ -505,6 +505,9 @@ async def review(  # code
             ]
         }
 
+        # P65: 注入图纸上下文（entities），LLM 模式需要完整实体列表做空间分析
+        review_result_for_correction["entities"] = entities  # operation
+
         if correction_mode == "rule":
             # 纯规则引擎模式
             from src.baa_engine.correction_engine import CorrectionEngine
