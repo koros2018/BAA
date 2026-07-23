@@ -29,6 +29,7 @@
       <div class="sidebar-item" data-page="collab">👥协作</div>
       <div class="sidebar-item" data-page="reverse">🔄反向重构</div>
       <div class="sidebar-item" data-page="funcs">⚙️原子函数库</div>
+      <div class="sidebar-item" data-page="cases">📚案例库</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
@@ -844,6 +845,82 @@
           <div id="func-list" class="space-y-2">
             <div class="text-center text-gray-400 py-8">加载中...</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ===== 案例库 ===== -->
+    <div class="page" id="page-cases">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold">📚 行业案例库</h2>
+          <p class="text-sm text-gray-500 mt-1">典型图纸审查报告合集，按标签检索</p>
+        </div>
+        <button onclick="loadCaseStats()" class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm">🔄 刷新</button>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="grid grid-cols-4 gap-4 mb-6" id="case-stats">
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-blue-600" id="case-total">-</div>
+          <div class="text-xs text-gray-500 mt-1">案例总数</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-red-600" id="case-violations">-</div>
+          <div class="text-xs text-gray-500 mt-1">总违规数</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-green-600" id="case-avg-score">-</div>
+          <div class="text-xs text-gray-500 mt-1">平均得分</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-purple-600" id="case-tags-count">-</div>
+          <div class="text-xs text-gray-500 mt-1">标签类别</div>
+        </div>
+      </div>
+
+      <!-- 筛选 + 检索 -->
+      <div class="card mb-4">
+        <div class="flex gap-3 flex-wrap">
+          <input id="case-search" placeholder="🔍 关键词检索..." class="text-sm border rounded px-3 py-1.5 flex-1 min-w-48" oninput="loadCases()" />
+          <select id="case-filter-type" class="text-sm border rounded px-3 py-1.5" onchange="loadCases()">
+            <option value="">全部建筑类型</option>
+            <option value="civil">民用建筑</option>
+            <option value="industrial">工业建筑</option>
+          </select>
+          <select id="case-filter-tag" class="text-sm border rounded px-3 py-1.5" onchange="loadCases()">
+            <option value="">全部标签</option>
+            <option value="尺寸不合规">尺寸不合规</option>
+            <option value="距离不合规">距离不合规</option>
+            <option value="数量不合规">数量不合规</option>
+            <option value="缺失设施">缺失设施</option>
+            <option value="面积不合规">面积不合规</option>
+            <option value="属性不合规">属性不合规</option>
+            <option value="照明不合规">照明不合规</option>
+            <option value="无障碍不合规">无障碍不合规</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 案例列表 -->
+      <div id="case-list" class="space-y-3">
+        <div class="text-center text-gray-400 py-8">加载中...</div>
+      </div>
+
+      <!-- 分页 -->
+      <div class="flex justify-center gap-2 mt-4" id="case-pagination"></div>
+    </div>
+
+    <!-- ===== 案例详情 Modal ===== -->
+    <div id="case-detail-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b flex items-center justify-between">
+          <h3 class="font-bold" id="case-detail-title">案例详情</h3>
+          <button onclick="closeCaseDetail()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <div class="p-4 overflow-y-auto" id="case-detail-content">
+          <div class="text-center text-gray-400 py-8">加载中...</div>
         </div>
       </div>
     </div>
