@@ -649,6 +649,7 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
     if (item.dataset.page === 'analysis') loadAnalysis();
     if (item.dataset.page === 'history') renderHistoryList();
     if (item.dataset.page === 'apikeys') loadAdminKeys();
+    if (item.dataset.page === 'cases') { loadCaseStats(); loadCases(0); }
   });
 });
 

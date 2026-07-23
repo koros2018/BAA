@@ -1,6 +1,34 @@
 // BAA P56+P57: 反向重构 + 原子函数库
 // 从 index.html 拆分出来，减小主文件体积
 
+// ── 工具函数 ────────────────────────────────────────────────
+
+/** 转义 HTML 特殊字符，防止 XSS */
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/** 相对时间格式化（如 "2分钟前"、"3天前"） */
+function formatTimeAgo(isoStr) {
+    if (!isoStr) return '';
+    const date = new Date(isoStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHour = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+    if (diffMin < 1) return '刚刚';
+    if (diffMin < 60) return diffMin + '分钟前';
+    if (diffHour < 24) return diffHour + '小时前';
+    return diffDay + '天前';
+}
+
+
 // ── P56 反向重构 ──
 
 async function generateReverse() {
@@ -485,4 +513,231 @@ function downloadReverseSVG() {
 // 页面加载时自动加载原子函数库
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(loadFunctions, 1000);
+});
+// ═══════════════════════════════════════════════════════════════
+// P68: 行业案例库 — 前端交互
+// ═══════════════════════════════════════════════════════════════
+
+let _casePage = 0;
+const _casePageSize = 15;
+
+/**
+ * 加载案例统计
+ */
+async function loadCaseStats() {
+    try {
+        const r = await apiFetch('/cases/stats');
+        if (r.status !== 'ok') return;
+        document.getElementById('case-total').textContent = r.totalCases ?? '-';
+        document.getElementById('case-violations').textContent = r.totalViolations ?? '-';
+        document.getElementById('case-avg-score').textContent = r.avgScore ?? '-';
+        document.getElementById('case-tags-count').textContent = (r.topTags ? Object.keys(r.topTags).length : 0);
+    } catch (e) {
+        console.error('loadCaseStats failed:', e);
+    }
+}
+
+/**
+ * 加载案例列表（带筛选）
+ */
+async function loadCases(page = 0) {
+    _casePage = page;
+    const q = document.getElementById('case-search')?.value || '';
+    const bt = document.getElementById('case-filter-type')?.value || '';
+    const tag = document.getElementById('case-filter-tag')?.value || '';
+
+    const listEl = document.getElementById('case-list');
+    if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载中...</div>';
+
+    try {
+        // 有搜索关键词时使用 search 接口，否则使用 list + 筛选
+        let data;
+        if (q) {
+            data = await apiFetch(`/cases/search?q=${encodeURIComponent(q)}`);
+        } else {
+            const params = new URLSearchParams({
+                limit: _casePageSize,
+                offset: page * _casePageSize,
+            });
+            if (bt) params.set('building_type', bt);
+            if (tag) params.set('tag', tag);
+            data = await apiFetch(`/cases?${params}`);
+        }
+
+        if (data.status !== 'ok') {
+            listEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载失败</div>';
+            return;
+        }
+
+        const cases = data.cases || [];
+        renderCaseList(cases, data.total ?? 0);
+        renderCasePagination(data.total ?? 0, page);
+    } catch (e) {
+        console.error('loadCases failed:', e);
+        if (listEl) listEl.innerHTML = '<div class="text-center text-red-400 py-8">加载失败: ' + e.message + '</div>';
+    }
+}
+
+/**
+ * 渲染案例列表
+ */
+function renderCaseList(cases, total) {
+    const el = document.getElementById('case-list');
+    if (!el) return;
+
+    if (cases.length === 0) {
+        el.innerHTML = '<div class="text-center text-gray-400 py-8">暂无案例数据</div>';
+        return;
+    }
+
+    const tagColors = {
+        '尺寸不合规': 'bg-red-100 text-red-700',
+        '距离不合规': 'bg-orange-100 text-orange-700',
+        '数量不合规': 'bg-yellow-100 text-yellow-700',
+        '缺失设施': 'bg-red-100 text-red-700',
+        '面积不合规': 'bg-blue-100 text-blue-700',
+        '属性不合规': 'bg-gray-100 text-gray-700',
+        '照明不合规': 'bg-yellow-100 text-yellow-700',
+        '无障碍不合规': 'bg-green-100 text-green-700',
+    };
+
+    let html = '';
+    for (const c of cases) {
+        const score = c.score ?? 0;
+        const scoreColor = score >= 80 ? 'text-green-600' : score >= 50 ? 'text-yellow-600' : 'text-red-600';
+        const violations = c.violationCount ?? 0;
+        const corrections = c.correctionCount ?? 0;
+        const tagsHtml = (c.tags || []).slice(0, 4).map(
+            t => `<span class="inline-block px-2 py-0.5 text-xs rounded-full ${tagColors[t] || 'bg-gray-100 text-gray-600'}">${t}</span>`
+        ).join(' ');
+
+        html += `
+        <div class="card p-4 hover:bg-gray-50 cursor-pointer transition" onclick="openCaseDetail('${c.caseId}')">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h4 class="font-medium text-sm">${escHtml(c.drawingName)}</h4>
+              <span class="text-xs text-gray-400">${escHtml(c.buildingType || 'civil')} · ${escHtml(c.standard || '')}</span>
+            </div>
+            <div class="text-right">
+              <span class="${scoreColor} font-bold text-lg">${score.toFixed(0)}</span>
+              <span class="text-xs text-gray-400 ml-1">分</span>
+            </div>
+          </div>
+          ${tagsHtml ? `<div class="flex flex-wrap gap-1 mb-2">${tagsHtml}</div>` : ''}
+          <div class="flex gap-4 text-xs text-gray-400">
+            <span>📐 图元 ${c.entityCount ?? '-'}</span>
+            <span class="${violations > 0 ? 'text-red-500' : 'text-green-500'}">⚠️ 违规 ${violations}</span>
+            <span class="text-blue-500">💡 修正 ${corrections}</span>
+            <span class="text-gray-400">${formatTimeAgo(c.reviewedAt)}</span>
+          </div>
+        </div>`;
+    }
+    el.innerHTML = html;
+}
+
+/**
+ * 渲染分页
+ */
+function renderCasePagination(total, page) {
+    const el = document.getElementById('case-pagination');
+    if (!el) return;
+    const totalPages = Math.ceil(total / _casePageSize);
+    if (totalPages <= 1) {
+        el.innerHTML = '';
+        return;
+    }
+    let html = '';
+    html += `<button onclick="loadCases(${page - 1})" ${page === 0 ? 'disabled' : ''} class="px-3 py-1 border rounded text-sm ${page === 0 ? 'opacity-40' : 'hover:bg-gray-100'}">← 上一页</button>`;
+    html += `<span class="px-2 text-sm text-gray-500">第 ${page + 1} / ${totalPages} 页</span>`;
+    html += `<button onclick="loadCases(${page + 1})" ${page + 1 >= totalPages ? 'disabled' : ''} class="px-3 py-1 border rounded text-sm ${page + 1 >= totalPages ? 'opacity-40' : 'hover:bg-gray-100'}">下一页 →</button>`;
+    el.innerHTML = html;
+}
+
+/**
+ * 打开案例详情 Modal
+ */
+async function openCaseDetail(caseId) {
+    const titleEl = document.getElementById('case-detail-title');
+    const contentEl = document.getElementById('case-detail-content');
+    const modal = document.getElementById('case-detail-modal');
+    if (!modal) return;
+
+    titleEl.textContent = '案例详情';
+    contentEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载中...</div>';
+    modal.classList.remove('hidden');
+
+    try {
+        const data = await apiFetch(`/cases/${caseId}`);
+        if (data.status !== 'ok') {
+            contentEl.innerHTML = `<div class="text-center text-red-400 py-8">${escHtml(data.message || '加载失败')}</div>`;
+            return;
+        }
+
+        const score = data.score ?? 0;
+        const scoreColor = score >= 80 ? 'text-green-600' : score >= 50 ? 'text-yellow-600' : 'text-red-600';
+        const tagsHtml = (data.tags || []).map(t =>
+            `<span class="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">${escHtml(t)}</span>`
+        ).join(' ');
+
+        let html = `
+        <div class="mb-4">
+          <h4 class="font-bold">${escHtml(data.drawingName)}</h4>
+          <p class="text-xs text-gray-400">${escHtml(data.buildingType || 'civil')} · ${escHtml(data.standard || '')} · ${formatTimeAgo(data.reviewedAt)}</p>
+          <div class="mt-2 flex gap-2 flex-wrap">${tagsHtml}</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="card p-3 text-center">
+            <div class="${scoreColor} font-bold text-xl">${score.toFixed(0)}</div>
+            <div class="text-xs text-gray-500">审查得分</div>
+          </div>
+          <div class="card p-3 text-center">
+            <div class="font-bold text-xl text-red-500">${data.violationCount ?? '-'}</div>
+            <div class="text-xs text-gray-500">违规数</div>
+          </div>
+          <div class="card p-3 text-center">
+            <div class="font-bold text-xl text-blue-500">${data.correctionCount ?? '-'}</div>
+            <div class="text-xs text-gray-500">修正建议</div>
+          </div>
+        </div>
+
+        <h5 class="font-medium mb-2">📋 核心违规 TOP-5</h5>
+        <div class="space-y-2">`;
+
+        for (const v of (data.topViolations || [])) {
+            const tierColor = v.confidence_tier === '高' ? 'text-red-600' : v.confidence_tier === '中' ? 'text-yellow-600' : 'text-gray-400';
+            html += `
+          <div class="border rounded p-2 text-sm">
+            <div class="font-medium">${escHtml(v.clause_title || v.clause_id)}</div>
+            <div class="text-xs text-gray-400">${escHtml(v.entity_type || '')} · 条款 ${escHtml(v.clause_id || '')}</div>
+            ${v.extracted_value !== undefined ? `<div class="text-xs">实测 ${v.extracted_value} · 要求 ${v.required_value} · 偏差 ${v.difference}</div>` : ''}
+            ${v.confidence_tier ? `<span class="${tierColor} text-xs">${v.confidence_tier}置信</span>` : ''}
+          </div>`;
+        }
+
+        if (!data.topViolations || data.topViolations.length === 0) {
+            html += '<div class="text-center text-gray-400 text-sm py-4">无违规记录</div>';
+        }
+
+        html += '</div>';
+        contentEl.innerHTML = html;
+    } catch (e) {
+        contentEl.innerHTML = `<div class="text-center text-red-400 py-8">加载失败: ${e.message}</div>`;
+    }
+}
+
+/**
+ * 关闭案例详情 Modal
+ */
+function closeCaseDetail() {
+    const modal = document.getElementById('case-detail-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// 点击 modal 背景关闭
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('case-detail-modal');
+    if (modal && !modal.classList.contains('hidden') && e.target === modal) {
+        closeCaseDetail();
+    }
 });
