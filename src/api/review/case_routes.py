@@ -60,11 +60,27 @@ def _classify_case_tags(details: List[Dict]) -> List[str]:
 
 def _extract_top_violations(details: List[Dict], limit: int = 5) -> List[Dict]:
     """提取 TOP-N 违规（按 severity × confidence 排序）"""
+    _SEVERITY_MAP = {"high": 3, "medium": 2, "low": 1, "critical": 4}
     scored = []
     for d in details:
-        severity = d.get("severity", 0)
-        confidence = d.get("confidence", 0.5)
-        score = severity * confidence
+        sev = d.get("severity", 0)
+        conf = d.get("confidence", 0.5)
+        # severity 可能是数字（0-3）或字符串（"high"/"medium"/"low"/"critical"）
+        if isinstance(sev, (int, float)):
+            sev_num = float(sev)
+        elif isinstance(sev, str):
+            sev_num = float(_SEVERITY_MAP.get(sev.lower(), 1))
+        else:
+            sev_num = 1.0
+        # confidence 可能是数字（0-1）或字符串（"高"/"中"/"低"）
+        conf_map = {"高": 1.0, "中": 0.7, "低": 0.4}
+        if isinstance(conf, (int, float)):
+            conf_num = float(conf)
+        elif isinstance(conf, str):
+            conf_num = float(conf_map.get(conf, 0.5))
+        else:
+            conf_num = 0.5
+        score = sev_num * conf_num
         scored.append((score, d))
     scored.sort(key=lambda x: -x[0])
     return [d for _, d in scored[:limit]]
