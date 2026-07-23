@@ -102,7 +102,9 @@ class LLMCorrectionEngine:
     def generate_for_result(self, review_result: dict, mode: str = None) -> List[Dict]:
         """从 /review 返回结果生成修正建议（用于API返回）"""
         findings = review_result.get("findings", [])
-        suggestions = self.generate(findings, [], mode=mode)
+        # P65: 透传 entities 给 LLM 模式，支撑空间上下文分析
+        entities = review_result.get("entities", [])
+        suggestions = self.generate(findings, entities, mode=mode)
         output = []
         for s in suggestions:
             output.append(
@@ -154,8 +156,25 @@ class LLMCorrectionEngine:
                 suggestions.append(self._dict_to_suggestion(cached))
                 continue
             prompt = self._build_prompt(finding, entities)
+            # P65: LLM 调用失败时降级到最小化建议，保证可用性
             response = self._call_llm(prompt)
             if response is None:
+                # 纯 LLM 模式无规则引擎备选：生成最小化描述并 append
+                fallback = CorrectionSuggestion(
+                    entity_id=finding.get("entity_id", ""),
+                    entity_type=finding.get("entity_type", ""),
+                    clause_id=finding.get("clause_id", ""),
+                    clause_title=finding.get("clause_title", ""),
+                    action="modify",
+                    description=finding.get("explanation", f"{finding.get('clause_title', '')}违规"),
+                    current_value=finding.get("extracted_value", 0),
+                    required_value=finding.get("required_value", 0),
+                    delta=finding.get("difference", 0),
+                    recommendation=f"{finding.get('clause_title', '')}不满足{finding.get('clause_id', '')}要求，请参照规范整改。",
+                    parameters={},
+                    source="rule_fallback",
+                )
+                suggestions.append(fallback)
                 continue
             parsed = self._parse_llm_response(response)
             if parsed is None:
@@ -217,23 +236,37 @@ class LLMCorrectionEngine:
         required = finding.get("required_value", "N/A")
         difference = finding.get("difference", "N/A")
         explanation = finding.get("explanation", "")
+        target_id = finding.get("entity_id", "")
+
+        # ── P65: 空间上下文注入 ──────────────────────────────
+        # 收集与违规实体在同一 bbox 区域的其他实体，构建局部空间描述
+        spatial_context = self._extract_spatial_context(entities, target_id, entity_type)
 
         prompt = (
             f"你是一个建筑图纸审查的修正建议专家。请根据以下违规信息，"
-            f"生成具体、可操作的修正建议。\n\n"
+            f"结合图纸空间上下文，生成具体、可操作的修正建议。\n\n"
             f"## 违规信息\n"
             f"- 规范条款: {clause_id} {clause_title}\n"
             f"- 违规实体类型: {entity_type}\n"
+            f"- 违规实体ID: {target_id}\n"
             f"- 检测值: {extracted}\n"
             f"- 要求值: {required}\n"
             f"- 偏差: {difference}\n"
             f"- 违规说明: {explanation}\n"
         )
+
+        if spatial_context:
+            prompt += (
+                f"\n## 空间上下文（局部图纸环境）\n"
+                f"{spatial_context}\n\n"
+                f"请结合空间上下文，考虑修正方案对周边实体的影响。\n"
+            )
+
         if rule_suggestion:
             prompt += (
                 f"\n## 规则引擎已生成建议\n"
                 f"{rule_suggestion.recommendation}\n\n"
-                f"请优化上述建议，使其更具体、更可操作。\n"
+                f"请优化上述建议，使其更具体、更可操作，并结合空间上下文。\n"
             )
         prompt += (
             "\n## 输出要求\n"
@@ -254,6 +287,60 @@ class LLMCorrectionEngine:
             "请只输出 JSON，不要包含其他文字。"
         )
         return prompt
+
+    def _extract_spatial_context(self, entities, target_id, target_type):
+        """从 entities 中提取与违规实体相关的空间上下文。
+
+        只描述局部环境，避免 prompt 过长。限制最多 8 个邻域实体。
+        """
+        if not entities:
+            return ""
+        # 找到目标实体的 bbox
+        target_bbox = None
+        for e in entities:
+            if str(e.get("id", "")).strip() == str(target_id).strip() and e.get("type") == target_type:
+                target_bbox = e.get("bbox")
+                break
+        if not target_bbox:
+            return ""
+        tx1, ty1, tx2, ty2 = target_bbox
+        tx_c, ty_c = (tx1 + tx2) / 2, (ty1 + ty2) / 2
+        tw, th = tx2 - tx1, ty2 - ty1
+        # 邻域扩展 2 倍目标尺寸，限定只收集邻近实体
+        margin_x = max(tw, 2.0)
+        margin_y = max(th, 2.0)
+        neighbors = []
+        for e in entities:
+            if e.get("type") == target_type:
+                continue  # 排除同类型（目标自身）
+            bbox = e.get("bbox")
+            if not bbox:
+                continue
+            ex1, ey1, ex2, ey2 = bbox
+            ex_c = (ex1 + ex2) / 2
+            ey_c = (ey1 + ey2) / 2
+            if abs(ex_c - tx_c) > margin_x or abs(ey_c - ty_c) > margin_y:
+                continue
+            label = e.get("label") or e.get("name") or ""
+            neighbors.append((e.get("type", ""), label, (ex_c - tx_c, ey_c - ty_c)))
+        if not neighbors:
+            return "无邻近实体。"
+        # 按距离排序，取最近 8 个
+        neighbors.sort(key=lambda n: abs(n[2][0]) + abs(n[2][1]))
+        neighbors = neighbors[:8]
+        lines = []
+        for typ, label, (dx, dy) in neighbors:
+            desc = f"- {typ}"
+            if label:
+                desc += f" ({label})"
+            direction = ""
+            if abs(dx) > abs(dy):
+                direction = "东侧" if dx > 0 else "西侧"
+            else:
+                direction = "北侧" if dy > 0 else "南侧"
+            desc += f"，位于{direction}约{max(abs(dx), abs(dy)):.1f}m"
+            lines.append(desc)
+        return "\n".join(lines)
 
     def _call_llm(self, prompt: str) -> Optional[str]:
         if not self.api_key:
