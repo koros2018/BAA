@@ -21,7 +21,7 @@ from typing import Dict, List, Optional
 from fastapi import Depends
 from fastapi.routing import APIRouter
 
-from ..api_key_manager import verify_api_key
+from ..api_globals import verify_api_key
 from .review_history import list_review_history, get_review_detail
 
 logger = logging.getLogger(__name__)
@@ -174,44 +174,6 @@ async def search_cases(
     return {"status": "ok", "query": q, "total": len(cases), "cases": cases}
 
 
-@router.get("/cases/{case_id}", tags=["Cases"])
-async def get_case(case_id: str, api_key: str = Depends(verify_api_key)):
-    """获取单条案例详情（复用 review_detail 数据）"""
-    detail = get_review_detail(case_id)
-    if not detail:
-        return {"status": "error", "message": f"案例 {case_id} 不存在"}
-    details = detail.get("details", [])
-    tags = _classify_case_tags(details)
-    top_violations = _extract_top_violations(details)
-    return {
-        "status": "ok",
-        "caseId": detail["id"],
-        "drawingName": detail.get("drawingName", ""),
-        "buildingType": detail.get("buildingType", ""),
-        "standard": detail.get("standard", ""),
-        "score": detail.get("score", 0),
-        "violationCount": detail.get("violationCount", 0),
-        "entityCount": detail.get("entityCount", 0),
-        "correctionCount": len(detail.get("corrections", [])),
-        "reviewedAt": detail.get("reviewedAt", ""),
-        "tags": tags,
-        "topViolations": [
-            {
-                "clause_id": v.get("clause_id", ""),
-                "clause_title": v.get("clause_title", ""),
-                "entity_type": v.get("entity_type", ""),
-                "extracted_value": v.get("extracted_value"),
-                "required_value": v.get("required_value"),
-                "difference": v.get("difference"),
-                "severity": v.get("severity", 0),
-                "confidence_tier": v.get("confidence_tier", ""),
-            }
-            for v in top_violations
-        ],
-        "corrections": detail.get("corrections", []),
-    }
-
-
 @router.get("/cases/stats", tags=["Cases"])
 async def get_case_stats(api_key: str = Depends(verify_api_key)):
     """案例统计概览（按建筑类型/标准/标签分布）"""
@@ -251,3 +213,41 @@ async def get_case_stats(api_key: str = Depends(verify_api_key)):
         "byStandard": dict(sorted(by_standard.items(), key=lambda x: -x[1])),
         "topTags": dict(sorted(tag_count.items(), key=lambda x: -x[1])[:10]),
     }
+
+@router.get("/cases/{case_id}", tags=["Cases"])
+async def get_case(case_id: str, api_key: str = Depends(verify_api_key)):
+    """获取单条案例详情（复用 review_detail 数据）"""
+    detail = get_review_detail(case_id)
+    if not detail:
+        return {"status": "error", "message": f"案例 {case_id} 不存在"}
+    details = detail.get("details", [])
+    tags = _classify_case_tags(details)
+    top_violations = _extract_top_violations(details)
+    return {
+        "status": "ok",
+        "caseId": detail["id"],
+        "drawingName": detail.get("drawingName", ""),
+        "buildingType": detail.get("buildingType", ""),
+        "standard": detail.get("standard", ""),
+        "score": detail.get("score", 0),
+        "violationCount": detail.get("violationCount", 0),
+        "entityCount": detail.get("entityCount", 0),
+        "correctionCount": len(detail.get("corrections", [])),
+        "reviewedAt": detail.get("reviewedAt", ""),
+        "tags": tags,
+        "topViolations": [
+            {
+                "clause_id": v.get("clause_id", ""),
+                "clause_title": v.get("clause_title", ""),
+                "entity_type": v.get("entity_type", ""),
+                "extracted_value": v.get("extracted_value"),
+                "required_value": v.get("required_value"),
+                "difference": v.get("difference"),
+                "severity": v.get("severity", 0),
+                "confidence_tier": v.get("confidence_tier", ""),
+            }
+            for v in top_violations
+        ],
+        "corrections": detail.get("corrections", []),
+    }
+
