@@ -2011,7 +2011,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             if "泵控制柜" in text or "启泵柜" in text or "PUMP_CTRL" in text_upper:
                 return "pump_controller"  # return
             # ── P70 高频缺口 TEXT 识别 ──
-            if "探测器" in text or "detector" in text_lower or "DET" in text_upper:
+            if "探测器" in text or "detector" in text_upper or "DET" in text_upper:
                 return "detector"  # return
             if "楼层" in text or "FLOOR" in text_upper or "层" in text:
                 return "floor"  # return
@@ -2047,7 +2047,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "pump"  # return
             if "避难层" in text or "REFUGE_FLOOR" in text_upper:
                 return "refuge_floor"  # return
-            if "前室" in text or "ANTEROOM" in text_upper or "前室" in block_name:
+            if "前室" in text or "ANTEROOM" in text_upper:
                 return "antechamber"  # return
             if "消防车道" in text and "road" not in text_lower:
                 return "fire_lane"  # return

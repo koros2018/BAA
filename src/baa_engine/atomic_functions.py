@@ -77,6 +77,7 @@ class AtomicFunction:  # class definition
     unit: str  # 操作
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
     depends_on: List[str] = field(default_factory=list)  # 依赖的前置函数ID列表
+    requires_global_context: bool = False  # P70: 需要全局上下文判定，不在逐实体循环中执行
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
