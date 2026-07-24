@@ -33,8 +33,8 @@ class TestEquipmentDetection:
     def test_electrical_equipment_layer(self):
         """测试电气设备图层识别"""
         assert self.analyzer._classify_by_layer("电-") == "equipment"
-        assert self.analyzer._classify_by_layer("配电") == "equipment"
-        assert self.analyzer._classify_by_layer("配电箱") == "equipment"
+        assert self.analyzer._classify_by_layer("配电") == "electrical"  # P70 更精确映射
+        assert self.analyzer._classify_by_layer("配电箱") == "electrical"  # P70 更精确映射
         assert self.analyzer._classify_by_layer("应急照明") == "equipment"
 
     def test_alarm_device_layer(self):
