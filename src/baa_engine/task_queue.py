@@ -12,9 +12,13 @@
 
 import uuid
 import time
+import json
 import asyncio
-from typing import Optional, Dict, Any, List, Tuple
+import logging
+from typing import Optional, Dict, Any, List, Tuple, Callable
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,6 +35,8 @@ class ReviewTask:
     progress: float = 0.0  # 0-100
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    webhook_url: Optional[str] = None  # P71: 任务完成后 POST 到此 URL
+    webhook_type: str = "generic"  # generic | feishu | dingtalk
 
 
 class ReviewQueue:
@@ -85,18 +91,26 @@ class ReviewQueue:
     def total_count(self) -> int:
         return self.queued_count + self.running_count
 
-    def enqueue(self, file_id: str, priority: int = 0) -> Tuple[str, int]:
+    def enqueue(self, file_id: str, priority: int = 0, webhook_url: Optional[str] = None, webhook_type: str = "generic") -> Tuple[str, int]:
         """将任务加入队列
 
         Args:
             file_id: 文件标识符
             priority: 优先级（暂未使用，预留）
+            webhook_url: 完成后通知的 Webhook URL
+            webhook_type: generic | feishu | dingtalk
 
         Returns:
             (task_id, queue_position) 元组
         """
         task_id = f"review-{uuid.uuid4().hex[:12]}"
-        task = ReviewTask(task_id=task_id, file_id=file_id, status="queued")
+        task = ReviewTask(
+            task_id=task_id,
+            file_id=file_id,
+            status="queued",
+            webhook_url=webhook_url,
+            webhook_type=webhook_type,
+        )
         self._tasks[task_id] = task
 
         # 计算排队位置（qsize 是加入前的长度）
@@ -163,14 +177,20 @@ class ReviewQueue:
         return None
 
     async def wait_and_dequeue(
-        self, file_id: str, priority: int = 0
+        self, file_id: str, priority: int = 0, webhook_url: Optional[str] = None, webhook_type: str = "generic"
     ) -> Tuple[Optional[ReviewTask], str, int]:
         """入队并等待出队（一站式方法）
+
+        Args:
+            file_id: 文件标识符
+            priority: 优先级
+            webhook_url: 完成后通知的 Webhook URL
+            webhook_type: generic | feishu | dingtalk
 
         Returns:
             (task, task_id, position) — task 为 None 表示超时
         """
-        task_id, position = self.enqueue(file_id, priority)
+        task_id, position = self.enqueue(file_id, priority, webhook_url=webhook_url, webhook_type=webhook_type)
         task = await self.dequeue()
         return task, task_id, position
 
@@ -235,6 +255,18 @@ class ReviewQueue:
         task.progress = 100.0
         task.result = result
         self._release_slot(task_id)
+        # P71: 触发 webhook
+        if task.webhook_url:
+            from .webhooks import build_webhook_payload, trigger_webhook
+            payload = build_webhook_payload(
+                task_id=task_id,
+                file_id=task.file_id,
+                status="completed",
+                result=result,
+                error=None,
+                webhook_type=task.webhook_type,
+            )
+            trigger_webhook(task.webhook_url, payload)
 
     def fail(self, task_id: str, error: str) -> None:
         """标记任务失败"""
@@ -245,6 +277,18 @@ class ReviewQueue:
         task.completed_at = time.time()
         task.error = error
         self._release_slot(task_id)
+        # P71: 触发 webhook
+        if task.webhook_url:
+            from .webhooks import build_webhook_payload, trigger_webhook
+            payload = build_webhook_payload(
+                task_id=task_id,
+                file_id=task.file_id,
+                status="failed",
+                result=None,
+                error=error,
+                webhook_type=task.webhook_type,
+            )
+            trigger_webhook(task.webhook_url, payload)
 
     def _release_slot(self, task_id: str) -> None:
         """释放一个并发槽位"""

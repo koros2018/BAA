@@ -207,6 +207,12 @@ async def review(  # code
     standard: str = Query(
         "GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
     ),  # function call
+    webhook_url: Optional[str] = Query(
+        None, description="P71: 审查完成后 POST 到此 URL"
+    ),  # function call
+    webhook_type: str = Query(
+        "generic", description="P71: generic | feishu | dingtalk"
+    ),  # function call
     request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
@@ -275,7 +281,9 @@ async def review(  # code
     loop = asyncio.get_event_loop()  # function call
 
     # 并发控制：审查任务队列排队
-    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(file_id)
+    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(
+        file_id, webhook_url=webhook_url, webhook_type=webhook_type
+    )
     if task_obj is None:
         return {
             "status": "error",
@@ -647,8 +655,12 @@ async def review_from_data(  # code
 
     start = time.time()  # get current time
 
-    # 审查任务队列排队
-    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue("from-data")
+    # 审查任务队列排队（P71: 支持 body 中的 webhook_url/webhook_type）
+    _review_webhook_url = body.get("webhook_url")
+    _review_webhook_type = body.get("webhook_type", "generic")
+    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(
+        "from-data", webhook_url=_review_webhook_url, webhook_type=_review_webhook_type
+    )
     if task_obj is None:
         return {
             "status": "error",
