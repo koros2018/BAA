@@ -86,6 +86,39 @@ LAYER_RULES = {  # assign
     "消火栓按钮": "hydrant_call_button",  # P70 消火栓启泵按钮
     "启泵": "hydrant_call_button",  # P70 启泵按钮
     "水泵接合器": "siamese_connection",  # P70 水泵接合器
+    # ── P70 高频缺口补全（atomic functions 引用最多，语义分析器产不出） ──
+    # detector（19 refs）：不能与"烟感"/"温感"冲突，专用于通用探测器
+    "探测器": "detector",
+    "DET_": "detector",  # 天正探测器图层（real: DET_烟感, DET_温感）
+    # floor（18 refs）：楼层
+    "楼层": "floor",
+    "FLOOR": "floor",
+    # pump_room（12 refs）：泵房
+    "泵房": "pump_room",
+    "PUMP_ROOM": "pump_room",
+    # fire_wall（7 refs）：防火墙
+    "防火墙": "fire_wall",
+    "FIRE_WALL": "fire_wall",
+    # fire_shutter（5 refs）：防火卷帘
+    "防火卷帘": "fire_shutter",
+    "FIRE_SHUTTER": "fire_shutter",
+    # control_room（9 refs）：控制室
+    "控制室": "control_room",
+    "FIRE_CONTROL": "control_room",
+    # rescue_window（9 refs）：救援窗
+    "救援窗": "rescue_window",
+    "RESCUE_WIN": "rescue_window",
+    # speaker（8 refs）：扬声器/广播
+    "扬声器": "speaker",
+    "SPEAKER": "speaker",
+    # road（11 refs）：道路（长关键字子串匹配，与"车道"不冲突）
+    "道路": "road",
+    "ROAD": "road",
+    # driveway（10 refs）：车道/入口坡道
+    "车道": "driveway",
+    "DRIVE": "driveway",
+    # power_supply（7 refs）：电源
+    "电源": "power_supply",  # 注意：优先匹配"电源"，避免被"双电源切换箱"的"控制箱"短关键字覆盖
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
@@ -1442,6 +1475,29 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "hydrant_call_button"  # return
             if "泵控制柜" in text or "启泵柜" in text or "PUMP_CTRL" in text_upper:
                 return "pump_controller"  # return
+            # ── P70 高频缺口 TEXT 识别 ──
+            if "探测器" in text or "detector" in text_lower or "DET" in text_upper:
+                return "detector"  # return
+            if "楼层" in text or "FLOOR" in text_upper or "层" in text:
+                return "floor"  # return
+            if "泵房" in text or "PUMP_ROOM" in text_upper:
+                return "pump_room"  # return
+            if "防火墙" in text or "FIRE_WALL" in text_upper:
+                return "fire_wall"  # return
+            if "防火卷帘" in text or "FIRE_SHUTTER" in text_upper:
+                return "fire_shutter"  # return
+            if "控制室" in text or "FIRE_CONTROL" in text_upper or "消防控制" in text:
+                return "control_room"  # return
+            if "救援窗" in text or "RESCUE_WIN" in text_upper or "救援口" in text:
+                return "rescue_window"  # return
+            if "扬声器" in text or "SPEAKER" in text_upper or "喇叭" in text:
+                return "speaker"  # return
+            if "道路" in text or "ROAD" in text_upper or "消防车道" in text:
+                return "road"  # return
+            if "车道" in text or "DRIVE" in text_upper:
+                return "driveway"  # return
+            if "电源" in text or "POWER_SUPPLY" in text_upper:
+                return "power_supply"  # return
             # ── P47 无障碍 TEXT 识别 ──
             if "坡道" in text or "RAMP" in text_upper:
                 return "ramp"
