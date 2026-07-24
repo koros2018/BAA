@@ -166,7 +166,9 @@ class LLMCorrectionEngine:
                     clause_id=finding.get("clause_id", ""),
                     clause_title=finding.get("clause_title", ""),
                     action="modify",
-                    description=finding.get("explanation", f"{finding.get('clause_title', '')}违规"),
+                    description=finding.get(
+                        "explanation", f"{finding.get('clause_title', '')}违规"
+                    ),
                     current_value=finding.get("extracted_value", 0),
                     required_value=finding.get("required_value", 0),
                     delta=finding.get("difference", 0),
@@ -298,7 +300,10 @@ class LLMCorrectionEngine:
         # 找到目标实体的 bbox
         target_bbox = None
         for e in entities:
-            if str(e.get("id", "")).strip() == str(target_id).strip() and e.get("type") == target_type:
+            if (
+                str(e.get("id", "")).strip() == str(target_id).strip()
+                and e.get("type") == target_type
+            ):
                 target_bbox = e.get("bbox")
                 break
         if not target_bbox:

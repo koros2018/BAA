@@ -259,6 +259,7 @@ class ReviewReport:
         output_path: Optional[str] = None,
         lang: str = "zh",
         diff_report: Optional[Dict[str, Any]] = None,
+        structured_summary: Optional[Dict[str, Any]] = None,  # P62/P69: 结构化摘要
     ) -> bytes:
         """生成完整审查报告 PDF"""
         buf = []  # buf: []
@@ -271,6 +272,10 @@ class ReviewReport:
         self._build_summary_page(buf, filename, summary, details, lang)
         # build: 调用子模块方法
         buf.append(PageBreak())  # buf: buf.append(PageBreak())
+        # P62/P69: 结构化摘要页（TOP-5 违规 + 整改优先级 + 合规路径）
+        if structured_summary:
+            self._build_structured_summary_page(buf, structured_summary, lang)
+            buf.append(PageBreak())  # buf: buf.append(PageBreak())
         if diff_report:  # diff_report: P42 版本对比
             self._build_diff_page(buf, diff_report, lang)
             # build: 调用子模块方法
@@ -1052,6 +1057,108 @@ class ReviewReport:
                 )
             )
             buf.append(Spacer(1, 6))  # buf: buf.append(Spacer(1, 6))
+
+    # ══════════════════════════════════════════════════════
+    # 结构化摘要页（P62/P69）
+    # ══════════════════════════════════════════════════════
+
+    def _build_structured_summary_page(
+        self,
+        buf,
+        structured_summary: Dict[str, Any],
+        lang: str = "zh",
+    ):
+        """P62/P69: 结构化摘要页 — TOP-5 违规 + 整改优先级分布 + 合规路径指引"""
+        s = self.styles
+        cw = self.page_w - 2 * self.margin
+
+        # ── 标题 ─────────────────────────────────────────────
+        buf.append(Paragraph(t("report.top_violations", lang), s["section-title"]))
+        buf.append(Spacer(1, 8))
+
+        # ── 优先级分布卡片 ───────────────────────────────────
+        priority_dist = structured_summary.get("priority_distribution", {})
+        p0 = priority_dist.get("P0", 0)
+        p1 = priority_dist.get("P1", 0)
+        p2 = priority_dist.get("P2", 0)
+        card_w = (cw - 24) / 3
+
+        # P0 红色, P1 橙色, P2 蓝色
+        buf.append(StatCard(t("report.p0_label", lang), str(p0), C_DANGER, card_w, 50))
+        buf.append(Spacer(1, 6))
+        buf.append(StatCard(t("report.p1_label", lang), str(p1), C_WARNING, card_w, 50))
+        buf.append(Spacer(1, 6))
+        buf.append(StatCard(t("report.p2_label", lang), str(p2), C_PRIMARY, card_w, 50))
+        buf.append(Spacer(1, 16))
+
+        # ── TOP-5 违规表 ─────────────────────────────────────
+        top_violations = structured_summary.get("top_violations", [])
+        if top_violations:
+            buf.append(Paragraph(t("report.top_violations", lang), s["subsection-title"]))
+            buf.append(Spacer(1, 6))
+
+            rows = []
+            for v in top_violations:
+                rank = str(v.get("rank", ""))
+                priority = v.get("priority", "P2")
+                clause_id = v.get("clause_id", "")
+                clause_title = (v.get("clause_title", "") or "")[:40]
+                severity = v.get("severity", "")
+                confidence = v.get("confidence", 0)
+                conf_str = (
+                    f"{int(confidence * 100)}%"
+                    if isinstance(confidence, (int, float))
+                    else str(confidence)
+                )
+                rows.append([rank, priority, clause_id, clause_title, severity, conf_str])
+
+            buf.append(
+                self._make_table(
+                    rows,
+                    col_widths=[30, 35, 70, cw - 210, 50, 45],
+                    headers=[
+                        t("report.compliance_rank", lang),
+                        "优先级",
+                        t("report.compliance_clause", lang),
+                        "条款名称",
+                        t("report.compliance_severity", lang),
+                        t("report.compliance_confidence", lang),
+                    ],
+                )
+            )
+            buf.append(Spacer(1, 16))
+        else:
+            buf.append(Paragraph(t("report.empty_summary", lang), s["body"]))
+            buf.append(Spacer(1, 16))
+
+        # ── 合规路径指引 ─────────────────────────────────────
+        compliance_actions = structured_summary.get("compliance_actions", [])
+        if compliance_actions:
+            buf.append(Paragraph(t("report.compliance_path", lang), s["subsection-title"]))
+            buf.append(Spacer(1, 6))
+
+            action_rows = []
+            for act in compliance_actions:
+                p_label = act.get("priority", "P2")
+                p_name = act.get("priority_label", p_label)
+                count = act.get("count", 0)
+                description = (act.get("description", "") or "")[:50]
+                paths = act.get("action_paths", [])
+                path_str = "; ".join(paths[:3])[:60] if paths else ""
+                action_rows.append([p_name, str(count), description, path_str])
+
+            buf.append(
+                self._make_table(
+                    action_rows,
+                    col_widths=[80, 40, cw - 210, 90],
+                    headers=[
+                        t("report.compliance_action", lang),
+                        "数量",
+                        "说明",
+                        t("report.compliance_path_label", lang),
+                    ],
+                )
+            )
 
     # ══════════════════════════════════════════════════════
     # 工具方法

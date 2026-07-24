@@ -15,11 +15,11 @@ from dataclasses import dataclass, field
 class SpecVersion:
     """规范版本元数据"""
 
-    standard: str          # 标准名称，如 "GB 50016"
-    version: str           # 版本标签，如 "2014"、"2025"
-    release_year: int      # 发布年份
-    full_name: str         # 完整名称，如 "GB 50016-2014"
-    description: str       # 简短描述
+    standard: str  # 标准名称，如 "GB 50016"
+    version: str  # 版本标签，如 "2014"、"2025"
+    release_year: int  # 发布年份
+    full_name: str  # 完整名称，如 "GB 50016-2014"
+    description: str  # 简短描述
     superseded: Optional[str] = None  # 被取代的版本（如 "2014" 表示取代 2014 版）
 
 
@@ -85,13 +85,14 @@ SUPPORTED_VERSIONS: Dict[str, List[SpecVersion]] = {
 
 # ── 版本变更日志（P66 核心：GB50016 2014→2025 预期变更）───
 
+
 @dataclass
 class ClauseChange:
     """单条条款的版本间变更记录"""
 
     clause_id: str
     title: str
-    change_type: str       # "added" / "revised" / "deprecated" / "unchanged"
+    change_type: str  # "added" / "revised" / "deprecated" / "unchanged"
     old_value: Optional[str] = None
     new_value: Optional[str] = None
     old_threshold: Optional[Dict] = None  # {"operator": ..., "threshold": ..., "unit": ...}
@@ -202,6 +203,7 @@ NFPA101_CHANGE_LOG_2021_TO_2024: Dict[str, ClauseChange] = {
 
 # ── 版本管理器 ─────────────────────────────────────────────
 
+
 class VersionManager:
     """规范版本管理器 — 查询版本、对比差异"""
 
@@ -223,16 +225,18 @@ class VersionManager:
         """
         if standard:
             versions = self._versions.get(standard, [])
-            return {standard: [
-                {
-                    "version": v.version,
-                    "full_name": v.full_name,
-                    "release_year": v.release_year,
-                    "description": v.description,
-                    "superseded": v.superseded,
-                }
-                for v in versions
-            ]}
+            return {
+                standard: [
+                    {
+                        "version": v.version,
+                        "full_name": v.full_name,
+                        "release_year": v.release_year,
+                        "description": v.description,
+                        "superseded": v.superseded,
+                    }
+                    for v in versions
+                ]
+            }
         return {
             std: [
                 {
@@ -279,9 +283,7 @@ class VersionManager:
         # 未找到时返回空列表（不抛异常）
         return []
 
-    def compare_versions(
-        self, standard: str, v1: str, v2: str = None
-    ) -> Dict:
+    def compare_versions(self, standard: str, v1: str, v2: str = None) -> Dict:
         """对比两个版本间的规范差异
 
         返回结构化的对比结果，包括新增/修订/废止的条款统计。
