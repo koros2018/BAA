@@ -149,7 +149,62 @@ LAYER_RULES = {  # assign
     "STAIRCASE_LOBBY": "staircase_lobby",  # 楼梯间前室
     "楼梯间前室": "staircase_lobby",
     "EQ_ROOM": "equipment_room",  # 设备间（缩写）
-    "设备间": "equipment_room",
+    # ── P70 高频缺口补全（第3批：fire_system/electrical/insulation/sprinkler_system 等） ──
+    "FIRE_SYSTEM": "fire_system",  # 消防系统（real: FIRE_SYSTEM）
+    "消防系统": "fire_system",
+    "电气": "electrical",  # 电气系统
+    "ELECTRICAL": "electrical",
+    "电": "electrical",  # 电专业
+    "INSULATION": "insulation",  # 保温材料
+    "保温": "insulation",
+    "SMOKE_VENT": "smoke_vent",  # 排烟窗/排烟口
+    "排烟窗": "smoke_vent",
+    "排烟口": "smoke_vent",
+    "EXT_WALL": "exterior_wall",  # 外墙（real: EXT_WALL）
+    "外墙": "exterior_wall",
+    "FAN_": "fan",  # 风机（real: FAN_EX, FAN_SU）
+    "风机": "fan",
+    "GARAGE": "garage",  # 车库
+    "车库": "garage",
+    "PASSAGE": "passage",  # 通道
+    "通道": "passage",
+    "SPACE": "space",  # 空间
+    "空间": "space",
+    "ALARM_SYSTEM": "alarm_system",  # 报警系统
+    "报警系统": "alarm_system",
+    "BUILDING": "building",  # 建筑
+    "建筑": "building",
+    "SPRINKLER_SYSTEM": "sprinkler_system",  # 喷淋系统
+    "喷淋系统": "sprinkler_system",
+    "AISLE": "aisle",  # 走道/通道
+    "走道": "aisle",
+    "EXT_WINDOW": "exterior_window",  # 外窗
+    "外窗": "exterior_window",
+    "FACADE": "facade",  # 立面
+    "立面": "facade",
+    "HALLWAY": "hallway",  # 走廊
+    "走廊": "hallway",
+    "MANUAL_CALL_POINT": "manual_call_point",  # 手动报警按钮
+    "手动报警": "manual_call_point",
+    "MANUAL_STATION": "manual_station",  # 手动报警站
+    "OPENING": "opening",  # 洞口/开口
+    "洞口": "opening",
+    "PIPE": "pipe",  # 管道
+    "管道": "pipe",
+    "SIGN": "sign",  # 标志/标识
+    "标识": "sign",
+    "SLAB": "slab",  # 板
+    "板": "slab",
+    "CABLE": "cable",  # 电缆
+    "电缆": "cable",
+    "CONDUIT": "conduit",  # 管线
+    "管线": "conduit",
+    "CURTAIN_WALL": "curtain_wall",  # 幕墙
+    "幕墙": "curtain_wall",
+    "TOILET": "toilet",  # 厕所
+    "厕所": "toilet",
+    "ELEVATOR": "elevator",  # 电梯
+    "电梯": "elevator",
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
