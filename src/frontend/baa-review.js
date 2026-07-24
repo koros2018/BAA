@@ -1301,7 +1301,7 @@ function downloadReviewPdf(reviewId) {
     .then(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = '审查报告_' + fileId + '.pdf';
+      a.download = '审查报告_' + (reviewId || 'report') + '.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
     })
