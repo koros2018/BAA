@@ -177,13 +177,11 @@ LAYER_RULES = {  # assign
     "SPRINKLER_SYSTEM": "sprinkler_system",  # 喷淋系统
     "喷淋系统": "sprinkler_system",
     "AISLE": "aisle",  # 走道/通道
-    "走道": "aisle",
     "EXT_WINDOW": "exterior_window",  # 外窗
     "外窗": "exterior_window",
     "FACADE": "facade",  # 立面
     "立面": "facade",
     "HALLWAY": "hallway",  # 走廊
-    "走廊": "hallway",
     "MANUAL_CALL_POINT": "manual_call_point",  # 手动报警按钮
     "手动报警": "manual_call_point",
     "MANUAL_STATION": "manual_station",  # 手动报警站
@@ -201,7 +199,6 @@ LAYER_RULES = {  # assign
     "管线": "conduit",
     "CURTAIN_WALL": "curtain_wall",  # 幕墙
     "幕墙": "curtain_wall",
-    "TOILET": "toilet",  # 厕所
     "厕所": "toilet",
     "ELEVATOR": "elevator",  # 电梯
     "电梯": "elevator",
@@ -269,11 +266,9 @@ LAYER_RULES = {  # assign
     "LIFT": "lift",  # 货梯
     "货物梯": "lift",
     "PASSAGEWAY": "passageway",  # 通道
-    "通道": "passageway",
     "RESCUE_OPENING": "rescue_opening",  # 救援口
     "救援口": "rescue_opening",
     "SAFETY_EXIT": "safety_exit",  # 安全出口
-    "安全出口": "safety_exit",
     "SOUND_ALARM": "sound_alarm",  # 声响报警
     "声响报警": "sound_alarm",
     "SOUNDER": "sounder",  # 警笛
@@ -310,7 +305,6 @@ LAYER_RULES = {  # assign
     "外部参照": "other",  # 外部参照
     # ── 电气设备图层（新增） ──
     "电设备": "equipment",  # 电气设备
-    "电气": "equipment",  # 电气设备
     "配电": "equipment",  # 配电设备
     "配电箱": "equipment",  # 配电箱
     "动力": "equipment",  # 动力设备
@@ -345,25 +339,6 @@ LAYER_RULES = {  # assign
     "TOILET": "accessible_toilet",
     "卫生间": "accessible_toilet",
     "WC": "accessible_toilet",
-    # ── 电气设备图层（新增） ──
-    "电设备": "equipment",  # 电气设备
-    "电气": "equipment",  # 电气设备
-    "配电": "equipment",  # 配电设备
-    "配电箱": "equipment",  # 配电箱
-    "动力": "equipment",  # 动力设备
-    "弱电": "equipment",  # 弱电设备
-    "照明": "equipment",  # 照明设备
-    "应急照明": "equipment",  # 应急照明设备
-    # ── 消防设施图层（新增） ──
-    "消防": "fire_equipment",  # 消防设备
-    "消火栓": "fire_hydrant",  # 消火栓设备
-    "灭火器": "fire_extinguisher",  # 灭火器设备
-    "喷淋": "sprinkler",  # 喷淋设备
-    "烟感": "smoke_detector",  # 烟感探测器
-    "温感": "smoke_detector",  # 温感探测器
-    "报警": "alarm_device",  # 报警设备
-    "广播": "alarm_device",  # 广播设备
-    "疏散指示": "alarm_device",  # 疏散指示设备
 }  # code
 
 # 短关键字（单字母/2字母）使用全词匹配
@@ -396,7 +371,6 @@ SHORT_LAYER_RULES = {  # assign
     "防火阀": "fire_damper",  # 防火阀
     "排烟": "smoke_exhaust",  # 排烟设备
     "正压送风": "smoke_exhaust",  # 正压送风
-    "风机": "equipment",  # 风机设备
     "FAN": "equipment",  # 风机英文
     "疏散指示灯": "exit_sign",  # 疏散指示灯
 }  # code
