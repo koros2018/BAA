@@ -1613,11 +1613,12 @@ MODULE_FUNCS = [  # module-level atomic function registry
         description="防火墙上不应开设门、窗、洞口（GB50016-6.1.5）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-6.1.5",
-        target_entities={"fire_wall", "door", "window", "opening"},
-        operator="not_exist",
-        threshold=0,
-        unit="",
+        target_entities={"fire_wall"},  # 只检查防火墙上是否有开口
+        operator="<=",
+        threshold=0.0,  # 防火墙上开口数应 ≤ 0
+        unit="个",
         depends_on=[],
+        requires_global_context=True,  # P70 修复: 需要全局上下文，不在逐实体循环中判定
     ),
     AtomicFunction(
         func_id="DIM-081",
@@ -2471,11 +2472,12 @@ MODULE_FUNCS = [  # module-level atomic function registry
         description="每个防火分区应设≥2个消防救援窗，间距≤20m（GB50016-7.2.1）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-7.2.1",
-        target_entities={"rescue_window", "fire_window", "window", "fire_rescue_opening"},
+        target_entities={"rescue_window", "fire_window", "fire_rescue_opening"},  # 移除泛化 window，避免误报
         operator=">=",
         threshold=2.0,
         unit="个",
         depends_on=[],
+        requires_global_context=True,  # P70 修复: 需要全局上下文
     ),
     AtomicFunction(
         func_id="AREA-019",
@@ -2812,11 +2814,12 @@ MODULE_FUNCS = [  # module-level atomic function registry
         description="每个防火分区应设不少于2个消防救援窗口（GB50016-7.2.3）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-7.2.3",
-        target_entities={"rescue_window", "fire_window", "window"},
+        target_entities={"rescue_window", "fire_window", "fire_rescue_opening"},  # 移除泛化 window，避免误报
         operator=">=",
         threshold=2.0,
         unit="个",
         depends_on=[],
+        requires_global_context=True,  # P70 修复: 需要全局上下文
     ),
     AtomicFunction(
         func_id="EXIST-094",

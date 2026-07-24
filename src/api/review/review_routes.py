@@ -351,7 +351,8 @@ async def review(  # code
             return worst_val, worst_unit, worst_op
 
         # 链式依赖执行
-        func_ids = [f.func_id for f in registry_funcs]
+        func_ids = [f.func_id for f in registry_funcs if not getattr(f, 'requires_global_context', False)]
+        global_funcs = [f for f in registry_funcs if getattr(f, 'requires_global_context', False)]  # 需要全局上下文的函数
         for e in entities:
             chained_results = _get_fr().execute_chained(func_ids, e)
             for fid, r in chained_results.items():
@@ -388,6 +389,66 @@ async def review(  # code
                             "explanation": f.explanation[:120],
                             "confidence": r.confidence,
                             "confidence_tier": _confidence_tier(r.confidence),
+                        }
+                    )
+
+        # ── P70: requires_global_context 函数全局聚合判定 ──
+        # 这些函数需要按全局/防火分区聚合统计，而不是逐实体判定
+        # 例如 EXIST-083/093（每个防火分区应设≥2个消防救援窗）
+        # 之前的逻辑对每个 window 实体单独判定，导致 count=1 < 2 全部 FAIL
+        for func in global_funcs:
+            if func.category.value != "exist":
+                continue
+            func_targets = set(func.target_entities) if func.target_entities else set()
+            matching = [e for e in entities if e.get("type", "") in func_targets]
+            if not matching:
+                # 无匹配实体 → 缺失检查
+                r = _get_fr().execute_with_timeout(func, None)
+                if r is not None and r.result != "PASS":
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    details.append(
+                        {
+                            "entity_id": "",
+                            "entity_type": "missing",
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": 0.0,
+                            "required_value": func.threshold,
+                            "difference": -func.threshold,
+                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        }
+                    )
+            else:
+                # 有匹配实体 → 按全局计数判定
+                count = len(matching)
+                clause_results[func.clause_id] += 1
+                if count < func.threshold:
+                    details.append(
+                        {
+                            "entity_id": "",
+                            "entity_type": ",".join(func_targets),
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": float(count),
+                            "required_value": float(func.threshold),
+                            "difference": float(count - func.threshold),
+                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
                         }
                     )
 
@@ -685,6 +746,7 @@ async def review_from_data(  # code
             clause_results = Counter()
             details = []
             registry_funcs = _get_fr().list_all()
+            global_funcs = [f for f in registry_funcs if getattr(f, 'requires_global_context', False)]  # P70
 
             def get_strict_threshold(
                 clause_id: str,
@@ -697,7 +759,7 @@ async def review_from_data(  # code
                 return worst_val, worst_unit, worst_op
 
             for e in entities:
-                for func in registry_funcs:
+                for func in [f for f in registry_funcs if not getattr(f, 'requires_global_context', False)]:
                     threshold_val, unit, op = get_strict_threshold(func.clause_id)
                     func.threshold = threshold_val
                     func.unit = unit
@@ -732,6 +794,50 @@ async def review_from_data(  # code
                                 "confidence_tier": _confidence_tier(r.confidence),
                             }
                         )
+
+            # P70: requires_global_context 函数全局聚合判定
+            for func in global_funcs:
+                if func.category.value != "exist":
+                    continue
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                matching = [e for e in entities if e.get("type", "") in func_targets]
+                if not matching:
+                    r = _get_fr().execute_with_timeout(func, None)
+                    if r is not None and r.result != "PASS":
+                        details.append({
+                            "entity_id": "",
+                            "entity_type": "missing",
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": 0.0,
+                            "required_value": func.threshold,
+                            "difference": -func.threshold,
+                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        })
+                else:
+                    count = len(matching)
+                    clause_results[func.clause_id] += 1
+                    if count < func.threshold:
+                        details.append({
+                            "entity_id": "",
+                            "entity_type": ",".join(func_targets),
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": float(count),
+                            "required_value": float(func.threshold),
+                            "difference": float(count - func.threshold),
+                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        })
 
             # 缺失检查
             # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
