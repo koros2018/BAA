@@ -242,6 +242,52 @@ LAYER_RULES = {  # assign
     "气体灭火": "gas_extinguishing",
     "DRIP": "drain",  # 排水
     "排水": "drain",
+    # ── P70 高频缺口补全（第5批：3 refs 层级） ──
+    "ACCESSIBLE_ROOM": "accessible_room",  # 无障碍房间
+    "无障碍房间": "accessible_room",
+    "ALARM_CENTER": "alarm_center",  # 报警中心
+    "报警中心": "alarm_center",
+    "CURTAIN": "curtain",  # 窗帘/卷帘（通配）
+    "电梯厅": "elevator_lobby",
+    "ELEVATOR_LOBBY": "elevator_lobby",
+    "疏散门": "evacuation_door",
+    "EVACUATION_DOOR": "evacuation_door",
+    "疏散标志": "evacuation_sign",
+    "EVACUATION_SIGN": "evacuation_sign",
+    "室外楼梯": "external_stair",
+    "EXTERNAL_STAIR": "external_stair",
+    "FIRE_DEPT_CONN": "fire_department_connection",  # 消防部门连接
+    "FIRE_PHONE": "fire_phone",  # 消防电话
+    "消防电话": "fire_phone",
+    "FIRE_POOL": "fire_pool",  # 消防水池
+    "消防水池": "fire_pool",
+    "FIRE_STOP": "fire_stop",  # 阻火
+    "阻火": "fire_stop",
+    "GROUNDING": "grounding",  # 接地
+    "接地": "grounding",
+    "GND": "grounding",
+    "LIFT": "lift",  # 货梯
+    "货物梯": "lift",
+    "PASSAGEWAY": "passageway",  # 通道
+    "通道": "passageway",
+    "RESCUE_OPENING": "rescue_opening",  # 救援口
+    "救援口": "rescue_opening",
+    "SAFETY_EXIT": "safety_exit",  # 安全出口
+    "安全出口": "safety_exit",
+    "SOUND_ALARM": "sound_alarm",  # 声响报警
+    "声响报警": "sound_alarm",
+    "SOUNDER": "sounder",  # 警笛
+    "警笛": "sounder",
+    "STEP": "step",  # 踏步
+    "踏步": "step",
+    "TRUNKING": "trunking",  # 线槽
+    "线槽": "trunking",
+    "WALL_INSULATION": "wall_insulation",  # 墙体保温
+    "墙体保温": "wall_insulation",
+    "WIRING": "wiring",  # 布线
+    "布线": "wiring",
+    "BEAM_": "beam",  # 梁（real: BEAM_SE）
+    "梁": "beam",
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
