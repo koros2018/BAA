@@ -119,6 +119,37 @@ LAYER_RULES = {  # assign
     "DRIVE": "driveway",
     # power_supply（7 refs）：电源
     "电源": "power_supply",  # 注意：优先匹配"电源"，避免被"双电源切换箱"的"控制箱"短关键字覆盖
+    # ── P70 高频缺口补全（第2批：staircase/exit_door/fire_system/pump/refuge 等） ──
+    "STAIRCASE": "staircase",  # 楼梯间（real: STAIRCASE, STAIR_CASE）
+    "楼梯间": "staircase",
+    "STAIR_CASE": "staircase",
+    "EXIT_DOOR": "exit_door",  # 安全出口门（real: EXIT_DOOR）
+    "出口门": "exit_door",
+    "安全出口门": "exit_door",
+    "泵": "pump",  # 通用水泵（与具体泵图层不冲突）
+    "PUMP": "pump",
+    "REFUGE_FLOOR": "refuge_floor",  # 避难层
+    "避难层": "refuge_floor",
+    "ANTEROOM": "antechamber",  # 前室
+    "前室": "antechamber",
+    "FIRE_LANE": "fire_lane",  # 消防车道
+    "消防车道": "fire_lane",
+    "FIRE_WATER_TANK": "fire_water_tank",  # 消防水箱（具体）
+    "消火栓系统": "hydrant",  # 消火栓系统
+    "INDOOR_HYDRANT": "indoor_hydrant",  # 室内消火栓
+    "室内消火栓": "indoor_hydrant",
+    "控制柜": "control_panel",  # 控制面板
+    "CONTROL_PANEL": "control_panel",
+    "REFUGE_AREA": "refuge_area",  # 避难区
+    "避难区": "refuge_area",
+    "REFUGE_ROOM": "refuge_room",  # 避难间
+    "避难间": "refuge_room",
+    "FIRE_BROADCAST": "fire_broadcast",  # 消防广播
+    "消防广播": "fire_broadcast",
+    "STAIRCASE_LOBBY": "staircase_lobby",  # 楼梯间前室
+    "楼梯间前室": "staircase_lobby",
+    "EQ_ROOM": "equipment_room",  # 设备间（缩写）
+    "设备间": "equipment_room",
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
@@ -1498,6 +1529,38 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "driveway"  # return
             if "电源" in text or "POWER_SUPPLY" in text_upper:
                 return "power_supply"  # return
+            # ── P70 高频缺口 TEXT 识别（第2批） ──
+            if "楼梯间" in text or "STAIRCASE" in text_upper or "STAIR_CASE" in text_upper:
+                return "staircase"  # return
+            if "出口门" in text or "EXIT_DOOR" in text_upper or "安全出口门" in text:
+                return "exit_door"  # return
+            if (
+                "泵" in text
+                and "消防泵" not in text
+                and "喷淋泵" not in text
+                and "消火栓泵" not in text
+            ):
+                return "pump"  # return
+            if "避难层" in text or "REFUGE_FLOOR" in text_upper:
+                return "refuge_floor"  # return
+            if "前室" in text or "ANTEROOM" in text_upper or "前室" in block_name:
+                return "antechamber"  # return
+            if "消防车道" in text and "road" not in text_lower:
+                return "fire_lane"  # return
+            if "消防水箱" in text or "FIRE_WATER_TANK" in text_upper:
+                return "fire_water_tank"  # return
+            if "室内消火栓" in text or "INDOOR_HYDRANT" in text_upper:
+                return "indoor_hydrant"  # return
+            if "避难区" in text or "REFUGE_AREA" in text_upper:
+                return "refuge_area"  # return
+            if "避难间" in text or "REFUGE_ROOM" in text_upper:
+                return "refuge_room"  # return
+            if "消防广播" in text or "FIRE_BROADCAST" in text_upper:
+                return "fire_broadcast"  # return
+            if "楼梯间前室" in text or "STAIRCASE_LOBBY" in text_upper:
+                return "staircase_lobby"  # return
+            if "设备间" in text or "EQ_ROOM" in text_upper:
+                return "equipment_room"  # return
             # ── P47 无障碍 TEXT 识别 ──
             if "坡道" in text or "RAMP" in text_upper:
                 return "ramp"
