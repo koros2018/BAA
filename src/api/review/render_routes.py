@@ -396,6 +396,7 @@ async def review_pdf(  # code
     违规分类统计、每条违规详情及修正建议。
     """
     from src.baa_engine.report_generator import ReviewReport  # import
+    from .review_routes import _build_structured_summary  # P62: 共享结构化摘要
 
     # 获取文件路径
     file_path = get_file_path(file_id)  # function call
@@ -569,12 +570,14 @@ async def review_pdf(  # code
         pass  # code
 
     # ── 生成 PDF ──────────────────────────────────────────
+    structured_summary = _build_structured_summary(details)
     generator = ReviewReport()  # function call
     pdf_bytes = generator.generate(  # assignment
         filename=file_path.name,  # assignment
         summary=summary,  # assignment
         details=details,  # assignment
         corrections=corrections,  # assignment
+        structured_summary=structured_summary,  # P62: 结构化摘要
     )  # code
 
     return Response(  # return

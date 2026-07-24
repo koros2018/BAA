@@ -848,6 +848,7 @@ async def list_specs(api_key: str = Depends(verify_api_key)):
 # P66: 规范版本管理 — 版本列表 + 版本对比
 # ═══════════════════════════════════════════════════════════════
 
+
 @app.get("/api/v1/specs/versions", tags=["API", "API v1"])
 async def list_spec_versions(
     standard: str = None,
@@ -1090,12 +1091,12 @@ async def reverse_export_dwg(
 
     # 返回文件下载
     import mimetypes
+
     mime, _ = mimetypes.guess_type(out_path) or ("application/octet-stream", None)
     from fastapi.responses import FileResponse
 
     # 使用正确的原始文件名
     return FileResponse(out_path, media_type=mime, filename=fname)
-
 
 
 # ═══════════════════════════════════════════════════════════════

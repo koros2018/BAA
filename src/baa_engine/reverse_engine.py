@@ -213,14 +213,10 @@ class ReverseEngine:
             return dwg_path
 
         # 降级: 返回 DXF 路径（至少给用户一个文件）
-        logger.warning(
-            "P67: 所有 DWG 导出策略失败，降级返回 DXF 文件: %s", dxf_path
-        )
+        logger.warning("P67: 所有 DWG 导出策略失败，降级返回 DXF 文件: %s", dxf_path)
         return dxf_path
 
-    def _export_via_libreoffice(
-        self, dxf_path: str, dwg_path: str
-    ) -> bool:
+    def _export_via_libreoffice(self, dxf_path: str, dwg_path: str) -> bool:
         """尝试通过 LibreOffice/soffice 将 DXF 转换为 DWG。
 
         LibreOffice Draw 组件支持 DXF -> DWG 转换（天正/AutoCAD 兼容）。
@@ -232,9 +228,7 @@ class ReverseEngine:
 
         soffice = None
         for candidate in ["soffice", "libreoffice"]:
-            p = subprocess.run(
-                ["which", candidate], capture_output=True, text=True
-            )
+            p = subprocess.run(["which", candidate], capture_output=True, text=True)
             if p.returncode == 0:
                 soffice = candidate
                 break
@@ -259,9 +253,7 @@ class ReverseEngine:
             ]
 
             try:
-                proc = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=60
-                )
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             except subprocess.TimeoutExpired:
                 logger.warning("P67: LibreOffice 转换超时")
                 return False
@@ -270,9 +262,7 @@ class ReverseEngine:
                 for f in os.listdir(out_dir):
                     if f.lower().endswith(".dwg"):
                         shutil.copy2(os.path.join(out_dir, f), dwg_path)
-                        logger.info(
-                            "P67: LibreOffice 导出 DWG 成功: %s", dwg_path
-                        )
+                        logger.info("P67: LibreOffice 导出 DWG 成功: %s", dwg_path)
                         return True
 
             logger.debug(

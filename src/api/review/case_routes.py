@@ -119,6 +119,7 @@ def _format_case_item(row: dict) -> Dict:
 
 # ── API 端点 ─────────────────────────────────────────────────
 
+
 @router.get("/cases", tags=["Cases"])
 async def list_cases(
     building_type: Optional[str] = None,
@@ -139,7 +140,9 @@ async def list_cases(
         tag: 标签筛选（如 "尺寸不合规"）
         limit / offset: 分页
     """
-    result = list_review_history(limit=limit, offset=offset, building_type=building_type, status="success")
+    result = list_review_history(
+        limit=limit, offset=offset, building_type=building_type, status="success"
+    )
     items = result.get("items", [])
 
     # 二次筛选：得分范围
@@ -230,6 +233,7 @@ async def get_case_stats(api_key: str = Depends(verify_api_key)):
         "topTags": dict(sorted(tag_count.items(), key=lambda x: -x[1])[:10]),
     }
 
+
 @router.get("/cases/{case_id}", tags=["Cases"])
 async def get_case(case_id: str, api_key: str = Depends(verify_api_key)):
     """获取单条案例详情（复用 review_detail 数据）"""
@@ -266,4 +270,3 @@ async def get_case(case_id: str, api_key: str = Depends(verify_api_key)):
         ],
         "corrections": detail.get("corrections", []),
     }
-

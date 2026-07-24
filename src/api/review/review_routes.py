@@ -374,7 +374,9 @@ async def review(  # code
                             "extracted_value": f.extracted_params["extracted_value"],
                             "required_value": f.extracted_params.get("required_value", 1.2),
                             "difference": f.extracted_params.get("difference", 0),
-                            "severity": f.judgement.get("severity", "major"),  # P62: 透传 severity 供优先级判定
+                            "severity": f.judgement.get(
+                                "severity", "major"
+                            ),  # P62: 透传 severity 供优先级判定
                             "explanation": f.explanation[:120],
                             "confidence": r.confidence,
                             "confidence_tier": _confidence_tier(r.confidence),
@@ -594,15 +596,18 @@ async def export_review_pdf(  # code
     corrections = detail.get("corrections", [])
     filename = detail.get("drawingName", "review")
 
-    # 生成 PDF
+    structured_summary = _build_structured_summary(details)
+    # P62: 结构化摘要注入 PDF
     try:
         from src.baa_engine.report_generator import ReviewReport
+
         reporter = ReviewReport()
         pdf_bytes = reporter.generate(
             filename=filename,
             summary=summary,
             details=details,
             corrections=corrections,
+            structured_summary=structured_summary,
             lang=lang,
         )
     except Exception as e:
