@@ -130,8 +130,8 @@ LAYER_RULES = {  # assign
     "PUMP": "pump",
     "REFUGE_FLOOR": "refuge_floor",  # 避难层
     "避难层": "refuge_floor",
-    "ANTEROOM": "antechamber",  # 前室
-    "前室": "antechamber",
+    "ANTEROOM": "anteroom",  # 前室
+    "前室": "anteroom",
     "FIRE_LANE": "fire_lane",  # 消防车道
     "消防车道": "fire_lane",
     "FIRE_WATER_TANK": "fire_water_tank",  # 消防水箱（具体）
