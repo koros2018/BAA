@@ -82,6 +82,10 @@ LAYER_RULES = {  # assign
     "TERM": "equipment",  # 终端设备
     "布线设备": "equipment",  # 布线设备
     "WIRE-防火门": "equipment",  # 防火门监控
+    "消防泵": "fire_pump",  # P70 消防泵设备
+    "消火栓按钮": "hydrant_call_button",  # P70 消火栓启泵按钮
+    "启泵": "hydrant_call_button",  # P70 启泵按钮
+    "水泵接合器": "siamese_connection",  # P70 水泵接合器
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
@@ -1423,6 +1427,21 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 return "fire_elevator"  # return
             if "声光" in text:  # check: membership test
                 return "fire_alarm"  # return
+            # ── P70 消防泵/水泵接合器/启泵按钮 TEXT 识别 ──
+            if (
+                "消防泵" in text
+                or "喷淋泵" in text
+                or "稳压泵" in text
+                or "消火栓泵" in text
+                or "PUMP" in text_upper
+            ):
+                return "fire_pump"  # return
+            if "水泵接合器" in text or "接合器" in text or "SIAMESE" in text_upper:
+                return "siamese_connection"  # return
+            if "启泵按钮" in text or "消火栓按钮" in text or "CALL_POINT" in text_upper:
+                return "hydrant_call_button"  # return
+            if "泵控制柜" in text or "启泵柜" in text or "PUMP_CTRL" in text_upper:
+                return "pump_controller"  # return
             # ── P47 无障碍 TEXT 识别 ──
             if "坡道" in text or "RAMP" in text_upper:
                 return "ramp"
@@ -1535,6 +1554,37 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 "BELL" in block_name or "警铃" in block_name or "声光" in block_name
             ):  # check: membership test
                 return "fire_bell"  # return
+            # ── P70 泵控制柜（必须在通用 PUMP 之前，避免误匹配） ──
+            if (
+                "PUMP_CONTROLLER" in block_name
+                or "PUMP_CTRL" in block_name
+                or "PUMPCTRL" in block_name
+                or "泵控" in block_name
+                or "启泵柜" in block_name
+                or "水泵控制柜" in block_name
+            ):
+                return "pump_controller"  # return
+            # ── P70 消防泵/水泵接合器/启泵按钮 ──
+            if (
+                "FIRE_PUMP" in block_name
+                or "SPRINKLER_PUMP" in block_name
+                or "STABLE_PRESSURE_PUMP" in block_name
+                or "消防泵" in block_name
+                or "喷淋泵" in block_name
+                or "稳压泵" in block_name
+                or "消火栓泵" in block_name
+                or "水泵" in block_name
+                or "PUMP" in block_name
+            ):  # check: membership test
+                return "fire_pump"  # return
+            if (
+                "SIAMESE" in block_name
+                or "FIRE_DEPT_CONN" in block_name
+                or "SIAMESE_CONN" in block_name
+                or "水泵接合器" in block_name
+                or "接合器" in block_name
+            ):  # check: membership test
+                return "siamese_connection"  # return
             if (
                 "CALL_POINT" in block_name or "消火栓按钮" in block_name or "栓" in block_name
             ):  # check: membership test
