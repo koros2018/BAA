@@ -205,6 +205,43 @@ LAYER_RULES = {  # assign
     "厕所": "toilet",
     "ELEVATOR": "elevator",  # 电梯
     "电梯": "elevator",
+    # ── P70 高频缺口补全（第4批：duct/roof/pipe/parking 等） ──
+    "DUCT": "duct",  # 风管
+    "风管": "duct",
+    "FIRE_CONTROL_ROOM": "fire_control_room",  # 消防控制室
+    "消防控制室": "fire_control_room",
+    "FIRE_HOSE": "fire_hose",  # 消防水带
+    "消防水带": "fire_hose",
+    "FIRE_MAIN": "fire_main",  # 消防主管
+    "消防主管": "fire_main",
+    "PARKING_LOT": "parking_lot",  # 停车场
+    "停车场": "parking_lot",
+    "PIPE_SHAFT": "pipe_shaft",  # 管井
+    "管井": "pipe_shaft",
+    "PIPING": "piping",  # 管道系统
+    "管道系统": "piping",
+    "RESCUE_AREA": "rescue_area",  # 救援区
+    "救援区": "rescue_area",
+    "ROOF": "roof",  # 屋顶
+    "屋顶": "roof",
+    "STAIRCASE_DOOR": "staircase_door",  # 楼梯间门
+    "楼梯间门": "staircase_door",
+    "STRUCTURE": "structure",  # 结构
+    "结构": "structure",
+    "WALKWAY": "walkway",  # 天桥/连廊
+    "连廊": "walkway",
+    "WATER_PIPE": "water_pipe",  # 水管
+    "水管": "water_pipe",
+    "VALVE": "check_valve",  # 阀门
+    "阀门": "check_valve",
+    "VENTILATOR": "ventilator",  # 通风器
+    "通风器": "ventilator",
+    "VENT": "vent",  # 风口
+    "风口": "vent",
+    "GAS_EXT": "gas_extinguishing",  # 气体灭火
+    "气体灭火": "gas_extinguishing",
+    "DRIP": "drain",  # 排水
+    "排水": "drain",
     # ── 结构基础 ──
     "BASE": "foundation",  # 基础（real: BASE_SING）
     # ── 非建筑实体 ──
