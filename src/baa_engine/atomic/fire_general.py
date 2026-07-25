@@ -51,7 +51,7 @@ MODULE_FUNCS = [  # module-level atomic function registry
         "<=",
         30.0,
         "m",
-        target_entities=["room", "floor", "space"],
+        target_entities=["room", "space"],  # P71 修复: 去掉 floor（楼板尺寸≠疏散距离）
     ),
     AtomicFunction(
         "COUNT-001",
