@@ -22,9 +22,11 @@ data/logs/
 *.log
 data/coco/
 data/coco_v2/
+data/coco_v2_aug/
 data/drawings/
 data/models/
 yolov8n.pt
+yolov8m.pt
 runs/
 memory/
 
@@ -32,6 +34,7 @@ memory/
 .vscode/
 .idea/data/logs/
 data/1*
+data/real_renderings/
 ROADMAP.md
 .venv_old/
 datasets/
