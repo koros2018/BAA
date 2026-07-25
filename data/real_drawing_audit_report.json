@@ -96,11 +96,6 @@
         "PASS": 1,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
       "DIM-002": {
         "total": 4,
         "PASS": 4,
@@ -132,7 +127,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 1138
+    "total_findings": 1136
   },
   {
     "file": "202109409-2#配电房_t3.dxf",
@@ -204,18 +199,13 @@
         "PASS": 24,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
       "DIM-002": {
         "total": 4,
         "PASS": 4,
         "FAIL": 0
       }
     },
-    "total_findings": 1257
+    "total_findings": 1255
   },
   {
     "file": "4.通风BS170826.dxf",
@@ -307,11 +297,6 @@
         "PASS": 2,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 11,
-        "PASS": 11,
-        "FAIL": 0
-      },
       "EXIST-009": {
         "total": 1,
         "PASS": 1,
@@ -323,7 +308,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 7140
+    "total_findings": 7129
   },
   {
     "file": "A1云计算中心_水消防2017.03.31_t3.dxf",
@@ -508,11 +493,6 @@
         "PASS": 1,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
       "EXIST-010": {
         "total": 1,
         "PASS": 1,
@@ -554,7 +534,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 6623
+    "total_findings": 6622
   },
   {
     "file": "A1云计算中心平面图0405_t3.dxf",
@@ -636,11 +616,6 @@
         "PASS": 23,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
       "ACCESS-005": {
         "total": 3,
         "PASS": 3,
@@ -657,7 +632,7 @@
         "FAIL": 1
       }
     },
-    "total_findings": 7956
+    "total_findings": 7955
   },
   {
     "file": "E-00-01-01 室外电气总平面图.dxf",
@@ -749,11 +724,6 @@
       "conduit": 1
     },
     "func_summary": {
-      "DIST-001": {
-        "total": 5062,
-        "PASS": 4630,
-        "FAIL": 432
-      },
       "EXIST-090": {
         "total": 3047,
         "PASS": 3031,
@@ -865,7 +835,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 13487
+    "total_findings": 8425
   },
   {
     "file": "中原人工智能计算中心总图-0409_t3.dxf",
@@ -1002,11 +972,6 @@
         "PASS": 141,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 29,
-        "PASS": 29,
-        "FAIL": 0
-      },
       "EXIST-021": {
         "total": 7,
         "PASS": 7,
@@ -1033,7 +998,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 3029
+    "total_findings": 3000
   },
   {
     "file": "2.1电气170825-报审.dxf",
@@ -1184,11 +1149,6 @@
         "PASS": 14,
         "FAIL": 0
       },
-      "DIST-001": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
       "EXIST-061": {
         "total": 1,
         "PASS": 1,
@@ -1240,7 +1200,7 @@
         "FAIL": 0
       }
     },
-    "total_findings": 3556
+    "total_findings": 3553
   },
   {
     "file": "东莞通-设备-外部参照（不打印）.dxf",

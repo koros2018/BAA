@@ -396,12 +396,15 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "DIST-001":  # 距离判定
-            val = props.get("travel_distance", props.get("length", 0.0))  # function call
-            if unit == "mm":  # condition: unit == "mm":
+            # P71 修复: 只认 travel_distance（真实疏散距离），不再 fallback 到 length（楼板尺寸）
+            val = props.get("travel_distance")
+            if val is None:
+                return None  # 无疏散距离数据，跳过判定
+            if unit == "mm":  # 单位转换
                 return val / 1000.0  # return
-            if unit == "m":  # condition: unit == "m":
+            if unit == "m":  # 单位转换
                 return val  # return
-            if val > 100:  # check: numeric comparison
+            if val > 100:  # 数量级判断
                 return val / 1000.0  # return
             return val  # return
 
