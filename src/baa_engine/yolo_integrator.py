@@ -100,9 +100,18 @@ class YOLODetectionIntegrator:
         path = model_path or self._model_path  # path: 赋值
         if not path:  # check: if not path
             # 默认路径：从项目根目录按版本优先级查找 best.pt
-            # 优先级：v3 > v2 > v2-3 > v1，越新版本检测精度越高
+            # 优先级：v6(m) > v4(n) > v3(n) > v2-3(n) > v2(n) > v1(n)
+            # v6 为最新模型（YOLOv8m，800 样本增强，mAP50=0.572）
             project_root = Path(__file__).resolve().parent.parent.parent  # project_root: 赋值
             candidates = [
+                project_root
+                / "runs"
+                / "detect"
+                / "data"
+                / "models"
+                / "baa_yolov8m_v6-2"
+                / "weights"
+                / "best.pt",
                 project_root
                 / "runs"
                 / "detect"
@@ -155,15 +164,19 @@ class YOLODetectionIntegrator:
     def predict(
         self,
         image_path: str,
-        conf: float = 0.25,
+        conf: float = 0.15,
         iou: float = 0.5,  # self, image_path: str, conf: float: 赋值
     ) -> List[Dict[str, Any]]:
         """对单张图纸图像执行 YOLO 预测
 
         参数说明：
-            conf=0.25：置信度阈值，低于此值的检测框被丢弃  # conf: 赋值
-                      建筑图纸中门/窗等实体特征清晰，0.25 足够滤除噪声
-                      如果调高到 0.5 可能会漏检小尺寸的 fire_door 等
+            conf=0.15：置信度阈值，低于此值的检测框被丢弃  # conf: 赋值
+                      v6 模型（YOLOv8m，800 样本增强，mAP50=0.572）在真实图纸上
+                      大量真实检测的置信度集中在 0.05-0.20 之间（训练图 640×640 满铺元素，
+                      真实图纸渲染后仅 0.2% 非白像素，分布差异导致），
+                      0.25 会严重漏检 door/window/staircase 等常见类别，
+                      因此从 v6 开始默认降至 0.15，由后置规则过滤误检。
+                      如果仍想保守过滤，可传 conf=0.25
             iou=0.5：NMS 的 IoU 阈值，用于抑制同一目标的重叠检测框  # iou: 赋值
                      0.5 是 YOLO 默认值，在建筑图纸上效果良好
             imgsz=640：推理图像尺寸，训练时也是 640x640  # imgsz: 赋值
@@ -247,7 +260,9 @@ class YOLODetectionIntegrator:
         返回:
             (image_path, detections)  # call: ()
         """
-        image_path = self._render_dxf(dxf_path, dpi)  # 渲染 DXF 为图像
+        # 使用裁剪渲染：去除大面积空白背景，提升 YOLO 检测效果
+        # v6 模型（mAP50=0.572）在裁剪后图像上置信度显著回升，无需继续降低 conf 阈值
+        image_path = self._render_dxf_cropped(dxf_path, dpi)  # 裁剪渲染 DXF → YOLO 推理
         if image_path is None:
             return None, []  # 渲染失败则返回空
         detections = self.predict(image_path)  # YOLO 推理
@@ -459,6 +474,61 @@ class YOLODetectionIntegrator:
         )  # savefig: 赋值
         plt.close(fig)  # call: close()
         return tmp_path  # return: tmp_path
+
+    def _render_dxf_cropped(self, dxf_path: str, dpi: int = 100) -> Optional[str]:
+        """渲染 DXF → 裁剪非空白区域 → 保存
+
+        与 _render_dxf 相同流程，但额外对渲染后的图像做非空白像素裁剪，
+        去除大面积的纯白背景，使 YOLO 推理时图像内容占比更高，
+        有助于提升真实图纸（非白像素占比极低）的检测效果。
+        """
+        import numpy as np
+        from PIL import Image
+
+        # 先走标准渲染流程
+        tmp_path = self._render_dxf(dxf_path, dpi)
+        if tmp_path is None:
+            return None
+
+        try:
+            img = Image.open(tmp_path).convert("RGB")
+            arr = np.array(img)
+
+            # 检测非白像素区域（RGB 三个通道不全为 255 的像素）
+            # 容忍 250 阈值，避免抗锯齿边缘被误判为内容
+            non_white = np.any(arr < 250, axis=-1)
+            if not np.any(non_white):
+                # 全白图像，无法裁剪，返回原图
+                return tmp_path
+
+            # 找到非白像素的行列范围
+            rows = np.any(non_white, axis=1)
+            cols = np.any(non_white, axis=0)
+            y_min, y_max = np.where(rows)[0][[0, -1]]
+            x_min, x_max = np.where(cols)[0][[0, -1]]
+
+            # 裁剪到非白区域（加 2px 边距，避免线条贴边）
+            margin = 2
+            y_min = max(0, y_min - margin)
+            y_max = min(img.height - 1, y_max + margin)
+            x_min = max(0, x_min - margin)
+            x_max = min(img.width - 1, x_max + margin)
+
+            cropped = img.crop((x_min, y_min, x_max + 1, y_max + 1))
+
+            # 保存到新临时文件
+            tmp2 = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+            cropped_path = tmp2.name
+            tmp2.close()
+            cropped.save(cropped_path, quality=95)
+
+            # 删除原始未裁剪文件
+            os.unlink(tmp_path)
+
+            return cropped_path
+        except Exception:
+            # 裁剪失败时回退到原始渲染结果
+            return tmp_path
 
 
 # ── YOLO 后置过滤 ──────────────────────────────────────────
