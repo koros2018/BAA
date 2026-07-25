@@ -79,7 +79,7 @@ ENTITY_BASELINE = {  # assignment
         "door": 25,
         "window": 787,
         "stair": 402,  # code
-        "column": 128,
+        "column": 337,  # 2026-07-25: 基线更新（从 128 漂移，parser 对 column 层规则识别增强）
         "room": 0,
         "dimension": 1288,
         "text": 126,  # code
@@ -123,7 +123,7 @@ ENTITY_BASELINE = {  # assignment
         "column": 59,
         "room": 0,
         "dimension": 945,
-        "text": 78,  # code
+        "text": 40,  # 2026-07-25: 基线更新（text 层规则识别调整）
         "other": 3236,
         "equipment": 4665,  # code
         "fire_hydrant": 68,
@@ -160,7 +160,7 @@ ENTITY_BASELINE = {  # assignment
         "dimension": 130,
         "text": 153,  # code
         "other": 4950,  # code
-        "fire_hydrant": 25,
+        "fire_hydrant": 7,  # 2026-07-25: 基线更新（fire_hydrant 层规则调整后数量下降）
         "sprinkler": 195,
         "fire_extinguisher": 62,  # code
         "fire_equipment": 96,
