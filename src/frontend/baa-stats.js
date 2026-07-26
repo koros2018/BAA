@@ -269,7 +269,7 @@ function renderTopViolations() {
 // ── 主入口 ───────────────────────────────────────────────
 async function loadAnalysis(days = 30) {
   await loadStats(days);
-  loadReviewResults();  // 也需要 reviewResults 做 fallback 和详情表
+  await loadReviewResults();  // 也需要 reviewResults 做 fallback 和详情表
 
   renderOverviewCards();
   renderTrendChart();

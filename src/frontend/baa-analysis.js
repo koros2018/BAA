@@ -2,25 +2,23 @@
 function renderAnalysisTable() {
   const tbody = document.getElementById('analysis-table');
   if (!tbody) return;
-  loadReviewResults();
   if (reviewResults.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
     return;
   }
   tbody.innerHTML = '';
-  reviewResults.forEach((h, i) => {
-    const viols = h.details?.length || 0;
-    const checks = h.summary?.total_checks || 0;
+  reviewResults.slice(0, 20).forEach((h, i) => {
+    const viols = h.violationCount || 0;
+    const checks = h.entityCount || 1;
     const passRate = checks > 0 ? Math.round((1 - viols / checks) * 100) : 0;
     const btLabel = h.buildingType === 'civil' ? '民用' : h.buildingType === 'industrial' ? '工业' : '--';
     tbody.innerHTML += '<tr class="border-b border-gray-50 text-sm">' +
       '<td class="py-2 px-2">' + (i + 1) + '</td>' +
       '<td class="py-2 px-2 truncate max-w-32" title="' + h.drawingName + '">' + h.drawingName + '</td>' +
       '<td class="py-2 px-2 text-xs">' + btLabel + '</td>' +
-      '<td class="py-2 px-2">' + checks + '</td>' +
       '<td class="py-2 px-2 text-red-600">' + viols + '</td>' +
-      '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + passRate + '%"></div></div><span class="text-xs">' + passRate + '%</span></div></td>' +
-      '<td class="py-2 px-2 text-xs">' + new Date(h.reviewedAt).toLocaleString() + '</td></tr>';
+      '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + Math.max(0, passRate) + '%"></div></div><span class="text-xs">' + Math.max(0, passRate) + '%</span></div></td>' +
+      '<td class="py-2 px-2 text-xs">' + (h.reviewedAt ? new Date(h.reviewedAt).toLocaleString('zh-CN') : '--') + '</td></tr>';
   });
 }
 
