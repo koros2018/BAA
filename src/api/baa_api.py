@@ -346,6 +346,14 @@ from src.api.review.case_routes import router as case_router  # import
 
 app.include_router(case_router, prefix="/api/v1")  # P68 行业案例库
 
+from .stats_routes import get_stats  # P72 统计仪表盘
+
+
+@app.get("/api/v1/stats", tags=["API", "API v1"])  # P72
+async def api_stats(days: int = Query(30, ge=1, le=365), api_key: str = Depends(verify_api_key)):
+    """审查统计仪表盘"""
+    return await get_stats(days=days, api_key=api_key)
+
 # ── 静态文件服务 ──────────────────────────────────────────
 SPECS_DIR = DATA_DIR / "specs"
 if SPECS_DIR.exists():

@@ -502,39 +502,71 @@
     </div>
 
     <!-- ===== 结果分析 ===== -->
+    <!-- ===== 结果分析 / 统计仪表盘 ===== -->
     <div class="page" id="page-analysis">
-      <h2 class="text-xl font-bold mb-6">结果分析</h2>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="card">
-          <p class="font-medium mb-2">历史审查趋势</p>
-          <div id="trend-bars" class="text-xs space-y-1">
-            <div class="text-gray-400">审查图纸后自动统计</div>
+      <h2 class="text-xl font-bold mb-6">📊 统计仪表盘</h2>
+
+      <!-- 总览卡片 -->
+      <div id="overview-cards" class="mb-6">
+        <div class="text-center text-gray-400 py-8">加载中...</div>
+      </div>
+
+      <!-- 趋势图 -->
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-medium">审查趋势（按天）</p>
+          <div class="flex gap-2 text-xs">
+            <button onclick="loadAnalysis(7)" class="px-2 py-1 border rounded hover:bg-gray-100">7天</button>
+            <button onclick="loadAnalysis(30)" class="px-2 py-1 border rounded hover:bg-gray-100">30天</button>
+            <button onclick="loadAnalysis(90)" class="px-2 py-1 border rounded hover:bg-gray-100">90天</button>
+            <button onclick="loadAnalysis()" class="px-2 py-1 border rounded bg-blue-100 hover:bg-blue-200">全部</button>
           </div>
         </div>
-        <div class="card">
-          <p class="font-medium mb-2">违规分布（按严重度）</p>
-          <div id="violation-dist-bars" class="text-xs space-y-1">
-            <div class="text-gray-400">审查图纸后自动统计</div>
-          </div>
+        <div id="trend-chart">
+          <div class="text-gray-400">加载中...</div>
         </div>
       </div>
-      <div class="mt-4 card overflow-x-auto">
+
+      <!-- 分布卡片（4列） -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="card p-3">
+          <p class="font-medium mb-2">违规严重度分布</p>
+          <div id="violation-dist" class="space-y-2 text-xs"><div class="text-gray-400">加载中...</div></div>
+        </div>
+        <div class="card p-3">
+          <p class="font-medium mb-2">置信度分布</p>
+          <div id="confidence-dist" class="space-y-2 text-xs"><div class="text-gray-400">加载中...</div></div>
+        </div>
+        <div class="card p-3">
+          <p class="font-medium mb-2">建筑类型分布</p>
+          <div id="building-type-dist" class="space-y-2 text-xs"><div class="text-gray-400">加载中...</div></div>
+        </div>
+        <div class="card p-3">
+          <p class="font-medium mb-2">实体类型 TOP-10</p>
+          <div id="entity-dist" class="space-y-1 text-xs"><div class="text-gray-400">加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- TOP 违规条款 -->
+      <div class="card mb-4 overflow-x-auto">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-medium">TOP 违规条款</p>
+          <button onclick="loadAnalysis()" class="px-2 py-1 border rounded hover:bg-gray-100 text-xs">🔄 刷新</button>
+        </div>
+        <div id="top-violations">
+          <div class="text-gray-400">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 详细审查记录表 -->
+      <div class="card overflow-x-auto">
         <div class="flex items-center justify-between mb-3">
           <p class="font-medium">详细审查记录</p>
-          <div class="flex gap-2 text-xs">
-            <button onclick="renderAnalysisTable()" class="px-2 py-1 border rounded hover:bg-gray-100">🔄 刷新</button>
-          </div>
         </div>
         <table class="w-full text-sm">
-          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">总检查</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th><th class="pb-2 px-2">审查时间</th></tr></thead>
-          <tbody id="analysis-table"><tr><td colspan="7" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
+          <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">图纸</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">违规</th><th class="pb-2 px-2">通过率</th><th class="pb-2 px-2">审查时间</th></tr></thead>
+          <tbody id="analysis-table"><tr><td colspan="6" class="py-8 text-center text-gray-300">暂无数据</td></tr></tbody>
         </table>
-      </div>
-      <div class="mt-4 card">
-        <p class="font-medium mb-2">违规分类统计（疏散路径/走廊宽度/死胡同）</p>
-        <div id="category-analysis" class="text-xs space-y-1">
-          <div class="text-gray-400">审查图纸后自动统计</div>
-        </div>
       </div>
     </div>
 
@@ -975,6 +1007,7 @@
 <script src="/static/baa-core.js"></script>
 <script src="/static/baa-review.js"></script>
 <script src="/static/baa-admin.js"></script>
+<script src="/static/baa-stats.js"></script>
 <script src="/static/baa-analysis.js"></script>
 <script src="/static/baa-initialize.js"></script>
 <script src="/static/baa-ext.js"></script>
