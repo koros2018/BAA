@@ -385,8 +385,8 @@ function onReviewDrawingSelect() {
 let historyPage = 0;
 const HISTORY_PAGE_SIZE = 20;
 
-function renderHistoryList() {
-  historyPage = 0; // 搜索/筛选时重置到第一页
+function renderHistoryList(resetPage = false) {
+  if (resetPage) historyPage = 0; // 搜索/筛选时重置到第一页
   const el = document.getElementById('history-list');
   if (!el) return;
   loadReviewResults();
