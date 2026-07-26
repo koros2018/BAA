@@ -49,10 +49,7 @@ def build_webhook_payload(
         # 飞书 Bot Webhook 格式
         if status == "completed":
             title = f"✅ BAA 审查完成 — {file_id}"
-            content = (
-                f"任务: {task_id}\n"
-                f"状态: 已完成\n"
-            )
+            content = f"任务: {task_id}\n" f"状态: 已完成\n"
             # 添加摘要
             summary = result.get("summary", {}) if result else {}
             violations = summary.get("total_violations", 0)
@@ -135,7 +132,9 @@ async def send_webhook(
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                resp = await client.post(
+                    url, json=payload, headers={"Content-Type": "application/json"}
+                )
                 if resp.status_code < 500:
                     logger.info(f"Webhook sent to {url}: status={resp.status_code}")
                     return True
@@ -144,7 +143,7 @@ async def send_webhook(
         except Exception as e:
             logger.error(f"Webhook {url} attempt {attempt+1}/{max_retries} failed: {e}")
         if attempt < max_retries - 1:
-            await asyncio.sleep(2 ** attempt)  # 指数退避
+            await asyncio.sleep(2**attempt)  # 指数退避
     return False
 
 
@@ -160,6 +159,7 @@ def trigger_webhook(
 
     在非异步上下文中也会启动新事件循环来发送。
     """
+
     async def _send():
         return await send_webhook(url, payload, max_retries=max_retries, timeout=timeout)
 

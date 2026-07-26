@@ -44,6 +44,7 @@ class TestDrawingResultSheets:
         """DrawingResult 应有 sheets 字段"""
         result = DrawingParser()._parse_cache.get("fake") or None
         from src.baa_engine.drawing_parser import DrawingResult
+
         dr = DrawingResult(file_path="test", file_id="test")
         assert hasattr(dr, "sheets")
         assert isinstance(dr.sheets, list)
@@ -52,6 +53,7 @@ class TestDrawingResultSheets:
     def test_sheets_non_empty(self):
         """DrawingResult 可接受非空 sheets"""
         from src.baa_engine.drawing_parser import DrawingResult
+
         sheets = [
             {"name": "Sheet1", "primitives": [], "dimensions": [], "entity_count": 10},
             {"name": "Sheet2", "primitives": [], "dimensions": [], "entity_count": 5},
@@ -99,18 +101,22 @@ class TestReviewMultiSheetEndpoint:
     def test_endpoint_exists(self):
         """/review-multi-sheet 端点应注册"""
         from src.api.baa_api import app
+
         routes = [r.path for r in app.routes]
         assert "/review-multi-sheet" in routes
 
     def test_endpoint_requires_upload_file(self, client):
         """无文件上传应返回 422"""
-        response = client.post("/review-multi-sheet", headers={"Authorization": "Bearer test-api-key"})
+        response = client.post(
+            "/review-multi-sheet", headers={"Authorization": "Bearer test-api-key"}
+        )
         assert response.status_code == 422
 
     def test_endpoint_unsupported_format(self, client):
         """不支持的格式应返回 400"""
         from io import BytesIO
         from starlette.testclient import TestClient
+
         # 使用 TestClient 的 files 参数
         headers = {"Authorization": "Bearer test-api-key"}
         response = client.post(

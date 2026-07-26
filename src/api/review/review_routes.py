@@ -1273,9 +1273,7 @@ async def review_multi_sheet(
 
         # ── 主图审查 ────────────────────────────────────
         def _do_main_review(primitives, dims):
-            semantic = _get_sa().analyze(
-                primitives, dims, building_type=building_type
-            )
+            semantic = _get_sa().analyze(primitives, dims, building_type=building_type)
             entities = semantic.get("entities", [])
 
             # 跑规范判定（复用 _do_clustering 逻辑简化版）
@@ -1299,7 +1297,9 @@ async def review_multi_sheet(
                 return worst_val, worst_unit, worst_op
 
             for e in entities:
-                for func in [f for f in registry_funcs if not getattr(f, "requires_global_context", False)]:
+                for func in [
+                    f for f in registry_funcs if not getattr(f, "requires_global_context", False)
+                ]:
                     tv, u, op = get_strict_threshold(func.clause_id)
                     func.threshold = tv
                     func.unit = u
@@ -1309,23 +1309,31 @@ async def review_multi_sheet(
                         continue
                     clause_results[func.clause_id] += 1
                     if r.result != "PASS":
-                        clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
-                        f = _get_aa().build_finding(r, clause, e, entities[:5])
-                        details.append({
-                            "entity_id": e.get("id", e.get("type", "")),
-                            "entity_type": e["type"],
+                        clause = {
+                            "standard": standard,
                             "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": f.judgement["result"],
-                            "extracted_value": f.extracted_params["extracted_value"],
-                            "required_value": f.extracted_params.get("required_value", 1.2),
-                            "difference": f.extracted_params.get("difference", 0),
-                            "severity": f.judgement.get("severity", "major"),
-                            "explanation": f.explanation[:120],
-                            "confidence": r.confidence,
-                            "confidence_tier": _confidence_tier(r.confidence),
-                        })
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])
+                        details.append(
+                            {
+                                "entity_id": e.get("id", e.get("type", "")),
+                                "entity_type": e["type"],
+                                "clause_id": func.clause_id,
+                                "clause_title": func.name,
+                                "func_id": func.func_id,
+                                "result": f.judgement["result"],
+                                "extracted_value": f.extracted_params["extracted_value"],
+                                "required_value": f.extracted_params.get("required_value", 1.2),
+                                "difference": f.extracted_params.get("difference", 0),
+                                "severity": f.judgement.get("severity", "major"),
+                                "explanation": f.explanation[:120],
+                                "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
+                            }
+                        )
 
             # 全局函数
             for func in global_funcs:
@@ -1336,15 +1344,23 @@ async def review_multi_sheet(
                 if not matching:
                     r = _get_fr().execute_with_timeout(func, None)
                     if r is not None and r.result != "PASS":
-                        details.append({
-                            "entity_id": "", "entity_type": "missing",
-                            "clause_id": func.clause_id, "clause_title": func.name,
-                            "func_id": func.func_id, "result": "FAIL",
-                            "extracted_value": 0.0, "required_value": func.threshold,
-                            "difference": -func.threshold,
-                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
-                            "severity": "critical", "confidence": 1.0, "confidence_tier": "confirmed",
-                        })
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": "missing",
+                                "clause_id": func.clause_id,
+                                "clause_title": func.name,
+                                "func_id": func.func_id,
+                                "result": "FAIL",
+                                "extracted_value": 0.0,
+                                "required_value": func.threshold,
+                                "difference": -func.threshold,
+                                "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
+                                "severity": "critical",
+                                "confidence": 1.0,
+                                "confidence_tier": "confirmed",
+                            }
+                        )
 
             # 缺失检查
             entity_types_in_drawing = set(e.get("type", "") for e in entities)
@@ -1358,21 +1374,33 @@ async def review_multi_sheet(
                 if not has_match:
                     r = _get_fr().execute_with_timeout(func, None)
                     if r is not None and r.result != "PASS":
-                        clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
+                        clause = {
+                            "standard": standard,
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
                         f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                        details.append({
-                            "entity_id": "", "entity_type": "missing",
-                            "clause_id": f.clause.get("clause_id", ""),
-                            "clause_title": f.clause.get("title", ""),
-                            "func_id": f.clause.get("func_id", ""),
-                            "result": f.judgement.get("result", "FAIL"),
-                            "severity": f.judgement.get("severity", "critical"),
-                            "extracted_value": f.extracted_params.get("extracted_value", 0.0),
-                            "required_value": f.extracted_params.get("required_value", 1.0),
-                            "difference": -(f.extracted_params.get("required_value", 1.0) or 1.0),
-                            "explanation": f.explanation[:120],
-                            "confidence": r.confidence, "confidence_tier": _confidence_tier(r.confidence),
-                        })
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": "missing",
+                                "clause_id": f.clause.get("clause_id", ""),
+                                "clause_title": f.clause.get("title", ""),
+                                "func_id": f.clause.get("func_id", ""),
+                                "result": f.judgement.get("result", "FAIL"),
+                                "severity": f.judgement.get("severity", "critical"),
+                                "extracted_value": f.extracted_params.get("extracted_value", 0.0),
+                                "required_value": f.extracted_params.get("required_value", 1.0),
+                                "difference": -(
+                                    f.extracted_params.get("required_value", 1.0) or 1.0
+                                ),
+                                "explanation": f.explanation[:120],
+                                "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
+                            }
+                        )
 
             return {
                 "name": "主图 (ModelSpace)",
@@ -1392,6 +1420,7 @@ async def review_multi_sheet(
         # Step 3: 各 Sheet 独立审查
         if result.sheets:
             for sheet in result.sheets:
+
                 def _do_sheet_review(sheet_entities, sheet_dims):
                     semantic = _get_sa().analyze(
                         sheet_entities, sheet_dims, building_type=building_type
@@ -1399,6 +1428,7 @@ async def review_multi_sheet(
                     entities = semantic.get("entities", [])
 
                     from collections import Counter
+
                     repo = SpecRepository()
                     clause_results = Counter()
                     details = []
@@ -1425,23 +1455,33 @@ async def review_multi_sheet(
                                 continue
                             clause_results[func.clause_id] += 1
                             if r.result != "PASS":
-                                clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
-                                f = _get_aa().build_finding(r, clause, e, entities[:5])
-                                details.append({
-                                    "entity_id": e.get("id", e.get("type", "")),
-                                    "entity_type": e["type"],
+                                clause = {
+                                    "standard": standard,
                                     "clause_id": func.clause_id,
-                                    "clause_title": func.name,
-                                    "func_id": func.func_id,
-                                    "result": f.judgement["result"],
-                                    "extracted_value": f.extracted_params["extracted_value"],
-                                    "required_value": f.extracted_params.get("required_value", 1.2),
-                                    "difference": f.extracted_params.get("difference", 0),
-                                    "severity": f.judgement.get("severity", "major"),
-                                    "explanation": f.explanation[:120],
-                                    "confidence": r.confidence,
-                                    "confidence_tier": _confidence_tier(r.confidence),
-                                })
+                                    "title": func.name,
+                                    "text": func.description,
+                                    "category": func.category.value,
+                                }
+                                f = _get_aa().build_finding(r, clause, e, entities[:5])
+                                details.append(
+                                    {
+                                        "entity_id": e.get("id", e.get("type", "")),
+                                        "entity_type": e["type"],
+                                        "clause_id": func.clause_id,
+                                        "clause_title": func.name,
+                                        "func_id": func.func_id,
+                                        "result": f.judgement["result"],
+                                        "extracted_value": f.extracted_params["extracted_value"],
+                                        "required_value": f.extracted_params.get(
+                                            "required_value", 1.2
+                                        ),
+                                        "difference": f.extracted_params.get("difference", 0),
+                                        "severity": f.judgement.get("severity", "major"),
+                                        "explanation": f.explanation[:120],
+                                        "confidence": r.confidence,
+                                        "confidence_tier": _confidence_tier(r.confidence),
+                                    }
+                                )
 
                     return {
                         "name": sheet["name"],
@@ -1455,7 +1495,7 @@ async def review_multi_sheet(
                 sr = await loop.run_in_executor(
                     _get_pool(),
                     _do_sheet_review,
-                    [p.to_dict() if hasattr(p, 'to_dict') else p for p in sheet["primitives"]],
+                    [p.to_dict() if hasattr(p, "to_dict") else p for p in sheet["primitives"]],
                     sheet["dimensions"],
                 )
                 sheet_results.append(sr)
@@ -1522,7 +1562,9 @@ async def review_multi_sheet(
         }
 
         # 写入持久化缓存
-        _get_pc().set(make_cache_key(file_id, standard, building_type), response, "multi_sheet_review")
+        _get_pc().set(
+            make_cache_key(file_id, standard, building_type), response, "multi_sheet_review"
+        )
         return response
 
     except Exception as e:

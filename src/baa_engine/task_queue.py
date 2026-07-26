@@ -91,7 +91,13 @@ class ReviewQueue:
     def total_count(self) -> int:
         return self.queued_count + self.running_count
 
-    def enqueue(self, file_id: str, priority: int = 0, webhook_url: Optional[str] = None, webhook_type: str = "generic") -> Tuple[str, int]:
+    def enqueue(
+        self,
+        file_id: str,
+        priority: int = 0,
+        webhook_url: Optional[str] = None,
+        webhook_type: str = "generic",
+    ) -> Tuple[str, int]:
         """将任务加入队列
 
         Args:
@@ -177,7 +183,11 @@ class ReviewQueue:
         return None
 
     async def wait_and_dequeue(
-        self, file_id: str, priority: int = 0, webhook_url: Optional[str] = None, webhook_type: str = "generic"
+        self,
+        file_id: str,
+        priority: int = 0,
+        webhook_url: Optional[str] = None,
+        webhook_type: str = "generic",
     ) -> Tuple[Optional[ReviewTask], str, int]:
         """入队并等待出队（一站式方法）
 
@@ -190,7 +200,9 @@ class ReviewQueue:
         Returns:
             (task, task_id, position) — task 为 None 表示超时
         """
-        task_id, position = self.enqueue(file_id, priority, webhook_url=webhook_url, webhook_type=webhook_type)
+        task_id, position = self.enqueue(
+            file_id, priority, webhook_url=webhook_url, webhook_type=webhook_type
+        )
         task = await self.dequeue()
         return task, task_id, position
 
@@ -258,6 +270,7 @@ class ReviewQueue:
         # P71: 触发 webhook
         if task.webhook_url:
             from .webhooks import build_webhook_payload, trigger_webhook
+
             payload = build_webhook_payload(
                 task_id=task_id,
                 file_id=task.file_id,
@@ -280,6 +293,7 @@ class ReviewQueue:
         # P71: 触发 webhook
         if task.webhook_url:
             from .webhooks import build_webhook_payload, trigger_webhook
+
             payload = build_webhook_payload(
                 task_id=task_id,
                 file_id=task.file_id,

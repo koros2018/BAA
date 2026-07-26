@@ -188,6 +188,7 @@
       <div class="mb-3 flex gap-2">
         <button id="review-tab-single" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700" onclick="switchReviewTab('single')">📄 单图审查</button>
         <button id="review-tab-batch" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('batch')">📚 批量审查</button>
+        <button id="review-tab-multisheet" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('multisheet')">📑 多Sheet审查</button>
         <button id="review-tab-feedback" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('feedback')">💬 反馈申诉</button>
         <button id="review-tab-thermal" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('thermal')">🌡️ 热工性能</button>
         <button id="review-tab-structural" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('structural')">🏗️ 结构荷载</button>
@@ -242,6 +243,46 @@
           <h3 class="text-sm font-medium mb-3">批量审查结果</h3>
           <div id="batch-review-summary" class="text-sm text-gray-400">选择文件后开始批量审查</div>
           <div id="batch-review-details" class="mt-3 space-y-2 text-sm"></div>
+        </div>
+      </div>
+      </div>
+      <!-- ── 多Sheet审查面板 ── -->
+      <div id="review-panel-multisheet" class="hidden">
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div class="card">
+          <h3 class="text-sm font-medium mb-3">📑 多Sheet/多区域图纸审查</h3>
+          <p class="text-xs text-gray-500 mb-3">上传 DXF/DWG 文件后，自动检测各 Layout/Sheet 分区，每个分区独立审查，结果聚合为项目级报告。</p>
+          <input id="ms-file-input" type="file" accept=".dxf,.dwg" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
+          <div class="flex gap-2 mb-3">
+            <select id="ms-building-type" class="text-sm border rounded px-2 py-1">
+              <option value="civil">民用建筑</option>
+              <option value="industrial">工业建筑</option>
+            </select>
+            <select id="ms-standard" class="text-sm border rounded px-2 py-1">
+              <option value="GB 50016-2014">GB 50016-2014</option>
+              <option value="GB 50016-2025">GB 50016-2025</option>
+              <option value="GB 50974-2014">GB 50974-2014</option>
+            </select>
+          </div>
+          <button onclick="runMultiSheetReview()" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 w-full" id="ms-review-start-btn">
+            📑 开始多Sheet审查
+          </button>
+          <div id="ms-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在多Sheet审查...</div>
+        </div>
+      </div>
+      <!-- 多Sheet审查结果 -->
+      <div id="ms-review-results" class="hidden">
+        <div class="card mb-4">
+          <h3 class="text-sm font-medium mb-3">项目级总览</h3>
+          <div id="ms-project-summary" class="text-sm"></div>
+        </div>
+        <div class="card mb-4">
+          <div class="flex items-center gap-2 mb-3 overflow-x-auto">
+            <div id="ms-sheet-tabs" class="flex gap-1 text-xs"></div>
+          </div>
+          <div id="ms-sheet-detail" class="text-sm">
+            <div class="text-gray-400">选择一个 Sheet 查看详情</div>
+          </div>
         </div>
       </div>
       </div>

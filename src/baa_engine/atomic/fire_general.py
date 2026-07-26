@@ -2472,7 +2472,11 @@ MODULE_FUNCS = [  # module-level atomic function registry
         description="每个防火分区应设≥2个消防救援窗，间距≤20m（GB50016-7.2.1）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-7.2.1",
-        target_entities={"rescue_window", "fire_window", "fire_rescue_opening"},  # 移除泛化 window，避免误报
+        target_entities={
+            "rescue_window",
+            "fire_window",
+            "fire_rescue_opening",
+        },  # 移除泛化 window，避免误报
         operator=">=",
         threshold=2.0,
         unit="个",
@@ -2814,7 +2818,11 @@ MODULE_FUNCS = [  # module-level atomic function registry
         description="每个防火分区应设不少于2个消防救援窗口（GB50016-7.2.3）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-7.2.3",
-        target_entities={"rescue_window", "fire_window", "fire_rescue_opening"},  # 移除泛化 window，避免误报
+        target_entities={
+            "rescue_window",
+            "fire_window",
+            "fire_rescue_opening",
+        },  # 移除泛化 window，避免误报
         operator=">=",
         threshold=2.0,
         unit="个",

@@ -741,3 +741,163 @@ document.addEventListener('click', function(e) {
         closeCaseDetail();
     }
 });
+
+// ── P73: 多Sheet审查 ──────────────────────────────────
+
+let _msSheetData = [];  // 缓存各 Sheet 审查结果
+
+/**
+ * 上传文件并执行多Sheet审查
+ */
+async function runMultiSheetReview() {
+    const fileInput = document.getElementById('ms-file-input');
+    const file = fileInput?.files?.[0];
+    if (!file) { alert('请先选择 DXF/DWG 文件'); return; }
+
+    const btn = document.getElementById('ms-review-start-btn');
+    const loading = document.getElementById('ms-review-loading');
+    const results = document.getElementById('ms-review-results');
+    if (!btn || !loading || !results) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 审查中...';
+    loading.classList.remove('hidden');
+    results.classList.add('hidden');
+
+    const buildingType = document.getElementById('ms-building-type')?.value || 'civil';
+    const standard = document.getElementById('ms-standard')?.value || 'GB 50016-2014';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const url = API_BASE() + '/api/v1/review-multi-sheet?building_type=' + encodeURIComponent(buildingType) + '&standard=' + encodeURIComponent(standard);
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: formData,
+        });
+        const data = await r.json();
+
+        if (!r.ok || data.status !== 'success') {
+            throw new Error(data.detail?.message || data.message || '审查失败');
+        }
+
+        _msSheetData = data.sheets || [];
+        renderMultiSheetResults(data);
+        results.classList.remove('hidden');
+        loading.classList.add('hidden');
+        btn.textContent = '📑 重新审查';
+        btn.disabled = false;
+    } catch (e) {
+        loading.classList.add('hidden');
+        btn.textContent = '📑 开始多Sheet审查';
+        btn.disabled = false;
+        alert('审查失败: ' + e.message);
+    }
+}
+
+/**
+ * 渲染多Sheet审查结果
+ */
+function renderMultiSheetResults(data) {
+    const ps = data.project_summary || {};
+    const sheets = data.sheets || [];
+
+    // ── 项目级总览 ──
+    const summaryEl = document.getElementById('ms-project-summary');
+    if (summaryEl) {
+        const passRate = ps.compliance_rate !== undefined ? (ps.compliance_rate * 100).toFixed(1) : '--';
+        const severity = ps.violations_by_severity || {};
+        summaryEl.innerHTML =
+            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">' +
+                '<div class="card p-3 text-center"><div class="text-2xl font-bold text-indigo-600">' + (ps.sheet_count || 0) + '</div><div class="text-xs text-gray-500 mt-1">Sheet 数量</div></div>' +
+                '<div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">' + (ps.total_entities || 0) + '</div><div class="text-xs text-gray-500 mt-1">总实体</div></div>' +
+                '<div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">' + (ps.total_violations || 0) + '</div><div class="text-xs text-gray-500 mt-1">总违规</div></div>' +
+                '<div class="card p-3 text-center"><div class="text-2xl font-bold ' + (passRate > 80 ? 'text-green-600' : passRate > 60 ? 'text-yellow-600' : 'text-red-600') + '">' + passRate + '%</div><div class="text-xs text-gray-500 mt-1">合规率</div></div>' +
+            '</div>' +
+            '<div class="flex gap-4 text-xs text-gray-500">' +
+                '<span>🔴 严重: ' + (severity.critical || 0) + '</span>' +
+                '<span>🟠 主要: ' + (severity.major || 0) + '</span>' +
+                '<span>🟡 轻微: ' + (severity.minor || 0) + '</span>' +
+                '<span>⏱ ' + (ps.processing_time_ms || 0) + 'ms</span>' +
+            '</div>';
+    }
+
+    // ── Sheet Tab 栏 ──
+    const tabsEl = document.getElementById('ms-sheet-tabs');
+    if (tabsEl) {
+        tabsEl.innerHTML = sheets.map((s, i) => {
+            const vc = s.violation_count || 0;
+            const badge = vc > 0 ? '<span class="text-red-500"> (' + vc + ')</span>' : '';
+            return '<button class="px-3 py-1.5 rounded-lg font-medium ' + (i === 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '" onclick="switchMultiSheetTab(' + i + ')">' +
+                escHtml(s.name || 'Sheet ' + (i + 1)) + badge + '</button>';
+        }).join('');
+    }
+
+    // ── 默认显示第一个 Sheet ──
+    if (sheets.length > 0) {
+        renderMultiSheetTab(0);
+    }
+}
+
+/**
+ * 切换 Sheet Tab
+ */
+function switchMultiSheetTab(index) {
+    // 高亮 Tab
+    document.querySelectorAll('#ms-sheet-tabs button').forEach((btn, i) => {
+        btn.className = 'px-3 py-1.5 rounded-lg font-medium ' +
+            (i === index ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
+    });
+    renderMultiSheetTab(index);
+}
+
+/**
+ * 渲染单个 Sheet 的审查详情
+ */
+function renderMultiSheetTab(index) {
+    const el = document.getElementById('ms-sheet-detail');
+    if (!el) return;
+
+    const sheet = _msSheetData[index];
+    if (!sheet) {
+        el.innerHTML = '<div class="text-gray-400">无效的 Sheet 索引</div>';
+        return;
+    }
+
+    const violations = sheet.violations || [];
+    const vc = violations.length;
+
+    if (vc === 0) {
+        el.innerHTML = '<div class="text-center text-green-500 py-4">✅ 该 Sheet 无违规</div>';
+        return;
+    }
+
+    // 按严重度排序
+    const severityOrder = { critical: 0, major: 1, minor: 2 };
+    violations.sort((a, b) => (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9));
+
+    el.innerHTML = '<div class="text-xs space-y-2 max-h-96 overflow-y-auto">' +
+        violations.map((v, i) => {
+            const sevLabel = v.severity === 'critical' ? '🔴 严重' : v.severity === 'major' ? '🟠 主要' : '🟡 轻微';
+            const sevColor = v.severity === 'critical' ? 'border-l-red-500' : v.severity === 'major' ? 'border-l-orange-400' : 'border-l-yellow-400';
+            const tierLabel = v.confidence_tier === 'confirmed' ? '✅ 确认' : v.confidence_tier === 'suspected' ? '❓ 疑似' : '⚠️ 待复核';
+            return '<div class="border rounded p-2 ' + sevColor + '" style="border-left-width:3px;">' +
+                '<div class="flex items-center justify-between">' +
+                    '<span class="font-medium">' + escHtml(v.clause_title || v.clause_id || '') + '</span>' +
+                    '<span class="text-xs">' + sevLabel + '</span>' +
+                '</div>' +
+                '<div class="text-gray-500 mt-1">' +
+                    '条款: <span class="font-mono">' + escHtml(v.clause_id || '') + '</span>' +
+                    (v.entity_type ? ' · 实体: ' + escHtml(v.entity_type) : '') +
+                    (v.extracted_value !== undefined ? ' · 实测: ' + v.extracted_value : '') +
+                    (v.required_value !== undefined ? ' · 要求: ' + v.required_value : '') +
+                    (v.difference !== undefined ? ' · 偏差: ' + v.difference : '') +
+                '</div>' +
+                (v.confidence_tier ? '<div class="text-xs mt-1">' + tierLabel + '</div>' : '') +
+                (v.correction ? '<div class="mt-1 text-xs bg-blue-50 p-1 rounded">💡 ' + escHtml(v.correction) + '</div>' : '') +
+            '</div>';
+        }).join('') +
+        '</div>';
+}

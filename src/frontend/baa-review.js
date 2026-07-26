@@ -740,6 +740,9 @@ function switchReviewTab(tab) {
   document.getElementById('review-tab-batch').className = tab === 'batch'
     ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
     : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
+  document.getElementById('review-tab-multisheet').className = tab === 'multisheet'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
   document.getElementById('review-tab-feedback').className = tab === 'feedback'
     ? 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700'
     : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
@@ -751,6 +754,7 @@ function switchReviewTab(tab) {
     : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600';
   document.getElementById('review-panel-single').className = tab === 'single' ? '' : 'hidden';
   document.getElementById('review-panel-batch').className = tab === 'batch' ? '' : 'hidden';
+  document.getElementById('review-panel-multisheet').className = tab === 'multisheet' ? '' : 'hidden';
   document.getElementById('review-panel-feedback').className = tab === 'feedback' ? '' : 'hidden';
   document.getElementById('review-panel-thermal').className = tab === 'thermal' ? '' : 'hidden';
   document.getElementById('review-panel-structural').className = tab === 'structural' ? '' : 'hidden';

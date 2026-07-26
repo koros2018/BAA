@@ -129,7 +129,9 @@ class DrawingParser:
 
     def parse(
         self, file_path: str, file_id: str = None, detect_sheets: bool = False
-    ) -> DrawingResult:  # method: def parse(self, file_path: str, file_id: str = None, detect_sheets: bool = False) -> Draw
+    ) -> (
+        DrawingResult
+    ):  # method: def parse(self, file_path: str, file_id: str = None, detect_sheets: bool = False) -> Draw
         """
         解析 DXF/DWG 图纸，提取原始图元
 
@@ -271,12 +273,14 @@ class DrawingParser:
                             if prim is not None:
                                 sheet_prims.append(prim)
                     if sheet_prims or sheet_dims:
-                        sheets.append({
-                            "name": name,
-                            "primitives": [p.to_dict() for p in sheet_prims],
-                            "dimensions": sheet_dims,
-                            "entity_count": len(sheet_prims),
-                        })
+                        sheets.append(
+                            {
+                                "name": name,
+                                "primitives": [p.to_dict() for p in sheet_prims],
+                                "dimensions": sheet_dims,
+                                "entity_count": len(sheet_prims),
+                            }
+                        )
                 if sheets:
                     result.sheets = sheets
                     result.warning = (result.warning or "") + f"检测到 {len(sheets)} 个分区(Layout)"
