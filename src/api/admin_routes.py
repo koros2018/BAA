@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 import src.api.api_globals as _ag  # noqa: F401
+from src.api.api_globals import get_key_manager  # noqa: F401
 import os  # environment
 from datetime import datetime  # date/time
 import uuid  # unique id
