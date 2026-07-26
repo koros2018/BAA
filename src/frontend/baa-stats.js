@@ -3,20 +3,26 @@
 let statsCache = null;  // 缓存最近一次 stats API 响应
 
 async function loadStats(days = 30) {
+  console.log('[baa-stats] loadStats called, days=' + days);
   try {
     const url = API_BASE() + '/api/v1/stats?days=' + days;
+    console.log('[baa-stats] fetching', url);
     const r = await fetch(url, {headers: getHeaders()});
+    console.log('[baa-stats] fetch response status', r.status, r.ok);
     if (r.ok) {
       const data = await r.json();
+      console.log('[baa-stats] response data status:', data.status, 'trend:', data.trend?.length, 'overview:', data.overview?.total_reviews);
       if (data.status === 'ok') {
         statsCache = data;
+        console.log('[baa-stats] statsCache set, overview:', statsCache.overview);
         return data;
       }
     }
   } catch (e) {
-    console.warn('stats API 不可用', e);
+    console.warn('[baa-stats] stats API 不可用', e);
   }
   // Fallback: 从本地 reviewResults 推导
+  console.warn('[baa-stats] falling back to local reviewResults, length:', reviewResults?.length);
   return null;
 }
 
@@ -46,7 +52,7 @@ function renderOverviewCards() {
 
   const passRate = (overview.avg_compliance_rate || 0) * 100;
   el.innerHTML =
-    '<div class="grid grid-cols-5 gap-3">' +
+    '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">' +
       '<div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">' + overview.total_reviews + '</div><div class="text-xs text-gray-500 mt-1">审查次数</div></div>' +
       '<div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">' + overview.total_violations + '</div><div class="text-xs text-gray-500 mt-1">违规总数</div></div>' +
       '<div class="card p-3 text-center"><div class="text-2xl font-bold text-green-600">' + Math.round(passRate) + '%</div><div class="text-xs text-gray-500 mt-1">平均合规率</div></div>' +
@@ -58,9 +64,12 @@ function renderOverviewCards() {
 // ── 趋势图（按天聚合，双柱并列：违规数 vs 审查次数） ─────
 function renderTrendChart() {
   const el = document.getElementById('trend-chart');
+  console.log('[baa-stats] renderTrendChart, el:', el ? 'found' : 'null', 'statsCache:', statsCache ? 'set' : 'null');
   if (!el) return;
 
   let trend = statsCache?.trend || [];
+  console.log('[baa-stats] renderTrendChart trend data:', trend.length, 'entries');
+  if (trend.length > 0) console.log('[baa-stats] first trend entry:', JSON.stringify(trend[0]));
   if (!trend.length && reviewResults?.length) {
     const daily = {};
     reviewResults.slice(0, 30).reverse().forEach(r => {
@@ -80,42 +89,42 @@ function renderTrendChart() {
 
   const maxH = Math.max(...trend.flatMap(t => [t.violations, t.reviews]), 1);
 
-  // Y 轴刻度
-  let yAxis = '<div class="flex flex-col-reverse justify-between text-[10px] text-gray-400 mr-1" style="height:120px">';
+  // Y 轴刻度（用内联样式避免 JIT 类名问题）
+  let yAxis = '<div style="display:flex;flex-direction:column-reverse;justify-content:space-between;font-size:10px;color:#9ca3af;margin-right:4px;height:120px;flex-shrink:0;">';
   [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
-    yAxis += '<span class="leading-[1px]">' + Math.round(maxH * pct) + '</span>';
+    yAxis += '<span style="line-height:1px;">' + Math.round(maxH * pct) + '</span>';
   });
   yAxis += '</div>';
 
-  // 柱状图
-  let bars = '<div class="flex-1 flex items-end gap-1 h-[120px] border-b border-gray-200 pb-0.5 overflow-x-auto">';
+  // 柱状图容器
+  let bars = '<div style="flex:1;display:flex;align-items:flex-end;gap:4px;height:120px;border-bottom:1px solid #e5e7eb;padding-bottom:2px;overflow-x:auto;">';
   trend.forEach(t => {
     const v = t.violations;
     const r = t.reviews;
     const hV = Math.round(v / maxH * 115);
     const hR = Math.round(r / maxH * 115);
-    const shortDate = t.date.length > 4 ? t.date.slice(5) : t.date;  // MM-DD
-    bars += '<div class="flex-1 min-w-[30px] flex flex-col items-center justify-end" '
+    const shortDate = t.date.length > 4 ? t.date.slice(5) : t.date;
+    bars += '<div style="flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;" '
       + 'title="' + t.date + '\n审查: ' + r + '\n违规: ' + v + '">'
-      + '<div class="flex items-end gap-[1px]">'
-        + '<div class="bg-red-500 rounded-t" style="width:10px;height:' + hV + 'px"></div>'
-        + '<div class="bg-blue-500 rounded-t" style="width:10px;height:' + hR + 'px"></div>'
+      + '<div style="display:flex;align-items:flex-end;gap:1px;">'
+        + '<div style="background:#ef4444;border-radius:2px 2px 0 0;width:10px;height:' + hV + 'px"></div>'
+        + '<div style="background:#3b82f6;border-radius:2px 2px 0 0;width:10px;height:' + hR + 'px"></div>'
       + '</div>'
-      + '<span class="text-[9px] text-gray-400 mt-0.5">' + shortDate + '</span>'
+      + '<span style="font-size:9px;color:#9ca3af;margin-top:2px;">' + shortDate + '</span>'
       + '</div>';
   });
   bars += '</div>';
 
   // 图例 + 峰值
-  let legend = '<div class="flex justify-between items-center text-xs text-gray-500 mt-1">'
-    + '<div class="flex gap-4">'
-      + '<span><span class="inline-block w-2 h-2 rounded bg-red-500 mr-1"></span>违规</span>'
-      + '<span><span class="inline-block w-2 h-2 rounded bg-blue-500 mr-1"></span>审查</span>'
+  let legend = '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#6b7280;margin-top:4px;">'
+    + '<div style="display:flex;gap:16px;">'
+      + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>违规</span>'
+      + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6;margin-right:4px;"></span>审查</span>'
     + '</div>'
-    + '<span class="text-gray-400">峰值: ' + maxH + '</span>'
+    + '<span style="color:#9ca3af;">峰值: ' + maxH + '</span>'
   + '</div>';
 
-  el.innerHTML = '<div class="flex">' + yAxis + bars + '</div>' + legend;
+  el.innerHTML = '<div style="display:flex;">' + yAxis + bars + '</div>' + legend;
 }
 
 // ── 违规分布（按严重度） ────────────────────────────────
@@ -278,8 +287,24 @@ function renderTopViolations() {
 
 // ── 主入口 ───────────────────────────────────────────────
 async function loadAnalysis(days = 30) {
+  console.log('[baa-stats] loadAnalysis called, days=' + days);
+  // 高亮当前选中的按钮
+  document.querySelectorAll('button[onclick^="loadAnalysis"]').forEach(btn => {
+    btn.classList.remove('bg-blue-100', 'hover:bg-blue-200');
+    btn.classList.add('hover:bg-gray-100');
+    const match = btn.getAttribute('onclick').match(/loadAnalysis\((\d*)\)/);
+    if (match) {
+      const btnDays = match[1] ? parseInt(match[1]) : 0;
+      if (btnDays === days || (!match[1] && days === 30)) {
+        btn.classList.remove('hover:bg-gray-100');
+        btn.classList.add('bg-blue-100', 'hover:bg-blue-200');
+      }
+    }
+  });
   await loadStats(days);
+  console.log('[baa-stats] after loadStats, statsCache:', statsCache ? 'set' : 'null');
   await loadReviewResults();  // 也需要 reviewResults 做 fallback 和详情表
+  console.log('[baa-stats] after loadReviewResults, reviewResults length:', reviewResults?.length);
 
   renderOverviewCards();
   renderTrendChart();
@@ -290,4 +315,5 @@ async function loadAnalysis(days = 30) {
   renderTopViolations();
   renderAnalysisTable();  // 保留原有详情表
   renderCategoryAnalysis();  // 保留原有分类统计
+  console.log('[baa-stats] loadAnalysis complete');
 }

@@ -1,7 +1,8 @@
-"""pytest 配置：确保项目路径在 sys.path 中，asyncio 测试模式"""
+"""pytest 配置：确保项目路径在 sys.path 中，asyncio 测试模式 + 全局 client"""
 
 import sys  # import
 import os  # stdlib: filesystem ops
+import pytest
 
 # 项目根目录
 PROJECT_ROOT = os.path.dirname(
@@ -9,6 +10,18 @@ PROJECT_ROOT = os.path.dirname(
 )  # path operation
 if PROJECT_ROOT not in sys.path:  # check: membership test
     sys.path.insert(0, PROJECT_ROOT)  # sys path
+
+# ── 全局 client fixture（所有测试文件可用） ─────────
+os.environ["BAA_API_KEY"] = "test-api-key"
+os.environ["BAA_AUTH_SECRET"] = "test-secret"
+from fastapi.testclient import TestClient
+from src.api.baa_api import app
+
+
+@pytest.fixture(scope="module")
+def client():
+    """全局 TestClient，供 API 测试使用"""
+    return TestClient(app)
 
 
 def pytest_configure(config):  # function: pytest 配置钩子
