@@ -55,21 +55,20 @@ function renderOverviewCards() {
     '</div>';
 }
 
-// ── 趋势图（按天聚合） ───────────────────────────────────
+// ── 趋势图（按天聚合，双柱并列：违规数 vs 审查次数） ─────
 function renderTrendChart() {
   const el = document.getElementById('trend-chart');
   if (!el) return;
 
   let trend = statsCache?.trend || [];
   if (!trend.length && reviewResults?.length) {
-    // fallback: 从本地数据按天聚合
     const daily = {};
     reviewResults.slice(0, 30).reverse().forEach(r => {
       const d = new Date(r.reviewedAt || r.createdAt || Date.now());
       const key = d.toLocaleDateString('zh-CN');
       if (!daily[key]) daily[key] = {date: key, reviews: 0, violations: 0};
       daily[key].reviews++;
-      daily[key].violations += r.details?.length || 0;
+      daily[key].violations += r.violationCount || 0;
     });
     trend = Object.values(daily);
   }
@@ -81,29 +80,43 @@ function renderTrendChart() {
 
   const maxV = Math.max(...trend.map(t => t.violations), 1);
   const maxR = Math.max(...trend.map(t => t.reviews), 1);
+  const maxH = Math.max(maxV, maxR);
 
-  let html = '<div class="flex items-end gap-0.5 h-32 border-b border-gray-200 pb-0.5 overflow-x-auto">';
+  // Y 轴刻度线
+  let yAxis = '<div class="flex flex-col-reverse justify-between text-[10px] text-gray-400 mr-1" style="height:120px">';
+  [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
+    yAxis += '<span class="leading-[1px]">' + Math.round(maxH * pct) + '</span>';
+  });
+  yAxis += '</div>';
+
+  // 主区：左 Y 轴 + 柱状图 + 右轴标签
+  let html = '<div class="flex">' + yAxis;
+  html += '<div class="flex-1 flex items-end justify-between gap-1 h-[120px] border-b border-gray-200 pb-0.5 overflow-x-auto">';
   trend.forEach(t => {
     const v = t.violations;
     const r = t.reviews;
-    const pctV = Math.round(v / maxV * 100);
-    const pctR = Math.round(r / maxR * 100);
-    const heightV = Math.max(2, Math.round(pctV / 100 * 120));
-    const heightR = Math.max(2, Math.round(pctR / 100 * 120));
-    const shortDate = t.date.slice(5);  // MM-DD
-    html += '<div class="flex-1 min-w-[32px] flex flex-col items-center justify-end cursor-pointer" '
-      + 'title="日期: ' + t.date + '\n审查: ' + r + '\n违规: ' + v + '">' +
-      '<div class="w-[60%] bg-red-500 rounded-t" style="height:' + heightV + 'px"></div>' +
-      '<div class="w-[40%] bg-blue-500 rounded-t" style="height:' + heightR + 'px; margin-top:-2px"></div>' +
-      '<span class="text-[8px] text-gray-400 mt-0.5">' + shortDate + '</span>' +
-      '</div>';
+    const hV = maxH > 0 ? Math.round(v / maxH * 115) : 0;
+    const hR = maxH > 0 ? Math.round(r / maxH * 115) : 0;
+    const shortDate = t.date.length > 4 ? t.date.slice(5) : t.date;  // MM-DD
+    html += '<div class="flex-1 min-w-[30px] flex flex-col items-center justify-end" '
+      + 'title="' + t.date + '\n审查: ' + r + '\n违规: ' + v + '">'
+      + '<div class="flex items-end gap-[1px]">'
+        + (hV > 0 ? '<div class="bg-red-500 rounded-t" style="width:11px;height:' + hV + 'px"></div>' : '')
+        + (hR > 0 ? '<div class="bg-blue-500 rounded-t" style="width:11px;height:' + hR + 'px"></div>' : '')
+      + '</div>'
+      + '<span class="text-[9px] text-gray-400 mt-0.5">' + shortDate + '</span>'
+      + '</div>';
   });
-  html += '</div>';
+  html += '</div></div>';
 
-  html += '<div class="flex justify-center gap-4 text-xs text-gray-500 mt-1">' +
-    '<span><span class="inline-block w-2 h-2 rounded bg-red-500 mr-1"></span>违规数</span>' +
-    '<span><span class="inline-block w-2 h-2 rounded bg-blue-500 mr-1"></span>审查次数</span>' +
-    '</div>';
+  // 图例 + 数值刻度说明
+  html += '<div class="flex justify-between items-center text-xs text-gray-500 mt-1">'
+    + '<div class="flex gap-4">'
+      + '<span><span class="inline-block w-3 h-2 rounded bg-red-500 mr-1"></span>违规数</span>'
+      + '<span><span class="inline-block w-3 h-2 rounded bg-blue-500 mr-1"></span>审查次数</span>'
+    + '</div>'
+    + '<span class="text-gray-400">峰值: ' + maxH + '</span>'
+  + '</div>';
 
   el.innerHTML = html;
 }
