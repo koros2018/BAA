@@ -351,8 +351,12 @@ async def review(  # code
             return worst_val, worst_unit, worst_op
 
         # 链式依赖执行
-        func_ids = [f.func_id for f in registry_funcs if not getattr(f, 'requires_global_context', False)]
-        global_funcs = [f for f in registry_funcs if getattr(f, 'requires_global_context', False)]  # 需要全局上下文的函数
+        func_ids = [
+            f.func_id for f in registry_funcs if not getattr(f, "requires_global_context", False)
+        ]
+        global_funcs = [
+            f for f in registry_funcs if getattr(f, "requires_global_context", False)
+        ]  # 需要全局上下文的函数
         for e in entities:
             chained_results = _get_fr().execute_chained(func_ids, e)
             for fid, r in chained_results.items():
@@ -608,6 +612,8 @@ async def review(  # code
         "task_id": task_id,
         "queue_position": queue_position,
     }
+    # P69: 顶层 task_id 供前端 PDF 按钮直接使用
+    response_data["task_id"] = task_id
 
     # ── 写入缓存（内存 + 持久化） ──────────────────────────
     if file_hash:  # condition: file_hash:
@@ -746,7 +752,9 @@ async def review_from_data(  # code
             clause_results = Counter()
             details = []
             registry_funcs = _get_fr().list_all()
-            global_funcs = [f for f in registry_funcs if getattr(f, 'requires_global_context', False)]  # P70
+            global_funcs = [
+                f for f in registry_funcs if getattr(f, "requires_global_context", False)
+            ]  # P70
 
             def get_strict_threshold(
                 clause_id: str,
@@ -759,7 +767,9 @@ async def review_from_data(  # code
                 return worst_val, worst_unit, worst_op
 
             for e in entities:
-                for func in [f for f in registry_funcs if not getattr(f, 'requires_global_context', False)]:
+                for func in [
+                    f for f in registry_funcs if not getattr(f, "requires_global_context", False)
+                ]:
                     threshold_val, unit, op = get_strict_threshold(func.clause_id)
                     func.threshold = threshold_val
                     func.unit = unit
@@ -804,40 +814,44 @@ async def review_from_data(  # code
                 if not matching:
                     r = _get_fr().execute_with_timeout(func, None)
                     if r is not None and r.result != "PASS":
-                        details.append({
-                            "entity_id": "",
-                            "entity_type": "missing",
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": 0.0,
-                            "required_value": func.threshold,
-                            "difference": -func.threshold,
-                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        })
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": "missing",
+                                "clause_id": func.clause_id,
+                                "clause_title": func.name,
+                                "func_id": func.func_id,
+                                "result": "FAIL",
+                                "extracted_value": 0.0,
+                                "required_value": func.threshold,
+                                "difference": -func.threshold,
+                                "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
+                                "severity": "critical",
+                                "confidence": 1.0,
+                                "confidence_tier": "confirmed",
+                            }
+                        )
                 else:
                     count = len(matching)
                     clause_results[func.clause_id] += 1
                     if count < func.threshold:
-                        details.append({
-                            "entity_id": "",
-                            "entity_type": ",".join(func_targets),
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": float(count),
-                            "required_value": float(func.threshold),
-                            "difference": float(count - func.threshold),
-                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        })
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": ",".join(func_targets),
+                                "clause_id": func.clause_id,
+                                "clause_title": func.name,
+                                "func_id": func.func_id,
+                                "result": "FAIL",
+                                "extracted_value": float(count),
+                                "required_value": float(func.threshold),
+                                "difference": float(count - func.threshold),
+                                "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                                "severity": "critical",
+                                "confidence": 1.0,
+                                "confidence_tier": "confirmed",
+                            }
+                        )
 
             # 缺失检查
             # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
@@ -976,6 +990,8 @@ async def review_from_data(  # code
         "task_id": task_id,
         "queue_position": queue_position,
     }
+    # P69: 顶层 task_id 供前端 PDF 按钮直接使用
+    response_data["task_id"] = task_id
 
     # ── 保存审查历史到数据库 ────────────────────────────────
     try:
