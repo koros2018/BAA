@@ -147,25 +147,20 @@
       </div>
       <div class="card p-2 mb-3">
         <div class="flex items-center gap-2 flex-wrap">
-          <input id="spec-search" placeholder="搜索条款编号/内容/标准编号..." class="text-sm border rounded px-2 py-1 flex-1 min-w-32" oninput="renderSpecList()" />
+          <input id="spec-search" placeholder="搜索条款编号/内容/标准编号..." class="text-sm border rounded px-2 py-1 flex-1 min-w-32" oninput="renderSpecList(true)" />
           <select id="spec-filter-level" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
             <option value="all">全部级别</option>
             <option value="L1">L1 强制</option>
             <option value="L2">L2 推荐</option>
             <option value="L3">L3 参考</option>
           </select>
-          <select id="spec-filter-cat" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
+          <select id="spec-filter-cat" class="text-sm border rounded px-2 py-1" onchange="renderSpecList(true)">
             <option value="all">全部分类</option>
-            <option value="dim">尺寸</option>
-            <option value="exist">存在性</option>
-            <option value="attr">属性</option>
-            <option value="dist">距离</option>
-            <option value="count">数量</option>
-            <option value="area">面积</option>
-            <option value="evac">疏散</option>
-            <option value="light">照明</option>
-            <option value="thermal">热工</option>
-            <option value="str">结构</option>
+            <option value="fire_safety">防火安全</option>
+            <option value="evacuation">疏散</option>
+            <option value="lighting">照明</option>
+            <option value="structure">结构</option>
+            <option value="hvac">暖通</option>
           </select>
           <select id="spec-filter-std" class="text-sm border rounded px-2 py-1" onchange="renderSpecList()">
             <option value="all">全部标准</option>

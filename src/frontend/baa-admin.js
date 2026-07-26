@@ -37,15 +37,10 @@ function renderSpecList() {
   // 过滤
   let filtered = SPEC_DATA;
   if (levelFilter !== 'all') filtered = filtered.filter(s => (s.level || 'L1') === levelFilter);
-  if (catFilter !== 'all') {
-    filtered = filtered.filter(s => {
-      const c = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
-      return c === catFilter;
-    });
-  }
+  if (catFilter !== 'all') filtered = filtered.filter(s => (s.category || '') === catFilter);
   if (stdFilter !== 'all') {
     filtered = filtered.filter(s => {
-      const std = s.standard || s.std || s.code || '';
+      const std = s.standard || s.std || '';
       return std.toLowerCase().includes(stdFilter.toLowerCase());
     });
   }
@@ -65,16 +60,17 @@ function renderSpecList() {
     tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">无匹配记录</td></tr>';
     return;
   }
+  // P73 修复：规范库分类使用规范领域标签（fire_safety/evacuation/...），
+  // 原子函数库使用判定方法标签（dim/dist/count/...），两套独立不混用
   const catLabels = {
-    dim:'尺寸',exist:'存在性',attr:'属性',dist:'距离',count:'数量',area:'面积',
-    evac:'疏散',light:'照明',access:'无障碍',thermal:'热工',str:'结构'
+    fire_safety:'防火安全', evacuation:'疏散', lighting:'照明', structure:'结构', hvac:'暖通'
   };
   const levelColors = {L1:'red',L2:'orange',L3:'green'};
   const stdAbbrev = {'GB 50016':'016','GB 50974':'974','GB 50763':'763','GB 50067':'067','GB 50116':'116','GB 50084':'084'};
   filtered.forEach((s, i) => {
     const title = s.title || s.name || '';
     const desc = s.text || s.description || '';
-    const cat = s.category || (s.func_id ? s.func_id.split('-')[0].toLowerCase() : 'dim');
+    const cat = s.category || '--';
     const target = s.target_entities || s.target || [];
     const level = s.level || 'L1';
     const std = s.standard || s.std || '';
