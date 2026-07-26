@@ -7,7 +7,9 @@ function renderAnalysisTable() {
     return;
   }
   tbody.innerHTML = '';
-  reviewResults.slice(0, 20).forEach((h, i) => {
+  // 优先显示有违规的记录，再显示无违规的，确保违规可见
+  const sorted = [...reviewResults].sort((a, b) => (b.violationCount || 0) - (a.violationCount || 0));
+  sorted.slice(0, 30).forEach((h, i) => {
     const viols = h.violationCount || 0;
     const checks = h.entityCount || 1;
     const passRate = checks > 0 ? Math.round((1 - viols / checks) * 100) : 0;
