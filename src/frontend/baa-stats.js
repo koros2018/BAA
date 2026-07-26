@@ -78,47 +78,44 @@ function renderTrendChart() {
     return;
   }
 
-  const maxV = Math.max(...trend.map(t => t.violations), 1);
-  const maxR = Math.max(...trend.map(t => t.reviews), 1);
-  const maxH = Math.max(maxV, maxR);
+  const maxH = Math.max(...trend.flatMap(t => [t.violations, t.reviews]), 1);
 
-  // Y 轴刻度线
+  // Y 轴刻度
   let yAxis = '<div class="flex flex-col-reverse justify-between text-[10px] text-gray-400 mr-1" style="height:120px">';
   [0, 0.25, 0.5, 0.75, 1].forEach(pct => {
     yAxis += '<span class="leading-[1px]">' + Math.round(maxH * pct) + '</span>';
   });
   yAxis += '</div>';
 
-  // 主区：左 Y 轴 + 柱状图 + 右轴标签
-  let html = '<div class="flex">' + yAxis;
-  html += '<div class="flex-1 flex items-end justify-between gap-1 h-[120px] border-b border-gray-200 pb-0.5 overflow-x-auto">';
+  // 柱状图
+  let bars = '<div class="flex-1 flex items-end gap-1 h-[120px] border-b border-gray-200 pb-0.5 overflow-x-auto">';
   trend.forEach(t => {
     const v = t.violations;
     const r = t.reviews;
-    const hV = maxH > 0 ? Math.round(v / maxH * 115) : 0;
-    const hR = maxH > 0 ? Math.round(r / maxH * 115) : 0;
+    const hV = Math.round(v / maxH * 115);
+    const hR = Math.round(r / maxH * 115);
     const shortDate = t.date.length > 4 ? t.date.slice(5) : t.date;  // MM-DD
-    html += '<div class="flex-1 min-w-[30px] flex flex-col items-center justify-end" '
+    bars += '<div class="flex-1 min-w-[30px] flex flex-col items-center justify-end" '
       + 'title="' + t.date + '\n审查: ' + r + '\n违规: ' + v + '">'
       + '<div class="flex items-end gap-[1px]">'
-        + (hV > 0 ? '<div class="bg-red-500 rounded-t" style="width:11px;height:' + hV + 'px"></div>' : '')
-        + (hR > 0 ? '<div class="bg-blue-500 rounded-t" style="width:11px;height:' + hR + 'px"></div>' : '')
+        + '<div class="bg-red-500 rounded-t" style="width:10px;height:' + hV + 'px"></div>'
+        + '<div class="bg-blue-500 rounded-t" style="width:10px;height:' + hR + 'px"></div>'
       + '</div>'
       + '<span class="text-[9px] text-gray-400 mt-0.5">' + shortDate + '</span>'
       + '</div>';
   });
-  html += '</div></div>';
+  bars += '</div>';
 
-  // 图例 + 数值刻度说明
-  html += '<div class="flex justify-between items-center text-xs text-gray-500 mt-1">'
+  // 图例 + 峰值
+  let legend = '<div class="flex justify-between items-center text-xs text-gray-500 mt-1">'
     + '<div class="flex gap-4">'
-      + '<span><span class="inline-block w-3 h-2 rounded bg-red-500 mr-1"></span>违规数</span>'
-      + '<span><span class="inline-block w-3 h-2 rounded bg-blue-500 mr-1"></span>审查次数</span>'
+      + '<span><span class="inline-block w-2 h-2 rounded bg-red-500 mr-1"></span>违规</span>'
+      + '<span><span class="inline-block w-2 h-2 rounded bg-blue-500 mr-1"></span>审查</span>'
     + '</div>'
     + '<span class="text-gray-400">峰值: ' + maxH + '</span>'
   + '</div>';
 
-  el.innerHTML = html;
+  el.innerHTML = '<div class="flex">' + yAxis + bars + '</div>' + legend;
 }
 
 // ── 违规分布（按严重度） ────────────────────────────────
