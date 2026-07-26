@@ -42,6 +42,7 @@
 .mb-3 { margin-bottom: 0.75rem; }
 .mb-4 { margin-bottom: 1rem; }
 .mb-6 { margin-bottom: 1.5rem; }
+.mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 0.75rem; }
 .mt-4 { margin-top: 1rem; }
@@ -106,6 +107,7 @@
 .text-orange-700 { color: #c2410c; }
 .text-pink-700 { color: #be185d; }
 .text-purple-700 { color: #6d28d9; }
+.bg-purple-600 { background-color: #9333ea; }
 .text-red-400 { color: #f87171; }
 .text-red-500 { color: #ef4444; }
 .text-red-600 { color: #dc2626; }
@@ -121,8 +123,23 @@
 .inline { display: inline; }
 .inline-block { display: inline-block; }
 .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+.hover\:bg-blue-200:hover { background-color: #bfdbfe; }
 .hover\:bg-gray-100:hover { background-color: #f3f4f6; }
+.hover\:bg-gray-200:hover { background-color: #e5e7eb; }
+.hover\:bg-gray-300:hover { background-color: #d1d5db; }
 .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+.hover\:bg-green-700:hover { background-color: #15803d; }
+.hover\:bg-indigo-700:hover { background-color: #4338ca; }
+.hover\:bg-orange-700:hover { background-color: #c2410c; }
+.hover\:bg-purple-700:hover { background-color: #6d28d9; }
+.hover\:bg-red-200:hover { background-color: #fecaca; }
+.hover\:bg-red-300:hover { background-color: #fca5a5; }
+.hover\:bg-red-50:hover { background-color: #fef2f2; }
+.hover\:bg-red-700:hover { background-color: #b91c1c; }
+.hover\:bg-white\/50:hover { background-color: rgba(255,255,255,0.5); }
+.border-l-red-500 { border-left: 3px solid #ef4444; }
+.border-l-orange-400 { border-left: 3px solid #fb923c; }
+.border-l-yellow-400 { border-left: 3px solid #facc15; }
 .hover\:shadow-md:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); }
 .transition { transition: all 0.15s; }
 .cursor-pointer { cursor: pointer; }

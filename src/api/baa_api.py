@@ -354,6 +354,7 @@ async def api_stats(days: int = Query(30, ge=1, le=365), api_key: str = Depends(
     """审查统计仪表盘"""
     return await get_stats(days=days, api_key=api_key)
 
+
 # ── 静态文件服务 ──────────────────────────────────────────
 SPECS_DIR = DATA_DIR / "specs"
 if SPECS_DIR.exists():

@@ -19,6 +19,7 @@ from src.api.review.review_history import list_review_history
 def _parse_details(details_json: str) -> list:
     """安全解析 details JSON 字符串"""
     import json
+
     if not details_json:
         return []
     try:
@@ -91,7 +92,9 @@ async def get_stats(
     total_violations = sum(r.get("violationCount", 0) for r in recent_items)
     scores = [r.get("score", 0) for r in recent_items if r.get("score") is not None]
     avg_score = sum(scores) / len(scores) if scores else 0.0
-    times = [r.get("processingTimeMs", 0) for r in recent_items if r.get("processingTimeMs") is not None]
+    times = [
+        r.get("processingTimeMs", 0) for r in recent_items if r.get("processingTimeMs") is not None
+    ]
     avg_time = sum(times) / len(times) if times else 0.0
 
     # ── 趋势（按天聚合） ──
@@ -142,7 +145,11 @@ async def get_stats(
             cid = d.get("clause_id", "")
             if cid:
                 if cid not in clauses:
-                    clauses[cid] = {"clause_id": cid, "title": d.get("clause_title", ""), "count": 0}
+                    clauses[cid] = {
+                        "clause_id": cid,
+                        "title": d.get("clause_title", ""),
+                        "count": 0,
+                    }
                 clauses[cid]["count"] += 1
         return {
             "violations": violations,

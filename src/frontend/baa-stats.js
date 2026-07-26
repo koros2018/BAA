@@ -2,6 +2,18 @@
 // 优先从 /api/v1/stats 获取聚合数据，本地 reviewResults 作为 fallback
 let statsCache = null;  // 缓存最近一次 stats API 响应
 
+// loadReviewResults 的 Promise 封装（原函数在 baa-review.js 中，非 async）
+function _loadReviewResultsAsync() {
+  return new Promise((resolve) => {
+    const r = loadReviewResults();
+    if (r && typeof r.then === 'function') {
+      r.then(resolve).catch(() => { resolve(); });
+    } else {
+      resolve();
+    }
+  });
+}
+
 async function loadStats(days = 30) {
   console.log('[baa-stats] loadStats called, days=' + days);
   try {
@@ -22,6 +34,7 @@ async function loadStats(days = 30) {
     console.warn('[baa-stats] stats API 不可用', e);
   }
   // Fallback: 从本地 reviewResults 推导
+  await _loadReviewResultsAsync();
   console.warn('[baa-stats] falling back to local reviewResults, length:', reviewResults?.length);
   return null;
 }
@@ -303,7 +316,8 @@ async function loadAnalysis(days = 30) {
   });
   await loadStats(days);
   console.log('[baa-stats] after loadStats, statsCache:', statsCache ? 'set' : 'null');
-  await loadReviewResults();  // 也需要 reviewResults 做 fallback 和详情表
+  // 确保 reviewResults 可用（兼容 async 和 .then 两种模式）
+  await _loadReviewResultsAsync();
   console.log('[baa-stats] after loadReviewResults, reviewResults length:', reviewResults?.length);
 
   renderOverviewCards();
@@ -313,7 +327,8 @@ async function loadAnalysis(days = 30) {
   renderBuildingTypeDist();
   renderEntityDist();
   renderTopViolations();
-  renderAnalysisTable();  // 保留原有详情表
-  renderCategoryAnalysis();  // 保留原有分类统计
+  // 安全调用详情表（可能不存在于 baa-analysis.js 中）
+  try { if (typeof renderAnalysisTable === 'function') renderAnalysisTable(); } catch(e) {}
+  try { if (typeof renderCategoryAnalysis === 'function') renderCategoryAnalysis(); } catch(e) {}
   console.log('[baa-stats] loadAnalysis complete');
 }
