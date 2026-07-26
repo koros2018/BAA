@@ -125,11 +125,11 @@ async function runReview() {
         summary.innerHTML += '</div>';
       }
 
-      // PDF 下载按钮（仅当有 file_id 时可用）
-      const pdfFileId = drawing.file_id;
-      if (pdfFileId) {
+      // PDF 下载按钮（P69: 用审查 task_id 作为 review_id）
+      const reviewId = result.queue_info?.task_id || result.task_id || '';
+      if (reviewId) {
         summary.innerHTML += '<div class="mt-3 flex gap-2">' +
-          '<button onclick="downloadReviewPdf(\'' + pdfFileId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
+          '<button onclick="downloadReviewPdf(\'' + reviewId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
           '<button onclick="downloadReviewJSON()" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
           '</div>';
       }

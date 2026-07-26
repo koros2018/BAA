@@ -264,9 +264,9 @@ def test_deconstruct_json_serializable():
 
 
 def test_review_pdf_not_found():
-    """不存在的 review 记录应返回 404"""
+    """不存在的 review_id 应返回 404（P69: /review/pdf?review_id=...）"""
     response = client.get(
-        "/review/nonexistent-file/pdf",
+        "/review/pdf?review_id=nonexistent-uuid",
         headers={"Authorization": "Bearer test-review-key"},
     )
     assert response.status_code == 404
