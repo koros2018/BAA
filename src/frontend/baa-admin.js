@@ -66,15 +66,15 @@ function renderSpecList() {
     fire_safety:'防火安全', evacuation:'疏散', lighting:'照明', structure:'结构', hvac:'暖通'
   };
   const levelColors = {L1:'red',L2:'orange',L3:'green'};
-  const stdAbbrev = {'GB 50016':'016','GB 50974':'974','GB 50763':'763','GB 50067':'067','GB 50116':'116','GB 50084':'084'};
+  const stdAbbrev = {'GB 50016-2014':'016','GB 50016-2018':'016','GB 50974-2014':'974','GB 50763-2012':'763','GB 50067-2014':'067','GB 50116-2013':'116','GB 50084-2017':'084','NFPA 101-2021':'NFPA101','NFPA 5000-2021':'NFPA5K'};
   filtered.forEach((s, i) => {
     const title = s.title || s.name || '';
     const desc = s.text || s.description || '';
     const cat = s.category || '--';
-    const target = s.target_entities || s.target || [];
+    const target = s.func_id || '--';  // P73: 原子函数列显示 func_id，不是 target_entities
     const level = s.level || 'L1';
     const std = s.standard || s.std || '';
-    const stdShort = stdAbbrev[std] || (std ? std.slice(3, 6) : '--');
+    const stdShort = stdAbbrev[std] || (std ? std.replace(/-/g, '').slice(0, 5) : '--');
     tbody.innerHTML += '<tr class="border-b border-gray-50">' +
       '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
       '<td class="py-2 px-2 font-mono text-xs">' + (s.clause_id || '') + '</td>' +
@@ -82,7 +82,7 @@ function renderSpecList() {
       '<td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + stdShort + '</span>' : '') + '</td>' +
       '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[level]||'gray') + '-100 text-' + (levelColors[level]||'gray') + '-700 rounded text-xs">' + level + '</span></td>' +
       '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : '') + '</td></tr>';
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : target) + '</td></tr>';
   });
 }
 
