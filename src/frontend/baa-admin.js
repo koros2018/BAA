@@ -395,8 +395,8 @@ function renderHistoryList(resetPage = false) {
   let filtered = reviewResults;
   if (filter === 'civil') filtered = filtered.filter(r => r.buildingType === 'civil');
   else if (filter === 'industrial') filtered = filtered.filter(r => r.buildingType === 'industrial');
-  else if (filter === 'violations') filtered = filtered.filter(r => (r.details?.length || 0) > 0);
-  else if (filter === 'clean') filtered = filtered.filter(r => (r.details?.length || 0) === 0);
+  else if (filter === 'violations') filtered = filtered.filter(r => (r.violationCount || 0) > 0);
+  else if (filter === 'clean') filtered = filtered.filter(r => (r.violationCount || 0) === 0);
   if (search) {
     filtered = filtered.filter(r =>
       r.drawingName.toLowerCase().includes(search) ||
