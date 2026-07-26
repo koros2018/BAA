@@ -1186,4 +1186,353 @@ async def get_order(  # code
         }  # code
 
 
+# ── P73: 多Sheet 多区域图纸审查 ───────────────────────────
+@router.post("/review-multi-sheet", tags=["Review"])
+async def review_multi_sheet(
+    file: UploadFile = File(...),
+    building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
+    building_types: Optional[List[str]] = Query(None, description="多建筑类型列表"),
+    standard: str = Query("GB 50016-2014", description="规范标准"),
+    webhook_url: Optional[str] = Query(None, description="P71: 审查完成后 POST 到此 URL"),
+    webhook_type: str = Query("generic", description="P71: generic | feishu | dingtalk"),
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """P73: 多Sheet/多区域图纸独立审查
+
+    上传 DXF/DWG 文件后，自动检测 Layout/Block 引用（Sheet 分区），
+    每个 Sheet 独立走审查流程，结果聚合为项目级报告。
+
+    返回:
+    - project_summary: 项目级汇总（总违规、总实体等）
+    - sheets: 每个 Sheet 的独立审查结果
+    - structured_summary: 项目级结构化摘要
+    """
+    filename = file.filename or "unknown"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "UNSUPPORTED_FORMAT",
+                "message": f"不支持的文件格式: {ext}",
+            },
+        )
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "FILE_TOO_LARGE",
+                "message": f"文件过大（{len(content)/1024/1024:.1f}MB），最大{MAX_FILE_SIZE_MB}MB",
+            },
+        )
+
+    file_id = generate_file_id()
+    file_path = store_file(content, file_id, ext)
+    start = time.time()
+    loop = asyncio.get_event_loop()
+
+    # ── 排队 ──────────────────────────────────────────────
+    task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(
+        file_id, webhook_url=webhook_url, webhook_type=webhook_type
+    )
+    if task_obj is None:
+        return {
+            "status": "error",
+            "error_code": "QUEUE_TIMEOUT",
+            "message": "排队超时（超过300秒），请稍后重试",
+            "file_id": file_id,
+        }
+
+    try:
+        # Step 1: 图纸解析（启用 detect_sheets=True）
+        _get_rq().update_progress(task_id, 10.0)
+        result = await loop.run_in_executor(
+            _get_pool(),
+            lambda: _get_dp().parse(str(file_path), file_id, detect_sheets=True),
+        )
+        if not result.success:
+            _get_rq().fail(task_id, result.error)
+            return {
+                "status": "error",
+                "error_code": "PARSE_FAILED",
+                "message": f"图纸解析失败: {result.error}",
+                "file_id": file_id,
+            }
+
+        _effective_types = building_types if building_types else [building_type]
+
+        # Step 2: 主图（ModelSpace）审查
+        _get_rq().update_progress(task_id, 30.0)
+        sheet_results = []
+
+        # ── 主图审查 ────────────────────────────────────
+        def _do_main_review(primitives, dims):
+            semantic = _get_sa().analyze(
+                primitives, dims, building_type=building_type
+            )
+            entities = semantic.get("entities", [])
+
+            # 跑规范判定（复用 _do_clustering 逻辑简化版）
+            from src.baa_engine.spec_repository import SpecRepository
+            from collections import Counter
+
+            repo = SpecRepository()
+            clause_results = Counter()
+            details = []
+            registry_funcs = _get_fr().list_all()
+            global_funcs = [
+                f for f in registry_funcs if getattr(f, "requires_global_context", False)
+            ]
+
+            def get_strict_threshold(clause_id: str) -> tuple:
+                worst_val, worst_unit, worst_op = None, None, None
+                for bt in _effective_types:
+                    v, u, o = repo.get_threshold(clause_id, bt)
+                    if worst_val is None or v > worst_val:
+                        worst_val, worst_unit, worst_op = v, u, o
+                return worst_val, worst_unit, worst_op
+
+            for e in entities:
+                for func in [f for f in registry_funcs if not getattr(f, "requires_global_context", False)]:
+                    tv, u, op = get_strict_threshold(func.clause_id)
+                    func.threshold = tv
+                    func.unit = u
+                    func.operator = op
+                    r = _get_fr().execute_with_timeout(func, e)
+                    if r is None:
+                        continue
+                    clause_results[func.clause_id] += 1
+                    if r.result != "PASS":
+                        clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])
+                        details.append({
+                            "entity_id": e.get("id", e.get("type", "")),
+                            "entity_type": e["type"],
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": f.judgement["result"],
+                            "extracted_value": f.extracted_params["extracted_value"],
+                            "required_value": f.extracted_params.get("required_value", 1.2),
+                            "difference": f.extracted_params.get("difference", 0),
+                            "severity": f.judgement.get("severity", "major"),
+                            "explanation": f.explanation[:120],
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
+
+            # 全局函数
+            for func in global_funcs:
+                if func.category.value != "exist":
+                    continue
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                matching = [e for e in entities if e.get("type", "") in func_targets]
+                if not matching:
+                    r = _get_fr().execute_with_timeout(func, None)
+                    if r is not None and r.result != "PASS":
+                        details.append({
+                            "entity_id": "", "entity_type": "missing",
+                            "clause_id": func.clause_id, "clause_title": func.name,
+                            "func_id": func.func_id, "result": "FAIL",
+                            "extracted_value": 0.0, "required_value": func.threshold,
+                            "difference": -func.threshold,
+                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
+                            "severity": "critical", "confidence": 1.0, "confidence_tier": "confirmed",
+                        })
+
+            # 缺失检查
+            entity_types_in_drawing = set(e.get("type", "") for e in entities)
+            for func in registry_funcs:
+                if func.category.value != "exist":
+                    continue
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                if func_targets and not func_targets.intersection(entity_types_in_drawing):
+                    continue
+                has_match = any(func.matches(e) for e in entities)
+                if not has_match:
+                    r = _get_fr().execute_with_timeout(func, None)
+                    if r is not None and r.result != "PASS":
+                        clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
+                        f = _get_aa().build_finding(r, clause, {}, entities[:5])
+                        details.append({
+                            "entity_id": "", "entity_type": "missing",
+                            "clause_id": f.clause.get("clause_id", ""),
+                            "clause_title": f.clause.get("title", ""),
+                            "func_id": f.clause.get("func_id", ""),
+                            "result": f.judgement.get("result", "FAIL"),
+                            "severity": f.judgement.get("severity", "critical"),
+                            "extracted_value": f.extracted_params.get("extracted_value", 0.0),
+                            "required_value": f.extracted_params.get("required_value", 1.0),
+                            "difference": -(f.extracted_params.get("required_value", 1.0) or 1.0),
+                            "explanation": f.explanation[:120],
+                            "confidence": r.confidence, "confidence_tier": _confidence_tier(r.confidence),
+                        })
+
+            return {
+                "name": "主图 (ModelSpace)",
+                "entities": entities,
+                "details": details,
+                "clause_results": dict(clause_results),
+                "entity_count": len(entities),
+                "violation_count": len(details),
+            }
+
+        main_result = await loop.run_in_executor(
+            _get_pool(), _do_main_review, result.primitives, result.dimensions
+        )
+        sheet_results.append(main_result)
+        _get_rq().update_progress(task_id, 60.0)
+
+        # Step 3: 各 Sheet 独立审查
+        if result.sheets:
+            for sheet in result.sheets:
+                def _do_sheet_review(sheet_entities, sheet_dims):
+                    semantic = _get_sa().analyze(
+                        sheet_entities, sheet_dims, building_type=building_type
+                    )
+                    entities = semantic.get("entities", [])
+
+                    from collections import Counter
+                    repo = SpecRepository()
+                    clause_results = Counter()
+                    details = []
+                    registry_funcs = _get_fr().list_all()
+
+                    def get_strict_threshold(clause_id: str) -> tuple:
+                        worst_val, worst_unit, worst_op = None, None, None
+                        for bt in _effective_types:
+                            v, u, o = repo.get_threshold(clause_id, bt)
+                            if worst_val is None or v > worst_val:
+                                worst_val, worst_unit, worst_op = v, u, o
+                        return worst_val, worst_unit, worst_op
+
+                    for e in entities:
+                        for func in registry_funcs:
+                            if getattr(func, "requires_global_context", False):
+                                continue
+                            tv, u, op = get_strict_threshold(func.clause_id)
+                            func.threshold = tv
+                            func.unit = u
+                            func.operator = op
+                            r = _get_fr().execute_with_timeout(func, e)
+                            if r is None:
+                                continue
+                            clause_results[func.clause_id] += 1
+                            if r.result != "PASS":
+                                clause = {"standard": standard, "clause_id": func.clause_id, "title": func.name, "text": func.description, "category": func.category.value}
+                                f = _get_aa().build_finding(r, clause, e, entities[:5])
+                                details.append({
+                                    "entity_id": e.get("id", e.get("type", "")),
+                                    "entity_type": e["type"],
+                                    "clause_id": func.clause_id,
+                                    "clause_title": func.name,
+                                    "func_id": func.func_id,
+                                    "result": f.judgement["result"],
+                                    "extracted_value": f.extracted_params["extracted_value"],
+                                    "required_value": f.extracted_params.get("required_value", 1.2),
+                                    "difference": f.extracted_params.get("difference", 0),
+                                    "severity": f.judgement.get("severity", "major"),
+                                    "explanation": f.explanation[:120],
+                                    "confidence": r.confidence,
+                                    "confidence_tier": _confidence_tier(r.confidence),
+                                })
+
+                    return {
+                        "name": sheet["name"],
+                        "entities": entities,
+                        "details": details,
+                        "clause_results": dict(clause_results),
+                        "entity_count": len(entities),
+                        "violation_count": len(details),
+                    }
+
+                sr = await loop.run_in_executor(
+                    _get_pool(),
+                    _do_sheet_review,
+                    [p.to_dict() if hasattr(p, 'to_dict') else p for p in sheet["primitives"]],
+                    sheet["dimensions"],
+                )
+                sheet_results.append(sr)
+
+        _get_rq().update_progress(task_id, 90.0)
+
+        # Step 4: 聚合项目级报告
+        total_entities = sum(s["entity_count"] for s in sheet_results)
+        total_violations = sum(s["violation_count"] for s in sheet_results)
+        all_details = []
+        for sr in sheet_results:
+            for d in sr["details"]:
+                all_details.append({**d, "sheet": sr["name"]})
+
+        elapsed_ms = round((time.time() - start) * 1000, 1)
+        violations_by_severity = {"critical": 0, "major": 0, "minor": 0}
+        for d in all_details:
+            sev = d.get("severity", "minor")
+            if sev in violations_by_severity:
+                violations_by_severity[sev] += 1
+
+        project_summary = {
+            "project_id": file_id,
+            "sheet_count": len(sheet_results),
+            "total_entities": total_entities,
+            "total_violations": total_violations,
+            "violations_by_severity": violations_by_severity,
+            "compliance_rate": round(1 - total_violations / max(total_entities, 1), 3),
+            "processing_time_ms": elapsed_ms,
+            "file_id": file_id,
+            "standard": standard,
+            "building_type": building_type,
+        }
+
+        structured_summary = _build_structured_summary(all_details)
+
+        response = {
+            "status": "success",
+            "task_id": task_id,
+            "review_id": task_id,
+            "file_id": file_id,
+            "project_summary": project_summary,
+            "sheets": [
+                {
+                    "name": s["name"],
+                    "entity_count": s["entity_count"],
+                    "violation_count": s["violation_count"],
+                    "violations": s["details"],
+                    "entity_count_detail": len(s.get("entities", [])),
+                }
+                for s in sheet_results
+            ],
+            "summary": {
+                "total_entities": total_entities,
+                "total_checks": total_violations,
+                "total_violations": total_violations,
+                "pass_rate": round(1 - total_violations / max(total_entities, 1), 3),
+                "violations_by_severity": violations_by_severity,
+            },
+            "details": all_details,
+            "structured_summary": structured_summary,
+            "queue_info": {"task_id": task_id, "queue_position": queue_position},
+            "processing_time_ms": elapsed_ms,
+        }
+
+        # 写入持久化缓存
+        _get_pc().set(make_cache_key(file_id, standard, building_type), response, "multi_sheet_review")
+        return response
+
+    except Exception as e:
+        _get_rq().fail(task_id, str(e))
+        raise
+    finally:
+        try:
+            os.unlink(str(file_path))
+        except Exception:
+            pass
+
+
 # ── 图纸渲染 ──────────────────────────────────────────────

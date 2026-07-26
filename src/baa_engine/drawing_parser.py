@@ -82,6 +82,7 @@ class DrawingResult:  # class definition
         dimensions: List[Dict] = None,  # 操作
         error: Optional[str] = None,  # assignment
         warning: Optional[str] = None,
+        sheets: List[Dict] = None,  # P73: 多Sheet 分区解析
     ):  # 操作
         self.file_path = file_path  # assignment
         self.file_id = file_id  # assignment
@@ -90,6 +91,7 @@ class DrawingResult:  # class definition
         self.error = error  # assignment
         self.success = error is None  # assignment
         self.warning = warning  # assignment
+        self.sheets = sheets or []  # P73: 每个 sheet 为 {name, primitives, dimensions}
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -126,29 +128,32 @@ class DrawingParser:
         self._cache_max = 50
 
     def parse(
-        self, file_path: str, file_id: str = None
-    ) -> DrawingResult:  # method: def parse(self, file_path: str, file_id: str = None) -> Draw
+        self, file_path: str, file_id: str = None, detect_sheets: bool = False
+    ) -> DrawingResult:  # method: def parse(self, file_path: str, file_id: str = None, detect_sheets: bool = False) -> Draw
         """
         解析 DXF/DWG 图纸，提取原始图元
 
         参数:
             file_path: 图纸文件路径（支持 dxf, dwg）
             file_id: 文件标识（可选，自动生成）
+            detect_sheets: P73: 是否检测多Sheet（Layout）分区
 
         返回:
-            DrawingResult 包含原始图元列表
+            DrawingResult 包含原始图元列表（sheets 非空时 pritimives 为全部图元聚合）
         """
         path = Path(file_path)  # function call
         ext = path.suffix.lower()  # function call
 
         # ── 文件哈希缓存：相同文件秒级返回 ────────────────
+        # 注意：detect_sheets 不同时不能复用缓存
         try:  # try block
             import hashlib  # stdlib: hashing
 
             file_hash = hashlib.sha256(path.read_bytes()).hexdigest()[:32]  # function call
-            cached = self._parse_cache.get(file_hash)  # function call
-            if cached is not None:  # check: value is not None
-                return cached  # return
+            if not detect_sheets:  # 无 sheet 检测时可走缓存
+                cached = self._parse_cache.get(file_hash)  # function call
+                if cached is not None:  # check: value is not None
+                    return cached  # return
         except Exception:  # catch exception
             file_hash = None  # assignment
 
@@ -245,12 +250,45 @@ class DrawingParser:
             dimensions=dimensions,  # assignment
         )  # code
 
+        # ── P73: 多Sheet 分区检测 ────────────────────────
+        if detect_sheets and result.success and self._doc is not None:
+            try:
+                sheets = []
+                for layout in self._doc.layouts:
+                    name = layout.name
+                    if name == "Model":  # ModelSpace 是主图，已包含在 primitives 中
+                        continue
+                    sheet_prims = []
+                    sheet_dims = []
+                    for entity in layout:
+                        dxf_type = entity.dxftype()
+                        if dxf_type == "DIMENSION":
+                            dim = self._extract_single_dimension(entity)
+                            if dim is not None:
+                                sheet_dims.append(dim)
+                        else:
+                            prim = self._extract_single_primitive(entity)
+                            if prim is not None:
+                                sheet_prims.append(prim)
+                    if sheet_prims or sheet_dims:
+                        sheets.append({
+                            "name": name,
+                            "primitives": [p.to_dict() for p in sheet_prims],
+                            "dimensions": sheet_dims,
+                            "entity_count": len(sheet_prims),
+                        })
+                if sheets:
+                    result.sheets = sheets
+                    result.warning = (result.warning or "") + f"检测到 {len(sheets)} 个分区(Layout)"
+            except Exception as e:
+                pass  # 多Sheet 检测失败不阻断主流程
+
         # ── P18 分页警告 ────────────────────────────────
         if page_warning:  # condition: page_warning:
             result.error = page_warning  # assignment
 
         # ── 写入缓存 ──────────────────────────────────────
-        if file_hash and result.success:  # check: AND condition
+        if file_hash and result.success and not detect_sheets:  # 多Sheet 模式不缓存
             if len(self._parse_cache) >= self._cache_max:  # check: numeric comparison
                 # 淘汰最旧的一个
                 old_key = next(iter(self._parse_cache))  # function call
