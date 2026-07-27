@@ -167,13 +167,17 @@ def _analyze_evacuation_routes_impl(
     if not exits:  # check: negated condition
         return []  # return: list of items
 
-    # 如果没有 room 但有 corridor，用 corridor 作为起点分析连通性
-    if not rooms:  # check: condition: not rooms:
-        corridors = [e for e in entities if e.type == "corridor"]  # assign
-        if corridors:  # check: OR condition
-            rooms = corridors  # 兜底：用走廊代替房间作为起点
-        else:  # 否则
-            return []  # return: list of items
+    # 如果没有 room 但有 corridor/lobby/pump_room 等空间实体，用它们作为起点
+    if not rooms:
+        # P76 修复：room 实体在真实图纸中识别不足（被识别为 lobby/pump_room/space 等）
+        # 扩展为所有封闭空间类型
+        fallback_rooms = [e for e in entities
+                          if e.type in ("corridor", "lobby", "pump_room",
+                                        "space", "anteroom", "elevator_lobby", "staircase_lobby")]
+        if fallback_rooms:
+            rooms = fallback_rooms
+        else:
+            return []
 
     # exit 查找集合（提前构建，避免循环内重复构造）
     exit_id_set = {e.id for e in exits}  # assign: membership check
