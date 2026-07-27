@@ -280,6 +280,24 @@ async def _fire_webhook(webhook_url: str, payload: dict) -> bool:  # function ca
         return False  # return: boolean
 
 
+async def _dispatch_webhooks(event: str, payload: dict) -> None:  # function call
+    """遍历注册 Webhook 列表，按 events 过滤后并行发送
+
+    P71：注册列表中的 webhook 默认对所有任务生效，
+    per-task 的 webhook_url 在 _run_review_task 中单独处理。
+    """
+    tasks = []
+    for wh in list(_ag._webhooks.values()):  # 遍历注册的 webhook
+        if not wh.get("active"):  # 跳过已禁用的
+            continue
+        events = wh.get("events", "completed").split(",")
+        if event not in events and "all" not in events:
+            continue
+        tasks.append(_fire_webhook(wh["url"], payload))
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)  # 并行发送，不阻塞
+
+
 async def _run_review_task(
     task_id: str, file_path: str, building_type: str, webhook_url: str = None
 ):  # function call
@@ -313,6 +331,16 @@ async def _run_review_task(
                         "error": _ag._tasks[task_id]["error"],  # 字段
                     },
                 )  # code
+            # P71: 同时触发注册列表中的 Webhook
+            await _dispatch_webhooks(
+                "failed",
+                {
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error": _ag._tasks[task_id]["error"],
+                    "filename": _ag._tasks[task_id].get("filename", ""),
+                },
+            )
             return  # code
 
         # ── Step 2: 语义分析 ─────────────────────────────────
@@ -422,6 +450,19 @@ async def _run_review_task(
                 },
             )  # code
 
+            # P71: 同时触发注册列表中的 Webhook（与 per-task webhook 并行）
+            await _dispatch_webhooks(
+                "completed",
+                {
+                    "task_id": task_id,
+                    "status": "completed",
+                    "violations": len(details),
+                    "entities": len(entities),
+                    "processing_time_ms": elapsed,
+                    "filename": _ag._tasks[task_id].get("filename", ""),
+                },
+            )
+
     # 异常处理
     except Exception as e:  # 捕获异常
         _ag._tasks[task_id]["status"] = "failed"  # 操作
@@ -432,6 +473,16 @@ async def _run_review_task(
                 webhook_url,
                 {"task_id": task_id, "status": "failed", "error": str(e)},  # 操作  # 字段
             )  # code
+        # P71: 同时触发注册列表中的 Webhook
+        await _dispatch_webhooks(
+            "failed",
+            {
+                "task_id": task_id,
+                "status": "failed",
+                "error": str(e),
+                "filename": _ag._tasks[task_id].get("filename", ""),
+            },
+        )
 
 
 @router.post("/api/v1/tasks", tags=["EMA2"])  # function call
