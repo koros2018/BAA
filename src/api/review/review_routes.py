@@ -5,24 +5,6 @@
 from fastapi import Depends, HTTPException, Query, File, UploadFile, Request, Response
 from enum import Enum
 
-
-class ConfidenceTier(str, Enum):
-    """置信度语义分级（P61）"""
-
-    CONFIRMED = "confirmed"  # ≥0.85，确认违规
-    SUSPECTED = "suspected"  # 0.60~0.85，疑似违规
-    NEEDS_REVIEW = "needs_review"  # <0.60，建议人工复核
-
-
-def _confidence_tier(confidence: float) -> str:
-    """将 0~1 置信度映射为语义分级标签。"""
-    if confidence >= 0.85:
-        return ConfidenceTier.CONFIRMED.value
-    if confidence >= 0.60:
-        return ConfidenceTier.SUSPECTED.value
-    return ConfidenceTier.NEEDS_REVIEW.value
-
-
 from . import (
     _get_dp,
     _get_sa,
@@ -48,6 +30,19 @@ from . import (
     MODELS_DIR,
 )
 import os
+
+# P78: 共享辅助函数从 _shared.py 导入
+from ._shared import (
+    ConfidenceTier,
+    _confidence_tier,
+    _classify_priority,
+    _derive_compliance_path,
+    _build_structured_summary,
+    THERMAL_MATERIALS,
+    THERMAL_THRESHOLDS,
+    HI,
+    HO,
+)
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import uuid
@@ -56,51 +51,6 @@ import asyncio
 import json
 import hashlib
 from collections import Counter
-
-# ── P62: 结构化摘要 ────────────────────────────────────────
-
-COMPLIANCE_GUIDE = {
-    "critical": "必须整改，否则无法通过施工图审查，建议优先处理",
-    "major": "建议整改，影响建筑性能或施工便利性",
-    "minor": "可选择性优化，提升图纸质量",
-}
-
-COMPLIANCE_PATHS = {
-    "dim": "按规范限值调整构件尺寸（宽度/高度/净距）",
-    "exist": "补充缺失的消防/疏散设施实体",
-    "dist": "调整构件间距以满足最小安全距离",
-    "count": "增加设施数量满足最低配置要求",
-    "area": "优化平面布局以满足面积/分区要求",
-    "attr": "修正构件属性（材料/等级/标识）",
-    "light": "补充/调整照明设施以满足照度要求",
-    "vac": "优化疏散路径，确保连通性",
-}
-
-
-def _classify_priority(d: dict) -> str:
-    """P62: severity + confidence → 整改优先级 P0/P1/P2。
-
-    P0 = 高置信度 + critical，立即整改
-    P1 = 高置信度 + major 或 中置信度 + critical，尽快整改
-    P2 = 其余，计划性优化
-    """
-    sev = d.get("severity", "minor")
-    tier = d.get("confidence_tier", "")
-    if tier == "confirmed" and sev == "critical":
-        return "P0"
-    if (tier == "confirmed" and sev == "major") or (tier == "suspected" and sev == "critical"):
-        return "P1"
-    return "P2"
-
-
-def _derive_compliance_path(d: dict) -> str:
-    """P62: 从 func_id/clause_id 推导整改路径指引。"""
-    fid = (d.get("func_id") or d.get("clause_id") or "").lower()
-    for prefix, guide in COMPLIANCE_PATHS.items():
-        if prefix in fid:
-            return guide
-    return "参照对应规范条款，逐项整改"
-
 
 def _build_structured_summary(details: list[dict]) -> dict:
     """P62: 从 details 生成结构化摘要。
@@ -190,9 +140,7 @@ def _build_structured_summary(details: list[dict]) -> dict:
         "compliance_actions": compliance_actions,
     }
 
-
 # ── End P62 ────────────────────────────────────────────────
-
 
 @router.post("/review")  # function call
 async def review(  # code
@@ -636,7 +584,6 @@ async def review(  # code
 
     return response_data  # return
 
-
 @router.get("/review/pdf", tags=["Review"])  # P69: PDF 报告导出
 async def export_review_pdf(  # code
     review_id: str = Query(..., description="审查记录 ID"),  # assignment
@@ -702,7 +649,6 @@ async def export_review_pdf(  # code
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{pdf_name}"'},
     )
-
 
 @router.post("/review-from-data")  # function call
 async def review_from_data(  # code
@@ -1005,32 +951,7 @@ async def review_from_data(  # code
 
     return response_data  # return
 
-
 # ── P45 热工性能 K 值计算 ──────────────────────────────────
-
-THERMAL_MATERIALS = {
-    "rockwool": {"name": "岩棉板", "lambda": 0.035, "density": 800},
-    "eps": {"name": "EPS聚苯板", "lambda": 0.040, "density": 20},
-    "xps": {"name": "XPS挤塑板", "lambda": 0.030, "density": 35},
-    "pu": {"name": "聚氨酯", "lambda": 0.024, "density": 40},
-    "aerogel": {"name": "气凝胶", "lambda": 0.012, "density": 120},
-}
-
-THERMAL_THRESHOLDS = {
-    "severe_cold": {
-        "exterior_wall": 0.45,
-        "roof": 0.35,
-        "ground_floor": 0.30,
-        "exterior_window": 2.0,
-    },
-    "cold": {"exterior_wall": 0.60, "roof": 0.50, "ground_floor": 0.45, "exterior_window": 2.4},
-    "hot_cold": {"exterior_wall": 1.50, "roof": 1.20, "ground_floor": 0.60, "exterior_window": 3.2},
-    "hot_warm": {"exterior_wall": 2.00, "roof": 1.50, "ground_floor": 0.80, "exterior_window": 4.0},
-}
-
-HI = 8.7  # 内表面传热系数 W/(m²·K)
-HO = 23.0  # 外表面传热系数 W/(m²·K)
-
 
 @router.post("/thermal/k-value")  # function call
 async def compute_thermal_k(  # code
@@ -1084,7 +1005,6 @@ async def compute_thermal_k(  # code
         result["additionalThicknessMm"] = round(max(0, d_needed_mm - thickness_mm), 1)
 
     return result
-
 
 @router.post("/reconstruct")  # function call
 async def reconstruct(  # code
@@ -1146,7 +1066,6 @@ async def reconstruct(  # code
         "valid_until": (datetime.utcnow() + timedelta(days=30)).isoformat() + "Z",  # 字段
     }  # code
 
-
 @router.get("/order/{order_id}")  # function call
 async def get_order(  # code
     order_id: str,  # 操作
@@ -1184,7 +1103,6 @@ async def get_order(  # code
             "progress": 50,  # 字段
             "estimated_remaining_ms": 15000,  # 字段
         }  # code
-
 
 # ── P73: 多Sheet 多区域图纸审查 ───────────────────────────
 @router.post("/review-multi-sheet", tags=["Review"])
@@ -1575,6 +1493,5 @@ async def review_multi_sheet(
             os.unlink(str(file_path))
         except Exception:
             pass
-
 
 # ── 图纸渲染 ──────────────────────────────────────────────
