@@ -1427,6 +1427,7 @@ async def review_multi_sheet(
                     )
                     entities = semantic.get("entities", [])
 
+                    from src.baa_engine.spec_repository import SpecRepository
                     from collections import Counter
 
                     repo = SpecRepository()
