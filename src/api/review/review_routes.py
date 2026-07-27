@@ -1568,7 +1568,6 @@ async def review_multi_sheet(
         return response
 
     except Exception as e:
-        _get_rq().fail(task_id, str(e))
         raise
     finally:
         try:
