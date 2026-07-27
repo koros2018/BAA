@@ -771,7 +771,7 @@ async function runMultiSheetReview() {
     formData.append('file', file);
 
     try {
-        const url = API_BASE() + '/api/v1/review-multi-sheet?building_type=' + encodeURIComponent(buildingType) + '&standard=' + encodeURIComponent(standard);
+        const url = API_BASE() + '/review-multi-sheet?building_type=' + encodeURIComponent(buildingType) + '&standard=' + encodeURIComponent(standard);
         const r = await fetch(url, {
             method: 'POST',
             headers: getHeaders(),
