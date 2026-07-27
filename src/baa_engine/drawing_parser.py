@@ -276,7 +276,7 @@ class DrawingParser:
                         sheets.append(
                             {
                                 "name": name,
-                                "primitives": [p.to_dict() for p in sheet_prims],
+                                "primitives": sheet_prims,  # 保留原始对象供 analyze() 使用
                                 "dimensions": sheet_dims,
                                 "entity_count": len(sheet_prims),
                             }
