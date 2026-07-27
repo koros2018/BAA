@@ -345,64 +345,37 @@ async def review(  # code
                     )
 
         # ── P70: requires_global_context 函数全局聚合判定 ──
-        # 这些函数需要按全局/防火分区聚合统计，而不是逐实体判定
-        # 例如 EXIST-083/093（每个防火分区应设≥2个消防救援窗）
-        # 之前的逻辑对每个 window 实体单独判定，导致 count=1 < 2 全部 FAIL
+        # P75 修复：实体类型与图纸完全不交时 PASS（不报"缺失"违规）
         for func in global_funcs:
             if func.category.value != "exist":
                 continue
             func_targets = set(func.target_entities) if func.target_entities else set()
+            if not func_targets:
+                continue
             matching = [e for e in entities if e.get("type", "") in func_targets]
             if not matching:
-                # 无匹配实体 → 缺失检查
-                r = _get_fr().execute_with_timeout(func, None)
-                if r is not None and r.result != "PASS":
-                    clause = {
-                        "standard": "GB50016",
+                # P75: 无匹配实体 → PASS，不报违规（覆盖问题≠违规）
+                continue
+            count = len(matching)
+            clause_results[func.clause_id] += 1
+            if count < func.threshold:
+                details.append(
+                    {
+                        "entity_id": "",
+                        "entity_type": ",".join(func_targets),
                         "clause_id": func.clause_id,
-                        "title": func.name,
-                        "text": func.description,
-                        "category": func.category.value,
+                        "clause_title": func.name,
+                        "func_id": func.func_id,
+                        "result": "FAIL",
+                        "extracted_value": float(count),
+                        "required_value": float(func.threshold),
+                        "difference": float(count - func.threshold),
+                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                        "severity": "critical",
+                        "confidence": 1.0,
+                        "confidence_tier": "confirmed",
                     }
-                    details.append(
-                        {
-                            "entity_id": "",
-                            "entity_type": "missing",
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": 0.0,
-                            "required_value": func.threshold,
-                            "difference": -func.threshold,
-                            "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        }
-                    )
-            else:
-                # 有匹配实体 → 按全局计数判定
-                count = len(matching)
-                clause_results[func.clause_id] += 1
-                if count < func.threshold:
-                    details.append(
-                        {
-                            "entity_id": "",
-                            "entity_type": ",".join(func_targets),
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": float(count),
-                            "required_value": float(func.threshold),
-                            "difference": float(count - func.threshold),
-                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        }
-                    )
+                )
 
         # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
         # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
@@ -752,52 +725,36 @@ async def review_from_data(  # code
                         )
 
             # P70: requires_global_context 函数全局聚合判定
+            # P75 修复：无匹配实体 → PASS
             for func in global_funcs:
                 if func.category.value != "exist":
                     continue
                 func_targets = set(func.target_entities) if func.target_entities else set()
+                if not func_targets:
+                    continue
                 matching = [e for e in entities if e.get("type", "") in func_targets]
                 if not matching:
-                    r = _get_fr().execute_with_timeout(func, None)
-                    if r is not None and r.result != "PASS":
-                        details.append(
-                            {
-                                "entity_id": "",
-                                "entity_type": "missing",
-                                "clause_id": func.clause_id,
-                                "clause_title": func.name,
-                                "func_id": func.func_id,
-                                "result": "FAIL",
-                                "extracted_value": 0.0,
-                                "required_value": func.threshold,
-                                "difference": -func.threshold,
-                                "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
-                                "severity": "critical",
-                                "confidence": 1.0,
-                                "confidence_tier": "confirmed",
-                            }
-                        )
-                else:
-                    count = len(matching)
-                    clause_results[func.clause_id] += 1
-                    if count < func.threshold:
-                        details.append(
-                            {
-                                "entity_id": "",
-                                "entity_type": ",".join(func_targets),
-                                "clause_id": func.clause_id,
-                                "clause_title": func.name,
-                                "func_id": func.func_id,
-                                "result": "FAIL",
-                                "extracted_value": float(count),
-                                "required_value": float(func.threshold),
-                                "difference": float(count - func.threshold),
-                                "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                                "severity": "critical",
-                                "confidence": 1.0,
-                                "confidence_tier": "confirmed",
-                            }
-                        )
+                    continue  # P75: 无匹配 → PASS
+                count = len(matching)
+                clause_results[func.clause_id] += 1
+                if count < func.threshold:
+                    details.append(
+                        {
+                            "entity_id": "",
+                            "entity_type": ",".join(func_targets),
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": float(count),
+                            "required_value": float(func.threshold),
+                            "difference": float(count - func.threshold),
+                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        }
+                    )
 
             # 缺失检查
             # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
@@ -1254,31 +1211,36 @@ async def review_multi_sheet(
                         )
 
             # 全局函数
+            # P75 修复：无匹配实体 → PASS
             for func in global_funcs:
                 if func.category.value != "exist":
                     continue
                 func_targets = set(func.target_entities) if func.target_entities else set()
+                if not func_targets:
+                    continue
                 matching = [e for e in entities if e.get("type", "") in func_targets]
                 if not matching:
-                    r = _get_fr().execute_with_timeout(func, None)
-                    if r is not None and r.result != "PASS":
-                        details.append(
-                            {
-                                "entity_id": "",
-                                "entity_type": "missing",
-                                "clause_id": func.clause_id,
-                                "clause_title": func.name,
-                                "func_id": func.func_id,
-                                "result": "FAIL",
-                                "extracted_value": 0.0,
-                                "required_value": func.threshold,
-                                "difference": -func.threshold,
-                                "explanation": f"未检出{func.name}所需实体类型: {', '.join(func_targets)}",
-                                "severity": "critical",
-                                "confidence": 1.0,
-                                "confidence_tier": "confirmed",
-                            }
-                        )
+                    continue  # P75: 无匹配 → PASS
+                count = len(matching)
+                clause_results[func.clause_id] += 1
+                if count < func.threshold:
+                    details.append(
+                        {
+                            "entity_id": "",
+                            "entity_type": ",".join(func_targets),
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": float(count),
+                            "required_value": float(func.threshold),
+                            "difference": float(count - func.threshold),
+                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        }
+                    )
 
             # 缺失检查
             entity_types_in_drawing = set(e.get("type", "") for e in entities)
