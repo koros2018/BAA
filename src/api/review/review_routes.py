@@ -1495,7 +1495,7 @@ async def review_multi_sheet(
                 sr = await loop.run_in_executor(
                     _get_pool(),
                     _do_sheet_review,
-                    [p.to_dict() if hasattr(p, "to_dict") else p for p in sheet["primitives"]],
+                    sheet["primitives"],  # 保持原始对象，analyze() 需要 .layer 等属性
                     sheet["dimensions"],
                 )
                 sheet_results.append(sr)
