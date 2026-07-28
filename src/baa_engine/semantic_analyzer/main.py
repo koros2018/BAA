@@ -1895,6 +1895,10 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 is_closed = self._is_near_closed(prim, gap_threshold_mm=500.0)  # assign
             if is_closed:  # condition: is_closed:
                 aspect_ratio = max(bw, bh) / max(short_edge, 1)  # assign
+                # P77：area=0 的闭合多边形（stair 2 点 LWPOLYLINE 等退化几何）
+                # 不是真正的房间，跳过 room 判定
+                if area == 0 and pts_count == 2:  # check: numeric comparison
+                    return "other"  # return: 2 点退化多边形，不是房间
                 # 图层排除：非建筑图层上的闭合多边形不可能是房间
                 non_room_layers = [
                     "COLU",
