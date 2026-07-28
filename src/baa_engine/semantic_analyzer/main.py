@@ -2780,8 +2780,14 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
         # ── 1. 相邻关系（空间哈希加速，>2000 实体只构建关键实体对）──
         # 关键实体类型：room/corridor/door/exit/stair/fire_door/exit_door + wall
+        # P76 修复：真实图纸 room 识别不足，fallback 到 lobby/pump_room/space 等空间类型，
+        # 必须也参与相邻关系构建，否则 BFS 拓扑为空（has_route=False）
         # wall 必须包含：room↔wall adjacent 是 step 5 (room-wall-door 传递) 的基础
-        KEY_ENTITY_TYPES = {"room", "corridor", "door", "exit", "stair", "fire_door", "exit_door"}
+        KEY_ENTITY_TYPES = {
+            "room", "corridor", "door", "exit", "stair", "fire_door", "exit_door",
+            "lobby", "pump_room", "space", "anteroom",
+            "elevator_lobby", "staircase_lobby", "entrance_hall",
+        }
 
         CELL_SIZE = 100.0  # mm
         grid: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
@@ -3067,6 +3073,18 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
 
     @staticmethod
     def _min_edge_distance(bbox1, bbox2):
+        # P76 修复：零 bbox 退化处理
+        # 当 bbox 的 width=0 且 height=0 时（真实图纸中楼梯/门常为点状几何），
+        # 边距退化为点间中心距，否则用标准边缘距离
+        bw1, bh1 = bbox1.get("width", 0), bbox1.get("height", 0)
+        bw2, bh2 = bbox2.get("width", 0), bbox2.get("height", 0)
+        degenerate = (bw1 == 0 and bh1 == 0) or (bw2 == 0 and bh2 == 0)
+        if degenerate:
+            from .geometry import bbox_center, point_distance
+
+            c1 = bbox_center(bbox1)  # 操作
+            c2 = bbox_center(bbox2)  # 操作
+            return point_distance(c1, c2)  # 返回点间距离
         from .geometry import min_edge_distance
 
         return min_edge_distance(bbox1, bbox2)
