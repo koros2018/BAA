@@ -12,8 +12,80 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
     """计算图元边界框
 
     多层兜底策略，支持 ezdwg 手动重建的图元（无标准 bbox 方法）。
+    同时处理 ezdxf 原生图元：LWPOLYLINE.vertices() 返回 (x,y) 元组而非
+    Vec2 对象；LINE/CIRCLE/ARC 无 bbox() 方法。
+    P77 修复：泵房/配电房 stair bbox 全零根因——vertices() 点坐标是
+    numpy 标量元组，无 .x/.y 属性，原实现静默吞异常后掉到 {0,0,0,0} 兜底。
     """
-    # 1. ezdxf 原生 bbox 方法
+    from ezdxf.math import Vec2
+
+    dxf_type = entity.dxftype() if hasattr(entity, "dxftype") else None
+
+    # ── 1. LINE: 用 start/end 直接算包围盒 ──
+    if dxf_type == "LINE":
+        try:
+            s = Vec2(entity.dxf.start)
+            en = Vec2(entity.dxf.end)
+            x1, x2 = sorted([s.x, en.x])
+            y1, y2 = sorted([s.y, en.y])
+            return {"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1}
+        except Exception:
+            pass
+
+    # ── 2. CIRCLE: 圆心 ± 半径 ──
+    if dxf_type == "CIRCLE":
+        try:
+            c = Vec2(entity.dxf.center)
+            r = float(entity.dxf.radius)
+            return {"x": c.x - r, "y": c.y - r, "width": 2 * r, "height": 2 * r}
+        except Exception:
+            pass
+
+    # ── 3. ARC: 圆心 ± 半径（近似包围盒，比实际略大但安全） ──
+    if dxf_type == "ARC":
+        try:
+            c = Vec2(entity.dxf.center)
+            r = float(entity.dxf.radius)
+            return {"x": c.x - r, "y": c.y - r, "width": 2 * r, "height": 2 * r}
+        except Exception:
+            pass
+
+    # ── 4. TEXT: 插入点 ± 文字高度 ──
+    if dxf_type == "TEXT":
+        try:
+            p = Vec2(entity.dxf.insert)
+            h = float(entity.dxf.height)
+            return {"x": p.x, "y": p.y, "width": h * 1.5, "height": h}
+        except Exception:
+            pass
+
+    # ── 5. LWPOLYLINE / POLYLINE / SPLINE: 从 vertices() 聚合 ──
+    if dxf_type in ("LWPOLYLINE", "POLYLINE", "SPLINE"):
+        try:
+            points = list(entity.vertices())
+            if points:
+                xs = []
+                ys = []
+                for p in points:
+                    try:
+                        # Vec2 对象
+                        if hasattr(p, "x") and hasattr(p, "y"):
+                            xs.append(float(p.x))
+                            ys.append(float(p.y))
+                        # tuple/ndarray: (x, y) 或 (x, y, z)
+                        elif isinstance(p, (tuple, list)) and len(p) >= 2:
+                            xs.append(float(p[0]))
+                            ys.append(float(p[1]))
+                    except Exception:
+                        pass
+                if xs and ys:
+                    w = max(xs) - min(xs)
+                    h = max(ys) - min(ys)
+                    return {"x": min(xs), "y": min(ys), "width": w, "height": h}
+        except Exception:
+            pass
+
+    # 6. ezdxf 原生 bbox 方法（INSERT / 3DSOLID 等支持 bbox() 的图元）
     try:
         if hasattr(entity, "bbox"):
             bbox = entity.bbox()
@@ -30,59 +102,17 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
     except Exception:
         pass
 
-    # 2. 从 vertices() 计算（ezdxf 原生图元）
-    try:
-        points = list(entity.vertices())
-        if points:
-            xs, ys = [], []
-            for p in points:
-                try:
-                    xs.append(p.x)
-                    ys.append(p.y)
-                except Exception:
-                    pass
-            if xs and ys:
-                w = max(xs) - min(xs)
-                h = max(ys) - min(ys)
-                return {"x": min(xs), "y": min(ys), "width": w, "height": h}
-    except Exception:
-        pass
-
-    # 3. 从 handle 属性计算（ezdxf 特殊图元）
-    try:
-        handle = entity.dxf.handle
-        if hasattr(handle, "get"):
-            x = handle.get("x", 0)
-            y = handle.get("y", 0)
-            w = handle.get("width", 0)
-            h = handle.get("height", 0)
-            return {"x": x, "y": y, "width": w, "height": h}
-    except Exception:
-        pass
-
-    # 4. 从 insert 属性计算（INSERT 实体）
+    # 7. 从 insert 属性计算（INSERT 块引用）
     try:
         if hasattr(entity, "dxf") and hasattr(entity.dxf, "insert"):
             ins = entity.dxf.insert
             if hasattr(ins, "__getitem__"):
-                return {"x": ins[0], "y": ins[1], "width": 0, "height": 0}
-    except Exception:
-        pass
-
-    # 5. 尝试 get_bbox（ezdxf 部分图元支持）
-    try:
-        if hasattr(entity, "get_bbox"):
-            bbox = entity.get_bbox()
-            if bbox and bbox.extmin is not None and bbox.extmax is not None:
-                w = bbox.extmax[0] - bbox.extmin[0]
-                h = bbox.extmax[1] - bbox.extmin[1]
-                if w > 0 or h > 0:
-                    return {
-                        "x": bbox.extmin[0],
-                        "y": bbox.extmin[1],
-                        "width": w,
-                        "height": h,
-                    }
+                return {
+                    "x": float(ins[0]),
+                    "y": float(ins[1]),
+                    "width": 0,
+                    "height": 0,
+                }
     except Exception:
         pass
 
@@ -165,28 +195,43 @@ def compute_polygon_area(entity) -> float:
     """计算多边形面积
 
     使用鞋带公式（shoelace formula），支持 LWPOLYLINE、POLYLINE、CIRCLE 等闭合图形。
+    P77 修复：vertices() 返回 tuple 而非 Vec2，必须用索引访问而非 .x/.y。
     """
     from ezdxf.math import Vec2
     import math
 
+    def _extract_points(entity):
+        """提取顶点坐标，兼容 Vec2 对象和 tuple"""
+        try:
+            points = list(entity.vertices())
+            if not points:
+                return [], []
+            xs, ys = [], []
+            for p in points:
+                try:
+                    if hasattr(p, "x") and hasattr(p, "y"):
+                        xs.append(float(p.x))
+                        ys.append(float(p.y))
+                    elif isinstance(p, (tuple, list)) and len(p) >= 2:
+                        xs.append(float(p[0]))
+                        ys.append(float(p[1]))
+                except Exception:
+                    pass
+            return xs, ys
+        except Exception:
+            return [], []
+
     try:
-        # 优先尝试 LWPOLYLINE 的面积
-        if hasattr(entity, "length"):
-            length = entity.length
-            # LWPOLYLINE 如果是闭合的，使用顶点坐标计算
-            try:
-                points = list(entity.vertices())
-                if points and len(points) >= 3:
-                    xs = [p.x for p in points]
-                    ys = [p.y for p in points]
-                    area = 0.0
-                    n = len(xs)
-                    for i in range(n):
-                        j = (i + 1) % n
-                        area += xs[i] * ys[j] - xs[j] * ys[i]
-                    return abs(area) / 2.0
-            except Exception:
-                pass
+        # LWPOLYLINE / POLYLINE
+        if entity.dxftype() in ("LWPOLYLINE", "POLYLINE"):
+            xs, ys = _extract_points(entity)
+            if len(xs) >= 3:
+                area = 0.0
+                n = len(xs)
+                for i in range(n):
+                    j = (i + 1) % n
+                    area += xs[i] * ys[j] - xs[j] * ys[i]
+                return abs(area) / 2.0
 
         # CIRCLE
         if hasattr(entity, "dxf") and hasattr(entity.dxf, "radius"):
