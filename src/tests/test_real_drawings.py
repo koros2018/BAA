@@ -12,6 +12,10 @@ BAA 真实图纸测试基线
   2026-07-20 v2.5.12 基线漂移修复
   - parser 升级后 room 检测归零（WIRE/DOTLN 过滤），column/door 重新分配
   - 扩宽容忍度至 ±30%，覆盖真实图纸解析的自然漂移
+  2026-07-29 v2.5.25 P79/P80 基线更新
+  - P79: LAYER_RULES +99% 覆盖，entity 分布微漂移
+  - P80: DOTE 层线条从 other→wall，room 重新识别
+  - 新增 6 张真实图纸 + 7 张（东莞通）全覆盖，evacuation 断言
 """
 
 import sys  # import
@@ -72,100 +76,132 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 
 # ── 实体类型分布基线 ──
 # 格式: {文件名: {实体类型: 数量}}
-# 允许 ±10% 浮动（避免每次 parser 升级导致基线碎掉）
+# 允许 ±30% 浮动（真实图纸解析有自然漂移，parser/语义规则升级后需更新基线）
+# 基线日期: 2026-07-29 v2.5.25 (P79 LAYER_RULES 99% 覆盖 + P80 几何兜底)
 ENTITY_BASELINE = {  # assignment
+    # ── 建筑/结构图纸 ──
     "A1云计算中心平面图0405_t3.dxf": {  # code
-        "wall": 2280,
-        "door": 25,
-        "window": 787,
+        "wall": 2414,
+        "door": 2268,
+        "window": 773,
         "stair": 402,  # code
-        "column": 337,  # 2026-07-25: 基线更新（从 128 漂移，parser 对 column 层规则识别增强）
-        "room": 0,
-        "dimension": 1288,
-        "text": 126,  # code
-        "other": 4896,  # code
+        "column": 302,  # 2026-07-29 P79/P80: DOTE→wall 后 column 从 337→302
+        "room": 30,
+        "dimension": 1285,
+        "text": 1257,
+        "other": 336,
         "parking_space": 17,
-        "fire_hydrant": 3,
-        "handrail": 3,
+        "handrail": 4,
+        "fire_door": 11,
+        "fire_elevator": 1,
+        "exit": 1,
+        "antechamber": 3,
+        "control_room": 2,
+        "pump_room": 1,
     },  # code
     "20210409-3#泵房_t3.dxf": {  # code
-        "wall": 384,
-        "door": 0,
+        "wall": 344,
+        "door": 2,
         "window": 29,
-        "stair": 46,  # code
-        "column": 159,  # 2026-07-25: 基线更新（column 层规则增强，33→159）
-        "room": 0,
+        "stair": 45,  # code
+        "column": 143,  # 2026-07-29 P80: DOTE→wall 后 column 从 159→143
+        "room": 6,
         "dimension": 362,
-        "text": 48,  # code
-        "other": 677,
-        "equipment": 6,
+        "text": 362,
+        "other": 92,
+        "equipment": 5,
         "fire_zone": 4,  # code
-        "fire_equipment": 42,
+        "fire_door": 2,
+        "ramp": 1,
+        "exit": 1,
+        "structure": 11,
+        "pump_room": 6,
+        "water_reservoir": 2,
+        "fire_pump": 2,
     },  # code
     "202109409-2#配电房_t3.dxf": {  # code
-        "wall": 291,
-        "door": 0,
+        "wall": 278,
+        "door": 7,
         "window": 80,
-        "stair": 105,  # code
-        "column": 84,  # 2026-07-25: 基线更新（column 层规则增强，6→84）
-        "room": 0,
+        "stair": 100,  # code
+        "column": 88,  # 2026-07-29 P80: DOTE→wall 后 column 从 84→88
+        "room": 2,
         "dimension": 369,
-        "text": 57,  # code
-        "other": 530,
-        "equipment": 24,
+        "text": 328,
+        "other": 50,
+        "equipment": 23,
         "fire_zone": 4,  # code
+        "fire_door": 2,
+        "ramp": 1,
+        "exit": 1,
+        "structure": 11,
     },  # code
+    # ── 消防图纸 ──
     "6.火灾自动报警 （报审）_t3.dxf": {  # code
-        "wall": 584,
-        "door": 204,
-        "window": 85,
-        "stair": 2,  # code
-        "column": 59,
-        "room": 0,
-        "dimension": 945,
-        "text": 40,  # 2026-07-25: 基线更新（text 层规则识别调整）
-        "other": 3236,
-        "equipment": 4665,  # code
+        "wall": 719,
+        "door": 232,
+        "window": 84,
+        "stair": 1,  # code
+        "column": 37,
+        "room": 12,
+        "dimension": 941,
+        "text": 467,
+        "other": 229,
+        "equipment": 4659,  # code
         "fire_hydrant": 68,
         "sprinkler": 12,
-        "fire_extinguisher": 7,  # 2026-07-25: 基线更新（fire_extinguisher 层规则调整后 14→7）
-        "smoke_detector": 10,
-        "fire_alarm": 20,
-        "water_reservoir": 3,  # code
-        "fire_door": 9,  # code
+        "fire_extinguisher": 18,
+        "smoke_detector": 13,
+        "fire_alarm": 35,
+        "fire_door": 10,
         "fire_equipment": 2,
         "alarm_device": 2,
+        "cable": 630,
+        "beam": 13,
+        "control_room": 3,
     },  # code
     "9.气体灭火（唯美图框）_t3.dxf": {  # code
-        "wall": 682,
-        "door": 333,
+        "wall": 644,
+        "door": 331,
         "window": 3,
         "stair": 0,  # code
-        "column": 284,
+        "column": 283,
         "room": 0,
         "dimension": 627,
-        "text": 1107,  # code
-        "other": 3983,
+        "text": 1179,
+        "other": 3490,
         "equipment": 2466,  # code
-        "fire_extinguisher": 193,  # code
+        "fire_extinguisher": 278,
         "sprinkler": 265,
+        "fire_door": 1,
+        "fire_alarm": 2,
+        "smoke_detector": 1,
+        "pipe": 6,
+        "exit": 1,
+        "equipment_room": 1,
     },  # code
     "A1云计算中心_水消防2017.03.31_t3.dxf": {  # code
-        "wall": 204,
-        "door": 1050,
-        "window": 627,
+        "wall": 196,
+        "door": 1065,
+        "window": 290,
         "stair": 0,  # code
-        "column": 54,
-        "room": 0,
-        "dimension": 130,
-        "text": 153,  # code
-        "other": 4950,  # code
-        "fire_hydrant": 7,  # 2026-07-25: 基线更新（fire_hydrant 层规则调整后数量下降）
-        "sprinkler": 76,  # 2026-07-25: 基线更新（sprinkler 层规则调整后 195→76）
-        "fire_extinguisher": 62,  # code
-        "fire_equipment": 96,
+        "column": 51,
+        "room": 7,
+        "dimension": 129,
+        "text": 268,
+        "other": 6918,  # code
+        "fire_hydrant": 9,
+        "sprinkler": 77,
+        "fire_extinguisher": 64,
         "fire_alarm": 1,
         "handrail": 3,
+        "indoor_hydrant": 8,
+        "sprinkler_head": 10,
+        "pipe": 209,
+        "water_pipe": 10,
+        "check_valve": 6,
+        "speaker": 1,
+        "pump": 1,
     },  # code
 }  # code
 
@@ -174,7 +210,7 @@ EXIST_EXPECTED = {  # assignment
     "6.火灾自动报警 （报审）_t3.dxf": {  # code
         "EXIST-005": "PASS",  # 自动灭火系统
         "EXIST-006": "PASS",  # 火灾报警系统
-        "EXIST-009": "PASS",  # 消防水池
+        # 注: EXIST-009（消防水池）已移除 — 本报警图纸不含水消防系统，无 water_reservoir 实体
     },  # code
     "9.气体灭火（唯美图框）_t3.dxf": {  # code
         "EXIST-005": "PASS",  # 气体灭火→自动灭火系统
