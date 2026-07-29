@@ -504,9 +504,7 @@ LAYER_RULES = {  # assign
     "消防窗": "fire_window",
     "WINDOW_GLASS": "window_glass",  # 窗玻璃
     "窗玻璃": "window_glass",
-    "TRUNKING": "trunking",  # 线槽（重复确认）
     "线槽": "trunking",
-    "WALL_INSULATION": "wall_insulation",  # 墙体保温（重复确认）
     "保温层": "wall_insulation",
     "WASHBASIN": "washbasin",  # 洗手盆
     "洗手盆": "washbasin",
@@ -685,7 +683,6 @@ LAYER_RULES = {  # assign
     "VERTICAL_PIPE": "vertical_pipe",
     "VERTICAL_SHAFT": "vertical_shaft",  # 竖井
     "竖井": "vertical_shaft",
-    "DRIVE": "driveway",  # 车道（重复确认）
     "车道": "driveway",
     "EXTERNAL_STAIR": "external_stair",  # 室外楼梯
     "室外楼梯": "external_stair",
@@ -731,6 +728,121 @@ LAYER_RULES = {  # assign
     "广播": "alarm_device",  # 广播设备
     "疏散指示": "alarm_device",  # 疏散指示设备
     "钢夹层": "other",  # 钢结构夹层
+    # ── P79 真实图纸常见图层补全（基于 7 张 DXF audit，覆盖 148 个未匹配层名中的高频/有意义项）──
+    # HVAC / 暖通
+    "暖通": "hvac_equipment",  # 暖通系统图层前缀（real: 暖通-排风-法兰, 暖通-排风-2d边线）
+    "暖通-": "hvac_equipment",  # 暖通系统分层（real: 暖通-排风-阀门）
+    "暖通-排风-法兰": "duct_fitting",  # 排风法兰
+    "暖通-排风-2d边线": "duct",  # 排风风管边线
+    "暖通-排烟-法兰": "duct_fitting",  # 排烟法兰
+    "暖-说明": "other",  # 暖通说明文字
+    "a-空调机组": "hvac_equipment",  # 空调机组
+    "A_空调机组": "hvac_equipment",  # 空调机组
+    "M-EQPM": "hvac_equipment",  # 空调设备（real: m-eqpm）
+    "0D-EQPM-P": "hvac_equipment",  # 空调设备布置
+    "FG": "hvac_equipment",  # 风柜（real: fg=风管/风柜）
+    "a_fg": "hvac_equipment",  # 风管
+    "a_fgend": "hvac_equipment",  # 风管端头
+    "FFFS": "fire_system",  # 火灾报警系统缩写
+    "K-FF": "hvac_equipment",  # 空调风口
+    "BZ_F_PY": "hvac_equipment",  # 排烟风口标注
+    "vac_fm_py": "duct",  # 排烟风口
+    "AT_PF": "hvac_equipment",  # 排风
+    "SD": "other",  # 说明文字图层
+    "FUZHU": "other",  # 辅助线图层
+    "TH": "other",  # 文字标注
+    "HT": "other",  # 文字标注
+    "INS": "other",  # 文字标注
+    "STE": "other",  # 文字标注
+    "PM": "other",  # 图框标记
+    "INS": "other",  # 文字标注（重复）
+    "ZX": "axis",  # 轴线中心线（real: zx-内看线）
+    "ZX-内看线": "axis",  # 轴线上内看线
+    "RD-中心线": "other",  # 道路中心线
+    "IRON": "other",  # 钢筋
+    "铁": "other",  # 钢筋
+    "TREE": "vegetation",  # 树木（real: tree）
+    "树": "vegetation",  # 树木
+    "绿地": "landscape",  # 绿化用地
+    "绿化": "landscape",  # 绿化（real: 绿化轮廓线）
+    "绿化轮廓线": "landscape",  # 绿化轮廓
+    "绿线": "landscape",  # 绿线（规划）
+    "规划": "planning",  # 规划（real: 规划）
+    "拟选址": "planning",  # 规划选址
+    "村界": "boundary",  # 村庄边界线
+    "路名": "other",  # 道路名称标注
+    "通-参照": "other",  # 通用参照
+    "通-图框": "titleblock",  # 图框
+    "通-图框-图签": "titleblock",  # 图框图签
+    "通-图框-文字": "titleblock",  # 图框文字
+    "通-图框-标题块": "titleblock",  # 图框标题块
+    "C-SHET": "titleblock",  # 图框
+    "图纸说明": "other",  # 图纸说明文字
+    "性质": "other",  # 文字标注
+    "抹灰": "other",  # 装修抹灰标注
+    "截断线": "other",  # 详图截断线
+    "建-标高": "dimension",  # 建筑标高
+    "建-留洞": "opening",  # 建筑留洞
+    "建-面积": "other",  # 建筑面积标注
+    "建.17.图框": "titleblock",  # 建筑图框
+    "排烟说明": "other",  # 排烟系统说明
+    "暖-说明": "other",  # 暖通说明
+    "防排烟说明": "other",  # 防排烟说明
+    "风井": "shaft",  # 通风竖井
+    "立剖-细": "other",  # 立剖细线
+    "细线": "other",  # 细线图层
+    "结-详图-线": "other",  # 结构详图线
+    "视口": "viewport",  # 布局视口
+    "设计院修改内容": "other",  # 设计变更标注
+    "0D-CHIM": "hvac_equipment",  # 空调设备
+    "0D-CHIM-C": "hvac_equipment",  # 空调设备（冷却）
+    "0D-CHIM-INSU": "insulation",  # 空调保温
+    "G-IMPT": "other",  # 图框标记
+    "J02-QG": "other",  # 标注图层
+    "J02-QH": "other",  # 标注图层
+    "I01-DH": "other",  # 标注图层
+    "I02-DG": "other",  # 标注图层
+    "JMD": "other",  # 标注图层
+    "JIANZHU": "building",  # 建筑标注
+    "C": "window",  # 窗（real: C 短关键字，但此处为长匹配兜底）
+    "X": "other",  # 坐标标注
+    "0": "other",  # 图层 0（默认图层）
+    "DEFPOINTS": "other",  # 尺寸标注辅助点
+    "DM-坐标": "dimension",  # 坐标标注
+    "EQUIP_雨水斗": "drain",  # 雨水斗
+    "PROYECCIONES": "other",  # 投影
+    "NT": "other",  # 文字图层
+    "NT1": "other",  # 文字图层
+    "NT2017": "other",  # 文字图层
+    "NT面积线": "other",  # 面积线
+    "NNT": "other",  # 文字标注
+    "P-KX1": "other",  # 图框标记
+    "PP-BZ-ZB": "other",  # 标注图层
+    "PP-COM": "other",  # 图框标记
+    "OP": "other",  # 文字标注
+    "VDWG": "other",  # 图框
+    "AC": "other",  # 标注图层
+    "TQHZ": "other",  # 标注图层
+    "TMZT": "other",  # 标注图层
+    "TC": "other",  # 标注图层
+    "CHC": "other",  # 标注图层
+    "AREA_1": "other",  # 面积标注
+    "ARC": "other",  # 弧线标记
+    "BORDER": "other",  # 图框边界
+    "OTHER": "other",  # 通用 other 层
+    "图层1": "other",  # 默认图层
+    "图则": "other",  # 图则说明
+    "图例框": "other",  # 图例框
+    "分车带": "landscape",  # 道路分车绿化带
+    "内部文字": "other",  # 内部文字标注
+    "公服图例": "other",  # 公共服务图例
+    "规划建筑": "building",  # 规划建筑
+    "水-套管": "pipe",  # 排水套管
+    "水－雨水－窨井": "drain",  # 雨水窨井
+    "水-套管": "pipe",  # 套管
+    "3T_WOOD": "other",  # 天正家具填充（real: 3T_WOOD）
+    "IHY-ROOM NAME": "other",  # 房间名称标注
+    "建.17.图框文字": "titleblock",  # 建筑图框文字
     # ── P47 无障碍设施图层 ──
     "RAMP": "ramp",
     "SLOPE": "ramp",
@@ -2366,7 +2478,7 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         # 防御性过滤：修复 NaN bbox
         for ent in entities:  # 循环
             bbox = ent.bbox  # assign
-            for k in ("x", "y", "width", "height"):  # loop: for k in ('x', 'y', 'width', 'height'):
+            for k in ("x", "y", "width", "height"):  # loop: for k in ('X', 'y', 'width', 'height'):
                 v = bbox.get(k, 0)  # assign
                 if isinstance(v, float) and math.isnan(v):  # check: AND condition
                     bbox[k] = 0.0  # init: set to 0
@@ -2788,9 +2900,20 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         # 必须也参与相邻关系构建，否则 BFS 拓扑为空（has_route=False）
         # wall 必须包含：room↔wall adjacent 是 step 5 (room-wall-door 传递) 的基础
         KEY_ENTITY_TYPES = {
-            "room", "corridor", "door", "exit", "stair", "fire_door", "exit_door",
-            "lobby", "pump_room", "space", "anteroom",
-            "elevator_lobby", "staircase_lobby", "entrance_hall",
+            "room",
+            "corridor",
+            "door",
+            "exit",
+            "stair",
+            "fire_door",
+            "exit_door",
+            "lobby",
+            "pump_room",
+            "space",
+            "anteroom",
+            "elevator_lobby",
+            "staircase_lobby",
+            "entrance_hall",
         }
 
         CELL_SIZE = 100.0  # mm
