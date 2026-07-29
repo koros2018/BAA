@@ -873,7 +873,7 @@ LAYER_RULES = {  # assign
     "FIRE_CURT": "fire_curtain",
     "QMQJ": "gas_suppression",
     "JBR": "heat_detector",  # 火灾探测器常见简写
-    "L": "lobby",
+    # P82: "L" 已移至 SHORT_LAYER_RULES 做全词匹配，防止 TEL_LEAD 等引线层误匹配为 lobby
     "OUTDOOR_STAIR": "outdoor_stair",
     "STAIRS": "stairs",
     "FB": "pump_controller",
@@ -883,6 +883,8 @@ LAYER_RULES = {  # assign
 
 # 短关键字（单字母/2字母）使用全词匹配
 SHORT_LAYER_RULES = {  # assign
+    # P82: "L" 全词匹配，防止 LAYER_RULES 子串误匹配（TEL_LEAD → lobby 假阳性）
+    "L": "lobby",  # 单字母图层 L = 大堂/前室
     "W": "wall",  # 字段
     "D": "door",  # 字段
     "M": "door",  # 字段
@@ -1615,16 +1617,16 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
         for prim in primitives:  # 循环
             # 图层规则匹配
             entity_type = self._classify_by_layer(prim.layer)  # assign
-            # P80 修复：图层规则返回"other"时，让几何分类兜底，
+            # P80+P82 修复：图层规则返回"other"时，让几何分类兜底为wall，
             # 否则闭合多边形（如 DOTE 层实线围合区域）被误判为非建筑实体，
-            # 导致 _merge_line_chains_to_rooms 无法找到 room，疏散分析返回空
+            # 导致 _merge_line_chains_to_rooms 无法找到 room，疏散分析返回空。
+            # 但仅接受 "wall"：PUB_HATCH 等填充图案层的 LINE（~550mm）会被
+            # 几何误判为 door（宽度线），产生大量假门（2210个）导致 EVAC 假阳性。
             if (
                 entity_type == "unknown" or entity_type == "other"
             ):  # condition: entity_type == "unknown" or entity_type == "other"
                 geo_type = self._classify_by_geometry(prim)  # assign
-                if (
-                    geo_type != "unknown" and geo_type != "other"
-                ):  # condition: geo_type is meaningful
+                if geo_type == "wall":  # 只接受 wall 兜底，排除 door/window
                     entity_type = geo_type  # assign
 
             if entity_type == "unknown":  # condition: entity_type == "unknown":
@@ -2923,6 +2925,10 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             "elevator_lobby",
             "staircase_lobby",
             "entrance_hall",
+            # P82: 大图纸相邻关系需包含 wall——room↔wall↔door↔stair 链是
+            # 疏散 BFS 的核心路径，缺 wall 导致所有 room has_route=False
+            "wall",
+            "facade",  # 外墙参与 room↔facade↔exit 路径
         }
 
         CELL_SIZE = 100.0  # mm
