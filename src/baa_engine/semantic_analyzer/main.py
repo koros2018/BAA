@@ -1618,9 +1618,13 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
             # P80 修复：图层规则返回"other"时，让几何分类兜底，
             # 否则闭合多边形（如 DOTE 层实线围合区域）被误判为非建筑实体，
             # 导致 _merge_line_chains_to_rooms 无法找到 room，疏散分析返回空
-            if entity_type == "unknown" or entity_type == "other":  # condition: entity_type == "unknown" or entity_type == "other"
+            if (
+                entity_type == "unknown" or entity_type == "other"
+            ):  # condition: entity_type == "unknown" or entity_type == "other"
                 geo_type = self._classify_by_geometry(prim)  # assign
-                if geo_type != "unknown" and geo_type != "other":  # condition: geo_type is meaningful
+                if (
+                    geo_type != "unknown" and geo_type != "other"
+                ):  # condition: geo_type is meaningful
                     entity_type = geo_type  # assign
 
             if entity_type == "unknown":  # condition: entity_type == "unknown":
