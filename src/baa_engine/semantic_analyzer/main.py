@@ -883,8 +883,8 @@ LAYER_RULES = {  # assign
 
 # 短关键字（单字母/2字母）使用全词匹配
 SHORT_LAYER_RULES = {  # assign
-    # P82: "L" 全词匹配，防止 LAYER_RULES 子串误匹配（TEL_LEAD → lobby 假阳性）
-    "L": "lobby",  # 单字母图层 L = 大堂/前室
+    # P82: "L" 已移除——全词匹配误命中 WP_L_PJ（水管道层，L=Layer非Lobby）
+    # 真实 DXF 中无裸 "L" 层名（6张图纸 0 命中），lobby 实体来自 LOBBY/QT/大堂 等
     "W": "wall",  # 字段
     "D": "door",  # 字段
     "M": "door",  # 字段
