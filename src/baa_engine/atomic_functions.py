@@ -461,9 +461,11 @@ class AtomicFunction:  # class definition
                 pass
             elif val > 10000:  # check: numeric comparison
                 val = val / 1000000.0  # assign
-            # DXF 测量精度有限，阈值边界 15% 内跳过（0.88 vs 1.0 差 12%）
-            if abs(val - self.threshold) < 0.15 * self.threshold:  # 容差 15%
-                return None  # 边界值，DXF 测量误差，跳过判定
+            # DXF bbox 测量精度约 ±15%（窗面积 0.88 vs 阈值 1.0 差 12%），
+            # 单向向下容差：仅跳过测量值略低于阈值的边界 case，避免误报
+            # 15% 仅向下覆盖（850mm×1100mm 窗 DXF bbox 常见值 0.88m²）
+            if self.threshold * 0.85 <= val < self.threshold:
+                return None  # DXF 测量误差（约 15%），不报违规
             return val  # return
 
         # L2 新增函数
@@ -485,7 +487,8 @@ class AtomicFunction:  # class definition
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
                 return None  # return: None
-            # 设备门/管井门排除：图层含 设备/管线/PIPE/SB 等关键词
+            # 设备门/管井门排除：图层含 设备/管线/管井/PIPE/喷淋/消防排水 等关键词
+            # "SB" 是建筑通用图层（建筑=SB），排除会误杀所有建筑门，已移除
             if func_id == "DIM-006":  # condition: func_id == "DIM-006":
                 layer = entity.get("layer", "").upper()  # function call
                 non_exit_layer_kw = [
@@ -493,7 +496,6 @@ class AtomicFunction:  # class definition
                     "管线",
                     "管井",
                     "PIPE",
-                    "SB",
                     "喷淋",
                     "消防排水",
                 ]  # assignment
