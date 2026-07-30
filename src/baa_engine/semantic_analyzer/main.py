@@ -642,6 +642,10 @@ LAYER_RULES = {  # assign
     "疏散走道": "exit_passageway",
     "EXIT_SIGN": "exit_sign",  # 出口标志
     "出口标志": "exit_sign",
+    "出口指示灯": "exit_sign",  # 出口指示灯
+    "安全出口标志": "exit_sign",  # 安全出口标志
+    "疏散指示灯": "exit_sign",  # 疏散指示灯
+    "EMERGENCY_EXIT_SIGN": "exit_sign",  # 应急出口标志
     "DIRECTIONAL_SIGN": "directional_sign",  # 方向标志
     "方向标志": "directional_sign",
     "LIGHT_ALARM": "light_alarm",  # 声光报警
@@ -717,6 +721,10 @@ LAYER_RULES = {  # assign
     "弱电": "equipment",  # 弱电设备
     "照明": "equipment",  # 照明设备
     "应急照明": "equipment",  # 应急照明设备
+    "应急照明线路": "evacuation_lighting",  # 应急照明线路
+    "应急照明灯": "evacuation_lighting",  # 应急照明灯头
+    "应急灯": "evacuation_lighting",  # 应急灯
+    "EVAC_LIGHT": "evacuation_lighting",  # 疏散照明
     # ── 消防设施图层（新增） ──
     "消防": "fire_equipment",  # 消防设备
     "消火栓": "fire_hydrant",  # 消火栓设备
@@ -789,6 +797,9 @@ LAYER_RULES = {  # assign
     "暖-说明": "other",  # 暖通说明
     "防排烟说明": "other",  # 防排烟说明
     "风井": "shaft",  # 通风竖井
+    "上线井": "shaft",  # 管线竖井（红土深汕 DXF）
+    "通风井": "shaft",  # 通风竖井
+    "井道": "shaft",  # 管道井道
     "立剖-细": "other",  # 立剖细线
     "细线": "other",  # 细线图层
     "结-详图-线": "other",  # 结构详图线
