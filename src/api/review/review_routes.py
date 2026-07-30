@@ -52,6 +52,7 @@ import json
 import hashlib
 from collections import Counter
 
+
 def _build_structured_summary(details: list[dict]) -> dict:
     """P62: 从 details 生成结构化摘要。
 
@@ -140,7 +141,9 @@ def _build_structured_summary(details: list[dict]) -> dict:
         "compliance_actions": compliance_actions,
     }
 
+
 # ── End P62 ────────────────────────────────────────────────
+
 
 @router.post("/review")  # function call
 async def review(  # code
@@ -557,6 +560,7 @@ async def review(  # code
 
     return response_data  # return
 
+
 @router.get("/review/pdf", tags=["Review"])  # P69: PDF 报告导出
 async def export_review_pdf(  # code
     review_id: str = Query(..., description="审查记录 ID"),  # assignment
@@ -622,6 +626,7 @@ async def export_review_pdf(  # code
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{pdf_name}"'},
     )
+
 
 @router.post("/review-from-data")  # function call
 async def review_from_data(  # code
@@ -908,7 +913,9 @@ async def review_from_data(  # code
 
     return response_data  # return
 
+
 # ── P45 热工性能 K 值计算 ──────────────────────────────────
+
 
 @router.post("/thermal/k-value")  # function call
 async def compute_thermal_k(  # code
@@ -962,6 +969,7 @@ async def compute_thermal_k(  # code
         result["additionalThicknessMm"] = round(max(0, d_needed_mm - thickness_mm), 1)
 
     return result
+
 
 @router.post("/reconstruct")  # function call
 async def reconstruct(  # code
@@ -1023,6 +1031,7 @@ async def reconstruct(  # code
         "valid_until": (datetime.utcnow() + timedelta(days=30)).isoformat() + "Z",  # 字段
     }  # code
 
+
 @router.get("/order/{order_id}")  # function call
 async def get_order(  # code
     order_id: str,  # 操作
@@ -1060,6 +1069,7 @@ async def get_order(  # code
             "progress": 50,  # 字段
             "estimated_remaining_ms": 15000,  # 字段
         }  # code
+
 
 # ── P73: 多Sheet 多区域图纸审查 ───────────────────────────
 @router.post("/review-multi-sheet", tags=["Review"])
@@ -1455,5 +1465,6 @@ async def review_multi_sheet(
             os.unlink(str(file_path))
         except Exception:
             pass
+
 
 # ── 图纸渲染 ──────────────────────────────────────────────

@@ -1,6 +1,7 @@
 """
 P78: review_routes.py 共享辅助函数
 """
+
 from enum import Enum
 from datetime import datetime, timedelta
 from collections import Counter
@@ -115,9 +116,7 @@ def _build_structured_summary(details: list[dict]) -> dict:
         if v["priority"] not in actions[path]["priorities"]:
             actions[path]["priorities"].append(v["priority"])
 
-    compliance_actions = sorted(
-        actions.values(), key=lambda a: a["count"], reverse=True
-    )
+    compliance_actions = sorted(actions.values(), key=lambda a: a["count"], reverse=True)
 
     return {
         "top_violations": top_violations_out,
@@ -186,8 +185,15 @@ THERMAL_THRESHOLDS = {
 
 # ── P78: 审查共享逻辑（standard + multi_sheet 共用） ──────
 
+
 def _build_findings(
-    entities: list, registry_funcs: list, repo, get_strict_threshold, _get_fr, _get_aa, standard: str
+    entities: list,
+    registry_funcs: list,
+    repo,
+    get_strict_threshold,
+    _get_fr,
+    _get_aa,
+    standard: str,
 ) -> list[dict]:
     """对 entities 逐一跑原子函数，返回 details 列表 + clause_results Counter。
 
@@ -197,12 +203,8 @@ def _build_findings(
 
     clause_results = Counter()
     details = []
-    global_funcs = [
-        f for f in registry_funcs if getattr(f, "requires_global_context", False)
-    ]
-    local_funcs = [
-        f for f in registry_funcs if not getattr(f, "requires_global_context", False)
-    ]
+    global_funcs = [f for f in registry_funcs if getattr(f, "requires_global_context", False)]
+    local_funcs = [f for f in registry_funcs if not getattr(f, "requires_global_context", False)]
 
     for e in entities:
         for func in local_funcs:
@@ -274,9 +276,7 @@ def _build_findings(
                         "severity": f.judgement.get("severity", "critical"),
                         "extracted_value": f.extracted_params.get("extracted_value", 0.0),
                         "required_value": f.extracted_params.get("required_value", 1.0),
-                        "difference": -(
-                            f.extracted_params.get("required_value", 1.0) or 1.0
-                        ),
+                        "difference": -(f.extracted_params.get("required_value", 1.0) or 1.0),
                         "explanation": f.explanation[:120],
                         "confidence": r.confidence,
                         "confidence_tier": _confidence_tier(r.confidence),

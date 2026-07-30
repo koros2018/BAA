@@ -1,5 +1,7 @@
 """P76 诊断：6 张黄金标准图纸逐项分析"""
+
 import sys, os, json
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from baa_engine.drawing_parser import DrawingParser
@@ -44,8 +46,17 @@ for fname, expected_funcs in targets:
         types[t] = types.get(t, 0) + 1
 
     # 关键类型
-    key_types = ["room", "corridor", "door", "exit_door", "pump_room",
-                 "stair", "fire_door", "fire_wall", "rescue_window"]
+    key_types = [
+        "room",
+        "corridor",
+        "door",
+        "exit_door",
+        "pump_room",
+        "stair",
+        "fire_door",
+        "fire_wall",
+        "rescue_window",
+    ]
     present = {k: types.get(k, 0) for k in key_types if types.get(k, 0) > 0}
     missing = [k for k in key_types if k not in present]
     print(f"   实体类型（关键）: {json.dumps(present, ensure_ascii=False)}")
@@ -69,8 +80,11 @@ for fname, expected_funcs in targets:
         print(f"   --- {fid} ---")
         if fid == "EVAC-004":
             # 需要 evacuation_connected 属性
-            conn_ents = [e for e in ents if e.get("evacuation_connected") is not None
-                         or "evacuation_bottleneck" in e]
+            conn_ents = [
+                e
+                for e in ents
+                if e.get("evacuation_connected") is not None or "evacuation_bottleneck" in e
+            ]
             print(f"   evacuation_connected 实体: {len(conn_ents)}")
             if len(conn_ents) == 0:
                 print(f"   ❌ 漏检根因: 无实体带 evacuation_connected 属性")
@@ -84,8 +98,11 @@ for fname, expected_funcs in targets:
                 print(f"      前置条件: analyze_evacuation_routes() 返回空")
         elif fid == "DIST-001":
             # 需要 travel_distance 属性
-            td_ents = [e for e in ents if "travel_distance" in e
-                       or e.get("properties", {}).get("travel_distance")]
+            td_ents = [
+                e
+                for e in ents
+                if "travel_distance" in e or e.get("properties", {}).get("travel_distance")
+            ]
             print(f"   travel_distance 实体: {len(td_ents)}")
             if len(td_ents) == 0:
                 print(f"   ❌ 漏检根因: 无实体带 travel_distance 属性")
