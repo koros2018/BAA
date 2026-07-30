@@ -86,7 +86,7 @@ ENTITY_BASELINE = {  # assignment
         "window": 773,
         "stair": 402,  # code
         "column": 302,  # 2026-07-29 P79/P80: DOTE→wall 后 column 从 337→302
-        "room": 30,
+        "room": 41,  # P83: 几何兜底恢复door/window后闭合区域room增多（30→41）
         "dimension": 1285,
         "text": 1257,
         "other": 336,
@@ -150,8 +150,8 @@ ENTITY_BASELINE = {  # assignment
         "equipment": 4659,  # code
         "fire_hydrant": 68,
         "sprinkler": 12,
-        "fire_extinguisher": 18,
-        "smoke_detector": 13,
+        "fire_extinguisher": 25,  # P83: 几何兜底恢复后灭火设备+7
+        "smoke_detector": 19,  # P83: 几何兜底恢复后+6
         "fire_alarm": 35,
         "fire_door": 10,
         "fire_equipment": 2,

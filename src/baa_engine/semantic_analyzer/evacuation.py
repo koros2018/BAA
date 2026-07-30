@@ -171,9 +171,20 @@ def _analyze_evacuation_routes_impl(
     if not rooms:
         # P76 修复：room 实体在真实图纸中识别不足（被识别为 lobby/pump_room/space 等）
         # 扩展为所有封闭空间类型
-        fallback_rooms = [e for e in entities
-                          if e.type in ("corridor", "lobby", "pump_room",
-                                        "space", "anteroom", "elevator_lobby", "staircase_lobby")]
+        fallback_rooms = [
+            e
+            for e in entities
+            if e.type
+            in (
+                "corridor",
+                "lobby",
+                "pump_room",
+                "space",
+                "anteroom",
+                "elevator_lobby",
+                "staircase_lobby",
+            )
+        ]
         if fallback_rooms:
             rooms = fallback_rooms
         else:

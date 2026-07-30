@@ -1626,7 +1626,11 @@ class SemanticAnalyzer:  # class: class SemanticAnalyzer:
                 entity_type == "unknown" or entity_type == "other"
             ):  # condition: entity_type == "unknown" or entity_type == "other"
                 geo_type = self._classify_by_geometry(prim)  # assign
-                if geo_type == "wall":  # 只接受 wall 兜底，排除 door/window
+                if (
+                    geo_type != "unknown" and geo_type != "other"
+                ):  # P80: 几何兜底接受所有有效类型（wall/door/window等），
+                    # PUB_HATCH 等填充层已由 LAYER_RULES 正确返回 "other" 被过滤，
+                    # 真实 DOOR_FIRE/SLAB/窗图层返回 "unknown" 走几何兜底保留 door/window
                     entity_type = geo_type  # assign
 
             if entity_type == "unknown":  # condition: entity_type == "unknown":
