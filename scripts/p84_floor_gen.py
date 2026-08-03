@@ -15,6 +15,23 @@ from baa_engine.semantic_analyzer.main import SemanticAnalyzer
 GAP_THRESH = 2000.0
 MAX_ENTITIES = 30000
 
+
+def is_coord(v):
+    """Accept tuple/list or Vec3-like (ezdxf.acc.vector.Vec3)."""
+    if isinstance(v, (tuple, list)):
+        return len(v) >= 2
+    if hasattr(v, '__len__') and hasattr(v, '__iter__'):
+        return len(v) >= 2
+    return False
+
+
+def to_point(v):
+    """Convert a coord to (x, y, z) floats."""
+    try:
+        return (float(v[0]), float(v[1]), float(v[2]) if len(v) > 2 else 0.0)
+    except Exception:
+        return (0.0, 0.0, 0.0)
+
 LABEL2CLASS = {
     "wall": 0, "door": 1, "window": 2, "stair": 3, "corridor": 4,
     "fire_door": 5, "exit": 6, "fire_lane": 7, "fire_zone": 8,
@@ -42,15 +59,16 @@ def get_dxf_attrs(e):
                  "insertion_point", "vertex"):
         if hasattr(dxf, attr):
             v = getattr(dxf, attr, None)
-            if v and isinstance(v, (tuple, list)) and len(v) >= 2:
-                points.append((v[0], v[1], v[2] if len(v) > 2 else 0))
+            if v and is_coord(v):
+                points.append(to_point(v))
                 props[attr] = v
     # control_points (for ARC, SPLINE, LWPOLYLINE vertexes)
     try:
         cp = dxf.control_points
         if cp:
             for p in cp:
-                points.append((p[0], p[1], p[2] if len(p) > 2 else 0))
+                if is_coord(p):
+                    points.append(to_point(p))
                 props["control_points"] = cp
     except Exception:
         pass
@@ -61,8 +79,8 @@ def get_dxf_attrs(e):
             for vv in vs:
                 try:
                     p = vv.dxf.location
-                    if p:
-                        points.append((p[0], p[1], p[2] if len(p) > 2 else 0))
+                    if is_coord(p):
+                        points.append(to_point(p))
                 except Exception:
                     pass
             props["vertexes"] = vs
@@ -199,35 +217,44 @@ def process_floor(fp, fi, y0, y1):
     if not yolo_entities:
         return None
 
-    img_w = max(100, int(x1 - x0))
-    img_h = max(100, int(y1_ - y0_))
+    img_w_target = min(4096, max(100, int(x1 - x0)))
+    img_h_target = min(4096, max(100, int(y1_ - y0_)))
+    # Coordinate range (may be much larger than image; used for YOLO scaling)
+    x0 = float(x0)
+    x1 = float(x1)
+    y0_ = float(y0_)
+    y1_ = float(y1_)
+    img_w = img_w_target
+    img_h = img_h_target
     img = Image.new("RGB", (img_w, img_h), (255, 255, 255))
     draw = ImageDraw.Draw(img)
     for e in yolo_entities:
         bbox = e.bbox
         try:
-            draw.rectangle(
-                [bbox["x"] - x0, bbox["y"] - y0_,
-                 bbox["x"] - x0 + bbox["width"], bbox["y"] - y0_ + bbox["height"]],
-                outline=(0, 0, 255), width=1,
-            )
+            # Map world coords into target pixel space
+            px0 = max(0, int((bbox["x"] - x0) / (x1 - x0) * img_w))
+            py0 = max(0, int((bbox["y"] - y0_) / (y1_ - y0_) * img_h))
+            px1 = min(img_w, int((bbox["x"] + bbox["width"] - x0) / (x1 - x0) * img_w))
+            py1 = min(img_h, int((bbox["y"] + bbox["height"] - y0_) / (y1_ - y0_) * img_h))
+            if px1 > px0 and py1 > py0:
+                draw.rectangle([px0, py0, px1, py1], outline=(0, 0, 255), width=1)
         except Exception:
             pass
 
-    # YOLO labels
+    # YOLO labels: YOLO expects normalized bbox in [0,1] of the rendered image.
     lines = []
     for e in yolo_entities:
         cls = LABEL2CLASS[e.type]
         bbox = e.bbox
-        x, y, w, h = bbox["x"], bbox["y"], bbox["width"], bbox["height"]
-        if w <= 0 or h <= 0:
+        w_, h_ = bbox["width"], bbox["height"]
+        if w_ <= 0 or h_ <= 0:
             continue
-        xc = x + w / 2
-        yc = y + h / 2
-        cx_rel = (xc - x0) / img_w
-        cy_rel = (yc - y0_) / img_h
-        w_rel = w / img_w
-        h_rel = h / img_h
+        xc = bbox["x"] + w_ / 2
+        yc = bbox["y"] + h_ / 2
+        cx_rel = (xc - x0) / (x1 - x0)
+        cy_rel = (yc - y0_) / (y1_ - y0_)
+        w_rel = w_ / (x1 - x0)
+        h_rel = h_ / (y1_ - y0_)
         if not (0 <= cx_rel <= 1 and 0 <= cy_rel <= 1 and w_rel > 0 and h_rel > 0):
             continue
         lines.append(f"{cls} {cx_rel:.6f} {cy_rel:.6f} {w_rel:.6f} {h_rel:.6f}")
