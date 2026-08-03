@@ -8,4 +8,4 @@ from . import atomic_functions
 from . import spec_repository
 from . import attribution_analyzer
 
-__version__ = "0.1.0"
+__version__ = "2.5.27"

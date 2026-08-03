@@ -100,8 +100,8 @@ class YOLODetectionIntegrator:
         path = model_path or self._model_path  # path: 赋值
         if not path:  # check: if not path
             # 默认路径：从项目根目录按版本优先级查找 best.pt
-            # 优先级：v6(m) > v4(n) > v3(n) > v2-3(n) > v2(n) > v1(n)
-            # v6 为最新模型（YOLOv8m，800 样本增强，mAP50=0.572）
+            # 优先级：v7_v5(m) > v6-2(m) > v4(n) > v3(n) > v2-3(n) > v2(n) > v1(n)
+            # v7_v5 为最新模型（YOLOv8m 保守 fine-tune，mAP50=0.595, +2.3 vs v6-2）
             project_root = Path(__file__).resolve().parent.parent.parent  # project_root: 赋值
             candidates = [
                 project_root
@@ -109,7 +109,7 @@ class YOLODetectionIntegrator:
                 / "detect"
                 / "data"
                 / "models"
-                / "baa_yolov8m_v6-2"
+                / "baa_yolov8m_v7_v5"
                 / "weights"
                 / "best.pt",
                 project_root
