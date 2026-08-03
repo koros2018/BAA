@@ -41,3 +41,8 @@ datasets/
 *.db
 *.db-shm
 *.db-wal
+# P84 intermediate artifacts (v8 floor experiment - not production)
+data/p84_yolo_dataset/
+data/p84_floor_data/
+p84_train_v8.py
+runs/detect/runs/
