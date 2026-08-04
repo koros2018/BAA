@@ -3,7 +3,7 @@ BAA 原子函数库 - 规范判定核心
 框架预留 30 个位置，首批实现 10 个
 """
 
-from typing import Dict, Any, Optional, List  # typing: type hints
+from typing import Dict, Any, Optional, List, Tuple, Set  # typing: type hints
 from enum import Enum  # import
 from dataclasses import dataclass, field  # dataclass support
 
@@ -882,6 +882,100 @@ class FuncRegistry:  # class definition
                         "clause_text": func.description,
                     },  # code
                 )  # code
+
+    def execute_batch(
+        self,
+        entity: Dict[str, Any],
+        func_specs: List[Tuple[AtomicFunction, float, str, str]],
+        timeout: Optional[int] = None,
+        results: Optional[Dict[str, FuncResult]] = None,
+        max_workers: Optional[int] = None,
+    ) -> Dict[str, FuncResult]:
+        """并发执行多个原子函数（同一 entity）
+
+        替代 batch_routes 中的串行 entity×func 嵌套循环。
+        每个函数调用前用 dataclasses.replace() 复制，避免共享对象竞态。
+        """
+        from dataclasses import replace
+        import os as _os
+
+        if max_workers is None:
+            max_workers = max(4, (_os.cpu_count() or 4))
+        timeout = timeout or 30
+
+        batch_results: Dict[str, FuncResult] = {}
+        all_results = dict(results) if results is not None else {}
+
+        def _run_one(idx: int) -> Tuple[int, Optional[FuncResult]]:
+            func, tval, unit, op = func_specs[idx]
+            func_copy = replace(func, threshold=tval, unit=unit, operator=op)
+            try:
+                if all_results and not self.check_dependencies(func_copy, all_results):
+                    return idx, None
+                r = func_copy.execute(entity)
+                if r is not None:
+                    all_results[func_copy.func_id] = r
+                return idx, r
+            except Exception as e:
+                logger.error(f"execute_batch error: {func.func_id}: {e}")
+                return idx, None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [pool.submit(_run_one, i) for i in range(len(func_specs))]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    idx, r = future.result(timeout=timeout)
+                    if r is not None:
+                        batch_results[func_specs[idx][0].func_id] = r
+                except Exception as e:
+                    logger.warning(f"execute_batch task timeout/error: {e}")
+
+        return batch_results
+
+    def execute_missing_batch(
+        self,
+        entity_types_in_drawing: Set[str],
+        funcs: List[AtomicFunction],
+        max_workers: Optional[int] = None,
+    ) -> Dict[str, FuncResult]:
+        """并发执行缺失检查（exist 类别）"""
+        from dataclasses import replace
+        import os as _os
+
+        if max_workers is None:
+            max_workers = max(4, (_os.cpu_count() or 4))
+
+        to_check = []
+        for f in funcs:
+            cat_val = getattr(getattr(f, "category", None), "value", None)
+            if cat_val != "exist":
+                continue
+            targets = set(f.target_entities) if f.target_entities else set()
+            if targets and not targets.intersection(entity_types_in_drawing):
+                continue
+            to_check.append(f)
+
+        batch_results: Dict[str, FuncResult] = {}
+
+        def _run_one(f: AtomicFunction) -> Optional[FuncResult]:
+            func_copy = replace(f)
+            try:
+                return func_copy.execute(None)
+            except Exception as e:
+                logger.error(f"execute_missing_batch error: {f.func_id}: {e}")
+                return None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [pool.submit(_run_one, f) for f in to_check]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    r = future.result(timeout=30)
+                    if r is not None:
+                        batch_results[r.func_id] = r
+                except Exception:
+                    pass
+
+        return batch_results
 
     def execute_chained(
         self,
