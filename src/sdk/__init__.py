@@ -375,6 +375,38 @@ class BAAClient:
         """查询 EMA2 任务结果"""
         return self._get(f"/api/v1/tasks/{task_id}/result")
 
+    # ── 施工图审查标准 (P48) ────────────────────────────────
+
+    def list_construction_review_items(
+        self,
+        major: str = None,
+        level: str = None,
+        category: str = None,
+        method: str = None,
+    ) -> dict:
+        """施工图审查深度标准列表
+
+        可选过滤参数: major(level) / level(L1/L2/L3) / category / method
+        """
+        params = {
+            k: v
+            for k, v in {
+                "major": major,
+                "level": level,
+                "category": category,
+                "method": method,
+            }.items()
+            if v is not None
+        }
+        return self._get("/api/v1/construction-review", params=params)
+
+    def construction_review_report(self, file_id: str) -> dict:
+        """生成施工图审查深度评分报告"""
+        return self._post(
+            "/api/v1/construction-review/report",
+            json_body={"file_id": file_id},
+        )
+
     # ── 多 Sheet 审查 (P73) ────────────────────────────────
 
     def review_multi_sheet(

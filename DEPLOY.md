@@ -73,3 +73,69 @@ gunicorn src.api.baa_api:app -k uvicorn.workers.UvicornWorker \
   -w 4 --bind 0.0.0.0:8000 --timeout 120 \
   --max-requests 10000 --preload
 ```
+## Kubernetes 生产部署（P63）
+
+> 文件: `k8s/baa-deployment.yaml`
+
+### 架构
+```
+Ingress(NGINX) → Service(ClusterIP:80) → 3×Deployment → PVC(/app/data)
+                                ↕
+                         HPA (2~10 副本)
+```
+
+### 前置要求
+- Kubernetes 1.26+，含 Ingress NGINX Controller
+- PVC 可用（本地/Cloud/EBS/RBD 等）
+
+### 部署步骤
+
+```bash
+# 1. 创建命名空间
+kubectl create ns baa
+
+# 2. 构建 + 推送镜像
+docker build -t baa:latest .
+docker tag baa:latest registry.example.com/baa:latest
+docker push registry.example.com/baa:latest
+
+# 3. 更新镜像名（编辑 k8s/baa-deployment.yaml 中的 image 字段）
+
+# 4. 应用配置
+kubectl apply -f k8s/baa-deployment.yaml
+
+# 5. 验证
+kubectl get pods -n baa        # READY 3/3
+kubectl get svc -n baa         # ClusterIP
+kubectl get hpa -n baa         # TARGETS: CPU 0%/70%, MEM 0%/80%
+kubectl get ingress -n baa     # baa.example.com
+```
+
+### HPA 策略
+| 指标 | 阈值 | 说明 |
+|------|------|------|
+| CPU | 70% | 批量审查触发扩缩 |
+| 内存 | 80% | OOM 保护 |
+| min/max | 2~10 | 成本 vs 弹性平衡 |
+| scaleUp window | 60s | 快速响应流量峰值 |
+| scaleDown window | 300s | 避免频繁缩容 |
+
+### 关键配置说明
+- **共享数据**: 使用 PVC `baa-data-pvc` 挂载 `/app/data`（文件上传/密钥/审查历史）
+  - 多副本场景建议使用**分布式存储**（NFS/Ceph/EBS CSI），避免有状态冲突
+- **Ingress SSE 支持**: 启用 `proxy-http-version: 1.1` + Upgrade header，保证批量审查 SSE 进度推送正常工作
+- **请求体上限**: `proxy-body-size: 50m`，适应大图纸上传
+- **超时**: `proxy-read/send-timeout: 300s`，适应批量审查长任务
+
+### 弹性伸缩触发示例
+```bash
+# 压测触发 HPA
+for i in {1..20}; do
+  curl -s -X POST http://baa.example.com/review \
+    -H "Authorization: Bearer baa_prod_2026" \
+    -F "file=@test.dxf" &
+done
+wait
+
+kubectl get hpa -n baa -w  # 观察副本数上升
+```
