@@ -24,11 +24,12 @@ async function loadCDItems() {
   if (level !== 'all') parts.push('level=' + encodeURIComponent(level));
   if (major !== 'all') parts.push('major=' + encodeURIComponent(major));
   if (method !== 'all') parts.push('method=' + encodeURIComponent(method));
+  // apiGet 内部已经拼接 API_BASE()，这里只传相对路径
   var qs = parts.length ? '?' + parts.join('&') : '';
-  var url = API_BASE() + '/api/v1/construction-review' + qs;
+  var path = '/api/v1/construction-review' + qs;
 
   try {
-    var data = await apiGet(url);
+    var data = await apiGet(path);
     if (skel) skel.classList.add('hidden');
     if (content) content.classList.remove('hidden');
 
