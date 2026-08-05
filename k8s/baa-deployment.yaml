@@ -1,0 +1,177 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: baa
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: baa-config
+  namespace: baa
+data:
+  BAA_PORT: "8000"
+  BAA_WORKERS: "4"
+  BAA_DATA_DIR: "/app/data"
+  PYTHONUNBUFFERED: "1"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: baa-secret
+  namespace: baa
+type: Opaque
+data:
+  # 使用 base64 编码，生产环境建议用 External Secrets Operator 管理
+  # 默认值: echo -n "baa_prod_2026" | base64
+  BAA_API_KEY: YmFhX3Byb2RfMjAyNg==
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: baa
+  namespace: baa
+  labels:
+    app: baa
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: baa
+  template:
+    metadata:
+      labels:
+        app: baa
+    spec:
+      # 共享对象存储: 将 /app/data 挂载为 PVC（或改用 S3 minio 侧车）
+      # 本示例使用 PVC；生产环境建议替换为 CSI driver (e.g. Ceph RBD / EBS)
+      volumes:
+        - name: baa-data
+          persistentVolumeClaim:
+            claimName: baa-data-pvc
+      containers:
+        - name: baa
+          image: baa:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: baa-config
+            - secretRef:
+                name: baa-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: baa-data
+              mountPath: /app/data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: baa-data-pvc
+  namespace: baa
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: baa-service
+  namespace: baa
+spec:
+  type: ClusterIP
+  selector:
+    app: baa
+  ports:
+    - port: 80
+      targetPort: 8000
+      name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: baa-ingress
+  namespace: baa
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # 启用 WebSocket/SSE 长连接支持（批量审查 SSE 推送）
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+spec:
+  rules:
+  - host: baa.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: baa-service
+            port:
+              number: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: baa-hpa
+  namespace: baa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: baa
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300

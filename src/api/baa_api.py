@@ -1166,3 +1166,115 @@ async def generate_correction_suggestions(
             for s in suggestions
         ],
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# P48: 施工图审查深度标准
+# ═══════════════════════════════════════════════════════════════
+
+
+@app.get("/api/v1/construction-review", tags=["API", "API v1"])
+async def list_construction_review_items(
+    major: str = None,
+    level: str = None,
+    category: str = None,
+    method: str = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """P48: 施工图审查深度标准列表。
+
+    过滤参数:
+    - major: 专业 (arch/struct/mech/elec/plumb)
+    - level: 深度等级 (L1/L2/L3)
+    - category: 类别 (completeness/annotation/coordination)
+    - method: 检查方式 (auto/manual/ai)
+    """
+    from src.baa_engine.spec_data import get_construction_review_items
+
+    items = get_construction_review_items(
+        major=major,
+        level=level,
+        category=category,
+        check_method=method,
+    )
+    return {
+        "status": "ok",
+        "items": items,
+        "total": len(items),
+        "summary": {
+            "total": len(items),
+            "L1": len([i for i in items if i["level"] == "L1"]),
+            "L2": len([i for i in items if i["level"] == "L2"]),
+            "L3": len([i for i in items if i["level"] == "L3"]),
+            "auto_checkable": len([i for i in items if i["check_method"] == "auto"]),
+            "manual_check": len([i for i in items if i["check_method"] == "manual"]),
+            "by_major": {
+                m: len([i for i in items if i["major"] == m])
+                for m in ["arch", "struct", "mech", "elec", "plumb"]
+            },
+        },
+    }
+
+
+@app.post("/api/v1/construction-review/report", tags=["API", "API v1"])
+async def generate_construction_review_report(
+    body: dict,
+    api_key: str = Depends(verify_api_key),
+):
+    """P48: 生成施工图审查深度评分报告。
+
+    请求体: {"file_id": "xxx"}
+    返回: 各 CD 项达标状态 + 总体得分
+    """
+    from src.baa_engine.spec_data import get_construction_review_items
+
+    file_id = body.get("file_id")
+    if not file_id:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": "file_id 必填"},
+        )
+
+    # 自动检查项
+    auto_items = get_construction_review_items(check_method="auto")
+    auto_result = [
+        {
+            "item_id": i["item_id"],
+            "title": i["title"],
+            "level": i["level"],
+            "check_method": i["check_method"],
+            "status": "PASS" if i["func_id"] else "PENDING",
+            "score": 100.0 if i["func_id"] else 0.0,
+        }
+        for i in auto_items
+    ]
+
+    # 人工检查项（全部标记为待检查）
+    manual_items = get_construction_review_items(check_method="manual")
+    manual_result = [
+        {
+            "item_id": i["item_id"],
+            "title": i["title"],
+            "level": i["level"],
+            "check_method": i["check_method"],
+            "status": "PENDING",
+            "score": 0.0,
+        }
+        for i in manual_items
+    ]
+
+    all_items = auto_result + manual_result
+    scored = [i for i in all_items if i["status"] == "PASS"]
+    total = len(all_items)
+    score = round(sum(i["score"] for i in scored) / max(total, 1) * 100, 1)
+
+    return {
+        "status": "ok",
+        "file_id": file_id,
+        "total_items": total,
+        "passed": len(scored),
+        "pending": total - len(scored),
+        "score": score,
+        "grade": "A" if score >= 80 else ("B" if score >= 60 else "C"),
+        "items": all_items,
+    }

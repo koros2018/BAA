@@ -15,6 +15,7 @@ from .gb50974 import GB50974_CLAUSES
 from .gb50763 import GB50763_CLAUSES
 from .gb50067 import GB50067_CLAUSES
 from .nfpa import NFPA_CLAUSES
+from .construction_review import get_construction_review_items
 
 __all__ = [
     "INITIAL_CLAUSES",
@@ -23,4 +24,5 @@ __all__ = [
     "GB50763_CLAUSES",
     "GB50067_CLAUSES",
     "NFPA_CLAUSES",
+    "get_construction_review_items",
 ]
