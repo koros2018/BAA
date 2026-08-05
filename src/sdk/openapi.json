@@ -3,7 +3,5725 @@
   "info": {
     "title": "BAA API",
     "description": "BAA (Blueprint AI Agent) — 建筑图纸 AI 合规审查系统",
-    "version": "1.25.0"
+    "version": "2.5.29"
+  },
+  "paths": {
+    "/collab/auth/register": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Register",
+        "operationId": "collab_register_collab_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/auth/login": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Login",
+        "operationId": "collab_login_collab_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/users/me": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Get Me",
+        "operationId": "collab_get_me_collab_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Update Me",
+        "operationId": "collab_update_me_collab_users_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/users/search": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Search Users",
+        "operationId": "collab_search_users_collab_users_search_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Query"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/teams": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab List Teams",
+        "operationId": "collab_list_teams_collab_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Create Team",
+        "operationId": "collab_create_team_collab_teams_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/teams/{team_id}": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Get Team",
+        "operationId": "collab_get_team_collab_teams__team_id__get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/teams/{team_id}/members": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Add Team Member",
+        "operationId": "collab_add_team_member_collab_teams__team_id__members_post",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/teams/{team_id}/members/{target_id}": {
+      "delete": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Remove Team Member",
+        "operationId": "collab_remove_team_member_collab_teams__team_id__members__target_id__delete",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/projects": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Create Project",
+        "operationId": "collab_create_project_collab_projects_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab List Projects",
+        "operationId": "collab_list_projects_collab_projects_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "active",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Get Project",
+        "operationId": "collab_get_project_collab_projects__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/projects/{project_id}/members": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Add Project Member",
+        "operationId": "collab_add_project_member_collab_projects__project_id__members_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/projects/{project_id}/members/{target_id}": {
+      "put": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Update Project Member",
+        "operationId": "collab_update_project_member_collab_projects__project_id__members__target_id__put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Remove Project Member",
+        "operationId": "collab_remove_project_member_collab_projects__project_id__members__target_id__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/teams/{team_id}/projects": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab List Team Projects",
+        "operationId": "collab_list_team_projects_collab_teams__team_id__projects_get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/review-sessions": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Create Review Session",
+        "operationId": "collab_create_review_session_collab_review_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/projects/{project_id}/review-sessions": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab List Review Sessions",
+        "operationId": "collab_list_review_sessions_collab_projects__project_id__review_sessions_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/review-sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Get Review Session",
+        "operationId": "collab_get_review_session_collab_review_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/review-sessions/{session_id}/status": {
+      "put": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Update Review Session Status",
+        "operationId": "collab_update_review_session_status_collab_review_sessions__session_id__status_put",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/review-sessions/{session_id}/comments": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Add Comment",
+        "operationId": "collab_add_comment_collab_review_sessions__session_id__comments_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab List Comments",
+        "operationId": "collab_list_comments_collab_review_sessions__session_id__comments_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "include_resolved",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Include Resolved"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/comments/{comment_id}/resolve": {
+      "put": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Resolve Comment",
+        "operationId": "collab_resolve_comment_collab_comments__comment_id__resolve_put",
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/review-sessions/{session_id}/approval-flow": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Create Approval Flow",
+        "operationId": "collab_create_approval_flow_collab_review_sessions__session_id__approval_flow_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Get Approval Flow",
+        "operationId": "collab_get_approval_flow_collab_review_sessions__session_id__approval_flow_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/approval-steps/{step_id}/approve": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Approve Step",
+        "operationId": "collab_approve_step_collab_approval_steps__step_id__approve_post",
+        "parameters": [
+          {
+            "name": "step_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Step Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/approval-steps/{step_id}/reject": {
+      "post": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Reject Step",
+        "operationId": "collab_reject_step_collab_approval_steps__step_id__reject_post",
+        "parameters": [
+          {
+            "name": "step_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Step Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collab/stats": {
+      "get": {
+        "tags": [
+          "Collaboration"
+        ],
+        "summary": "Collab Stats",
+        "operationId": "collab_stats_collab_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create Api Key",
+        "description": "创建新的API Key（需要admin权限）",
+        "operationId": "create_api_key_admin_keys_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Api Keys",
+        "description": "列出所有API Key",
+        "operationId": "list_api_keys_admin_keys_get",
+        "parameters": [
+          {
+            "name": "include_disabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Disabled"
+            }
+          },
+          {
+            "name": "include_raw",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "是否返回解密后的 raw_key（密钥详情时使用）",
+              "default": false,
+              "title": "Include Raw"
+            },
+            "description": "是否返回解密后的 raw_key（密钥详情时使用）"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys/stats": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Api Key Stats",
+        "description": "API Key用量统计",
+        "operationId": "api_key_stats_admin_keys_stats_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys/{key_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Api Key Detail",
+        "description": "获取单个API Key详情（含解密后的 raw_key）",
+        "operationId": "get_api_key_detail_admin_keys__key_id__get",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete Api Key",
+        "description": "物理删除API Key（不可恢复）",
+        "operationId": "delete_api_key_admin_keys__key_id__delete",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys/{key_id}/revoke": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Revoke Api Key",
+        "description": "撤销API Key",
+        "operationId": "revoke_api_key_admin_keys__key_id__revoke_post",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys/{key_id}/rotate": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Rotate Api Key",
+        "description": "轮换API Key（生成新密钥值，旧密钥失效）",
+        "operationId": "rotate_api_key_admin_keys__key_id__rotate_post",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/keys/verify": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Verify Api Key Raw",
+        "description": "验证原始API Key是否有效（无需admin权限，供前端导入时校验）",
+        "operationId": "verify_api_key_raw_admin_keys_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/bootstrap-key": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Bootstrap Admin Key",
+        "description": "获取前端密钥管理页使用的管理令牌（免认证）\n\n开发模式（BAA_API_KEY 未设置）时返回空字符串，\n此时后端 _ag.require_admin 不校验令牌，前端直接发请求即可。\n生产模式时返回环境变量中的 admin key。",
+        "operationId": "bootstrap_admin_key_admin_bootstrap_key_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "Create Review Task",
+        "description": "创建异步审查任务（EMA2 对接）\n\n上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。",
+        "operationId": "create_review_task_api_v1_tasks_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil/industrial",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil/industrial"
+          },
+          {
+            "name": "webhook_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "回调通知 URL（可选）",
+              "default": "",
+              "title": "Webhook Url"
+            },
+            "description": "回调通知 URL（可选）"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_review_task_api_v1_tasks_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "Get Task Status",
+        "description": "查询任务状态（EMA2 对接）",
+        "operationId": "get_task_status_api_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/result": {
+      "get": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "Get Task Result",
+        "description": "获取审查结果（EMA2 对接）",
+        "operationId": "get_task_result_api_v1_tasks__task_id__result_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks": {
+      "post": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "Register Webhook",
+        "description": "注册 Webhook 回调（EMA2 对接）\n\n注册后，当异步审查任务完成或失败时，系统会 POST 通知到该 URL。",
+        "operationId": "register_webhook_api_v1_webhooks_post",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "回调 URL",
+              "title": "Url"
+            },
+            "description": "回调 URL"
+          },
+          {
+            "name": "events",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "触发事件: completed,failed,all",
+              "default": "completed",
+              "title": "Events"
+            },
+            "description": "触发事件: completed,failed,all"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "List Webhooks",
+        "description": "查询 Webhook 列表（EMA2 对接）",
+        "operationId": "list_webhooks_api_v1_webhooks_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/{webhook_id}": {
+      "delete": {
+        "tags": [
+          "EMA2"
+        ],
+        "summary": "Delete Webhook",
+        "description": "删除 Webhook（EMA2 对接）",
+        "operationId": "delete_webhook_api_v1_webhooks__webhook_id__delete",
+        "parameters": [
+          {
+            "name": "webhook_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Webhook Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedbacks": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Submit Feedback",
+        "description": "提交违规申诉（P10 反馈闭环）\n\n用户对审查结果有异议时，提交申诉。\nBody 包含 task_id, clause_id, entity_id, entity_type, reason, description 等。\n申诉数据后续用于模型微调，减少误报。",
+        "operationId": "submit_feedback_api_v1_feedbacks_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "List Feedbacks",
+        "description": "查询申诉列表（支持状态和规范条款筛选）",
+        "operationId": "list_feedbacks_api_v1_feedbacks_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "筛选状态: pending/accepted/rejected",
+              "default": "",
+              "title": "Status"
+            },
+            "description": "筛选状态: pending/accepted/rejected"
+          },
+          {
+            "name": "clause_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "筛选规范条款",
+              "default": "",
+              "title": "Clause Id"
+            },
+            "description": "筛选规范条款"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedbacks/stats": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Feedback Stats",
+        "description": "申诉统计（总数、待处理数、各类分布）",
+        "operationId": "feedback_stats_api_v1_feedbacks_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedbacks/{feedback_id}": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Get Feedback",
+        "description": "查询单条申诉详情",
+        "operationId": "get_feedback_api_v1_feedbacks__feedback_id__get",
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Feedback Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Review Feedback",
+        "description": "审核申诉（P10 反馈闭环）\n\n管理员审核用户提交的申诉。\nBody: {status: accepted/rejected, reviewed_by, review_comment?}",
+        "operationId": "review_feedback_api_v1_feedbacks__feedback_id__patch",
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Feedback Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedbacks/{feedback_id}/adjust": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Adjust Threshold",
+        "description": "基于申诉数据计算/应用阈值调整\n\n使用 LearningEngine 分析申诉数据，计算建议的阈值调整值。\n如果 apply=true，直接应用调整到规范知识库。\nBody: {clause_id, apply?}",
+        "operationId": "adjust_threshold_api_v1_feedbacks__feedback_id__adjust_post",
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Feedback Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review": {
+      "post": {
+        "tags": [
+          "Review"
+        ],
+        "summary": "List Functions",
+        "description": "获取原子函数库列表（含简介、参数、模型）",
+        "operationId": "list_functions_review_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/pdf": {
+      "get": {
+        "tags": [
+          "Review",
+          "review",
+          "Review"
+        ],
+        "summary": "Export Review Pdf",
+        "description": "导出审查结果为 PDF 报告\n\n基于审查记录 ID 生成完整 PDF 报告，包含：\n- 封面（项目信息、审查概要）\n- 合规度评分页\n- 违规分类统计\n- 违规详情（TOP-N）\n- 修正建议",
+        "operationId": "export_review_pdf_review_pdf_get",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "审查记录 ID",
+              "title": "Review Id"
+            },
+            "description": "审查记录 ID"
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "报告语言: zh/cn/en",
+              "default": "zh",
+              "title": "Lang"
+            },
+            "description": "报告语言: zh/cn/en"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/export": {
+      "get": {
+        "tags": [
+          "Review",
+          "review",
+          "Review"
+        ],
+        "summary": "Export Review Export",
+        "description": "P91: 导出审查结果为结构化数据（JSON / CSV）",
+        "operationId": "export_review_export_review_export_get",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "审查记录 ID",
+              "title": "Review Id"
+            },
+            "description": "审查记录 ID"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "导出格式: json/csv",
+              "default": "json",
+              "title": "Format"
+            },
+            "description": "导出格式: json/csv"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review-from-data": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review From Data",
+        "description": "从已解析的结构化数据执行规范审查（无需重新上传文件）\n\n接收前端或其他服务已解析好的实体数据，直接运行规范判定。\n适用于已有结构化数据的场景，跳过图纸解析步骤。",
+        "operationId": "review_from_data_review_from_data_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/thermal/k-value": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Compute Thermal K",
+        "description": "P45 热工性能 K 值计算\n\n输入：构件类型(compType)、保温材料(material)、厚度(mm)、气候带(climate)\n返回：K值、阈值对比、建议厚度",
+        "operationId": "compute_thermal_k_thermal_k_value_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reconstruct": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Reconstruct",
+        "description": "BIM 重构（需授权验证）\n\n将已解析的审查结果重构为 IFC 格式的 BIM 模型文件。\n需要有效的 auth_token（通过支付获取）。",
+        "operationId": "reconstruct_reconstruct_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order/{order_id}": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Get Order",
+        "description": "订单状态查询\n\n查询 BIM 重构订单的处理状态和结果下载链接。",
+        "operationId": "get_order_order__order_id__get",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review-multi-sheet": {
+      "post": {
+        "tags": [
+          "Review",
+          "review",
+          "Review"
+        ],
+        "summary": "Review Multi Sheet",
+        "description": "P73: 多Sheet/多区域图纸独立审查\n\n上传 DXF/DWG 文件后，自动检测 Layout/Block 引用（Sheet 分区），\n每个 Sheet 独立走审查流程，结果聚合为项目级报告。\n\n返回:\n- project_summary: 项目级汇总（总违规、总实体等）\n- sheets: 每个 Sheet 的独立审查结果\n- structured_summary: 项目级结构化摘要",
+        "operationId": "review_multi_sheet_review_multi_sheet_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil(民用) / industrial(工业)",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil(民用) / industrial(工业)"
+          },
+          {
+            "name": "building_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "多建筑类型列表",
+              "title": "Building Types"
+            },
+            "description": "多建筑类型列表"
+          },
+          {
+            "name": "standard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "规范标准",
+              "default": "GB 50016-2014",
+              "title": "Standard"
+            },
+            "description": "规范标准"
+          },
+          {
+            "name": "webhook_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "P71: 审查完成后 POST 到此 URL",
+              "title": "Webhook Url"
+            },
+            "description": "P71: 审查完成后 POST 到此 URL"
+          },
+          {
+            "name": "webhook_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "P71: generic | feishu | dingtalk",
+              "default": "generic",
+              "title": "Webhook Type"
+            },
+            "description": "P71: generic | feishu | dingtalk"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_review_multi_sheet_review_multi_sheet_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/queue/{task_id}": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review Queue Status",
+        "description": "查询审查任务排队状态\n\n返回指定 task_id 的排队位置、进度和状态。\n如果任务不存在，返回 404。",
+        "operationId": "review_queue_status_review_queue__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review Queue Cancel",
+        "description": "取消排队中的审查任务\n\n仅能取消排队中（status=queued）的任务。\n已在运行或已完成的任务无法取消。",
+        "operationId": "review_queue_cancel_review_queue__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/queue/stats": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review Queue Stats",
+        "description": "查询审查任务队列统计信息",
+        "operationId": "review_queue_stats_review_queue_stats_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/render/{file_id}": {
+      "get": {
+        "tags": [
+          "Render",
+          "render"
+        ],
+        "summary": "Render Drawing",
+        "description": "将 DXF/DWG 图纸渲染为 SVG 供前端展示",
+        "operationId": "render_drawing_render__file_id__get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/render/{file_id}/overlay": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Render Drawing Overlay",
+        "description": "将 DXF/DWG 图纸渲染为 SVG，并叠加违规高亮标注\n\n在基础 SVG 渲染之上，通过 query params 传入违规位置信息进行高亮：\n- violations: JSON 编码的违规列表，每个含 entity_type, x, y, severity\n- 高亮颜色：critical=红色, major=橙色, normal=黄色",
+        "operationId": "render_drawing_overlay_render__file_id__overlay_get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{file_id}/pdf": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review Pdf",
+        "description": "导出审查报告 PDF\n\n对已审查过的图纸生成结构化 PDF 审查报告，包含封面、\n违规分类统计、每条违规详情及修正建议。",
+        "operationId": "review_pdf_review__file_id__pdf_get",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/project/summary": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Project Summary",
+        "description": "项目级审查汇总\n\n对已审查过的多个图纸文件生成跨文件的统一汇总报告，\n包含项目总体评分、合规率、严重级别分布、规范条目热力图、\n项目级风险识别等维度。\n\n不重新审查，从缓存读取各文件审查结果后聚合。",
+        "operationId": "project_summary_review_project_summary_get",
+        "parameters": [
+          {
+            "name": "file_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "待汇总的文件ID列表（已审查过的文件）",
+              "title": "File Ids"
+            },
+            "description": "待汇总的文件ID列表（已审查过的文件）"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/compare": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Review Compare",
+        "description": "审查结果对比（Diff）\n\n上传同一图纸的两个版本，自动分别审查并对比差异：\n- 新增违规：新版新增的违规项\n- 消失违规：旧版有但新版已修复的违规项\n- 变化违规：同一实体值或状态发生变化\n\n返回结构化 Diff 报告，含变更摘要和逐条详情。",
+        "operationId": "review_compare_review_compare_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil(民用) / industrial(工业)",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil(民用) / industrial(工业)"
+          },
+          {
+            "name": "standard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021",
+              "default": "GB 50016-2014",
+              "title": "Standard"
+            },
+            "description": "规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_review_compare_review_compare_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batch-review": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Batch Review",
+        "description": "多文件批量审查\n\n同时审查最多 20 个图纸文件，返回每个文件的单独审查结果，\n以及跨文件的交叉分析（同一违规类别在多少文件中出现）。",
+        "operationId": "batch_review_batch_review_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil(民用) / industrial(工业)",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil(民用) / industrial(工业)"
+          },
+          {
+            "name": "building_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "多建筑类型列表（混合建筑场景）",
+              "title": "Building Types"
+            },
+            "description": "多建筑类型列表（混合建筑场景）"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_batch_review_batch_review_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batch-review-stream": {
+      "post": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Batch Review Stream",
+        "description": "多文件批量审查 — SSE 流式推送实时进度\n\n每个文件在关键阶段推送进度事件：\n- file.queued / file.parsing / file.semantic / file.checking / file.done / file.error\n- batch.done 标记全部完成，含跨文件汇总",
+        "operationId": "batch_review_stream_batch_review_stream_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil(民用) / industrial(工业)",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil(民用) / industrial(工业)"
+          },
+          {
+            "name": "building_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "多建筑类型列表",
+              "title": "Building Types"
+            },
+            "description": "多建筑类型列表"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_batch_review_stream_batch_review_stream_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/history": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "List Review History",
+        "description": "查询审查历史记录列表（分页）",
+        "operationId": "list_review_history_review_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "drawing_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "图纸名称搜索",
+              "title": "Drawing Name"
+            },
+            "description": "图纸名称搜索"
+          },
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型筛选",
+              "title": "Building Type"
+            },
+            "description": "建筑类型筛选"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Clear Review History",
+        "description": "清空所有审查历史记录",
+        "operationId": "clear_review_history_review_history_delete",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/history/{review_id}": {
+      "get": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Get Review Detail",
+        "description": "获取单条审查记录完整详情",
+        "operationId": "get_review_detail_review_history__review_id__get",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "summary": "Delete Review History",
+        "description": "删除单条审查记录",
+        "operationId": "delete_review_history_review_history__review_id__delete",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases": {
+      "get": {
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "summary": "List Cases",
+        "description": "案例列表（分页 + 多维筛选）\n\nArgs:\n    building_type: 建筑类型（civil/industrial）\n    standard: 审查标准\n    min_score / max_score: 得分范围筛选\n    tag: 标签筛选（如 \"尺寸不合规\"）\n    limit / offset: 分页",
+        "operationId": "list_cases_api_v1_cases_get",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Building Type"
+            }
+          },
+          {
+            "name": "standard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Standard"
+            }
+          },
+          {
+            "name": "min_score",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Score"
+            }
+          },
+          {
+            "name": "max_score",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Score"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/search": {
+      "get": {
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "summary": "Search Cases",
+        "description": "关键词检索案例（按图纸名称模糊匹配）",
+        "operationId": "search_cases_api_v1_cases_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/stats": {
+      "get": {
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "summary": "Get Case Stats",
+        "description": "案例统计概览（按建筑类型/标准/标签分布）",
+        "operationId": "get_case_stats_api_v1_cases_stats_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}": {
+      "get": {
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "summary": "Get Case",
+        "description": "获取单条案例详情（复用 review_detail 数据）",
+        "operationId": "get_case_api_v1_cases__case_id__get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Api Stats",
+        "description": "审查统计仪表盘",
+        "operationId": "api_stats_api_v1_stats_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Root",
+        "description": "返回前端 UI 页面\n\n优先返回静态 HTML 页面（前端 SPA）；\n如果前端文件不存在，降级返回 JSON 格式的 API 信息。",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health",
+        "description": "增强型健康检查接口\n\n返回服务状态及各子系统（引擎、规范库、解析器、YOLO）的运行状态。\n用于 Docker 健康检查、负载均衡心跳检测。\n\nReturns:\n    dict: {\n        status: \"ok\" | \"degraded\",\n        version: 当前版本号,\n        uptime_seconds: 服务运行秒数,\n        subsystems: 各子系统的状态详情\n    }",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/deconstruct": {
+      "post": {
+        "tags": [
+          "Deconstruct"
+        ],
+        "summary": "Deconstruct",
+        "description": "图纸解构（免费端点）\n\n将上传的 DWG/DXF 图纸解析为结构化实体数据，包括：\n1. DWG/DXF → 图元解析（DrawingParser）\n2. 语义分析（SemanticAnalyzer）— 识别墙、门、窗、楼梯等\n3. 可选 YOLO 检测增强 — 使用 CV 模型辅助识别\n4. 尺寸标注注入（DimensionParser）— 自动反推实体属性\n5. 规范判定 — 按 GB50016 检查每类实体的合规性\n6. 结果聚合 — 统计、去重、分类输出\n\nReturns:\n    dict: {status, elements, findings, summary, ...}",
+        "operationId": "deconstruct_deconstruct_post",
+        "parameters": [
+          {
+            "name": "building_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "建筑类型: civil(民用) / industrial(工业)",
+              "default": "civil",
+              "title": "Building Type"
+            },
+            "description": "建筑类型: civil(民用) / industrial(工业)"
+          },
+          {
+            "name": "standard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021",
+              "default": "GB 50016-2014",
+              "title": "Standard"
+            },
+            "description": "规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
+          },
+          {
+            "name": "use_yolo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "是否使用 YOLO 图元检测增强",
+              "default": true,
+              "title": "Use Yolo"
+            },
+            "description": "是否使用 YOLO 图元检测增强"
+          },
+          {
+            "name": "yolo_device",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)",
+              "default": "cpu",
+              "title": "Yolo Device"
+            },
+            "description": "YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_deconstruct_deconstruct_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/functions": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "List Functions",
+        "description": "获取原子函数库列表（含简介、参数、模型）",
+        "operationId": "list_functions_api_v1_functions_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/specs": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "List Specs",
+        "description": "获取规范库列表（含所有条款）",
+        "operationId": "list_specs_api_v1_specs_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/specs/versions": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "List Spec Versions",
+        "description": "获取支持的所有规范版本列表\n\nArgs:\n    standard: 指定标准名称（如 GB 50016），None 返回全部标准",
+        "operationId": "list_spec_versions_api_v1_specs_versions_get",
+        "parameters": [
+          {
+            "name": "standard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Standard"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/specs/compare": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Compare Spec Versions",
+        "description": "对比两个版本间的规范差异\n\nArgs:\n    standard: 标准名称（如 GB 50016）\n    old_version: 旧版本（如 2014）\n    new_version: 新版本（如 2025）；None 表示从 old_version 到最新版",
+        "operationId": "compare_spec_versions_api_v1_specs_compare_get",
+        "parameters": [
+          {
+            "name": "standard",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Standard"
+            }
+          },
+          {
+            "name": "old_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Old Version"
+            }
+          },
+          {
+            "name": "new_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "New Version"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/specs/change-log": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Get Change Log",
+        "description": "获取版本变更日志（详细条目）",
+        "operationId": "get_change_log_api_v1_specs_change_log_get",
+        "parameters": [
+          {
+            "name": "standard",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Standard"
+            }
+          },
+          {
+            "name": "old_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Old Version"
+            }
+          },
+          {
+            "name": "new_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "New Version"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/functions/{func_id}/update": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Update Function",
+        "description": "更新原子函数的阈值/运算符等参数",
+        "operationId": "update_function_api_v1_functions__func_id__update_post",
+        "parameters": [
+          {
+            "name": "func_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Func Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reverse": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Reverse Generate",
+        "description": "反向重构：根据房间规格生成合规 DXF",
+        "operationId": "reverse_generate_api_v1_reverse_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reverse/multi": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Reverse Generate Multi",
+        "description": "多房间布局生成",
+        "operationId": "reverse_generate_multi_api_v1_reverse_multi_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reverse/export-dwg": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Reverse Export Dwg",
+        "description": "P67: 将反向重构生成的 DXF 内容导出为 DWG 文件。\n\n请求体: {\"dxf_content\": \"<DXF文本>\", \"filename\": \"output.dwg\"}\n返回: HTTP下载（DWG 或 DXF 降级）",
+        "operationId": "reverse_export_dwg_api_v1_reverse_export_dwg_post",
+        "parameters": [
+          {
+            "name": "dxf_content",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dxf Content"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/correction/suggestions": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Generate Correction Suggestions",
+        "description": "基于审查违规结果生成修正建议（rule/llm/hybrid 三种模式）\n\n请求体：\n{\n    \"review_id\": \"<可选，审查会话 ID>\",\n    \"findings\": [  # 审查违规结果列表\n        {\"entity_id\": \"e1\", \"func_id\": \"DIM-001\", ...},\n        ...\n    ],\n    \"entities\": [  # 实体信息（可选）\n        {\"id\": \"e1\", \"type\": \"stair\", \"properties\": {...}},\n        ...\n    ],\n    \"mode\": \"rule|llm|hybrid\",  # 模式\n}",
+        "operationId": "generate_correction_suggestions_api_v1_correction_suggestions_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/construction-review": {
+      "get": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "List Construction Review Items",
+        "description": "P48: 施工图审查深度标准列表。\n\n过滤参数:\n- major: 专业 (arch/struct/mech/elec/plumb)\n- level: 深度等级 (L1/L2/L3)\n- category: 类别 (completeness/annotation/coordination)\n- method: 检查方式 (auto/manual/ai)",
+        "operationId": "list_construction_review_items_api_v1_construction_review_get",
+        "parameters": [
+          {
+            "name": "major",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Major"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Level"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Category"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Method"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/construction-review/report": {
+      "post": {
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "summary": "Generate Construction Review Report",
+        "description": "P48: 生成施工图审查深度评分报告。\n\n请求体: {\"file_id\": \"xxx\"}\n返回: 各 CD 项达标状态 + 总体得分",
+        "operationId": "generate_construction_review_report_api_v1_construction_review_report_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "API Key (alternative to Bearer header)",
+              "default": "",
+              "title": "Api Key"
+            },
+            "description": "API Key (alternative to Bearer header)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Bearer API Key",
+              "default": "",
+              "title": "Authorization"
+            },
+            "description": "Bearer API Key"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_batch_review_batch_review_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_batch_review_batch_review_post"
+      },
+      "Body_batch_review_stream_batch_review_stream_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_batch_review_stream_batch_review_stream_post"
+      },
+      "Body_create_review_task_api_v1_tasks_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_create_review_task_api_v1_tasks_post"
+      },
+      "Body_deconstruct_deconstruct_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_deconstruct_deconstruct_post"
+      },
+      "Body_review_compare_review_compare_post": {
+        "properties": {
+          "file1": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File1",
+            "description": "版本1（旧图纸）"
+          },
+          "file2": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File2",
+            "description": "版本2（新图纸）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file1",
+          "file2"
+        ],
+        "title": "Body_review_compare_review_compare_post"
+      },
+      "Body_review_multi_sheet_review_multi_sheet_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_review_multi_sheet_review_multi_sheet_post"
+      },
+      "Body_review_review_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_review_review_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
   },
   "servers": [
     {
@@ -12,1344 +5730,7 @@
     },
     {
       "url": "https://api.baa.example.com",
-      "description": "生产环境 (占位)"
+      "description": "生产环境"
     }
-  ],
-  "paths": {
-    "/collab/auth/register": {
-      "post": {
-        "summary": "collab_register",
-        "description": "collab_register",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_register",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/auth/login": {
-      "post": {
-        "summary": "collab_login",
-        "description": "collab_login",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_login",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/users/me": {
-      "get": {
-        "summary": "collab_get_me",
-        "description": "collab_get_me",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_get_me",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "put": {
-        "summary": "collab_update_me",
-        "description": "collab_update_me",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_update_me",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/users/search": {
-      "get": {
-        "summary": "collab_search_users",
-        "description": "collab_search_users",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_search_users",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/teams": {
-      "post": {
-        "summary": "collab_create_team",
-        "description": "collab_create_team",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_create_team",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "collab_list_teams",
-        "description": "collab_list_teams",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_list_teams",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/teams/{team_id}": {
-      "get": {
-        "summary": "collab_get_team",
-        "description": "collab_get_team",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_get_team",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/teams/{team_id}/members": {
-      "post": {
-        "summary": "collab_add_team_member",
-        "description": "collab_add_team_member",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_add_team_member",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/teams/{team_id}/members/{target_id}": {
-      "delete": {
-        "summary": "collab_remove_team_member",
-        "description": "collab_remove_team_member",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_remove_team_member",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/projects": {
-      "post": {
-        "summary": "collab_create_project",
-        "description": "collab_create_project",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_create_project",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "collab_list_projects",
-        "description": "collab_list_projects",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_list_projects",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/projects/{project_id}": {
-      "get": {
-        "summary": "collab_get_project",
-        "description": "collab_get_project",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_get_project",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/projects/{project_id}/members": {
-      "post": {
-        "summary": "collab_add_project_member",
-        "description": "collab_add_project_member",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_add_project_member",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/projects/{project_id}/members/{target_id}": {
-      "put": {
-        "summary": "collab_update_project_member",
-        "description": "collab_update_project_member",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_update_project_member",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "summary": "collab_remove_project_member",
-        "description": "collab_remove_project_member",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_remove_project_member",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/teams/{team_id}/projects": {
-      "get": {
-        "summary": "collab_list_team_projects",
-        "description": "collab_list_team_projects",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_list_team_projects",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/review-sessions": {
-      "post": {
-        "summary": "collab_create_review_session",
-        "description": "collab_create_review_session",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_create_review_session",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/projects/{project_id}/review-sessions": {
-      "get": {
-        "summary": "collab_list_review_sessions",
-        "description": "collab_list_review_sessions",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_list_review_sessions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/review-sessions/{session_id}": {
-      "get": {
-        "summary": "collab_get_review_session",
-        "description": "collab_get_review_session",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_get_review_session",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/review-sessions/{session_id}/status": {
-      "put": {
-        "summary": "collab_update_review_session_status",
-        "description": "collab_update_review_session_status",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_update_review_session_status",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/review-sessions/{session_id}/comments": {
-      "post": {
-        "summary": "collab_add_comment",
-        "description": "collab_add_comment",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_add_comment",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "collab_list_comments",
-        "description": "collab_list_comments",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_list_comments",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/comments/{comment_id}/resolve": {
-      "put": {
-        "summary": "collab_resolve_comment",
-        "description": "collab_resolve_comment",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_resolve_comment",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/review-sessions/{session_id}/approval-flow": {
-      "post": {
-        "summary": "collab_create_approval_flow",
-        "description": "collab_create_approval_flow",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_create_approval_flow",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "collab_get_approval_flow",
-        "description": "collab_get_approval_flow",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_get_approval_flow",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/approval-steps/{step_id}/approve": {
-      "post": {
-        "summary": "collab_approve_step",
-        "description": "collab_approve_step",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_approve_step",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/approval-steps/{step_id}/reject": {
-      "post": {
-        "summary": "collab_reject_step",
-        "description": "collab_reject_step",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_reject_step",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/collab/stats": {
-      "get": {
-        "summary": "collab_stats",
-        "description": "collab_stats",
-        "tags": [
-          "Collaboration"
-        ],
-        "operationId": "collab_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys": {
-      "post": {
-        "summary": "create_api_key",
-        "description": "创建新的API Key（需要admin权限）",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "create_api_key",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "list_api_keys",
-        "description": "列出所有API Key",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "list_api_keys",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys/stats": {
-      "get": {
-        "summary": "api_key_stats",
-        "description": "API Key用量统计",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "api_key_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys/{key_id}": {
-      "get": {
-        "summary": "get_api_key_detail",
-        "description": "获取单个API Key详情（含解密后的 raw_key）",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "get_api_key_detail",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "summary": "delete_api_key",
-        "description": "物理删除API Key（不可恢复）",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "delete_api_key",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys/{key_id}/revoke": {
-      "post": {
-        "summary": "revoke_api_key",
-        "description": "撤销API Key",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "revoke_api_key",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys/{key_id}/rotate": {
-      "post": {
-        "summary": "rotate_api_key",
-        "description": "轮换API Key（生成新密钥值，旧密钥失效）",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "rotate_api_key",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/keys/verify": {
-      "post": {
-        "summary": "verify_api_key_raw",
-        "description": "验证原始API Key是否有效（无需admin权限，供前端导入时校验）",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "verify_api_key_raw",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/admin/bootstrap-key": {
-      "get": {
-        "summary": "bootstrap_admin_key",
-        "description": "获取前端密钥管理页使用的管理令牌（免认证）\n\n开发模式（BAA_API_KEY 未设置）时返回空字符串，\n此时后端 _ag.require_admin 不校验令牌，前端直接发请求即可。\n生产模式时返回环境变量中的 admin key。",
-        "tags": [
-          "admin"
-        ],
-        "operationId": "bootstrap_admin_key",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks": {
-      "post": {
-        "summary": "create_review_task",
-        "description": "创建异步审查任务（EMA2 对接）\n\n上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "create_review_task",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{task_id}": {
-      "get": {
-        "summary": "get_task_status",
-        "description": "查询任务状态（EMA2 对接）",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "get_task_status",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{task_id}/result": {
-      "get": {
-        "summary": "get_task_result",
-        "description": "获取审查结果（EMA2 对接）",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "get_task_result",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/webhooks": {
-      "post": {
-        "summary": "register_webhook",
-        "description": "注册 Webhook 回调（EMA2 对接）\n\n注册后，当异步审查任务完成或失败时，系统会 POST 通知到该 URL。",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "register_webhook",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "list_webhooks",
-        "description": "查询 Webhook 列表（EMA2 对接）",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "list_webhooks",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/webhooks/{webhook_id}": {
-      "delete": {
-        "summary": "delete_webhook",
-        "description": "删除 Webhook（EMA2 对接）",
-        "tags": [
-          "EMA2"
-        ],
-        "operationId": "delete_webhook",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/feedbacks": {
-      "post": {
-        "summary": "submit_feedback",
-        "description": "提交违规申诉（P10 反馈闭环）\n\n用户对审查结果有异议时，提交申诉。\nBody 包含 task_id, clause_id, entity_id, entity_type, reason, description 等。\n申诉数据后续用于模型微调，减少误报。",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "submit_feedback",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "get": {
-        "summary": "list_feedbacks",
-        "description": "查询申诉列表（支持状态和规范条款筛选）",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "list_feedbacks",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/feedbacks/stats": {
-      "get": {
-        "summary": "feedback_stats",
-        "description": "申诉统计（总数、待处理数、各类分布）",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "feedback_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/feedbacks/{feedback_id}": {
-      "get": {
-        "summary": "get_feedback",
-        "description": "查询单条申诉详情",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "get_feedback",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "patch": {
-        "summary": "review_feedback",
-        "description": "审核申诉（P10 反馈闭环）\n\n管理员审核用户提交的申诉。\nBody: {status: accepted/rejected, reviewed_by, review_comment?}",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "review_feedback",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/feedbacks/{feedback_id}/adjust": {
-      "post": {
-        "summary": "adjust_threshold",
-        "description": "基于申诉数据计算/应用阈值调整\n\n使用 LearningEngine 分析申诉数据，计算建议的阈值调整值。\n如果 apply=true，直接应用调整到规范知识库。\nBody: {clause_id, apply?}",
-        "tags": [
-          "Feedback"
-        ],
-        "operationId": "adjust_threshold",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review": {
-      "post": {
-        "summary": "list_functions",
-        "description": "获取原子函数库列表（含简介、参数、模型）",
-        "tags": [
-          "Review"
-        ],
-        "operationId": "list_functions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/pdf": {
-      "get": {
-        "summary": "export_review_pdf",
-        "description": "导出审查结果为 PDF 报告\n\n基于审查记录 ID 生成完整 PDF 报告，包含：\n- 封面（项目信息、审查概要）\n- 合规度评分页\n- 违规分类统计\n- 违规详情（TOP-N）\n- 修正建议",
-        "tags": [
-          "Review",
-          "review",
-          "Review"
-        ],
-        "operationId": "export_review_pdf",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review-from-data": {
-      "post": {
-        "summary": "review_from_data",
-        "description": "从已解析的结构化数据执行规范审查（无需重新上传文件）\n\n接收前端或其他服务已解析好的实体数据，直接运行规范判定。\n适用于已有结构化数据的场景，跳过图纸解析步骤。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_from_data",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/thermal/k-value": {
-      "post": {
-        "summary": "compute_thermal_k",
-        "description": "P45 热工性能 K 值计算\n\n输入：构件类型(compType)、保温材料(material)、厚度(mm)、气候带(climate)\n返回：K值、阈值对比、建议厚度",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "compute_thermal_k",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/reconstruct": {
-      "post": {
-        "summary": "reconstruct",
-        "description": "BIM 重构（需授权验证）\n\n将已解析的审查结果重构为 IFC 格式的 BIM 模型文件。\n需要有效的 auth_token（通过支付获取）。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "reconstruct",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/order/{order_id}": {
-      "get": {
-        "summary": "get_order",
-        "description": "订单状态查询\n\n查询 BIM 重构订单的处理状态和结果下载链接。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "get_order",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review-multi-sheet": {
-      "post": {
-        "summary": "review_multi_sheet",
-        "description": "P73: 多Sheet/多区域图纸独立审查\n\n上传 DXF/DWG 文件后，自动检测 Layout/Block 引用（Sheet 分区），\n每个 Sheet 独立走审查流程，结果聚合为项目级报告。\n\n返回:\n- project_summary: 项目级汇总（总违规、总实体等）\n- sheets: 每个 Sheet 的独立审查结果\n- structured_summary: 项目级结构化摘要",
-        "tags": [
-          "Review",
-          "review",
-          "Review"
-        ],
-        "operationId": "review_multi_sheet",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/queue/{task_id}": {
-      "get": {
-        "summary": "review_queue_status",
-        "description": "查询审查任务排队状态\n\n返回指定 task_id 的排队位置、进度和状态。\n如果任务不存在，返回 404。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_queue_status",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "summary": "review_queue_cancel",
-        "description": "取消排队中的审查任务\n\n仅能取消排队中（status=queued）的任务。\n已在运行或已完成的任务无法取消。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_queue_cancel",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/queue/stats": {
-      "get": {
-        "summary": "review_queue_stats",
-        "description": "查询审查任务队列统计信息",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_queue_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/render/{file_id}": {
-      "get": {
-        "summary": "render_drawing",
-        "description": "将 DXF/DWG 图纸渲染为 SVG 供前端展示",
-        "tags": [
-          "Render",
-          "render"
-        ],
-        "operationId": "render_drawing",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/render/{file_id}/overlay": {
-      "get": {
-        "summary": "render_drawing_overlay",
-        "description": "将 DXF/DWG 图纸渲染为 SVG，并叠加违规高亮标注\n\n在基础 SVG 渲染之上，通过 query params 传入违规位置信息进行高亮：\n- violations: JSON 编码的违规列表，每个含 entity_type, x, y, severity\n- 高亮颜色：critical=红色, major=橙色, normal=黄色",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "render_drawing_overlay",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/{file_id}/pdf": {
-      "get": {
-        "summary": "review_pdf",
-        "description": "导出审查报告 PDF\n\n对已审查过的图纸生成结构化 PDF 审查报告，包含封面、\n违规分类统计、每条违规详情及修正建议。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_pdf",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/project/summary": {
-      "get": {
-        "summary": "project_summary",
-        "description": "项目级审查汇总\n\n对已审查过的多个图纸文件生成跨文件的统一汇总报告，\n包含项目总体评分、合规率、严重级别分布、规范条目热力图、\n项目级风险识别等维度。\n\n不重新审查，从缓存读取各文件审查结果后聚合。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "project_summary",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/compare": {
-      "post": {
-        "summary": "review_compare",
-        "description": "审查结果对比（Diff）\n\n上传同一图纸的两个版本，自动分别审查并对比差异：\n- 新增违规：新版新增的违规项\n- 消失违规：旧版有但新版已修复的违规项\n- 变化违规：同一实体值或状态发生变化\n\n返回结构化 Diff 报告，含变更摘要和逐条详情。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "review_compare",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/batch-review": {
-      "post": {
-        "summary": "batch_review",
-        "description": "多文件批量审查\n\n同时审查最多 20 个图纸文件，返回每个文件的单独审查结果，\n以及跨文件的交叉分析（同一违规类别在多少文件中出现）。",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "batch_review",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/batch-review-stream": {
-      "post": {
-        "summary": "batch_review_stream",
-        "description": "多文件批量审查 — SSE 流式推送实时进度\n\n每个文件在关键阶段推送进度事件：\n- file.queued / file.parsing / file.semantic / file.checking / file.done / file.error\n- batch.done 标记全部完成，含跨文件汇总",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "batch_review_stream",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/history": {
-      "get": {
-        "summary": "list_review_history",
-        "description": "查询审查历史记录列表（分页）",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "list_review_history",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "summary": "clear_review_history",
-        "description": "清空所有审查历史记录",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "clear_review_history",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/review/history/{review_id}": {
-      "get": {
-        "summary": "get_review_detail",
-        "description": "获取单条审查记录完整详情",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "get_review_detail",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "summary": "delete_review_history",
-        "description": "删除单条审查记录",
-        "tags": [
-          "Review",
-          "review"
-        ],
-        "operationId": "delete_review_history",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/cases": {
-      "get": {
-        "summary": "list_cases",
-        "description": "案例列表（分页 + 多维筛选）\n\nArgs:\n    building_type: 建筑类型（civil/industrial）\n    standard: 审查标准\n    min_score / max_score: 得分范围筛选\n    tag: 标签筛选（如 \"尺寸不合规\"）\n    limit / offset: 分页",
-        "tags": [
-          "Cases",
-          "Cases"
-        ],
-        "operationId": "list_cases",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/cases/search": {
-      "get": {
-        "summary": "search_cases",
-        "description": "关键词检索案例（按图纸名称模糊匹配）",
-        "tags": [
-          "Cases",
-          "Cases"
-        ],
-        "operationId": "search_cases",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/cases/stats": {
-      "get": {
-        "summary": "get_case_stats",
-        "description": "案例统计概览（按建筑类型/标准/标签分布）",
-        "tags": [
-          "Cases",
-          "Cases"
-        ],
-        "operationId": "get_case_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/cases/{case_id}": {
-      "get": {
-        "summary": "get_case",
-        "description": "获取单条案例详情（复用 review_detail 数据）",
-        "tags": [
-          "Cases",
-          "Cases"
-        ],
-        "operationId": "get_case",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/stats": {
-      "get": {
-        "summary": "api_stats",
-        "description": "审查统计仪表盘",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "api_stats",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/health": {
-      "get": {
-        "summary": "health",
-        "description": "增强型健康检查接口\n\n返回服务状态及各子系统（引擎、规范库、解析器、YOLO）的运行状态。\n用于 Docker 健康检查、负载均衡心跳检测。\n\nReturns:\n    dict: {\n        status: \"ok\" | \"degraded\",\n        version: 当前版本号,\n        uptime_seconds: 服务运行秒数,\n        subsystems: 各子系统的状态详情\n    }",
-        "tags": [
-          "System"
-        ],
-        "operationId": "health",
-        "security": []
-      }
-    },
-    "/deconstruct": {
-      "post": {
-        "summary": "deconstruct",
-        "description": "图纸解构（免费端点）\n\n将上传的 DWG/DXF 图纸解析为结构化实体数据，包括：\n1. DWG/DXF → 图元解析（DrawingParser）\n2. 语义分析（SemanticAnalyzer）— 识别墙、门、窗、楼梯等\n3. 可选 YOLO 检测增强 — 使用 CV 模型辅助识别\n4. 尺寸标注注入（DimensionParser）— 自动反推实体属性\n5. 规范判定 — 按 GB50016 检查每类实体的合规性\n6. 结果聚合 — 统计、去重、分类输出\n\nReturns:\n    dict: {status, elements, findings, summary, ...}",
-        "tags": [
-          "Deconstruct"
-        ],
-        "operationId": "deconstruct",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/functions": {
-      "get": {
-        "summary": "list_functions",
-        "description": "获取原子函数库列表（含简介、参数、模型）",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "list_functions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/specs": {
-      "get": {
-        "summary": "list_specs",
-        "description": "获取规范库列表（含所有条款）",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "list_specs",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/specs/versions": {
-      "get": {
-        "summary": "list_spec_versions",
-        "description": "获取支持的所有规范版本列表\n\nArgs:\n    standard: 指定标准名称（如 GB 50016），None 返回全部标准",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "list_spec_versions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/specs/compare": {
-      "get": {
-        "summary": "compare_spec_versions",
-        "description": "对比两个版本间的规范差异\n\nArgs:\n    standard: 标准名称（如 GB 50016）\n    old_version: 旧版本（如 2014）\n    new_version: 新版本（如 2025）；None 表示从 old_version 到最新版",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "compare_spec_versions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/specs/change-log": {
-      "get": {
-        "summary": "get_change_log",
-        "description": "获取版本变更日志（详细条目）",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "get_change_log",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/functions/{func_id}/update": {
-      "post": {
-        "summary": "update_function",
-        "description": "更新原子函数的阈值/运算符等参数",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "update_function",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/reverse": {
-      "post": {
-        "summary": "reverse_generate",
-        "description": "反向重构：根据房间规格生成合规 DXF",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "reverse_generate",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/reverse/multi": {
-      "post": {
-        "summary": "reverse_generate_multi",
-        "description": "多房间布局生成",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "reverse_generate_multi",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/reverse/export-dwg": {
-      "post": {
-        "summary": "reverse_export_dwg",
-        "description": "P67: 将反向重构生成的 DXF 内容导出为 DWG 文件。\n\n请求体: {\"dxf_content\": \"<DXF文本>\", \"filename\": \"output.dwg\"}\n返回: HTTP下载（DWG 或 DXF 降级）",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "reverse_export_dwg",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/correction/suggestions": {
-      "post": {
-        "summary": "generate_correction_suggestions",
-        "description": "基于审查违规结果生成修正建议（rule/llm/hybrid 三种模式）\n\n请求体：\n{\n    \"review_id\": \"<可选，审查会话 ID>\",\n    \"findings\": [  # 审查违规结果列表\n        {\"entity_id\": \"e1\", \"func_id\": \"DIM-001\", ...},\n        ...\n    ],\n    \"entities\": [  # 实体信息（可选）\n        {\"id\": \"e1\", \"type\": \"stair\", \"properties\": {...}},\n        ...\n    ],\n    \"mode\": \"rule|llm|hybrid\",  # 模式\n}",
-        "tags": [
-          "API",
-          "API v1"
-        ],
-        "operationId": "generate_correction_suggestions",
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    }
-  },
-  "components": {
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "Authorization",
-        "description": "Bearer token, 格式: Bearer <api_key>"
-      }
-    }
-  }
+  ]
 }
