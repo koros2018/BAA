@@ -407,6 +407,27 @@ class BAAClient:
             json_body={"file_id": file_id},
         )
 
+    # ── 结构化导出 (P91) ────────────────────────────────────
+
+    def export_review(self, review_id: str, format: str = "json") -> bytes:
+        """导出审查结果为 JSON/CSV"""
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                r = c.get(
+                    self._url(f"/review/export", {"review_id": review_id, "format": format}),
+                    headers=self._headers(),
+                )
+                r.raise_for_status()
+                return r.content
+        from urllib.request import Request, urlopen
+
+        req = Request(
+            self._url(f"/review/export?review_id={review_id}&format={format}"),
+            headers=self._headers(),
+        )
+        with urlopen(req, timeout=self.timeout) as resp:  # nosec
+            return resp.read()
+
     # ── 多 Sheet 审查 (P73) ────────────────────────────────
 
     def review_multi_sheet(
