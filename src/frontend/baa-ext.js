@@ -752,7 +752,7 @@ let _msSheetData = [];  // 缓存各 Sheet 审查结果
 async function runMultiSheetReview() {
     const fileInput = document.getElementById('ms-file-input');
     const file = fileInput?.files?.[0];
-    if (!file) { alert('请先选择 DXF/DWG 文件'); return; }
+    if (!file) { showToast('请先选择 DXF/DWG 文件', 'info'); return; }
 
     const btn = document.getElementById('ms-review-start-btn');
     const loading = document.getElementById('ms-review-loading');
@@ -793,7 +793,7 @@ async function runMultiSheetReview() {
         loading.classList.add('hidden');
         btn.textContent = '📑 开始多Sheet审查';
         btn.disabled = false;
-        alert('审查失败: ' + e.message);
+        showToast('❌ 审查失败: ' + e.message, 'error');
     }
 }
 
