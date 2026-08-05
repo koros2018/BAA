@@ -4,7 +4,7 @@
 
 ## 完成状态
 
-> 截至 2026-08-05 13:37：P1~P89 路线图内全部完成，缺口 P48（施工图规范后端）+ P63（云端部署）。
+> 截至 2026-08-05 18:37：P1~P92 路线图内全部完成。P93（施工图审查模型参数导出）新立项。
 
 ### v1.8.3~v1.8.5 — 真实图纸走廊宽度推断
 - ✅ `_compute_bbox` 4层兜底（LWPOLYLINE坐标修复）
@@ -259,7 +259,7 @@
 | P45 | 能耗分析集成 | ✅ 已完成 |围护结构热工性能计算（16条原子函数 + K值反算 + 多材料复合层）|
 | P46 | 结构荷载验算 | ✅ 已完成 |16条原子函数 + 16条修正模板 + 64单元测试 |
 | P47 | 无障碍设计检查 | ✅ 已完成 |轮椅通道/坡道/电梯检查 |
-| P48 | 施工图审查标准 | ✅ 完成（后端 30条CD项 + API + SDK + 前端面板 P92） |
+| P48 | 施工图审查标准 | ✅ 完成（后端 30条CD项 + API + SDK，前端 P92） |
 | P49 | 云端部署优化 | ✅ 已关闭（P63 K8s部署方案覆盖） |
 | P50 | API 文档 SDK | OpenAPI 自动生成 SDK |
 
@@ -568,3 +568,82 @@
 - OpenAPI 文档可通过 `/docs` 访问
 - Python SDK 可 pip 安装使用
 - JS SDK 可通过 npm 安装使用
+
+---
+
+### P93: 施工图审查模型参数导出（垂直大模型微调数据生产）
+**目标**：将 BAA 审查引擎的判定规则、阈值参数、审查样本以结构化格式导出，供下游开源大模型（Qwen / DeepSeek / 等）做垂直领域 SFT / RLHF 微调数据准备。
+
+**背景**：P48/P92 已构建 30 条施工图审查标准（CD），但其作为静态规范清单，产品价值有限。核心资产不是清单本身，而是 BAA 审查引擎积累的规则逻辑、判定参数、空间关系特征——这些才是开源大模型在建筑垂直领域微调时最稀缺的知识来源。
+
+**具体动作**：
+
+#### 1. 原子函数参数表导出（`/api/v1/model-params/functions`）
+- 输出 422 个原子函数的完整参数结构：
+  - 元信息：func_id, title, standard_ref, level(L1/L2/L3), major
+  - 判定参数：target_entities, thresholds, tolerance, spatial_constraints
+  - 规则逻辑：check_method(auto/manual/ai), global_context, chain_dependencies
+- 格式：JSON 数组，每项一个函数
+
+#### 2. LAYER_RULES 语义映射导出（`/api/v1/model-params/layer-rules`）
+- 输出 567 + 90 条图层→实体类型映射
+- 包含：layer_pattern, entity_type, priority, source
+- 这是建筑图纸领域最稀缺的垂直知识库，直接可用于训练图纸解析模型
+
+#### 3. 审查样本导出（`/api/v1/model-params/samples?limit=&review_id=`）
+- 从已完成审查中提取（输入特征 → 判定结果 → 判定依据）三元组
+- 输入特征：实体类型、尺寸、空间关系、图层信息
+- 判定结果：PASS/FAIL/CONFIRMED
+- 判定依据：触发的原子函数、违规描述、规范条款引用
+- 支持按 review_id 导出单次审查，或全局最近 N 条
+
+#### 4. 空间关系图导出（`/api/v1/model-params/spatial-graph?review_id=`）
+- room↔wall↔door↔stair↔exit 的邻接、距离、包含关系
+- 格式：节点列表 + 边列表，含几何属性（bbox, distance）
+- 用于训练模型理解建筑空间拓扑
+
+#### 5. 输出格式兼容（`/api/v1/model-params/export?format=`）
+- `json`: 原始结构化 JSON（默认，最灵活）
+- `jsonl-sft`: OpenAI/Qwen/DeepSeek 通用 SFT 格式：
+  ```
+  {"messages": [{"role": "user", "content": "<输入特征>"}, {"role": "assistant", "content": "<判定结果+依据>"}]}
+  ```
+- `hf-dataset`: HuggingFace Dataset 格式（Arrow 或 parquet 描述）
+  - 字段：features, targets, metadata(standard_ref, level, major)
+  - 兼容 `datasets.load_dataset()` 直接加载
+- `csv`: 表格格式，Excel 直接打开
+
+#### 6. 前端面板（复用 `page-cd`，改造 `baa-cd.js`）
+- 顶部 Tab：`参数表 | 语义映射 | 审查样本 | 空间关系 | 导出` 
+- 每 Tab 展示对应数据（表格 + 统计）
+- "导出" Tab：选择格式 + 范围 → 下载
+- 支持 API key 鉴权（审查样本含真实图纸信息）
+
+**后端实现规划**：
+- 新文件：`src/api/model_params/model_params_routes.py`（路由 + 格式化）
+- 新文件：`src/baa_engine/model_params/exporter.py`（数据提取 + 格式转换）
+- 新文件：`src/baa_engine/model_params/layer_rules_export.py`（语义映射导出）
+- 注册到 `baa_api.py`：`app.include_router(model_params_router, prefix="/api/v1/model-params")`
+
+**前端实现规划**：
+- 改造 `baa-cd.js` → 重构为多 Tab 面板
+- 保留 P48 后端（CD 规范列表，仍可访问，作为参考页）
+- 侧边栏名称改为 `🤖 模型参数`
+
+**SDK 扩展**：
+- `list_function_params()` — 原子函数参数表
+- `export_layer_rules()` — LAYER_RULES 语义映射
+- `export_review_samples(review_id, format)` — 审查样本
+- `export_spatial_graph(review_id)` — 空间关系图
+- `download_model_params(format, **kwargs)` — 统一导出端点
+
+**验收标准**：
+- `GET /api/v1/model-params/functions` 返回 422 个原子函数参数（JSON）
+- `GET /api/v1/model-params/layer-rules` 返回 657 条语义映射（JSON）
+- `GET /api/v1/model-params/samples?limit=10` 返回 SFT 样本（三元组格式）
+- `GET /api/v1/model-params/export?format=jsonl-sft&limit=100` 输出 Qwen/DeepSeek 兼容 SFT JSONL
+- `GET /api/v1/model-params/export?format=hf-dataset&limit=100` 输出 HuggingFace Dataset 描述
+- 前端页面打开正常，各 Tab 数据加载无错误
+- SDK 5 个新方法全部可用
+- 测试：`test_model_params.py` ≥15 测试全绿
+- 2036+ 回归测试无失败
