@@ -130,7 +130,8 @@ async function runReview() {
       if (reviewId) {
         summary.innerHTML += '<div class="mt-3 flex gap-2">' +
           '<button onclick="downloadReviewPdf(\'' + reviewId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
-          '<button onclick="downloadReviewJSON()" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
+          '<button onclick="downloadReviewExport(\'' + reviewId + '\', \'' + 'json' + '\')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
+          '<button onclick="downloadReviewExport(\'' + reviewId + '\', \'' + 'csv' + '\')" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">📊 导出CSV</button>' +
           '</div>';
       }
 
@@ -1312,6 +1313,30 @@ function downloadReviewPdf(reviewId) {
     .catch(err => {
       showToast('❌ ' + err.message, 'error');
     });
+}
+
+// ── P91: 结构化导出 (JSON/CSV) ────────────────────────────
+function downloadReviewExport(reviewId, format) {
+  if (!reviewId) { showToast('没有可导出的审查结果', 'info'); return; }
+  const url = API_BASE() + '/review/export?review_id=' + encodeURIComponent(reviewId) + '&format=' + format;
+  fetch(url, {
+    method: 'GET',
+    headers: getHeaders(),
+  }).then(function(resp) {
+    if (!resp.ok) return resp.json().then(function(d) { throw new Error(d.detail?.message || resp.statusText); });
+    return resp.blob();
+  }).then(function(blob) {
+    const mime = format === 'csv' ? 'text/csv;charset=utf-8-sig' : 'application/json';
+    const ext = format === 'csv' ? 'csv' : 'json';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([blob], {type: mime}));
+    a.download = '审查结果_' + reviewId + '.' + ext;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('✅ 已导出 ' + format.toUpperCase() + ' 文件', 'success');
+  }).catch(function(e) {
+    showToast('❌ 导出失败: ' + e.message, 'error');
+  });
 }
 
 // ── JSON 导出 ──────────────────────────────────────────────
