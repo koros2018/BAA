@@ -1,0 +1,1355 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BAA API",
+    "description": "BAA (Blueprint AI Agent) — 建筑图纸 AI 合规审查系统",
+    "version": "1.25.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "本地开发"
+    },
+    {
+      "url": "https://api.baa.example.com",
+      "description": "生产环境 (占位)"
+    }
+  ],
+  "paths": {
+    "/collab/auth/register": {
+      "post": {
+        "summary": "collab_register",
+        "description": "collab_register",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_register",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/auth/login": {
+      "post": {
+        "summary": "collab_login",
+        "description": "collab_login",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_login",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/users/me": {
+      "get": {
+        "summary": "collab_get_me",
+        "description": "collab_get_me",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_get_me",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "collab_update_me",
+        "description": "collab_update_me",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_update_me",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/users/search": {
+      "get": {
+        "summary": "collab_search_users",
+        "description": "collab_search_users",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_search_users",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/teams": {
+      "post": {
+        "summary": "collab_create_team",
+        "description": "collab_create_team",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_create_team",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "collab_list_teams",
+        "description": "collab_list_teams",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_list_teams",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/teams/{team_id}": {
+      "get": {
+        "summary": "collab_get_team",
+        "description": "collab_get_team",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_get_team",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/teams/{team_id}/members": {
+      "post": {
+        "summary": "collab_add_team_member",
+        "description": "collab_add_team_member",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_add_team_member",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/teams/{team_id}/members/{target_id}": {
+      "delete": {
+        "summary": "collab_remove_team_member",
+        "description": "collab_remove_team_member",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_remove_team_member",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/projects": {
+      "post": {
+        "summary": "collab_create_project",
+        "description": "collab_create_project",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_create_project",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "collab_list_projects",
+        "description": "collab_list_projects",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_list_projects",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/projects/{project_id}": {
+      "get": {
+        "summary": "collab_get_project",
+        "description": "collab_get_project",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_get_project",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/projects/{project_id}/members": {
+      "post": {
+        "summary": "collab_add_project_member",
+        "description": "collab_add_project_member",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_add_project_member",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/projects/{project_id}/members/{target_id}": {
+      "put": {
+        "summary": "collab_update_project_member",
+        "description": "collab_update_project_member",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_update_project_member",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "collab_remove_project_member",
+        "description": "collab_remove_project_member",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_remove_project_member",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/teams/{team_id}/projects": {
+      "get": {
+        "summary": "collab_list_team_projects",
+        "description": "collab_list_team_projects",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_list_team_projects",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/review-sessions": {
+      "post": {
+        "summary": "collab_create_review_session",
+        "description": "collab_create_review_session",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_create_review_session",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/projects/{project_id}/review-sessions": {
+      "get": {
+        "summary": "collab_list_review_sessions",
+        "description": "collab_list_review_sessions",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_list_review_sessions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/review-sessions/{session_id}": {
+      "get": {
+        "summary": "collab_get_review_session",
+        "description": "collab_get_review_session",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_get_review_session",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/review-sessions/{session_id}/status": {
+      "put": {
+        "summary": "collab_update_review_session_status",
+        "description": "collab_update_review_session_status",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_update_review_session_status",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/review-sessions/{session_id}/comments": {
+      "post": {
+        "summary": "collab_add_comment",
+        "description": "collab_add_comment",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_add_comment",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "collab_list_comments",
+        "description": "collab_list_comments",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_list_comments",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/comments/{comment_id}/resolve": {
+      "put": {
+        "summary": "collab_resolve_comment",
+        "description": "collab_resolve_comment",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_resolve_comment",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/review-sessions/{session_id}/approval-flow": {
+      "post": {
+        "summary": "collab_create_approval_flow",
+        "description": "collab_create_approval_flow",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_create_approval_flow",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "collab_get_approval_flow",
+        "description": "collab_get_approval_flow",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_get_approval_flow",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/approval-steps/{step_id}/approve": {
+      "post": {
+        "summary": "collab_approve_step",
+        "description": "collab_approve_step",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_approve_step",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/approval-steps/{step_id}/reject": {
+      "post": {
+        "summary": "collab_reject_step",
+        "description": "collab_reject_step",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_reject_step",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/collab/stats": {
+      "get": {
+        "summary": "collab_stats",
+        "description": "collab_stats",
+        "tags": [
+          "Collaboration"
+        ],
+        "operationId": "collab_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys": {
+      "post": {
+        "summary": "create_api_key",
+        "description": "创建新的API Key（需要admin权限）",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "create_api_key",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "list_api_keys",
+        "description": "列出所有API Key",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "list_api_keys",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys/stats": {
+      "get": {
+        "summary": "api_key_stats",
+        "description": "API Key用量统计",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "api_key_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys/{key_id}": {
+      "get": {
+        "summary": "get_api_key_detail",
+        "description": "获取单个API Key详情（含解密后的 raw_key）",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "get_api_key_detail",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "delete_api_key",
+        "description": "物理删除API Key（不可恢复）",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "delete_api_key",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys/{key_id}/revoke": {
+      "post": {
+        "summary": "revoke_api_key",
+        "description": "撤销API Key",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "revoke_api_key",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys/{key_id}/rotate": {
+      "post": {
+        "summary": "rotate_api_key",
+        "description": "轮换API Key（生成新密钥值，旧密钥失效）",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "rotate_api_key",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/keys/verify": {
+      "post": {
+        "summary": "verify_api_key_raw",
+        "description": "验证原始API Key是否有效（无需admin权限，供前端导入时校验）",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "verify_api_key_raw",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/bootstrap-key": {
+      "get": {
+        "summary": "bootstrap_admin_key",
+        "description": "获取前端密钥管理页使用的管理令牌（免认证）\n\n开发模式（BAA_API_KEY 未设置）时返回空字符串，\n此时后端 _ag.require_admin 不校验令牌，前端直接发请求即可。\n生产模式时返回环境变量中的 admin key。",
+        "tags": [
+          "admin"
+        ],
+        "operationId": "bootstrap_admin_key",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "summary": "create_review_task",
+        "description": "创建异步审查任务（EMA2 对接）\n\n上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "create_review_task",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "summary": "get_task_status",
+        "description": "查询任务状态（EMA2 对接）",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "get_task_status",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/result": {
+      "get": {
+        "summary": "get_task_result",
+        "description": "获取审查结果（EMA2 对接）",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "get_task_result",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/webhooks": {
+      "post": {
+        "summary": "register_webhook",
+        "description": "注册 Webhook 回调（EMA2 对接）\n\n注册后，当异步审查任务完成或失败时，系统会 POST 通知到该 URL。",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "register_webhook",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "list_webhooks",
+        "description": "查询 Webhook 列表（EMA2 对接）",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "list_webhooks",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/webhooks/{webhook_id}": {
+      "delete": {
+        "summary": "delete_webhook",
+        "description": "删除 Webhook（EMA2 对接）",
+        "tags": [
+          "EMA2"
+        ],
+        "operationId": "delete_webhook",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/feedbacks": {
+      "post": {
+        "summary": "submit_feedback",
+        "description": "提交违规申诉（P10 反馈闭环）\n\n用户对审查结果有异议时，提交申诉。\nBody 包含 task_id, clause_id, entity_id, entity_type, reason, description 等。\n申诉数据后续用于模型微调，减少误报。",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "submit_feedback",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "list_feedbacks",
+        "description": "查询申诉列表（支持状态和规范条款筛选）",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "list_feedbacks",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/feedbacks/stats": {
+      "get": {
+        "summary": "feedback_stats",
+        "description": "申诉统计（总数、待处理数、各类分布）",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "feedback_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/feedbacks/{feedback_id}": {
+      "get": {
+        "summary": "get_feedback",
+        "description": "查询单条申诉详情",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "get_feedback",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "review_feedback",
+        "description": "审核申诉（P10 反馈闭环）\n\n管理员审核用户提交的申诉。\nBody: {status: accepted/rejected, reviewed_by, review_comment?}",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "review_feedback",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/feedbacks/{feedback_id}/adjust": {
+      "post": {
+        "summary": "adjust_threshold",
+        "description": "基于申诉数据计算/应用阈值调整\n\n使用 LearningEngine 分析申诉数据，计算建议的阈值调整值。\n如果 apply=true，直接应用调整到规范知识库。\nBody: {clause_id, apply?}",
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "adjust_threshold",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review": {
+      "post": {
+        "summary": "list_functions",
+        "description": "获取原子函数库列表（含简介、参数、模型）",
+        "tags": [
+          "Review"
+        ],
+        "operationId": "list_functions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/pdf": {
+      "get": {
+        "summary": "export_review_pdf",
+        "description": "导出审查结果为 PDF 报告\n\n基于审查记录 ID 生成完整 PDF 报告，包含：\n- 封面（项目信息、审查概要）\n- 合规度评分页\n- 违规分类统计\n- 违规详情（TOP-N）\n- 修正建议",
+        "tags": [
+          "Review",
+          "review",
+          "Review"
+        ],
+        "operationId": "export_review_pdf",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review-from-data": {
+      "post": {
+        "summary": "review_from_data",
+        "description": "从已解析的结构化数据执行规范审查（无需重新上传文件）\n\n接收前端或其他服务已解析好的实体数据，直接运行规范判定。\n适用于已有结构化数据的场景，跳过图纸解析步骤。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_from_data",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/thermal/k-value": {
+      "post": {
+        "summary": "compute_thermal_k",
+        "description": "P45 热工性能 K 值计算\n\n输入：构件类型(compType)、保温材料(material)、厚度(mm)、气候带(climate)\n返回：K值、阈值对比、建议厚度",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "compute_thermal_k",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/reconstruct": {
+      "post": {
+        "summary": "reconstruct",
+        "description": "BIM 重构（需授权验证）\n\n将已解析的审查结果重构为 IFC 格式的 BIM 模型文件。\n需要有效的 auth_token（通过支付获取）。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "reconstruct",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/order/{order_id}": {
+      "get": {
+        "summary": "get_order",
+        "description": "订单状态查询\n\n查询 BIM 重构订单的处理状态和结果下载链接。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "get_order",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review-multi-sheet": {
+      "post": {
+        "summary": "review_multi_sheet",
+        "description": "P73: 多Sheet/多区域图纸独立审查\n\n上传 DXF/DWG 文件后，自动检测 Layout/Block 引用（Sheet 分区），\n每个 Sheet 独立走审查流程，结果聚合为项目级报告。\n\n返回:\n- project_summary: 项目级汇总（总违规、总实体等）\n- sheets: 每个 Sheet 的独立审查结果\n- structured_summary: 项目级结构化摘要",
+        "tags": [
+          "Review",
+          "review",
+          "Review"
+        ],
+        "operationId": "review_multi_sheet",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/queue/{task_id}": {
+      "get": {
+        "summary": "review_queue_status",
+        "description": "查询审查任务排队状态\n\n返回指定 task_id 的排队位置、进度和状态。\n如果任务不存在，返回 404。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_queue_status",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "review_queue_cancel",
+        "description": "取消排队中的审查任务\n\n仅能取消排队中（status=queued）的任务。\n已在运行或已完成的任务无法取消。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_queue_cancel",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/queue/stats": {
+      "get": {
+        "summary": "review_queue_stats",
+        "description": "查询审查任务队列统计信息",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_queue_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/render/{file_id}": {
+      "get": {
+        "summary": "render_drawing",
+        "description": "将 DXF/DWG 图纸渲染为 SVG 供前端展示",
+        "tags": [
+          "Render",
+          "render"
+        ],
+        "operationId": "render_drawing",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/render/{file_id}/overlay": {
+      "get": {
+        "summary": "render_drawing_overlay",
+        "description": "将 DXF/DWG 图纸渲染为 SVG，并叠加违规高亮标注\n\n在基础 SVG 渲染之上，通过 query params 传入违规位置信息进行高亮：\n- violations: JSON 编码的违规列表，每个含 entity_type, x, y, severity\n- 高亮颜色：critical=红色, major=橙色, normal=黄色",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "render_drawing_overlay",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/{file_id}/pdf": {
+      "get": {
+        "summary": "review_pdf",
+        "description": "导出审查报告 PDF\n\n对已审查过的图纸生成结构化 PDF 审查报告，包含封面、\n违规分类统计、每条违规详情及修正建议。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_pdf",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/project/summary": {
+      "get": {
+        "summary": "project_summary",
+        "description": "项目级审查汇总\n\n对已审查过的多个图纸文件生成跨文件的统一汇总报告，\n包含项目总体评分、合规率、严重级别分布、规范条目热力图、\n项目级风险识别等维度。\n\n不重新审查，从缓存读取各文件审查结果后聚合。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "project_summary",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/compare": {
+      "post": {
+        "summary": "review_compare",
+        "description": "审查结果对比（Diff）\n\n上传同一图纸的两个版本，自动分别审查并对比差异：\n- 新增违规：新版新增的违规项\n- 消失违规：旧版有但新版已修复的违规项\n- 变化违规：同一实体值或状态发生变化\n\n返回结构化 Diff 报告，含变更摘要和逐条详情。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "review_compare",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/batch-review": {
+      "post": {
+        "summary": "batch_review",
+        "description": "多文件批量审查\n\n同时审查最多 20 个图纸文件，返回每个文件的单独审查结果，\n以及跨文件的交叉分析（同一违规类别在多少文件中出现）。",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "batch_review",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/batch-review-stream": {
+      "post": {
+        "summary": "batch_review_stream",
+        "description": "多文件批量审查 — SSE 流式推送实时进度\n\n每个文件在关键阶段推送进度事件：\n- file.queued / file.parsing / file.semantic / file.checking / file.done / file.error\n- batch.done 标记全部完成，含跨文件汇总",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "batch_review_stream",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/history": {
+      "get": {
+        "summary": "list_review_history",
+        "description": "查询审查历史记录列表（分页）",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "list_review_history",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "clear_review_history",
+        "description": "清空所有审查历史记录",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "clear_review_history",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/review/history/{review_id}": {
+      "get": {
+        "summary": "get_review_detail",
+        "description": "获取单条审查记录完整详情",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "get_review_detail",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "delete_review_history",
+        "description": "删除单条审查记录",
+        "tags": [
+          "Review",
+          "review"
+        ],
+        "operationId": "delete_review_history",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cases": {
+      "get": {
+        "summary": "list_cases",
+        "description": "案例列表（分页 + 多维筛选）\n\nArgs:\n    building_type: 建筑类型（civil/industrial）\n    standard: 审查标准\n    min_score / max_score: 得分范围筛选\n    tag: 标签筛选（如 \"尺寸不合规\"）\n    limit / offset: 分页",
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "operationId": "list_cases",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cases/search": {
+      "get": {
+        "summary": "search_cases",
+        "description": "关键词检索案例（按图纸名称模糊匹配）",
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "operationId": "search_cases",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cases/stats": {
+      "get": {
+        "summary": "get_case_stats",
+        "description": "案例统计概览（按建筑类型/标准/标签分布）",
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "operationId": "get_case_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cases/{case_id}": {
+      "get": {
+        "summary": "get_case",
+        "description": "获取单条案例详情（复用 review_detail 数据）",
+        "tags": [
+          "Cases",
+          "Cases"
+        ],
+        "operationId": "get_case",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "summary": "api_stats",
+        "description": "审查统计仪表盘",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "api_stats",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "health",
+        "description": "增强型健康检查接口\n\n返回服务状态及各子系统（引擎、规范库、解析器、YOLO）的运行状态。\n用于 Docker 健康检查、负载均衡心跳检测。\n\nReturns:\n    dict: {\n        status: \"ok\" | \"degraded\",\n        version: 当前版本号,\n        uptime_seconds: 服务运行秒数,\n        subsystems: 各子系统的状态详情\n    }",
+        "tags": [
+          "System"
+        ],
+        "operationId": "health",
+        "security": []
+      }
+    },
+    "/deconstruct": {
+      "post": {
+        "summary": "deconstruct",
+        "description": "图纸解构（免费端点）\n\n将上传的 DWG/DXF 图纸解析为结构化实体数据，包括：\n1. DWG/DXF → 图元解析（DrawingParser）\n2. 语义分析（SemanticAnalyzer）— 识别墙、门、窗、楼梯等\n3. 可选 YOLO 检测增强 — 使用 CV 模型辅助识别\n4. 尺寸标注注入（DimensionParser）— 自动反推实体属性\n5. 规范判定 — 按 GB50016 检查每类实体的合规性\n6. 结果聚合 — 统计、去重、分类输出\n\nReturns:\n    dict: {status, elements, findings, summary, ...}",
+        "tags": [
+          "Deconstruct"
+        ],
+        "operationId": "deconstruct",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/functions": {
+      "get": {
+        "summary": "list_functions",
+        "description": "获取原子函数库列表（含简介、参数、模型）",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "list_functions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/specs": {
+      "get": {
+        "summary": "list_specs",
+        "description": "获取规范库列表（含所有条款）",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "list_specs",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/specs/versions": {
+      "get": {
+        "summary": "list_spec_versions",
+        "description": "获取支持的所有规范版本列表\n\nArgs:\n    standard: 指定标准名称（如 GB 50016），None 返回全部标准",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "list_spec_versions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/specs/compare": {
+      "get": {
+        "summary": "compare_spec_versions",
+        "description": "对比两个版本间的规范差异\n\nArgs:\n    standard: 标准名称（如 GB 50016）\n    old_version: 旧版本（如 2014）\n    new_version: 新版本（如 2025）；None 表示从 old_version 到最新版",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "compare_spec_versions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/specs/change-log": {
+      "get": {
+        "summary": "get_change_log",
+        "description": "获取版本变更日志（详细条目）",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "get_change_log",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/functions/{func_id}/update": {
+      "post": {
+        "summary": "update_function",
+        "description": "更新原子函数的阈值/运算符等参数",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "update_function",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reverse": {
+      "post": {
+        "summary": "reverse_generate",
+        "description": "反向重构：根据房间规格生成合规 DXF",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "reverse_generate",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reverse/multi": {
+      "post": {
+        "summary": "reverse_generate_multi",
+        "description": "多房间布局生成",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "reverse_generate_multi",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reverse/export-dwg": {
+      "post": {
+        "summary": "reverse_export_dwg",
+        "description": "P67: 将反向重构生成的 DXF 内容导出为 DWG 文件。\n\n请求体: {\"dxf_content\": \"<DXF文本>\", \"filename\": \"output.dwg\"}\n返回: HTTP下载（DWG 或 DXF 降级）",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "reverse_export_dwg",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/correction/suggestions": {
+      "post": {
+        "summary": "generate_correction_suggestions",
+        "description": "基于审查违规结果生成修正建议（rule/llm/hybrid 三种模式）\n\n请求体：\n{\n    \"review_id\": \"<可选，审查会话 ID>\",\n    \"findings\": [  # 审查违规结果列表\n        {\"entity_id\": \"e1\", \"func_id\": \"DIM-001\", ...},\n        ...\n    ],\n    \"entities\": [  # 实体信息（可选）\n        {\"id\": \"e1\", \"type\": \"stair\", \"properties\": {...}},\n        ...\n    ],\n    \"mode\": \"rule|llm|hybrid\",  # 模式\n}",
+        "tags": [
+          "API",
+          "API v1"
+        ],
+        "operationId": "generate_correction_suggestions",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Bearer token, 格式: Bearer <api_key>"
+      }
+    }
+  }
+}

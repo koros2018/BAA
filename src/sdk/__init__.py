@@ -20,8 +20,17 @@ BAA Python SDK — 轻量 HTTP 客户端
     # 批量审查
     batch = client.batch_review(["a.dxf", "b.dxf"], standard="GB 50016-2014")
 
+    # 多 Sheet 审查
+    multi = client.review_multi_sheet("/path/to/drawing.dxf")
+
     # 热工 K 值反算
     k = client.thermal_k_value({"thickness": 0.12, "material": "concrete"})
+
+    # 统计仪表盘
+    stats = client.stats()
+
+    # Webhook
+    client.register_webhook({"url": "https://hook.example.com/notify", "events": ["review.done"]})
 """
 
 from __future__ import annotations
@@ -365,3 +374,102 @@ class BAAClient:
     def ema2_task_result(self, task_id: str) -> dict:
         """查询 EMA2 任务结果"""
         return self._get(f"/api/v1/tasks/{task_id}/result")
+
+    # ── 多 Sheet 审查 (P73) ────────────────────────────────
+
+    def review_multi_sheet(
+        self,
+        file_path: str,
+        *,
+        standard: str = "GB 50016-2014",
+        building_type: str = "civil",
+    ) -> dict:
+        """多 Sheet 图纸审查（每个 Layout 独立审查）"""
+        path = Path(file_path)
+        return self._post(
+            "/api/v1/review-multi-sheet",
+            params={"building_type": building_type, "standard": standard},
+            files={"file": str(path)},
+        )
+
+    # ── 统计 / 仪表盘 (P72) ────────────────────────────────
+
+    def stats(self) -> dict:
+        """审查统计仪表盘"""
+        return self._get("/api/v1/stats")
+
+    # ── Webhook (P71) ──────────────────────────────────────
+
+    def register_webhook(self, body: dict) -> dict:
+        """注册 webhook 回调"""
+        return self._post("/api/v1/admin/webhooks/register", json_body=body)
+
+    def list_webhooks(self) -> list[dict]:
+        """列出已注册 webhook"""
+        return self._get("/api/v1/admin/webhooks")
+
+    def delete_webhook(self, webhook_id: str) -> dict:
+        """删除 webhook"""
+        return self._request("DELETE", f"/api/v1/admin/webhooks/{webhook_id}")
+
+    # ── 反馈闭环 ────────────────────────────────────────────
+
+    def submit_feedback(self, body: dict) -> dict:
+        """提交用户反馈（申诉/报告）"""
+        return self._post("/api/v1/feedbacks", json_body=body)
+
+    def list_feedbacks(self, status: str = "all", limit: int = 20) -> list[dict]:
+        """列出反馈"""
+        return self._get("/api/v1/feedbacks", params={"status": status, "limit": limit})
+
+    def feedback_stats(self) -> dict:
+        """反馈统计"""
+        return self._get("/api/v1/feedbacks/stats")
+
+    def review_feedback(self, feedback_id: str, body: dict) -> dict:
+        """审核反馈"""
+        return self._post(f"/api/v1/feedbacks/{feedback_id}/review", json_body=body)
+
+    # ── 原子函数管理 ────────────────────────────────────────
+
+    def adjust_threshold(self, func_id: str, threshold: float) -> dict:
+        """调整原子函数阈值"""
+        return self._post(
+            "/api/v1/functions/adjust-threshold",
+            json_body={"func_id": func_id, "threshold": threshold},
+        )
+
+    # ── 审查任务 (EMA2) ─────────────────────────────────────
+
+    def create_task(self, body: dict) -> dict:
+        """创建审查任务（别名 create_ema2_task）"""
+        return self._post("/api/v1/tasks", json_body=body)
+
+    # ── 项目协作 (P43) ──────────────────────────────────────
+
+    def collab_register(self, body: dict) -> dict:
+        """注册协作用户"""
+        return self._post("/api/v1/collab/register", json_body=body)
+
+    def collab_login(self, body: dict) -> dict:
+        """登录协作用户，返回 token"""
+        return self._post("/api/v1/collab/login", json_body=body)
+
+    def collab_create_team(self, token: str, body: dict) -> dict:
+        """创建团队"""
+        h = {"Authorization": f"Bearer {token}", "User-Agent": "baa-sdk/1.0"}
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                r = c.post(self._url("/api/v1/collab/teams"), headers=h, json=body)
+                r.raise_for_status()
+                return r.json()
+        from urllib.request import Request, urlopen
+
+        req = Request(
+            self._url("/api/v1/collab/teams"),
+            data=json.dumps(body).encode("utf-8"),
+            headers=h,
+            method="POST",
+        )
+        with urlopen(req, timeout=self.timeout) as resp:  # nosec
+            return json.loads(resp.read().decode("utf-8"))
