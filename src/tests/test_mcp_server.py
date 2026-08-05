@@ -57,7 +57,7 @@ class TestMCPHealth:
         assert r["status"] == "ok"
         assert r["engine"]["drawing_parser"] == "ready"
         assert r["engine"]["semantic_analyzer"] == "ready"
-        assert "422/422" in r["engine"]["func_registry"]
+        assert "422/512" in r["engine"]["func_registry"]
 
     def test_health_keys(self, server):
         import asyncio
@@ -76,7 +76,7 @@ class TestMCPListFunctions:
 
         r = asyncio.run(server._handle_list_functions({"category": ""}))
         assert r["total"] == 422
-        assert r["capacity"] == 422
+        assert r["capacity"] == 512
         assert r["total"] == len(r["functions"])
         assert len(r["categories"]) > 0
 
@@ -207,7 +207,7 @@ class TestMCPResource:
         assert "count" in data
         assert "capacity" in data
         assert data["count"] == 422
-        assert data["capacity"] == 422
+        assert data["capacity"] == 512
 
     def test_resource_specs(self, server):
         import asyncio

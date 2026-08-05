@@ -1039,4 +1039,4 @@ class FuncRegistry:  # class definition
     @property  # code
     def capacity(self) -> int:  # function: def capacity(self) -> int:
         """执行capacity功能"""
-        return 422  # 框架总容量：390 + 16 P45 thermal + 16 P46 structural
+        return 512  # 框架总容量：422 已用 + 90 余量（GB55036/GB51096 新标准预留）

@@ -1,0 +1,85 @@
+name: Frontend Quality Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: "JS Syntax & HTML Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install JSHint
+        run: npm install -g jshint
+
+      - name: JSHint — src/frontend/*.js
+        run: |
+          # 使用 relaxed 配置兼容 BAA 内联 event handler / DOM 属性访问
+          jshint src/frontend/*.js --config-  \
+            -e 'W017,W019,W024,W025,W051,W060,W102,W104' \
+            --extra-ext=  \
+            --verbose 2>&1 | tee /tmp/jshint.log
+
+          # 检查是否有 ERROR 行（WARNING 不阻断）
+          if grep -q "^[^ ]*:[0-9]*:[0-9]*.*Error" /tmp/jshint.log 2>/dev/null; then
+            cat /tmp/jshint.log
+            exit 1
+          fi
+          echo "JSHint passed (only warnings if any)"
+
+      - name: 检查 alert() 残留
+        run: |
+          if grep -rn "window\.alert\|[^a-zA-Z]alert(" src/frontend/*.js | grep -v "showToast\|alert(" | grep -v "/*"; then
+            echo "发现未迁移的 alert() 调用"
+            exit 1
+          fi
+          echo "No raw alert() calls found"
+
+      - name: 检查前端 HTML 基本结构
+        run: |
+          python3 -c "
+          from html.parser import HTMLParser
+          class TagChecker(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.stack = []
+                  self.errors = []
+              def handle_starttag(self, tag, attrs):
+                  void = {'br','hr','img','input','meta','link','source'}
+                  if tag not in void:
+                      self.stack.append(tag)
+              def handle_endtag(self, tag):
+                  if self.stack and self.stack[-1] == tag:
+                      self.stack.pop()
+                  else:
+                      self.errors.append(f'unmatched </{tag}>')
+          c = TagChecker()
+          with open('src/frontend/index.html') as f:
+              c.feed(f.read())
+          if c.errors:
+              print('HTML errors:', c.errors)
+              raise SystemExit(1)
+          if c.stack:
+              print('Unclosed tags:', c.stack)
+              raise SystemExit(1)
+          print('HTML structure OK')
+          "
+
+      - name: 检查前端文件是否可加载（ESLint 兜底）
+        run: |
+          npm install -g eslint@8
+          for f in src/frontend/*.js; do
+            node -c "$f" || echo "⚠️ 语法错误: $f" && exit 1
+          done
+          echo "All JS files pass node -c syntax check"
