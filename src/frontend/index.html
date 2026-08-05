@@ -1058,72 +1058,74 @@
   </div>
 </div>
 
-<!-- ===== P92: 施工图审查标准 ===== -->
-<div class="page" id="page-cd">
-  <h2 class="text-xl font-bold mb-4">🏗️ 施工图审查深度标准</h2>
-  <div id="cd-skeleton" class="skeleton-overlay hidden">
-    <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>
-    <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-48"></span><span class="skeleton-text flex-1"></span></div>
-    <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-24"></span><span class="skeleton-text flex-1"></span></div>
-  </div>
-  <div id="cd-content">
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
-      <div class="card p-2 text-xs">
-        <span class="text-gray-400">总项数</span>
-        <p class="text-lg font-bold text-blue-600" id="cd-total">0</p>
+    <!-- ===== P92: 施工图审查标准 ===== -->
+    <div class="page" id="page-cd">
+      <h2 class="text-xl font-bold mb-4">🏗️ 施工图审查深度标准</h2>
+      <div id="cd-skeleton" class="skeleton-overlay hidden">
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-48"></span><span class="skeleton-text flex-1"></span></div>
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-24"></span><span class="skeleton-text flex-1"></span></div>
       </div>
-      <div class="card p-2 text-xs">
-        <span class="text-gray-400">L1 图样完整性</span>
-        <p class="text-lg font-bold text-red-600" id="cd-l1">0</p>
+      <div id="cd-content">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+          <div class="card p-2 text-xs">
+            <span class="text-gray-400">总项数</span>
+            <p class="text-lg font-bold text-blue-600" id="cd-total">0</p>
+          </div>
+          <div class="card p-2 text-xs">
+            <span class="text-gray-400">L1 图样完整性</span>
+            <p class="text-lg font-bold text-red-600" id="cd-l1">0</p>
+          </div>
+          <div class="card p-2 text-xs">
+            <span class="text-gray-400">L2 标注完整性</span>
+            <p class="text-lg font-bold text-orange-600" id="cd-l2">0</p>
+          </div>
+          <div class="card p-2 text-xs">
+            <span class="text-gray-400">L3 专业协调</span>
+            <p class="text-lg font-bold text-green-600" id="cd-l3">0</p>
+          </div>
+        </div>
+        <div class="card mb-4">
+          <div class="flex gap-2 mb-3 flex-wrap">
+            <input id="cd-search" class="input text-sm w-48" placeholder="搜索审查项..." oninput="loadCDItems()" />
+            <select id="cd-filter-level" class="input text-sm" onchange="loadCDItems()">
+              <option value="all">全部等级</option>
+              <option value="L1">L1 图样完整性</option>
+              <option value="L2">L2 标注完整性</option>
+              <option value="L3">L3 专业协调</option>
+            </select>
+            <select id="cd-filter-major" class="input text-sm" onchange="loadCDItems()">
+              <option value="all">全部专业</option>
+              <option value="arch">建筑</option>
+              <option value="struct">结构</option>
+              <option value="mech">暖通</option>
+              <option value="elec">电气</option>
+              <option value="plumb">给排水</option>
+            </select>
+            <select id="cd-filter-method" class="input text-sm" onchange="loadCDItems()">
+              <option value="all">全部检查方式</option>
+              <option value="auto">自动检查</option>
+              <option value="manual">人工检查</option>
+            </select>
+          </div>
+          <div id="cd-filter-count" class="text-xs text-gray-400 mb-2"></div>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500">
+              <tr>
+                <th class="py-2 px-2 text-left">#</th>
+                <th class="py-2 px-2 text-left">编码</th>
+                <th class="py-2 px-2 text-left">审查项</th>
+                <th class="py-2 px-2 text-left">规范依据</th>
+                <th class="py-2 px-2 text-left">等级</th>
+                <th class="py-2 px-2 text-left">专业</th>
+                <th class="py-2 px-2 text-left">检查方式</th>
+                <th class="py-2 px-2 text-left">关联函数</th>
+              </tr>
+            </thead>
+            <tbody id="cd-list"><tr><td colspan="8" class="py-8 text-center text-gray-300">加载中...</td></tr></tbody>
+          </table>
+        </div>
       </div>
-      <div class="card p-2 text-xs">
-        <span class="text-gray-400">L2 标注完整性</span>
-        <p class="text-lg font-bold text-orange-600" id="cd-l2">0</p>
-      </div>
-      <div class="card p-2 text-xs">
-        <span class="text-gray-400">L3 专业协调</span>
-        <p class="text-lg font-bold text-green-600" id="cd-l3">0</p>
-      </div>
-    </div>
-    <div class="card mb-4">
-      <div class="flex gap-2 mb-3 flex-wrap">
-        <input id="cd-search" class="input text-sm w-48" placeholder="搜索审查项..." oninput="loadCDItems()" />
-        <select id="cd-filter-level" class="input text-sm" onchange="loadCDItems()">
-          <option value="all">全部等级</option>
-          <option value="L1">L1 图样完整性</option>
-          <option value="L2">L2 标注完整性</option>
-          <option value="L3">L3 专业协调</option>
-        </select>
-        <select id="cd-filter-major" class="input text-sm" onchange="loadCDItems()">
-          <option value="all">全部专业</option>
-          <option value="arch">建筑</option>
-          <option value="struct">结构</option>
-          <option value="mech">暖通</option>
-          <option value="elec">电气</option>
-          <option value="plumb">给排水</option>
-        </select>
-        <select id="cd-filter-method" class="input text-sm" onchange="loadCDItems()">
-          <option value="all">全部检查方式</option>
-          <option value="auto">自动检查</option>
-          <option value="manual">人工检查</option>
-        </select>
-      </div>
-      <div id="cd-filter-count" class="text-xs text-gray-400 mb-2"></div>
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-xs text-gray-500">
-          <tr>
-            <th class="py-2 px-2 text-left">#</th>
-            <th class="py-2 px-2 text-left">编码</th>
-            <th class="py-2 px-2 text-left">审查项</th>
-            <th class="py-2 px-2 text-left">规范依据</th>
-            <th class="py-2 px-2 text-left">等级</th>
-            <th class="py-2 px-2 text-left">专业</th>
-            <th class="py-2 px-2 text-left">检查方式</th>
-            <th class="py-2 px-2 text-left">关联函数</th>
-          </tr>
-        </thead>
-        <tbody id="cd-list"><tr><td colspan="8" class="py-8 text-center text-gray-300">加载中...</td></tr></tbody>
-      </table>
     </div>
   </div>
 </div>
