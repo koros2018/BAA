@@ -639,11 +639,15 @@ async function revokeAdminKey() {
 }
 // ── 页面切换 ──────────────────────────────────────────────
 document.querySelectorAll('.sidebar-item').forEach(item => {
-  item.addEventListener('click', async () => {
+  item.addEventListener('click', async function(ev) {
+    // 跳过 <a> 链接（如 API 文档入口），让默认导航行为生效
+    if (this.tagName === 'A') return;
     document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     item.classList.add('active');
-    document.getElementById('page-' + item.dataset.page).classList.add('active');
+    var target = document.getElementById('page-' + item.dataset.page);
+    if (!target) { console.warn('Page not found:', item.dataset.page); return; }
+    target.classList.add('active');
     try {
       if (item.dataset.page === 'home') await loadDashboard();
       if (item.dataset.page === 'specs') loadSpecs();
@@ -651,6 +655,7 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
       if (item.dataset.page === 'history') renderHistoryList();
       if (item.dataset.page === 'apikeys') loadAdminKeys();
       if (item.dataset.page === 'cases') { loadCaseStats(); loadCases(0); }
+      if (item.dataset.page === 'cd') loadCDItems();
     } catch(e) { console.error('页面加载错误:', e); }
   });
 });
