@@ -628,6 +628,99 @@ async def export_review_pdf(  # code
     )
 
 
+@router.get("/review/export", tags=["Review"])
+async def export_review_export(
+    review_id: str = Query(..., description="审查记录 ID"),
+    format: str = Query("json", description="导出格式: json/csv"),
+    api_key: str = Depends(verify_api_key),
+):
+    """P91: 导出审查结果为结构化数据（JSON / CSV）"""
+    from fastapi.responses import Response
+    from .review_history import get_review_detail
+
+    detail = get_review_detail(review_id)
+    if not detail:
+        raise HTTPException(
+            status_code=404,
+            detail={"status": "error", "error_code": "REVIEW_NOT_FOUND"},
+        )
+
+    details = detail.get("details", [])
+    summary = detail.get("summary", {})
+    filename = detail.get("drawingName", "review")
+
+    if format == "json":
+        payload = {
+            "file_id": review_id,
+            "filename": filename,
+            "summary": summary,
+            "details": details,
+            "top_violations": sorted(
+                details,
+                key=lambda d: (
+                    ("critical", "major", "minor").index(d.get("severity", "minor"))
+                    if d.get("severity") in ("critical", "major", "minor")
+                    else 99
+                ),
+            )[:20],
+        }
+        import json
+
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{review_id}_export.json"'},
+        )
+
+    if format == "csv":
+        import csv
+        import io
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(
+            [
+                "clause_id",
+                "title",
+                "severity",
+                "status",
+                "entity_id",
+                "entity_type",
+                "category",
+                "current_value",
+                "required_value",
+                "delta",
+                "confidence",
+                "description",
+            ]
+        )
+        for d in details:
+            writer.writerow(
+                [
+                    d.get("clause_id", ""),
+                    d.get("title", ""),
+                    d.get("severity", ""),
+                    d.get("status", ""),
+                    d.get("entity_id", ""),
+                    d.get("entity_type", ""),
+                    d.get("category", ""),
+                    str(d.get("current_value", "")),
+                    str(d.get("required_value", "")),
+                    str(d.get("delta", "")),
+                    str(d.get("confidence", "")),
+                    d.get("description", ""),
+                ]
+            )
+        return Response(
+            content=buf.getvalue().encode("utf-8-sig"),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{review_id}_export.csv"'},
+        )
+
+    raise HTTPException(status_code=400, detail={"message": f"不支持的格式: {format}"})
+
+
 @router.post("/review-from-data")  # function call
 async def review_from_data(  # code
     body: dict,  # 操作
