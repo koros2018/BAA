@@ -101,8 +101,8 @@ async function uploadDrawing() {
   const bt = document.getElementById('drawing-bt').value;
 
   const progress = document.getElementById('upload-progress');
-  progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
+  progress.className = 'card mb-4';
+  progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
 
   try {
     // Step 1: 调 /deconstruct 做纯解析（获取结构化JSON）
@@ -233,8 +233,8 @@ async function batchReview() {
   if (selected.length === 0) { showToast('请先勾选要送审的图纸', 'info'); return; }
   
   const progress = document.getElementById('upload-progress');
-  progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在批量审查 ' + selected.length + ' 张图纸...';
+  progress.className = 'card mb-4';
+  progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>批量审查</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
   
   let totalViolations = 0;
   let results = [];
@@ -282,7 +282,7 @@ async function uploadAndReview() {
   const bt = document.getElementById('drawing-bt').value;
   const progress = document.getElementById('upload-progress');
   progress.className = 'card mb-4 text-sm text-gray-500';
-  progress.innerHTML = '⏳ 正在解析 ' + file.name + '...';
+  progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
   try {
     const useYolo = document.getElementById('use-yolo-checkbox')?.checked || false;
     const yoloDevice = document.getElementById('yolo-device-select')?.value || 'cpu';
