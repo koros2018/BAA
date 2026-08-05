@@ -139,3 +139,64 @@ wait
 
 kubectl get hpa -n baa -w  # 观察副本数上升
 ```
+
+## SDK 集成（P90）
+
+> BAA 提供 Python SDK，支持 pip 安装，覆盖核心 API 端点。
+
+### 安装
+```bash
+pip install baa-sdk
+```
+
+### 快速使用
+```python
+from baa_sdk import BAAClient
+
+client = BAAClient(
+    api_key="your-api-key",
+    base_url="http://localhost:8000",  # 或 K8s Ingress URL
+)
+
+# 审查图纸
+result = client.review("/path/to/drawing.dxf")
+print(result["structured_summary"]["top_violations"])
+
+# 统计仪表盘
+stats = client.stats()
+
+# 施工图审查标准
+items = client.list_construction_review_items(level="L1")
+
+# 结构化导出
+client.export_review(review_id, format="csv")
+```
+
+### 完整端点列表
+参见 `/docs`（OpenAPI 3.1）或 `src/sdk/README.md`。
+
+## CI/CD 流水线
+
+> 仓库已配置 GitHub Actions，4 条流水线自动运行：
+
+| 流水线 | 触发 | 说明 |
+|--------|------|------|
+| `test.yml` | push/PR | pytest 全量测试（2000+ 用例） |
+| `lint.yml` | push/PR | black/flake8/pylint 质量门禁 |
+| `audit.yml` | push/PR/每周一 | 真实图纸审计脚本 |
+| `real_drawing_audit.yml` | push/PR/每周一 | CI 基线验证（6 张固定图纸） |
+| `frontend.yml` | push/PR | node -c 语法检查 + HTML 结构校验 |
+
+所有流水线在 `ubuntu-latest` 上运行，Python 3.12 + Node.js 20。
+
+## 版本号
+
+- **当前稳定版**: v2.5.29-stable（HEAD `d02a3e9`）
+- P48: 施工图审查标准（后端+前端）
+- P63: K8s 云端部署方案
+- P86: 前端骨架屏/进度条/toast 统一
+- P88: 反向重构闭环测试
+- P89: OpenAPI schema + SDK 补全
+- P90: SDK 发布就绪
+- P91: 审查结果结构化导出（JSON/CSV）
+- P92: 施工图审查标准前端面板
