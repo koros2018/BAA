@@ -49,7 +49,7 @@ class TestFuncRegistry:  # class definition
         """注册表初始数量：30 INITIAL + 4 EVAC"""
         registry = FuncRegistry()  # function call
         assert registry.count == 422  # P45 新增 thermal 16 条（GB50176/GB50189/GB55015 热工性能）
-        assert registry.capacity == 422  # P45 新增 thermal 16 条后框架总容量（294 + 96 余量 + 16）
+        assert registry.capacity == 512  # P45/P46 后扩容至 512（422 已用 + 90 余量）
 
     def test_get_by_id(self):  # function: def test_get_by_id(self):
         registry = FuncRegistry()  # function call
