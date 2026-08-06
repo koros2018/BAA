@@ -492,6 +492,51 @@ class BAAClient:
             json_body={"func_id": func_id, "threshold": threshold},
         )
 
+    # ── 模型参数导出 (P93) ──────────────────────────────────
+
+    def model_params_functions(
+        self,
+        category: str = None,
+        limit: int = None,
+    ) -> dict:
+        """返回原子函数参数表"""
+        return self._get(
+            "/api/v1/model-params/functions",
+            params={
+                k: v for k, v in {"category": category, "limit": limit}.items() if v is not None
+            },
+        )
+
+    def model_params_layer_rules(self) -> dict:
+        """返回图层规则语义映射"""
+        return self._get("/api/v1/model-params/layer-rules")
+
+    def model_params_cd_items(self) -> dict:
+        """返回施工图审查标准 (CD)"""
+        return self._get("/api/v1/model-params/cd-items")
+
+    def model_params_samples(self, limit: int = 500) -> dict:
+        """返回审查样本 (SFT 三元组)"""
+        return self._get("/api/v1/model-params/samples", params={"limit": limit})
+
+    def model_params_spatial_graph(self) -> dict:
+        """返回空间关系图"""
+        return self._get("/api/v1/model-params/spatial-graph")
+
+    def export_model_params(self, format: str = "json", limit: int = 500) -> bytes:
+        """导出模型参数为 JSON / JSONL-SFT / HF Dataset / CSV"""
+        params = {"format": format, "limit": limit}
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                r = c.get(self._url("/api/v1/model-params/export", params), headers=self._headers())
+                r.raise_for_status()
+                return r.content
+        from urllib.request import Request, urlopen
+
+        req = Request(self._url("/api/v1/model-params/export", params), headers=self._headers())
+        with urlopen(req, timeout=self.timeout) as resp:  # nosec
+            return resp.read()
+
     # ── 审查任务 (EMA2) ─────────────────────────────────────
 
     def create_task(self, body: dict) -> dict:

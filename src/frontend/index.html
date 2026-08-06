@@ -32,6 +32,7 @@
       <div class="sidebar-item" data-page="cases">📚案例库</div>
       <a class="sidebar-item text-gray-400 hover:bg-gray-800" href="/docs" target="_blank" rel="noopener" title="OpenAPI 文档 (新窗口)" data-page="docs">📄API文档</a>
       <div class="sidebar-item" data-page="cd">🏗️施工图审查</div>
+      <div class="sidebar-item" data-page="model-params">🤖模型参数导出</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
@@ -1041,6 +1042,41 @@
         <div class="card"><h3 class="font-medium mb-3">🤖 引擎状态</h3><div class="space-y-2 text-sm" id="engine-status">加载中...</div></div>
       </div>
     </div>
+    <!-- ===== P93: 模型参数导出 ===== -->
+    <div class="page" id="page-model-params">
+      <h2 class="text-xl font-bold mb-4">🤖 模型参数导出</h2>
+      <p class="text-sm text-gray-400 mb-4">导出 BAA 审查引擎的判定规则、图层规则、施工图标准，供垂直大模型微调（SFT/RLHF）使用。</p>
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <div id="mptab-functions" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('functions')">原子函数</div>
+        <div id="mptab-layer_rules" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('layer_rules')">图层规则</div>
+        <div id="mptab-cd_items" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('cd_items')">施工图标准</div>
+        <div id="mptab-samples" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('samples')">样本</div>
+        <div id="mptab-export" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('export')">导出</div>
+      </div>
+      <div id="mp-skeleton" class="skeleton-overlay hidden">
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-48"></span><span class="skeleton-text flex-1"></span></div>
+        <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-24"></span><span class="skeleton-text flex-1"></span></div>
+      </div>
+      <div id="mp-content">
+        <div id="mp-functions" class="hidden"></div>
+        <div id="mp-layer-rules" class="hidden"></div>
+        <div id="mp-cd-items" class="hidden"></div>
+        <div id="mp-samples" class="hidden"></div>
+        <div id="mp-export" class="hidden">
+          <div class="card p-4 mb-4">
+            <h3 class="font-medium mb-3 text-sm">📦 导出格式</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button onclick="downloadModelExport('json')" class="px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium">📋 JSON（全部）</button>
+              <button onclick="downloadModelExport('jsonl-sft')" class="px-4 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium">🤖 JSONL (SFT 格式)</button>
+              <button onclick="downloadModelExport('hf-dataset')" class="px-4 py-2.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition text-sm font-medium">📊 HuggingFace Dataset</button>
+              <button onclick="downloadModelExport('csv')" class="px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium">📄 CSV</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">JSONL-SFT 格式可直接用于 Qwen / DeepSeek 等垂直大模型 SFT 微调。</p>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- ===== P92: 施工图审查标准 ===== -->
     <div class="page" id="page-cd">
       <h2 class="text-xl font-bold mb-4">🏗️ 施工图审查深度标准</h2>
@@ -1140,6 +1176,7 @@
 <script src="/static/baa-analysis.js"></script>
 <script src="/static/baa-stats.js"></script>
 <script src="/static/baa-cd.js"></script>
+<script src="/static/baa-model-params.js"></script>
 <script src="/static/baa-initialize.js"></script>
 <script src="/static/baa-ext.js"></script>
 </body>
