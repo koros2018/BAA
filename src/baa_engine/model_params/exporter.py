@@ -6,7 +6,7 @@ P93: 模型参数导出器
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ..atomic_functions import AtomicFunction, FuncRegistry
@@ -16,8 +16,8 @@ from ..spec_data.construction_review import (
 )
 from ..semantic_analyzer import LAYER_RULES, SHORT_LAYER_RULES
 
-
 # ── 1. 原子函数参数表 ─────────────────────────────────────
+
 
 def get_function_params(registry: Optional[FuncRegistry] = None) -> List[Dict[str, Any]]:
     """
@@ -30,24 +30,27 @@ def get_function_params(registry: Optional[FuncRegistry] = None) -> List[Dict[st
         registry = FuncRegistry()
     result = []
     for fid, func in sorted(registry._funcs.items()):
-        result.append({
-            "func_id": func.func_id,
-            "title": func.name,
-            "category": func.category.value,
-            "clause_id": func.clause_id,
-            "description": func.description,
-            "operator": func.operator,
-            "threshold": func.threshold,
-            "unit": func.unit,
-            "target_entities": func.target_entities,
-            "depends_on": func.depends_on,
-            "requires_global_context": func.requires_global_context,
-            "check_method": "auto" if func.operator else "manual",
-        })
+        result.append(
+            {
+                "func_id": func.func_id,
+                "title": func.name,
+                "category": func.category.value,
+                "clause_id": func.clause_id,
+                "description": func.description,
+                "operator": func.operator,
+                "threshold": func.threshold,
+                "unit": func.unit,
+                "target_entities": func.target_entities,
+                "depends_on": func.depends_on,
+                "requires_global_context": func.requires_global_context,
+                "check_method": "auto" if func.operator else "manual",
+            }
+        )
     return result
 
 
 # ── 2. LAYER_RULES 语义映射 ───────────────────────────────
+
 
 def get_layer_rules() -> List[Dict[str, Any]]:
     """
@@ -59,47 +62,55 @@ def get_layer_rules() -> List[Dict[str, Any]]:
     result = []
     # LAYER_RULES 长关键字（子串匹配，优先级高）
     for pattern, entity_type in sorted(LAYER_RULES.items()):
-        result.append({
-            "pattern": pattern,
-            "entity_type": entity_type,
-            "source": "LAYER_RULES",
-            "priority": 0,
-            "match_type": "substring",
-        })
+        result.append(
+            {
+                "pattern": pattern,
+                "entity_type": entity_type,
+                "source": "LAYER_RULES",
+                "priority": 0,
+                "match_type": "substring",
+            }
+        )
     # SHORT_LAYER_RULES 短关键字（全词匹配，优先级低）
     for pattern, entity_type in sorted(SHORT_LAYER_RULES.items()):
-        result.append({
-            "pattern": pattern,
-            "entity_type": entity_type,
-            "source": "SHORT_LAYER_RULES",
-            "priority": 1,
-            "match_type": "full_word",
-        })
+        result.append(
+            {
+                "pattern": pattern,
+                "entity_type": entity_type,
+                "source": "SHORT_LAYER_RULES",
+                "priority": 1,
+                "match_type": "full_word",
+            }
+        )
     return result
 
 
 # ── 3. 施工图审查标准 (CD items) ───────────────────────────
 
+
 def get_construction_review_params() -> List[Dict[str, Any]]:
     """返回 30 条 CD 审查项的结构化参数（P92 后端数据源）"""
     result = []
     for item in CONSTRUCTION_REVIEW_ITEMS:
-        result.append({
-            "item_id": item.item_id,
-            "category": item.category,
-            "major": item.major,
-            "title": item.title,
-            "description": item.description,
-            "standard_ref": item.standard_ref,
-            "level": item.level,
-            "check_method": item.check_method,
-            "func_id": item.func_id,
-            "weight": item.weight,
-        })
+        result.append(
+            {
+                "item_id": item.item_id,
+                "category": item.category,
+                "major": item.major,
+                "title": item.title,
+                "description": item.description,
+                "standard_ref": item.standard_ref,
+                "level": item.level,
+                "check_method": item.check_method,
+                "func_id": item.func_id,
+                "weight": item.weight,
+            }
+        )
     return result
 
 
 # ── 4. 审查样本导出（来自 review_history DB）────────────
+
 
 def get_review_samples(
     limit: int = 50,
@@ -114,6 +125,7 @@ def get_review_samples(
     samples = []
     try:
         from ..task_queue import get_review_history
+
         tasks = get_review_history()
         # 按创建时间倒序，取最近的 N 条
         tasks.sort(key=lambda t: t.get("created_at", ""), reverse=True)
@@ -148,17 +160,19 @@ def _extract_sample(task: Dict[str, Any]) -> Dict[str, Any]:
     # 构建每条违规的判定记录
     decisions = []
     for v in violations if isinstance(violations, list) else failed:
-        decisions.append({
-            "input_features": {
-                "entity_type": v.get("entity_type", ""),
-                "func_id": v.get("func_id", ""),
-                "actual_value": v.get("actual", v.get("actual_value", "")),
-                "threshold": v.get("threshold", ""),
-            },
-            "output_label": "FAIL",
-            "rationale": v.get("description", v.get("violation", "")),
-            "standard_ref": v.get("clause_id", ""),
-        })
+        decisions.append(
+            {
+                "input_features": {
+                    "entity_type": v.get("entity_type", ""),
+                    "func_id": v.get("func_id", ""),
+                    "actual_value": v.get("actual", v.get("actual_value", "")),
+                    "threshold": v.get("threshold", ""),
+                },
+                "output_label": "FAIL",
+                "rationale": v.get("description", v.get("violation", "")),
+                "standard_ref": v.get("clause_id", ""),
+            }
+        )
 
     return {
         "task_id": task_id,
@@ -171,6 +185,7 @@ def _extract_sample(task: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ── 5. 空间关系图（placeholder，需 P92 数据源）──────────
+
 
 def get_spatial_graph(review_id: str) -> Dict[str, Any]:
     """
@@ -188,6 +203,7 @@ def get_spatial_graph(review_id: str) -> Dict[str, Any]:
 
 
 # ── 6. 格式转换 ───────────────────────────────────────────
+
 
 def to_sft_jsonl(
     functions: List[Dict[str, Any]],
@@ -217,52 +233,73 @@ def to_sft_jsonl(
             f"全局上下文需求: {func['requires_global_context']}。"
             f"该规则符合 {func['clause_id']} 条款要求。"
         )
-        line = json.dumps({
-            "messages": [
-                {"role": "user", "content": user_content},
-                {"role": "assistant", "content": assistant_content},
-            ],
-            "metadata": {
-                "source": "atomic_functions",
-                "category": func["category"],
-                "func_id": func["func_id"],
+        line = json.dumps(
+            {
+                "messages": [
+                    {"role": "user", "content": user_content},
+                    {"role": "assistant", "content": assistant_content},
+                ],
+                "metadata": {
+                    "source": "atomic_functions",
+                    "category": func["category"],
+                    "func_id": func["func_id"],
+                },
             },
-        }, ensure_ascii=False)
+            ensure_ascii=False,
+        )
         lines.append(line)
 
     # 添加 LAYER_RULES 样本
     for rule in layer_rules:
-        line = json.dumps({
-            "messages": [
-                {"role": "user", "content": f"判断图层 '{rule['pattern']}' 应该被分类为哪种实体类型？"},
-                {"role": "assistant", "content": f"图层 '{rule['pattern']}' 应分类为 {rule['entity_type']}（匹配方式: {rule['match_type']}，来源: {rule['source']}）。"},
-            ],
-            "metadata": {
-                "source": "layer_rules",
-                "pattern": rule["pattern"],
-                "entity_type": rule["entity_type"],
+        line = json.dumps(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"判断图层 '{rule['pattern']}' 应该被分类为哪种实体类型？",
+                    },
+                    {
+                        "role": "assistant",
+                        "content": f"图层 '{rule['pattern']}' 应分类为 {rule['entity_type']}（匹配方式: {rule['match_type']}，来源: {rule['source']}）。",
+                    },
+                ],
+                "metadata": {
+                    "source": "layer_rules",
+                    "pattern": rule["pattern"],
+                    "entity_type": rule["entity_type"],
+                },
             },
-        }, ensure_ascii=False)
+            ensure_ascii=False,
+        )
         lines.append(line)
 
     # 添加 CD 审查项样本
     for item in cd_items:
-        line = json.dumps({
-            "messages": [
-                {"role": "user", "content": f"判断施工图审查项 '{item['title']}' 的 {item['category']} 是否符合 {item['standard_ref']} 要求？"},
-                {"role": "assistant", "content": f"审查项 {item['item_id']}：{item['title']}，"
-                 f"描述: {item['description']}，"
-                 f"规范依据: {item['standard_ref']}，"
-                 f"深度等级: {item['level']}，"
-                 f"检查方式: {item['check_method']}。"},
-            ],
-            "metadata": {
-                "source": "construction_review",
-                "item_id": item["item_id"],
-                "major": item["major"],
-                "level": item["level"],
+        line = json.dumps(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"判断施工图审查项 '{item['title']}' 的 {item['category']} 是否符合 {item['standard_ref']} 要求？",
+                    },
+                    {
+                        "role": "assistant",
+                        "content": f"审查项 {item['item_id']}：{item['title']}，"
+                        f"描述: {item['description']}，"
+                        f"规范依据: {item['standard_ref']}，"
+                        f"深度等级: {item['level']}，"
+                        f"检查方式: {item['check_method']}。",
+                    },
+                ],
+                "metadata": {
+                    "source": "construction_review",
+                    "item_id": item["item_id"],
+                    "major": item["major"],
+                    "level": item["level"],
+                },
             },
-        }, ensure_ascii=False)
+            ensure_ascii=False,
+        )
         lines.append(line)
 
     return "\n".join(lines)
@@ -283,7 +320,7 @@ def to_hf_dataset_description(
             "description": "BAA 施工图审查模型参数数据集，包含原子函数规则、图层语义映射、施工图审查标准",
             "config_name": "full",
             "version": "1.0.0",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         },
         "features": {
             "atomic_functions": {

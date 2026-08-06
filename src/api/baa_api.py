@@ -346,6 +346,10 @@ from src.api.review.case_routes import router as case_router  # import
 
 app.include_router(case_router, prefix="/api/v1")  # P68 行业案例库
 
+from src.api.model_params_routes import router as model_params_router  # P93
+
+app.include_router(model_params_router)  # P93 模型参数导出
+
 from .stats_routes import get_stats  # P72 统计仪表盘
 
 
