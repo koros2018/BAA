@@ -12,41 +12,61 @@ var MODEL_PARAMS_TABS = {
   export: '数据导出'
 };
 
+/**
+ * 切换 tab：
+ * - 所有 mptab-* 按钮：当前 tab 加 active-tab，其余移除
+ * - 所有 mp-* 面板：当前 tab 移除 hidden，其余加 hidden
+ * - 不操作 #mp-content（它是所有面板的公共父容器，不应被隐藏/显示）
+ * - 不操作 #mp-skeleton（避免与异步加载打架）
+ */
 function switchModelParamTab(tab) {
   Object.keys(MODEL_PARAMS_TABS).forEach(function(t) {
     var btn = document.getElementById('mptab-' + t);
     var pane = document.getElementById('mp-' + t);
-    if (btn) btn.classList.toggle('active-tab', t === tab);
-    if (pane) pane.classList.toggle('hidden', t !== tab);
+    if (btn) {
+      if (t === tab) btn.classList.add('active-tab');
+      else btn.classList.remove('active-tab');
+    }
+    if (pane) {
+      if (t === tab) pane.classList.remove('hidden');
+      else pane.classList.add('hidden');
+    }
   });
-  var skel = document.getElementById('mp-skeleton');
-  var content = document.getElementById('mp-content');
-  if (skel) skel.classList.remove('hidden');
-  if (content) content.classList.add('hidden');
 
   if (tab === 'functions') loadModelFunctions();
   else if (tab === 'layer_rules') loadModelLayerRules();
   else if (tab === 'cd_items') loadModelCDItems();
   else if (tab === 'samples') loadModelSamples();
   else if (tab === 'export') {
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
+    // 无远程调用，直接显示导出按钮
   }
 }
 
+function _setOk(box, html) {
+  // 直接设置目标面板的内容（父容器 #mp-content 保持可见）
+  if (box) box.innerHTML = html;
+}
+
+function _setError(box, err) {
+  var msg = (err && err.message) ? err.message : String(err);
+  console.error('[P93] loader error:', msg);
+  if (box) box.innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + msg + '</p>';
+}
+
 async function loadModelFunctions() {
-  var skel = document.getElementById('mp-skeleton');
-  var content = document.getElementById('mp-content');
   var box = document.getElementById('mp-functions');
   try {
     var data = await apiGet('/api/v1/model-params/functions?limit=2000');
     var funcs = data.data || data.functions || [];
     if (funcs.length === 0) {
-      box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
+      _setOk(box, '<p class="text-gray-400 text-sm">暂无数据</p>');
       return;
     }
     var cats = {};
-    funcs.forEach(function(f) { cats[f.category || 'other'] = (cats[f.category || 'other'] || 0) + 1; });
+    funcs.forEach(function(f) {
+      var c = f.category || 'other';
+      cats[c] = (cats[c] || 0) + 1;
+    });
     var summary = Object.keys(cats).slice(0, 12).map(function(c) {
       return '<span class="badge badge-sm badge-secondary">' + c + ' ' + cats[c] + '</span>';
     }).join(' ');
@@ -61,35 +81,26 @@ async function loadModelFunctions() {
       '</tr>';
     }).join('');
 
-    box.innerHTML =
+    _setOk(box,
       '<div class="flex gap-2 mb-2 flex-wrap">' + summary + '</div>' +
-      '<div class="text-xs text-gray-400 mb-2">显示 ' + funcs.length + ' 个原子函数 (前 80 条)</div>' +
+      '<div class="text-xs text-gray-400 mb-2">显示 ' + funcs.length + ' 个原子函数（前 80 条）</div>' +
       '<div class="overflow-auto max-h-96">' +
       '<table class="w-full text-sm">' +
       '<thead class="bg-gray-50 text-xs text-gray-500"><tr>' +
       '<th class="py-1 px-2">#</th><th class="py-1 px-2">标题</th><th class="py-1 px-2">分类</th>' +
       '<th class="py-1 px-2">规范条款</th><th class="py-1 px-2">判定条件</th>' +
       '</tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
-
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  } catch (e) {
-    box.innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + e.message + '</p>';
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  }
+      '<tbody>' + rows + '</tbody></table></div>');
+  } catch (e) { _setError(box, e); }
 }
 
 async function loadModelLayerRules() {
-  var skel = document.getElementById('mp-skeleton');
-  var content = document.getElementById('mp-content');
   var box = document.getElementById('mp-layer-rules');
   try {
     var data = await apiGet('/api/v1/model-params/layer-rules');
     var rules = data.data || data.rules || [];
     if (rules.length === 0) {
-      box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
+      _setOk(box, '<p class="text-gray-400 text-sm">暂无数据</p>');
       return;
     }
     var lr = rules.filter(function(r) { return r.source === 'LAYER_RULES'; }).length;
@@ -104,33 +115,24 @@ async function loadModelLayerRules() {
       '</tr>';
     }).join('');
 
-    box.innerHTML =
-      '<div class="text-xs text-gray-400 mb-2">' + rules.length + ' 条 (LAYER_RULES: ' + lr + ' / SHORT: ' + sl + ') 前 60 条</div>' +
+    _setOk(box,
+      '<div class="text-xs text-gray-400 mb-2">' + rules.length + ' 条（LAYER_RULES: ' + lr + ' / SHORT: ' + sl + '）前 60 条</div>' +
       '<div class="overflow-auto max-h-96">' +
       '<table class="w-full text-sm">' +
       '<thead class="bg-gray-50 text-xs text-gray-500"><tr>' +
       '<th class="py-1 px-2">关键字</th><th class="py-1 px-2">实体类型</th>' +
       '<th class="py-1 px-2">来源</th><th class="py-1 px-2">匹配方式</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
-
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  } catch (e) {
-    box.innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + e.message + '</p>';
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  }
+      '<tbody>' + rows + '</tbody></table></div>');
+  } catch (e) { _setError(box, e); }
 }
 
 async function loadModelCDItems() {
-  var skel = document.getElementById('mp-skeleton');
-  var content = document.getElementById('mp-content');
   var box = document.getElementById('mp-cd-items');
   try {
     var data = await apiGet('/api/v1/model-params/cd-items');
     var items = data.data || data.items || [];
     if (items.length === 0) {
-      box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
+      _setOk(box, '<p class="text-gray-400 text-sm">暂无数据</p>');
       return;
     }
     var lvl = { L1: 0, L2: 0, L3: 0 };
@@ -148,33 +150,24 @@ async function loadModelCDItems() {
       '</tr>';
     }).join('');
 
-    box.innerHTML =
+    _setOk(box,
       '<div class="flex gap-3 mb-2 text-xs">' + lvls + '</div>' +
       '<div class="overflow-auto max-h-96">' +
       '<table class="w-full text-sm">' +
       '<thead class="bg-gray-50 text-xs text-gray-500"><tr>' +
       '<th class="py-1 px-2">编码</th><th class="py-1 px-2">审查项</th>' +
       '<th class="py-1 px-2">等级</th><th class="py-1 px-2">专业</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
-
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  } catch (e) {
-    box.innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + e.message + '</p>';
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  }
+      '<tbody>' + rows + '</tbody></table></div>');
+  } catch (e) { _setError(box, e); }
 }
 
 async function loadModelSamples() {
-  var skel = document.getElementById('mp-skeleton');
-  var content = document.getElementById('mp-content');
   var box = document.getElementById('mp-samples');
   try {
     var data = await apiGet('/api/v1/model-params/samples?limit=20');
     var samples = data.data || data.samples || [];
     if (samples.length === 0) {
-      box.innerHTML = '<p class="text-gray-400 text-sm">暂无样本数据（需有审查记录后自动生成）</p>';
+      _setOk(box, '<p class="text-yellow-500 text-sm">暂无样本数据（需有审查记录后自动生成）</p>');
       return;
     }
     var cards = samples.slice(0, 10).map(function(s) {
@@ -185,16 +178,8 @@ async function loadModelSamples() {
         '<div class="text-xs text-gray-500 mt-1">' + (s.query ? s.query.slice(0, 200) : '') + '</div>' +
       '</div>';
     }).join('');
-    box.innerHTML =
-      '<div class="text-xs text-gray-400 mb-2">共 ' + samples.length + ' 条（前 10 条）</div>' + cards;
-
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  } catch (e) {
-    box.innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + e.message + '</p>';
-    if (skel) skel.classList.add('hidden');
-    if (content) content.classList.remove('hidden');
-  }
+    _setOk(box, '<div class="text-xs text-gray-400 mb-2">共 ' + samples.length + ' 条（前 10 条）</div>' + cards);
+  } catch (e) { _setError(box, e); }
 }
 
 async function downloadModelExport(format) {
