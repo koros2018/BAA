@@ -40,7 +40,7 @@ async function loadModelFunctions() {
   var box = document.getElementById('mp-functions');
   try {
     var data = await apiGet('/api/v1/model-params/functions?limit=2000');
-    var funcs = data.functions || [];
+    var funcs = data.data || data.functions || [];
     if (funcs.length === 0) {
       box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
       return;
@@ -87,7 +87,7 @@ async function loadModelLayerRules() {
   var box = document.getElementById('mp-layer-rules');
   try {
     var data = await apiGet('/api/v1/model-params/layer-rules');
-    var rules = data.rules || [];
+    var rules = data.data || data.rules || [];
     if (rules.length === 0) {
       box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
       return;
@@ -128,7 +128,7 @@ async function loadModelCDItems() {
   var box = document.getElementById('mp-cd-items');
   try {
     var data = await apiGet('/api/v1/model-params/cd-items');
-    var items = data.items || [];
+    var items = data.data || data.items || [];
     if (items.length === 0) {
       box.innerHTML = '<p class="text-gray-400 text-sm">暂无数据</p>';
       return;
@@ -172,7 +172,7 @@ async function loadModelSamples() {
   var box = document.getElementById('mp-samples');
   try {
     var data = await apiGet('/api/v1/model-params/samples?limit=20');
-    var samples = data.samples || [];
+    var samples = data.data || data.samples || [];
     if (samples.length === 0) {
       box.innerHTML = '<p class="text-gray-400 text-sm">暂无样本数据（需有审查记录后自动生成）</p>';
       return;
