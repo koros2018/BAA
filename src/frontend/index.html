@@ -1044,12 +1044,12 @@
     </div>
     <!-- ===== P93: 模型参数导出 ===== -->
     <div class="page" id="page-model-params">
-      <h2 class="text-xl font-bold mb-4">🤖 模型参数导出</h2>
+      <h2 class="text-xl font-bold mb-4">🤖 模型参数导出 <span class="text-xs text-gray-400 font-normal">(v1704)</span></h2>
       <p class="text-sm text-gray-400 mb-4">导出 BAA 审查引擎的判定规则、图层规则、施工图标准，供垂直大模型微调（SFT/RLHF）使用。</p>
       <div class="flex gap-2 mb-4 flex-wrap">
         <div id="mptab-functions" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('functions')">原子函数</div>
-        <div id="mptab-layer_rules" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('layer_rules')">图层规则</div>
-        <div id="mptab-cd_items" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('cd_items')">施工图标准</div>
+        <div id="mptab-layer-rules" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('layer-rules')">图层规则</div>
+        <div id="mptab-cd-items" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('cd-items')">施工图标准</div>
         <div id="mptab-samples" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('samples')">样本</div>
         <div id="mptab-export" class="tab-btn text-sm px-3 py-1.5 rounded-lg cursor-pointer bg-gray-100" onclick="switchModelParamTab('export')">导出</div>
       </div>
