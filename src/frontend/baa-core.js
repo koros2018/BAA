@@ -656,6 +656,7 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
       if (item.dataset.page === 'apikeys') loadAdminKeys();
       if (item.dataset.page === 'cases') { loadCaseStats(); loadCases(0); }
       if (item.dataset.page === 'cd') loadCDItems();
+      if (item.dataset.page === 'model-params') switchModelParamTab('functions');
     } catch(e) { console.error('页面加载错误:', e); }
   });
 });

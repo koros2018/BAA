@@ -232,3 +232,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .review-progress-bar { height:0.5rem; background:#e5e7eb; border-radius:9999px; overflow:hidden; }
 .review-progress-fill { height:100%; background:linear-gradient(90deg, #3b82f6, #10b981); transition:width 0.3s ease; border-radius:9999px; }
 .review-progress-text { font-size:0.75rem; color:#6b7280; display:flex; justify-content:space-between; }
+/* ── 模型参数 Tab ── */
+.tab-btn.active-tab { background-color: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.active-tab .badge { }
