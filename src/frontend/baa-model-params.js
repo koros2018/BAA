@@ -15,7 +15,7 @@ var MODEL_PARAMS_TABS = {
 function switchModelParamTab(tab) {
   Object.keys(MODEL_PARAMS_TABS).forEach(function(t) {
     var btn = document.getElementById('mptab-' + t);
-    var pane = document.getElementById('mppane-' + t);
+    var pane = document.getElementById('mp-' + t);
     if (btn) btn.classList.toggle('active-tab', t === tab);
     if (pane) pane.classList.toggle('hidden', t !== tab);
   });
