@@ -34,6 +34,7 @@ def _get_registry() -> FuncRegistry:
 
 # ── 1. 原子函数参数表 ──────────────────────────────────
 
+
 @router.get("/model-params/functions")  # noqa: F811
 def get_functions(
     limit: Optional[int] = Query(None, ge=1, le=5000, description="返回条数上限"),
@@ -54,6 +55,7 @@ def get_functions(
 
 
 # ── 2. LAYER_RULES 语义映射 ────────────────────────────
+
 
 @router.get("/model-params/layer-rules")  # noqa: F811
 def get_layer_rules(
@@ -76,6 +78,7 @@ def get_layer_rules(
 
 # ── 3. CD 审查项 ─────────────────────────────────────
 
+
 @router.get("/model-params/cd-items")  # noqa: F811
 def get_cd_items(
     level: Optional[str] = Query(None, description="L1 / L2 / L3"),
@@ -97,6 +100,7 @@ def get_cd_items(
 
 # ── 4. 审查样本 (SFT 三元组) ─────────────────────────
 
+
 @router.get("/model-params/samples")  # noqa: F811
 def get_review_samples(
     limit: int = Query(50, ge=1, le=500, description="返回样本数"),
@@ -114,6 +118,7 @@ def get_review_samples(
 
 # ── 5. 空间关系图 ────────────────────────────────────
 
+
 @router.get("/model-params/spatial-graph")  # noqa: F811
 def get_spatial_graph(
     review_id: str = Query(..., description="审查任务ID"),
@@ -130,10 +135,12 @@ def get_spatial_graph(
 
 # ── 6. 统一导出 ─────────────────────────────────────
 
+
 @router.get("/model-params/export")  # noqa: F811
 def export_model_params(
-    format: str = Query("json", regex="json|jsonl-sft|hf-dataset|csv",
-                        description="json|jsonl-sft|hf-dataset|csv"),
+    format: str = Query(
+        "json", pattern="json|jsonl-sft|hf-dataset|csv", description="json|jsonl-sft|hf-dataset|csv"
+    ),
     limit: int = Query(500, ge=1, le=5000, description="样本上限"),
 ) -> Any:
     """
