@@ -6,8 +6,8 @@
 
 var MODEL_PARAMS_TABS = {
   functions: '原子函数参数',
-  layer_rules: '图层规则',
-  cd_items: '施工图审查标准',
+  'layer-rules': '图层规则',
+  'cd-items': '施工图审查标准',
   samples: '审查样本',
   export: '数据导出'
 };
@@ -34,8 +34,8 @@ function switchModelParamTab(tab) {
   });
 
   if (tab === 'functions') loadModelFunctions();
-  else if (tab === 'layer_rules') loadModelLayerRules();
-  else if (tab === 'cd_items') loadModelCDItems();
+  else if (tab === 'layer-rules') loadModelLayerRules();
+  else if (tab === 'cd-items') loadModelCDItems();
   else if (tab === 'samples') loadModelSamples();
   else if (tab === 'export') {
     // 无远程调用，直接显示导出按钮
@@ -43,8 +43,17 @@ function switchModelParamTab(tab) {
 }
 
 function _setOk(box, html) {
-  // 直接设置目标面板的内容（父容器 #mp-content 保持可见）
-  if (box) box.innerHTML = html;
+  if (box) {
+    box.classList.remove('hidden');
+    box.style.display = 'block';
+    box.style.position = 'relative';
+    box.style.zIndex = '10000';
+    box.style.boxSizing = 'border-box';
+    box.style.margin = '0';
+    box.style.padding = '0';
+    box.innerHTML = html;
+    console.error('[P93-SETOK] id=' + box.id + ' classList=' + box.className + ' innerHTML length=' + box.innerHTML.length);
+  }
 }
 
 function _setError(box, err) {
@@ -98,13 +107,18 @@ async function loadModelLayerRules() {
   var box = document.getElementById('mp-layer-rules');
   try {
     var data = await apiGet('/api/v1/model-params/layer-rules');
+    console.error('[P93-LR] apiGet returned:', JSON.stringify(data).slice(0,100));
     var rules = data.data || data.rules || [];
+    console.error('[P93-LR] rules length:', rules.length, 'rules[0]:', JSON.stringify(rules[0]).slice(0,100));
     if (rules.length === 0) {
       _setOk(box, '<p class="text-gray-400 text-sm">暂无数据</p>');
       return;
     }
+    console.error('[P93-LR] step1: about to filter/slice/map');
     var lr = rules.filter(function(r) { return r.source === 'LAYER_RULES'; }).length;
+    console.error('[P93-LR] step2: lr=' + lr);
     var sl = rules.filter(function(r) { return r.source === 'SHORT_LAYER_RULES'; }).length;
+    console.error('[P93-LR] step3: sl=' + sl);
     var rows = rules.slice(0, 60).map(function(r) {
       var cls = r.source === 'SHORT_LAYER_RULES' ? 'badge-secondary' : 'badge-primary';
       return '<tr>' +
@@ -115,9 +129,10 @@ async function loadModelLayerRules() {
       '</tr>';
     }).join('');
 
+    console.error('[P93-LR] step4: rows length=' + rows.length + ' rows[0]=' + rows[0].slice(0,80));
     _setOk(box,
+      '<div style="background:#ffffff;padding:8px;border:1px solid #e5e7eb;margin:4px;position:relative;z-index:9999;max-height:400px;overflow:auto">' +
       '<div class="text-xs text-gray-400 mb-2">' + rules.length + ' 条（LAYER_RULES: ' + lr + ' / SHORT: ' + sl + '）前 60 条</div>' +
-      '<div class="overflow-auto max-h-96">' +
       '<table class="w-full text-sm">' +
       '<thead class="bg-gray-50 text-xs text-gray-500"><tr>' +
       '<th class="py-1 px-2">关键字</th><th class="py-1 px-2">实体类型</th>' +
@@ -130,13 +145,17 @@ async function loadModelCDItems() {
   var box = document.getElementById('mp-cd-items');
   try {
     var data = await apiGet('/api/v1/model-params/cd-items');
+    console.error('[P93-CD] apiGet returned:', JSON.stringify(data).slice(0,100));
     var items = data.data || data.items || [];
+    console.error('[P93-CD] items length:', items.length, 'items[0]:', JSON.stringify(items[0]).slice(0,100));
     if (items.length === 0) {
       _setOk(box, '<p class="text-gray-400 text-sm">暂无数据</p>');
       return;
     }
+    console.error('[P93-CD] step1: about to compute lvl');
     var lvl = { L1: 0, L2: 0, L3: 0 };
     items.forEach(function(i) { if (i.level in lvl) lvl[i.level]++; });
+    console.error('[P93-CD] step2: lvl=' + JSON.stringify(lvl));
     var lvls = Object.keys(lvl).map(function(k) {
       var cls = k === 'L1' ? 'text-red-500' : (k === 'L2' ? 'text-orange-500' : 'text-green-500');
       return '<span class="' + cls + '">' + k + ': ' + lvl[k] + '</span>';
@@ -150,9 +169,10 @@ async function loadModelCDItems() {
       '</tr>';
     }).join('');
 
+    console.error('[P93-CD] step3: rows length=' + rows.length + ' rows[0]=' + rows[0].slice(0,80));
     _setOk(box,
+      '<div style="background:#ffffff;padding:8px;border:1px solid #e5e7eb;margin:4px;position:relative;z-index:9999;max-height:400px;overflow:auto">' +
       '<div class="flex gap-3 mb-2 text-xs">' + lvls + '</div>' +
-      '<div class="overflow-auto max-h-96">' +
       '<table class="w-full text-sm">' +
       '<thead class="bg-gray-50 text-xs text-gray-500"><tr>' +
       '<th class="py-1 px-2">编码</th><th class="py-1 px-2">审查项</th>' +
