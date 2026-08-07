@@ -38,6 +38,7 @@ from ._shared import (
     _classify_priority,
     _derive_compliance_path,
     _build_structured_summary,
+    COMPLIANCE_GUIDE,
     THERMAL_MATERIALS,
     THERMAL_THRESHOLDS,
     HI,

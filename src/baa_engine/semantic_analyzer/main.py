@@ -897,4 +897,4 @@ class SemanticAnalyzer:
         return _bind_dimensions(self, entities, dimensions)
 
     def _infer_attribute_name(self, dim, entity):
-        return _infer_attribute_name(self, dim, entity)
+        return _infer_attribute_name(dim, entity)
