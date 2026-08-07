@@ -101,14 +101,18 @@ class TestReviewMultiSheetEndpoint:
         from src.api.baa_api import app
 
         def _iter_api_routes(routes):
-            """递归遍历 FastAPI routes，跳过没有 path 的 _IncludedRouter。"""
+            """递归遍历 FastAPI routes（含 _IncludedRouter 的 original_router）。"""
             for route in routes:
-                if hasattr(route, "routes"):
+                if type(route).__name__ == "_IncludedRouter":
+                    orig = getattr(route, "original_router", None)
+                    if orig is not None:
+                        yield from _iter_api_routes(orig.routes)
+                elif hasattr(route, "routes"):
                     yield from _iter_api_routes(route.routes)
                 elif hasattr(route, "path"):
                     yield route.path
 
-        assert "/review-multi-sheet" in _iter_api_routes(app.routes)
+        assert "/review-multi-sheet" in list(_iter_api_routes(app.routes))
 
     def test_endpoint_requires_upload_file(self, client):
         """无文件上传应返回 422"""
