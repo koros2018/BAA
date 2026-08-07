@@ -321,7 +321,7 @@ def _bind_dimensions(
         if nearest:  # condition: nearest:
             if nearest.id not in bindings:  # check: membership test
                 bindings[nearest.id] = {}  # 操作
-            attr_name = _infer_attribute_name(self, dim, nearest)
+            attr_name = _infer_attribute_name(dim, nearest)
             bindings[nearest.id][attr_name] = dim.get("measurement", 0)  # 操作
 
     return bindings
