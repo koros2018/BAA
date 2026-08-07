@@ -100,8 +100,15 @@ class TestReviewMultiSheetEndpoint:
         """/review-multi-sheet 端点应注册"""
         from src.api.baa_api import app
 
-        routes = [r.path for r in app.routes]
-        assert "/review-multi-sheet" in routes
+        def _iter_api_routes(routes):
+            """递归遍历 FastAPI routes，跳过没有 path 的 _IncludedRouter。"""
+            for route in routes:
+                if hasattr(route, "routes"):
+                    yield from _iter_api_routes(route.routes)
+                elif hasattr(route, "path"):
+                    yield route.path
+
+        assert "/review-multi-sheet" in _iter_api_routes(app.routes)
 
     def test_endpoint_requires_upload_file(self, client):
         """无文件上传应返回 422"""
