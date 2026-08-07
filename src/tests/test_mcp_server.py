@@ -11,6 +11,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# MCP 是可选集成，当前测试环境未安装时跳过，避免阻塞主回归
+pytest.importorskip("mcp")
+
 from src.mcp.baa_mcp_server import BAAMCPServer
 
 

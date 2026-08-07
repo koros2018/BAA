@@ -15,6 +15,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+# reportlab 为可选依赖；测试环境未安装时跳过，避免阻塞主回归
+pytest.importorskip("reportlab")
+
 from fastapi.testclient import TestClient
 from src.api.baa_api import app, API_KEYS
 
