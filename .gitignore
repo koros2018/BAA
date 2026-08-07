@@ -51,3 +51,6 @@ data/图纸/
 
 # YOLO training outputs
 runs/detect/*/weights/
+/mnt/d/BaiduNetdiskDownload/
+# 外部测试图纸目录（永不纳入 git）
+/mnt/d/BaiduNetdiskDownload/测试图纸/
