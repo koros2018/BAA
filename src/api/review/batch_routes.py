@@ -64,25 +64,13 @@ async def batch_review(
     completed_files = 0
 
     async def _review_single_file(file: UploadFile) -> Dict:
-        """单个文件审查（独立执行）"""
+        """单个文件审查（直接执行，不排队）"""
         nonlocal completed_files
-
-        temp_file_id = generate_file_id()
-        task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(temp_file_id)
-        if task_obj is None:
-            completed_files += 1
-            return {
-                "filename": file.filename,
-                "status": "error",
-                "error_code": "QUEUE_TIMEOUT",
-                "message": "排队超时，请稍后重试",
-            }
 
         try:
             ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             if ext not in SUPPORTED_FORMATS:
                 completed_files += 1
-                _get_rq().fail(task_id, f"不支持的文件格式: {ext}")
                 return {
                     "filename": file.filename,
                     "status": "error",
@@ -93,7 +81,6 @@ async def batch_review(
             content = await file.read()
             if len(content) > MAX_FILE_SIZE:
                 completed_files += 1
-                _get_rq().fail(task_id, "文件过大")
                 return {
                     "filename": file.filename,
                     "status": "error",
@@ -104,13 +91,11 @@ async def batch_review(
             file_id = generate_file_id()
             file_path = store_file(content, file_id, ext)
 
-            _get_rq().update_progress(task_id, 10.0)
             result = await loop.run_in_executor(
                 _get_pool(), _get_dp().parse, str(file_path), file_id
             )
             if not result.success:
                 completed_files += 1
-                _get_rq().fail(task_id, result.error)
                 return {
                     "filename": file.filename,
                     "status": "error",
@@ -118,7 +103,6 @@ async def batch_review(
                     "message": f"图纸解析失败: {result.error}",
                 }
 
-            _get_rq().update_progress(task_id, 50.0)
             semantic = await loop.run_in_executor(
                 _get_pool(),
                 lambda: _get_sa().analyze(
@@ -128,7 +112,6 @@ async def batch_review(
                 ),
             )
             entities = semantic["entities"]
-            _get_rq().update_progress(task_id, 70.0)
 
             effective_types = building_types if building_types else [building_type]
             details = []
@@ -241,7 +224,6 @@ async def batch_review(
             }
 
         except Exception as e:
-            _get_rq().fail(task_id, str(e))
             completed_files += 1
             return {
                 "filename": file.filename,
@@ -249,8 +231,6 @@ async def batch_review(
                 "error_code": "REVIEW_FAILED",
                 "message": str(e),
             }
-
-        _get_rq().complete(task_id, {"filename": file.filename, "file_id": file_id})
 
     file_tasks = [asyncio.create_task(_review_single_file(f)) for f in files]
     file_results = await asyncio.gather(*file_tasks)
@@ -362,68 +342,51 @@ async def batch_review_stream(
         }
 
     async def _stream_review_one(idx: int, file: UploadFile) -> Dict:
-        """单文件审查，阶段事件通过 queue 推送"""
+        """单文件审查，阶段事件通过 queue 推送（P94: 不排队，直接执行）"""
         file_name = file.filename or f"file_{idx}"
         try:
             await event_queue.put({"event": "file.queued", "index": idx, "filename": file_name})
 
-            temp_file_id = generate_file_id()
-            task_obj, task_id, _ = await _get_rq().wait_and_dequeue(temp_file_id)
-            if task_obj is None:
-                await event_queue.put({
-                    "event": "file.error", "index": idx, "filename": file_name,
-                    "error_code": "QUEUE_TIMEOUT", "message": "排队超时"})
-                return {"filename": file_name, "status": "error", "error_code": "QUEUE_TIMEOUT"}
-
             ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             if ext not in SUPPORTED_FORMATS:
-                _get_rq().fail(task_id, f"不支持的格式: {ext}")
                 await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
                     "error_code": "UNSUPPORTED_FORMAT"})
                 return {"filename": file_name, "status": "error", "error_code": "UNSUPPORTED_FORMAT"}
 
             content = await file.read()
             if len(content) > MAX_FILE_SIZE:
-                _get_rq().fail(task_id, "文件过大")
                 await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
                     "error_code": "FILE_TOO_LARGE"})
                 return {"filename": file_name, "status": "error", "error_code": "FILE_TOO_LARGE"}
 
             file_id = generate_file_id()
             file_path = store_file(content, file_id, ext)
-            # P87 Phase 3: 内存安全守卫 — 可用内存 < 2GB 时跳过解析
             avail_mb = psutil.virtual_memory().available / (1024 * 1024)
             if avail_mb < 2048:
-                _get_rq().fail(task_id, "系统内存不足")
                 await event_queue.put({
                     "event": "file.error", "index": idx, "filename": file_name,
                     "error_code": "LOW_MEMORY",
                     "message": f"系统可用内存不足（{avail_mb:.0f}MB < 2048MB），请稍后重试"})
                 return {"filename": file_name, "status": "error", "error_code": "LOW_MEMORY"}
 
-            _get_rq().update_progress(task_id, 10.0)
             await event_queue.put({"event": "file.parsing", "index": idx, "filename": file_name, "file_id": file_id})
 
             result = await loop.run_in_executor(
                 _get_pool(), _get_dp().parse, str(file_path), file_id)
             if not result.success:
-                _get_rq().fail(task_id, result.error)
                 await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
                     "error_code": "PARSE_FAILED", "message": str(result.error)})
                 return {"filename": file_name, "status": "error", "error_code": "PARSE_FAILED"}
 
-            _get_rq().update_progress(task_id, 50.0)
             await event_queue.put({"event": "file.semantic", "index": idx, "filename": file_name})
             semantic = await loop.run_in_executor(
                 _get_pool(), lambda: _get_sa().analyze(
                     result.primitives, result.dimensions, building_type=building_type))
             entities = semantic["entities"]
-            _get_rq().update_progress(task_id, 70.0)
             await event_queue.put({
                 "event": "file.checking", "index": idx, "filename": file_name,
                 "entity_count": len(entities)})
 
-            # 判定（复用 Phase 1 并发）
             effective_types = building_types if building_types else [building_type]
             details = []
 
@@ -476,7 +439,6 @@ async def batch_review_stream(
                 "entities": [{"id": e.get("id", e.get("type", "")), "type": e["type"],
                     "bbox": e["bbox"]} for e in entities],
             }
-            _get_rq().complete(task_id, result_obj)
             await event_queue.put({
                 "event": "file.done", "index": idx, "filename": file_name,
                 "violations": len(details), "score": score,
@@ -485,7 +447,6 @@ async def batch_review_stream(
 
         except Exception as e:
             msg = str(e)
-            _get_rq().fail(task_id, msg) if "task_id" in locals() else None
             await event_queue.put({"event": "file.error", "index": idx,
                 "filename": file_name, "error_code": "REVIEW_FAILED", "message": msg[:200]})
             return {"filename": file_name, "status": "error", "error_code": "REVIEW_FAILED",
