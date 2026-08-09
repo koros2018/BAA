@@ -908,12 +908,11 @@ class FuncRegistry:  # class definition
         funcs: List[AtomicFunction],
         max_workers: Optional[int] = None,
     ) -> Dict[str, FuncResult]:
-        """并发执行缺失检查（exist 类别）"""
-        from dataclasses import replace
-        import os as _os
+        """执行缺失检查（exist 类别）
 
-        if max_workers is None:
-            max_workers = max(4, (_os.cpu_count() or 4))
+        P94 优化：exist 函数在 entity=None 时纯计算，无需线程池。
+        """
+        from dataclasses import replace
 
         to_check = []
         for f in funcs:
@@ -926,24 +925,14 @@ class FuncRegistry:  # class definition
             to_check.append(f)
 
         batch_results: Dict[str, FuncResult] = {}
-
-        def _run_one(f: AtomicFunction) -> Optional[FuncResult]:
+        for f in to_check:
             func_copy = replace(f)
             try:
-                return func_copy.execute(None)
+                r = func_copy.execute(None)
+                if r is not None:
+                    batch_results[r.func_id] = r
             except Exception as e:
                 logger.error(f"execute_missing_batch error: {f.func_id}: {e}")
-                return None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = [pool.submit(_run_one, f) for f in to_check]
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    r = future.result(timeout=30)
-                    if r is not None:
-                        batch_results[r.func_id] = r
-                except Exception:
-                    pass
 
         return batch_results
 
