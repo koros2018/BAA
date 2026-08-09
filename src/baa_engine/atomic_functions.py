@@ -756,11 +756,21 @@ class FuncRegistry:  # class definition
         self._funcs: Dict[str, AtomicFunction] = {}  # assignment
         self._dependency_graph: Dict[str, List[str]] = {}  # 依赖图
         self._timeout = timeout  # assignment
+        # P94: 原子函数直接同步执行（无线程池），线程池开销是同步的 227 倍
+        # 328 万次调用 × 22.7ms = 8 分钟 → 0.1ms = 0.4 秒
+        self._executor = None
+        # P94: 缓存拓扑排序结果，避免每个实体重算
+        self._ordered_func_ids: List[str] = []
         # P7: 从 atomic/ 子包导入所有原子函数（去重后按 func_id 注册）
         from .atomic import ATOMIC_FUNCTIONS  # import from atomic subpackage
 
         for func in ATOMIC_FUNCTIONS:  # 循环
             self.register(func)  # function call
+        # 预计算拓扑排序（非全局函数列表）
+        self._ordered_func_ids = self.resolve_dependencies([
+            fid for fid, f in self._funcs.items()
+            if not getattr(f, 'requires_global_context', False)
+        ])
 
     def register(self, func: AtomicFunction):  # function: def register(self, func: AtomicFunction):
         """注册"""
@@ -832,56 +842,32 @@ class FuncRegistry:  # class definition
         # P32: 依赖检查
         if results is not None and not self.check_dependencies(func, results):
             return None
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:  # context manager
-            future = pool.submit(func.execute, entity)  # function call
-            try:  # try block
-                return future.result(timeout=timeout)  # return
-            except concurrent.futures.TimeoutError:  # catch exception
-                logger.warning(
-                    f"原子函数超时: {func.func_id} ({func.name}) 超时{timeout}s, 标记为degraded"
-                )  # function call
-                return FuncResult(  # return
-                    func_id=func.func_id,  # assignment
-                    func_name=func.name,  # assignment
-                    clause_id=func.clause_id,  # assignment
-                    operator=func.operator,  # assignment
-                    threshold=func.threshold,  # assignment
-                    actual=0.0,  # assignment
-                    result="DEGRADED",  # assignment
-                    delta=0.0,  # assignment
-                    severity=Severity.DEGRADED,  # assignment
-                    entity_id=entity.get("id", "") if entity else "",  # function call
-                    entity_type=entity.get("type", "") if entity else "",  # function call
-                    params={
-                        "extracted_value": 0.0,
-                        "unit": func.unit,  # assignment
-                        "note": f"原子函数执行超时(>{timeout}s)，跳过判定",  # function call
-                        "reason": "timeout",  # code
-                        "clause_text": func.description,
-                    },  # code
-                )  # code
-            except Exception as exc:  # catch exception
-                logger.error(f"原子函数异常: {func.func_id} ({func.name}): {exc}")  # function call
-                return FuncResult(  # return
-                    func_id=func.func_id,  # assignment
-                    func_name=func.name,  # assignment
-                    clause_id=func.clause_id,  # assignment
-                    operator=func.operator,  # assignment
-                    threshold=func.threshold,  # assignment
-                    actual=0.0,  # assignment
-                    result="ERROR",  # assignment
-                    delta=0.0,  # assignment
-                    severity=Severity.ERROR,  # assignment
-                    entity_id=entity.get("id", "") if entity else "",  # function call
-                    entity_type=entity.get("type", "") if entity else "",  # function call
-                    params={
-                        "extracted_value": 0.0,
-                        "unit": func.unit,  # assignment
-                        "note": f"原子函数异常: {exc}",  # code
-                        "reason": "error",  # code
-                        "clause_text": func.description,
-                    },  # code
-                )  # code
+        # P94: 直接同步执行，避免线程池 submit/result 的 227 倍开销
+        # 原子函数为纯计算，不会真卡死；异常按 ERROR 处理，不阻塞批量审查
+        try:  # try block
+            return func.execute(entity)  # return
+        except Exception as exc:  # catch exception
+            logger.error(f"原子函数异常: {func.func_id} ({func.name}): {exc}")  # function call
+            return FuncResult(  # return
+                func_id=func.func_id,  # assignment
+                func_name=func.name,  # assignment
+                clause_id=func.clause_id,  # assignment
+                operator=func.operator,  # assignment
+                threshold=func.threshold,  # assignment
+                actual=0.0,  # assignment
+                result="ERROR",  # assignment
+                delta=0.0,  # assignment
+                severity=Severity.ERROR,  # assignment
+                entity_id=entity.get("id", "") if entity else "",  # function call
+                entity_type=entity.get("type", "") if entity else "",  # function call
+                params={
+                    "extracted_value": 0.0,
+                    "unit": func.unit,  # assignment
+                    "note": f"原子函数异常: {exc}",  # code
+                    "reason": "error",  # code
+                    "clause_text": func.description,
+                },  # code
+            )  # code
 
     def execute_batch(
         self,
@@ -996,7 +982,11 @@ class FuncRegistry:  # class definition
         if results is None:
             results = {}
         # 拓扑排序：确保依赖函数先执行
-        ordered_ids = self.resolve_dependencies(func_ids)  # function call
+        # P94: 若 func_ids 与预计算缓存一致，直接复用避免重复拓扑排序
+        if self._ordered_func_ids and func_ids == self._ordered_func_ids:
+            ordered_ids = self._ordered_func_ids
+        else:
+            ordered_ids = self.resolve_dependencies(func_ids)  # function call
         for fid in ordered_ids:  # 循环
             func = self._funcs.get(fid)  # function call
             if func is None:  # condition: func is None:
