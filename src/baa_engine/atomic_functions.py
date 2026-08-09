@@ -877,44 +877,28 @@ class FuncRegistry:  # class definition
         results: Optional[Dict[str, FuncResult]] = None,
         max_workers: Optional[int] = None,
     ) -> Dict[str, FuncResult]:
-        """并发执行多个原子函数（同一 entity）
+        """同步执行多个原子函数（同一 entity）
 
-        替代 batch_routes 中的串行 entity×func 嵌套循环。
-        每个函数调用前用 dataclasses.replace() 复制，避免共享对象竞态。
+        P94 优化：原子函数为纯计算（无 IO），线程池 submit/result 调度开销
+        在 422 funcs/entity × 2727 entities 场景下达 8.9s（38% 总耗时）。
+        直接同步执行可消除此开销。
         """
         from dataclasses import replace
-        import os as _os
-
-        if max_workers is None:
-            max_workers = max(4, (_os.cpu_count() or 4))
-        timeout = timeout or 30
 
         batch_results: Dict[str, FuncResult] = {}
         all_results = dict(results) if results is not None else {}
 
-        def _run_one(idx: int) -> Tuple[int, Optional[FuncResult]]:
-            func, tval, unit, op = func_specs[idx]
+        for func, tval, unit, op in func_specs:
             func_copy = replace(func, threshold=tval, unit=unit, operator=op)
             try:
                 if all_results and not self.check_dependencies(func_copy, all_results):
-                    return idx, None
+                    continue
                 r = func_copy.execute(entity)
                 if r is not None:
                     all_results[func_copy.func_id] = r
-                return idx, r
+                    batch_results[func_copy.func_id] = r
             except Exception as e:
                 logger.error(f"execute_batch error: {func.func_id}: {e}")
-                return idx, None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = [pool.submit(_run_one, i) for i in range(len(func_specs))]
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    idx, r = future.result(timeout=timeout)
-                    if r is not None:
-                        batch_results[func_specs[idx][0].func_id] = r
-                except Exception as e:
-                    logger.warning(f"execute_batch task timeout/error: {e}")
 
         return batch_results
 
