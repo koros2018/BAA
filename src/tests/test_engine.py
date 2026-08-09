@@ -1289,12 +1289,17 @@ class TestSemanticAnalyzer:  # class definition
 
 
 class TestExecuteWithTimeout:  # class definition
-    """FuncRegistry.execute_with_timeout() 超时控制测试"""
+    """FuncRegistry.execute_with_timeout() 行为测试
+
+    P94 优化后：execute_with_timeout 已改为直接同步执行，不再使用线程池超时。
+    原子函数为纯计算，不会真卡死；异常按 ERROR 处理。
+    timeout 参数保留为 API 兼容性占位（no-op）。
+    """
 
     def test_normal_execution_returns_result(
         self,
     ):  # function: def test_normal_execution_returns_result(self):
-        """正常执行应在超时前返回结果"""
+        """正常执行应返回结果"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
         entity = {"type": "staircase", "properties": {"width": 1.5}}  # assignment
@@ -1302,80 +1307,61 @@ class TestExecuteWithTimeout:  # class definition
         assert result is not None  # code
         assert result.func_id == "DIM-001"  # equality check
 
-    def test_timeout_returns_degraded(self):  # function: def test_timeout_returns_degraded(self):
-        """超时执行应返回 DEGRADED 结果"""
-        registry = FuncRegistry()  # function call
-        func = registry.get("DIM-001")  # function call
-        # 构造一个模拟的慢函数
-        func._original_execute = func.execute  # assignment
-
-        def _slow_execute(entity):  # function: def _slow_execute(entity):
-            import time  # stdlib: timing
-
-            time.sleep(5)  # 模拟超时
-            return func._original_execute(entity)  # return
-
-        func.execute = _slow_execute  # assignment
-        result = registry.execute_with_timeout(func, None, timeout=0.01)  # function call
-        # 恢复
-        func.execute = func._original_execute  # assignment
-        assert result is not None  # code
-        assert result.result == "DEGRADED"  # equality check
-        assert result.severity.value == "degraded"  # equality check
-        assert "超时" in result.params.get("note", "")  # function call
-
-    def test_timeout_does_not_affect_other_functions(
+    def test_slow_function_executes_to_completion(
         self,
-    ):  # function: def test_timeout_does_not_affect_other_functions(self):
-        """一个函数超时不影响其他函数的执行"""
-        registry = FuncRegistry()  # function call
-        func_a = registry.get("DIM-001")  # function call
-        func_b = registry.get("DIM-002")  # function call
-
-        # 模拟 func_a 慢执行
-        original_execute = func_a.execute  # assignment
-
-        def _slow_execute(entity):  # function: def _slow_execute(entity):
-            import time  # stdlib: timing
-
-            time.sleep(5)  # sleep
-            return original_execute(entity)  # return
-
-        func_a.execute = _slow_execute  # assignment
-        result_a = registry.execute_with_timeout(func_a, None, timeout=0.01)  # function call
-        func_a.execute = original_execute  # assignment
-        result_b = registry.execute_with_timeout(
-            func_b, {"type": "fire_zone", "properties": {"area": 1500.0}}, timeout=10
-        )  # function call
-
-        assert result_a.result == "DEGRADED"  # equality check
-        assert result_b is not None  # code
-        assert result_b.func_id == "DIM-002"  # equality check
-
-    def test_timeout_none_entity_returns_degraded(
-        self,
-    ):  # function: def test_timeout_none_entity_returns_degraded(self):
-        """超时时 entity=None 仍应正常返回 DEGRADED 结果"""
+    ):  # function: def test_slow_function_executes_to_completion(self):
+        """P94: 慢函数直接执行至完成，不返回 DEGRADED"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
         original_execute = func.execute  # assignment
 
         def _slow_execute(entity):  # function: def _slow_execute(entity):
             import time  # stdlib: timing
-
-            time.sleep(5)  # sleep
+            time.sleep(0.1)  # 模拟慢函数
             return original_execute(entity)  # return
 
         func.execute = _slow_execute  # assignment
-        result = registry.execute_with_timeout(func, None, timeout=0.01)  # function call
+        entity = {"type": "staircase", "properties": {"width": 1.5}}
+        result = registry.execute_with_timeout(func, entity, timeout=0.01)  # function call
         func.execute = original_execute  # assignment
         assert result is not None  # code
-        assert result.result == "DEGRADED"  # equality check
-        assert result.entity_id == ""  # entity=None 时 entity_id 应为空
+        assert result.result != "DEGRADED"  # P94 不再返回 DEGRADED
 
-    def test_timeout_exception_returns_error(
+    def test_slow_function_does_not_affect_other_functions(
         self,
-    ):  # function: def test_timeout_exception_returns_error(self):
+    ):  # function: def test_slow_function_does_not_affect_other_functions(self):
+        """一个函数慢执行不阻塞后续函数"""
+        registry = FuncRegistry()  # function call
+        func_a = registry.get("DIM-001")  # function call
+        func_b = registry.get("DIM-002")  # function call
+
+        original_execute = func_a.execute  # assignment
+
+        def _slow_execute(entity):  # function: def _slow_execute(entity):
+            import time  # stdlib: timing
+            time.sleep(0.1)
+            return original_execute(entity)  # return
+
+        func_a.execute = _slow_execute  # assignment
+        entity_a = {"type": "staircase", "properties": {"width": 1.5}}
+        result_a = registry.execute_with_timeout(func_a, entity_a, timeout=0.01)  # function call
+        func_a.execute = original_execute  # assignment
+        result_b = registry.execute_with_timeout(
+            func_b, {"type": "fire_zone", "properties": {"area": 1500.0}}, timeout=10
+        )  # function call
+
+        assert result_a is not None  # code
+        assert result_b is not None  # code
+        assert result_b.func_id == "DIM-002"  # equality check
+
+    def test_none_entity_returns_none(self,):  # function: def test_none_entity_returns_none(self,):
+        """entity=None 时 execute() 返回 None（target 不适用）"""
+        registry = FuncRegistry()  # function call
+        func = registry.get("DIM-001")  # function call
+        result = registry.execute_with_timeout(func, None, timeout=10)  # function call
+        assert result is None  # DIM-001 在 entity=None 时不执行
+
+    def test_exception_returns_error(self,):  # function: def test_exception_returns_error(self,):
         """原子函数抛出异常应返回 ERROR 结果"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
@@ -1391,28 +1377,27 @@ class TestExecuteWithTimeout:  # class definition
         assert result.result == "ERROR"  # equality check
         assert result.severity.value == "error"  # equality check
 
-    def test_default_timeout_used_when_not_specified(
-        self,
-    ):  # function: def test_default_timeout_used_when_not_specified(self):
-        """未指定 timeout 时使用 func.DEFAULT_TIMEOUT"""
+    def test_default_timeout_is_noop(self):  # function: def test_default_timeout_is_noop(self):  # P94
+        """P94: DEFAULT_TIMEOUT 为兼容占位，不影响行为"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
         original_timeout = func.DEFAULT_TIMEOUT  # assignment
-        func.DEFAULT_TIMEOUT = 0.001  # assignment
+        func.DEFAULT_TIMEOUT = 0.001  # 即使设为极小值也不触发 DEGRADED
         original_execute = func.execute  # assignment
 
         def _slow_execute(entity):  # function: def _slow_execute(entity):
             import time  # stdlib: timing
-
-            time.sleep(5)  # sleep
+            time.sleep(0.05)
             return original_execute(entity)  # return
 
         func.execute = _slow_execute  # assignment
-        result = registry.execute_with_timeout(func, None)  # function call
+        entity = {"type": "staircase", "properties": {"width": 1.5}}
+        result = registry.execute_with_timeout(func, entity)  # function call
         func.execute = original_execute  # assignment
         func.DEFAULT_TIMEOUT = original_timeout  # assignment
+        # P94: 不再返回 DEGRADED
         assert result is not None  # code
-        assert result.result == "DEGRADED"  # equality check
+        assert result.result != "DEGRADED"
 
 
 # ═══════════════════════════════════════════════════════════
