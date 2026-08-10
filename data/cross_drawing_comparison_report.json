@@ -1,0 +1,212 @@
+{
+  "entity_distribution": {
+    "per_drawing": {
+      "4.通风BS170826.dxf": {
+        "window": 7,
+        "wall": 1,
+        "building": 1
+      },
+      "东莞通-建筑-外部参照（不打印）.dxf": {
+        "other": 4439,
+        "door": 2644,
+        "wall": 1482,
+        "text": 638,
+        "window": 265,
+        "column": 172,
+        "room": 98,
+        "antechamber": 15,
+        "fire_elevator": 14,
+        "stair": 4,
+        "rescue_window": 3,
+        "water_reservoir": 3,
+        "floor": 2,
+        "exit": 1
+      }
+    },
+    "aggregate": {
+      "other": 4439,
+      "door": 2644,
+      "wall": 1483,
+      "text": 638,
+      "window": 272,
+      "column": 172,
+      "room": 98,
+      "antechamber": 15,
+      "fire_elevator": 14,
+      "stair": 4,
+      "rescue_window": 3,
+      "water_reservoir": 3,
+      "floor": 2,
+      "building": 1,
+      "exit": 1
+    }
+  },
+  "violation_patterns": {
+    "top_violations": [
+      {
+        "func_id": "DIM-006",
+        "total": 610,
+        "PASS": 552,
+        "FAIL": 58,
+        "drawings_with_fail": 1,
+        "fail_rate": "9.5%"
+      },
+      {
+        "func_id": "EXIST-083",
+        "total": 3,
+        "PASS": 0,
+        "FAIL": 3,
+        "drawings_with_fail": 1,
+        "fail_rate": "100.0%"
+      },
+      {
+        "func_id": "EXIST-093",
+        "total": 3,
+        "PASS": 0,
+        "FAIL": 3,
+        "drawings_with_fail": 1,
+        "fail_rate": "100.0%"
+      },
+      {
+        "func_id": "EVAC-001",
+        "total": 6,
+        "PASS": 4,
+        "FAIL": 2,
+        "drawings_with_fail": 1,
+        "fail_rate": "33.3%"
+      },
+      {
+        "func_id": "EVAC-004",
+        "total": 6,
+        "PASS": 4,
+        "FAIL": 2,
+        "drawings_with_fail": 1,
+        "fail_rate": "33.3%"
+      }
+    ],
+    "drawings_with_violations": {
+      "东莞通-建筑-外部参照（不打印）.dxf": [
+        {
+          "func_id": "DIM-006",
+          "total": 610,
+          "PASS": 552,
+          "FAIL": 58
+        },
+        {
+          "func_id": "EXIST-083",
+          "total": 3,
+          "PASS": 0,
+          "FAIL": 3
+        },
+        {
+          "func_id": "EXIST-093",
+          "total": 3,
+          "PASS": 0,
+          "FAIL": 3
+        },
+        {
+          "func_id": "EVAC-001",
+          "total": 6,
+          "PASS": 4,
+          "FAIL": 2
+        },
+        {
+          "func_id": "EVAC-004",
+          "total": 6,
+          "PASS": 4,
+          "FAIL": 2
+        }
+      ]
+    }
+  },
+  "quality_ranking": [
+    {
+      "file": "2.1电气170825-报审.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "6.火灾自动报警_（报审）_t3.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "9.气体灭火（唯美图框）_t3.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "A1IDC及通信机楼结构平面图20161227z.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "A1云计算中心_水消防2017.03.31_t3.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "A1云计算中心平面图0405_t3.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "东莞通-设备-外部参照（不打印）.dxf",
+      "entity_count": 0,
+      "pass_rate": null,
+      "total_findings": 0,
+      "total_pass": 0,
+      "total_fail": 0,
+      "grade": "N/A",
+      "note": "空图纸（xref 未解析）"
+    },
+    {
+      "file": "东莞通-建筑-外部参照（不打印）.dxf",
+      "entity_count": 9780,
+      "pass_rate": 0.9957,
+      "total_findings": 15846,
+      "total_pass": 15778,
+      "total_fail": 68,
+      "grade": "A"
+    },
+    {
+      "file": "4.通风BS170826.dxf",
+      "entity_count": 9,
+      "pass_rate": 1.0,
+      "total_findings": 37,
+      "total_pass": 37,
+      "total_fail": 0,
+      "grade": "A"
+    }
+  ]
+}
