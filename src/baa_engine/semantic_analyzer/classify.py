@@ -242,9 +242,11 @@ def _classify_by_geometry(
                     return "other"
                 return "wall"
             # 默认图层（0/00）上的闭合多边形：电气图中大量线槽/表格轮廓在此
-            # 只有宽高比 < 3 且面积 > 10m² 才可能为房间
+            # P84-E fix: 原规则面积<10m² OR aspect>3 即拒绝，过于激进——
+            # 东莞通中 45.5% 的真实小房间（1~10m²）被误杀。
+            # 改为：面积<5m² AND aspect>5 才拒绝（两者必须同时满足）
             if prim.layer.strip() in ("0", "00", ""):  # check: membership test
-                if area < 10000000 or aspect_ratio > 3:  # < 10m² 或狭长
+                if area < 5000000 and aspect_ratio > 5:  # < 5m² 且极狭长
                     return "other"
             # room 最小面积 1m²（1,000,000mm²），过滤小框/文字标注
             # room 最大面积 500m²（500,000,000mm²），过滤图纸边界框/标题栏框
