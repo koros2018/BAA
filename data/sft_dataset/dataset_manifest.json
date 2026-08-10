@@ -1,0 +1,47 @@
+{
+  "dataset_name": "BAA_construction_review_sft",
+  "description": "BAA 施工图审查 SFT 数据集，包含静态规则（原子函数/图层规则/审查标准）和动态审查样本",
+  "version": "1.0.0",
+  "generated_at": "2026-08-10T06:42:52.585220+00:00",
+  "total_samples": 1290,
+  "by_source": {
+    "layer_rules": 838,
+    "atomic_functions": 422,
+    "construction_review": 30
+  },
+  "by_category": {
+    "exist": 128,
+    "dim": 124,
+    "other": 77,
+    "dist": 34,
+    "count": 30,
+    "equipment": 29,
+    "area": 26,
+    "attr": 23,
+    "arch": 20,
+    "access": 16,
+    "structural": 16,
+    "thermal": 16,
+    "hvac_equipment": 14,
+    "dimension": 10,
+    "exit_sign": 8,
+    "light": 7,
+    "titleblock": 7,
+    "shaft": 7,
+    "wall": 6,
+    "fire_door": 6
+  },
+  "files": [
+    "all.jsonl",
+    "atomic_functions.jsonl",
+    "layer_rules.jsonl",
+    "construction_review.jsonl",
+    "review_samples.jsonl",
+    "hf_dataset_description.json"
+  ],
+  "usage": {
+    "hf_datasets": "datasets.load_dataset('json', data_files='all.jsonl')",
+    "openai_finetune": "训练数据需转为 messages 字段格式，每条一个 JSONL 行",
+    "qwen_deepseek": "直接使用 jsonl-sft 格式，字段结构与 OpenAI 兼容"
+  }
+}
