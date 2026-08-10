@@ -145,7 +145,8 @@ def _classify_by_geometry(
     short_edge = min(bw, bh) if bw > 0 and bh > 0 else length
 
     if dxf_type == "LINE":  # condition: dxf_type == "LINE":
-        if length > 2000:  # check: numeric comparison
+        if length >= 2000:  # P84-E: 东莞通中有 54 条恰好 2000.0mm 的 hv LINE
+            # 是墙线，不是门，>= 确保边界情况归为 wall
             return "wall"
         # P84-E fix: LINE 是 1D 对象，hv 线的 bbox short_edge 错误回退到 length
         # 用端点坐标计算真实短边 = min(|dx|, |dy|)
@@ -642,4 +643,3 @@ def _classify_by_geometry(
         return "wall"
 
     return "unknown"
-
