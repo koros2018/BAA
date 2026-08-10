@@ -23,8 +23,11 @@ GOLD_STANDARD = {
         "EVAC-001": "CONFIRMED",
     },
     "东莞通-建筑-外部参照（不打印）.dxf": {
-        "DIST-001": "CONFIRMED",
-        "EVAC-001": "CONFIRMED",
+        "DIM-006": "CONFIRMED",    # P97: 58 个消防门宽度违规（GB50016-5.5.19）
+        "EVAC-001": "CONFIRMED",   # P97: 2 个疏散宽度 FAIL
+        "EVAC-004": "CONFIRMED",   # P97: 2 个疏散路径 FAIL
+        "EXIST-083": "CONFIRMED",  # P97: 3 个救援窗缺失（GB50016-7.2.1）
+        "EXIST-093": "CONFIRMED",  # P97: 3 个救援窗尺寸 FAIL（GB50016-7.2.3）
     },
     "中原人工智能计算中心总图-0409_t3.dxf": {},
     "A1云计算中心_水消防2017.03.31_t3.dxf": {
