@@ -44,20 +44,31 @@ def _merge_line_chains_to_rooms(
     将首尾相连的 LINE 图元组合成闭合链，满足条件后合并为 room 实体。
     处理建筑师用多个 LINE 绘制房间轮廓的情况。
     """
-    # 收集 LINE 图元（未被分类为 room 的）
+    # 收集 LINE 图元（仅 wall 候选：>=2000mm，减少 60x 噪声）
+    # P101: PDF 数据中 94726 条 line 中 643 条是 wall，DFS 全量跑 94000+ 线
+    # 会爆栈/超时。改为只收集 wall 候选线段（>=2000mm）。
     lines = []
     for prim in primitives:
-        if prim.dxf_type == "LINE":  # condition: prim.dxf_type == "LINE":
-            lines.append(prim)  # append: add to list
-    if len(lines) < 3:  # check: numeric comparison
+        if prim.dxf_type == "LINE":
+            length = max(
+                (prim.bbox or {}).get("width", 0),
+                (prim.bbox or {}).get("height", 0),
+            )
+            # P101: 只有 >=2000mm 的 LINE 才可能是建筑墙体
+            if length >= 2000:
+                lines.append(prim)
+    if len(lines) < 3:
         return entities
 
-    # 端点匹配阈值（mm）
-    match_threshold = 100.0
+    # 端点匹配阈值（mm）——PDF 数据精度损失，放宽到 10mm
+    # P101: 端点坐标匹配精度放宽到 10mm（PDF→DXF 精度损失）
+    coord_tolerance = 10.0  # mm
+    # 闭合检测的端点距离阈值：原 100mm，PDF 数据保留原值
+    match_threshold = 100.0  # mm
 
-    # 建立邻接表（使用坐标四舍五入到 mm 精度，避免浮点误差）
+    # 建立邻接表（使用坐标四舍五入到 tolerance 精度，补偿 PDF 精度损失）
     def _round_point(p):
-        return (round(p[0], 1), round(p[1], 1))
+        return (round(p[0] / coord_tolerance), round(p[1] / coord_tolerance))
 
     point_to_lines = {}
     for i, line in enumerate(lines):
@@ -146,16 +157,16 @@ def _merge_line_chains_to_rooms(
             ep = sl.properties.get("end_point", {})
             sp_start = (sp.get("x", 0), sp.get("y", 0))
             sp_end = (ep.get("x", 0), ep.get("y", 0))
-            if last_pt and (  # check: AND condition
+            if last_pt and (
                 (
                     abs(last_pt[0] - sp_start[0]) < match_threshold
                     and abs(last_pt[1] - sp_start[1]) < match_threshold
-                )  # call
+                )
                 or (
                     abs(last_pt[0] - sp_end[0]) < match_threshold
                     and abs(last_pt[1] - sp_end[1]) < match_threshold
                 )
-            ):  # call
+            ):
                 # 检查是否已存在
                 is_dup = False
                 for (
