@@ -1,1006 +1,5 @@
 [
   {
-    "file": "20210409-3#泵房_t3.dxf",
-    "success": true,
-    "primitive_count": 1631,
-    "entity_count": 1631,
-    "entity_types": {
-      "other": 543,
-      "dimension": 362,
-      "wall": 276,
-      "column": 159,
-      "facade": 112,
-      "stair": 46,
-      "text": 45,
-      "conduit": 42,
-      "window": 29,
-      "equipment": 6,
-      "lobby": 4,
-      "fire_zone": 4,
-      "floor": 2,
-      "pump_room": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 276,
-        "PASS": 275,
-        "FAIL": 1
-      },
-      "EXIST-092": {
-        "total": 388,
-        "PASS": 387,
-        "FAIL": 1
-      },
-      "EXIST-001": {
-        "total": 46,
-        "PASS": 46,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 46,
-        "PASS": 46,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 46,
-        "PASS": 46,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 46,
-        "PASS": 46,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 46,
-        "PASS": 46,
-        "FAIL": 0
-      },
-      "EXIST-067": {
-        "total": 29,
-        "PASS": 29,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 29,
-        "PASS": 29,
-        "FAIL": 0
-      },
-      "EXIST-084": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-095": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-025": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-033": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-034": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-062": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "DIM-002": {
-        "total": 4,
-        "PASS": 4,
-        "FAIL": 0
-      },
-      "EXIST-024": {
-        "total": 42,
-        "PASS": 42,
-        "FAIL": 0
-      },
-      "EXIST-078": {
-        "total": 42,
-        "PASS": 42,
-        "FAIL": 0
-      },
-      "EXIST-120": {
-        "total": 42,
-        "PASS": 42,
-        "FAIL": 0
-      },
-      "EXIST-122": {
-        "total": 42,
-        "PASS": 42,
-        "FAIL": 0
-      },
-      "EXIST-087": {
-        "total": 6,
-        "PASS": 6,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 1136
-  },
-  {
-    "file": "202109409-2#配电房_t3.dxf",
-    "success": true,
-    "primitive_count": 1466,
-    "entity_count": 1466,
-    "entity_types": {
-      "other": 426,
-      "dimension": 369,
-      "wall": 228,
-      "stair": 105,
-      "facade": 86,
-      "column": 84,
-      "window": 80,
-      "text": 55,
-      "equipment": 24,
-      "fire_zone": 4,
-      "lobby": 3,
-      "floor": 2
-    },
-    "func_summary": {
-      "EXIST-001": {
-        "total": 105,
-        "PASS": 105,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 105,
-        "PASS": 105,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 105,
-        "PASS": 105,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 105,
-        "PASS": 105,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 105,
-        "PASS": 105,
-        "FAIL": 0
-      },
-      "EXIST-090": {
-        "total": 228,
-        "PASS": 222,
-        "FAIL": 6
-      },
-      "EXIST-092": {
-        "total": 314,
-        "PASS": 308,
-        "FAIL": 6
-      },
-      "EXIST-067": {
-        "total": 80,
-        "PASS": 80,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 80,
-        "PASS": 80,
-        "FAIL": 0
-      },
-      "EXIST-087": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "DIM-002": {
-        "total": 4,
-        "PASS": 4,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 1255
-  },
-  {
-    "file": "4.通风BS170826.dxf",
-    "success": true,
-    "primitive_count": 9,
-    "entity_count": 9,
-    "entity_types": {
-      "text": 6,
-      "wall": 1,
-      "column": 1,
-      "building": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "DIST-002": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      }
-    },
-    "total_findings": 3
-  },
-  {
-    "file": "A1IDC及通信机楼结构平面图20161227z.dxf",
-    "success": true,
-    "primitive_count": 24498,
-    "entity_count": 9995,
-    "entity_types": {
-      "wall": 3552,
-      "slab": 3380,
-      "beam": 1685,
-      "dimension": 671,
-      "other": 204,
-      "column": 186,
-      "text": 162,
-      "pillar": 128,
-      "equipment": 13,
-      "floor": 11,
-      "stair": 2,
-      "water_reservoir": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 3552,
-        "PASS": 3552,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 3552,
-        "PASS": 3552,
-        "FAIL": 0
-      },
-      "EXIST-087": {
-        "total": 13,
-        "PASS": 13,
-        "FAIL": 0
-      },
-      "EXIST-001": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-009": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-085": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 7129
-  },
-  {
-    "file": "A1云计算中心_水消防2017.03.31_t3.dxf",
-    "success": true,
-    "primitive_count": 61834,
-    "entity_count": 7860,
-    "entity_types": {
-      "other": 4056,
-      "lobby": 1270,
-      "door": 1038,
-      "window": 596,
-      "pipe": 209,
-      "wall": 196,
-      "text": 148,
-      "dimension": 130,
-      "sprinkler": 76,
-      "fire_extinguisher": 62,
-      "column": 41,
-      "water_pipe": 10,
-      "indoor_hydrant": 8,
-      "fire_hydrant": 7,
-      "check_valve": 6,
-      "handrail": 3,
-      "fire_alarm": 1,
-      "floor": 1,
-      "speaker": 1,
-      "pump": 1
-    },
-    "func_summary": {
-      "EXIST-021": {
-        "total": 1038,
-        "PASS": 1038,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 1038,
-        "PASS": 1038,
-        "FAIL": 0
-      },
-      "EXIST-067": {
-        "total": 1634,
-        "PASS": 1634,
-        "FAIL": 0
-      },
-      "EXIST-113": {
-        "total": 1038,
-        "PASS": 1038,
-        "FAIL": 0
-      },
-      "EXIST-091": {
-        "total": 209,
-        "PASS": 209,
-        "FAIL": 0
-      },
-      "EXIST-005": {
-        "total": 145,
-        "PASS": 145,
-        "FAIL": 0
-      },
-      "EXIST-018": {
-        "total": 76,
-        "PASS": 76,
-        "FAIL": 0
-      },
-      "EXIST-047": {
-        "total": 76,
-        "PASS": 76,
-        "FAIL": 0
-      },
-      "EXIST-072": {
-        "total": 83,
-        "PASS": 83,
-        "FAIL": 0
-      },
-      "EXIST-073": {
-        "total": 76,
-        "PASS": 76,
-        "FAIL": 0
-      },
-      "EXIST-086": {
-        "total": 76,
-        "PASS": 76,
-        "FAIL": 0
-      },
-      "EXIST-111": {
-        "total": 76,
-        "PASS": 76,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 596,
-        "PASS": 596,
-        "FAIL": 0
-      },
-      "EXIST-090": {
-        "total": 196,
-        "PASS": 196,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 196,
-        "PASS": 196,
-        "FAIL": 0
-      },
-      "ACCESS-005": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
-      "EXIST-028": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
-      "EXIST-032": {
-        "total": 6,
-        "PASS": 6,
-        "FAIL": 0
-      },
-      "EXIST-013": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-023": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-057": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-058": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-059": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-110": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-006": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-048": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-096": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-097": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-098": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-102": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-124": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-010": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-012": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-104": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-106": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-116": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-084": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-027": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-030": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 6622
-  },
-  {
-    "file": "A1云计算中心平面图0405_t3.dxf",
-    "success": true,
-    "primitive_count": 23652,
-    "entity_count": 9955,
-    "entity_types": {
-      "other": 4339,
-      "wall": 1994,
-      "dimension": 1288,
-      "window": 783,
-      "stair": 401,
-      "column": 337,
-      "facade": 297,
-      "pillar": 185,
-      "text": 125,
-      "lobby": 122,
-      "road": 36,
-      "door": 23,
-      "parking_space": 17,
-      "water_pipe": 3,
-      "handrail": 3,
-      "floor": 1,
-      "building": 1
-    },
-    "func_summary": {
-      "EXIST-067": {
-        "total": 806,
-        "PASS": 806,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 783,
-        "PASS": 783,
-        "FAIL": 0
-      },
-      "EXIST-090": {
-        "total": 1994,
-        "PASS": 1994,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 2291,
-        "PASS": 2291,
-        "FAIL": 0
-      },
-      "EXIST-001": {
-        "total": 401,
-        "PASS": 401,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 401,
-        "PASS": 401,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 424,
-        "PASS": 424,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 401,
-        "PASS": 401,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 401,
-        "PASS": 401,
-        "FAIL": 0
-      },
-      "EXIST-021": {
-        "total": 23,
-        "PASS": 23,
-        "FAIL": 0
-      },
-      "EXIST-113": {
-        "total": 23,
-        "PASS": 23,
-        "FAIL": 0
-      },
-      "ACCESS-005": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
-      "EXIST-028": {
-        "total": 3,
-        "PASS": 3,
-        "FAIL": 0
-      },
-      "DIST-002": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      }
-    },
-    "total_findings": 7955
-  },
-  {
-    "file": "E-00-01-01 室外电气总平面图.dxf",
-    "success": true,
-    "primitive_count": 7126,
-    "entity_count": 7062,
-    "entity_types": {
-      "equipment": 4764,
-      "other": 897,
-      "dimension": 532,
-      "text": 417,
-      "column": 273,
-      "wall": 157,
-      "lobby": 22
-    },
-    "func_summary": {
-      "EXIST-087": {
-        "total": 4764,
-        "PASS": 4728,
-        "FAIL": 36
-      },
-      "EXIST-090": {
-        "total": 157,
-        "PASS": 157,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 157,
-        "PASS": 157,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 5078
-  },
-  {
-    "file": "E-00-11-01电力配电箱系统图.dxf",
-    "success": true,
-    "primitive_count": 334,
-    "entity_count": 333,
-    "entity_types": {
-      "dimension": 186,
-      "equipment": 143,
-      "text": 2,
-      "wall": 2
-    },
-    "func_summary": {
-      "EXIST-087": {
-        "total": 143,
-        "PASS": 143,
-        "FAIL": 0
-      },
-      "EXIST-090": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      },
-      "EXIST-092": {
-        "total": 2,
-        "PASS": 2,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 147
-  },
-  {
-    "file": "ZY项目1#数据中心机房平立剖面图_t7_t3.dxf",
-    "success": true,
-    "primitive_count": 30729,
-    "entity_count": 9996,
-    "entity_types": {
-      "floor": 5062,
-      "wall": 3047,
-      "window": 419,
-      "facade": 404,
-      "dimension": 239,
-      "other": 236,
-      "stair": 160,
-      "column": 137,
-      "structure": 80,
-      "pillar": 57,
-      "door": 48,
-      "lobby": 40,
-      "drain": 19,
-      "text": 17,
-      "equipment": 12,
-      "slab": 9,
-      "accessible_toilet": 8,
-      "fire_equipment": 1,
-      "conduit": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 3047,
-        "PASS": 3031,
-        "FAIL": 16
-      },
-      "EXIST-092": {
-        "total": 3451,
-        "PASS": 3435,
-        "FAIL": 16
-      },
-      "EXIST-067": {
-        "total": 467,
-        "PASS": 467,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 419,
-        "PASS": 419,
-        "FAIL": 0
-      },
-      "EXIST-001": {
-        "total": 160,
-        "PASS": 160,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 160,
-        "PASS": 160,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 208,
-        "PASS": 208,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 160,
-        "PASS": 160,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 160,
-        "PASS": 160,
-        "FAIL": 0
-      },
-      "EXIST-095": {
-        "total": 19,
-        "PASS": 19,
-        "FAIL": 0
-      },
-      "EXIST-025": {
-        "total": 19,
-        "PASS": 19,
-        "FAIL": 0
-      },
-      "EXIST-033": {
-        "total": 19,
-        "PASS": 19,
-        "FAIL": 0
-      },
-      "EXIST-021": {
-        "total": 48,
-        "PASS": 48,
-        "FAIL": 0
-      },
-      "EXIST-113": {
-        "total": 48,
-        "PASS": 48,
-        "FAIL": 0
-      },
-      "EXIST-087": {
-        "total": 12,
-        "PASS": 12,
-        "FAIL": 0
-      },
-      "ACCESS-008": {
-        "total": 8,
-        "PASS": 8,
-        "FAIL": 0
-      },
-      "EXIST-036": {
-        "total": 8,
-        "PASS": 8,
-        "FAIL": 0
-      },
-      "EXIST-066": {
-        "total": 8,
-        "PASS": 8,
-        "FAIL": 0
-      },
-      "EXIST-024": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-078": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-120": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-122": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 8425
-  },
-  {
-    "file": "中原人工智能计算中心总图-0409_t3.dxf",
-    "success": true,
-    "primitive_count": 1199,
-    "entity_count": 1191,
-    "entity_types": {
-      "other": 351,
-      "wall": 305,
-      "dimension": 191,
-      "road": 184,
-      "column": 82,
-      "stair": 24,
-      "text": 18,
-      "window": 10,
-      "parking_space": 10,
-      "building": 8,
-      "equipment": 4,
-      "lobby": 3,
-      "drain": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 305,
-        "PASS": 303,
-        "FAIL": 2
-      },
-      "EXIST-092": {
-        "total": 305,
-        "PASS": 303,
-        "FAIL": 2
-      },
-      "DIST-002": {
-        "total": 8,
-        "PASS": 0,
-        "FAIL": 8
-      },
-      "EXIST-087": {
-        "total": 4,
-        "PASS": 4,
-        "FAIL": 0
-      },
-      "EXIST-067": {
-        "total": 10,
-        "PASS": 10,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 10,
-        "PASS": 10,
-        "FAIL": 0
-      },
-      "EXIST-001": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "EXIST-064": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "EXIST-068": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "EXIST-080": {
-        "total": 24,
-        "PASS": 24,
-        "FAIL": 0
-      },
-      "EXIST-095": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-025": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-033": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 765
-  },
-  {
-    "file": "基础+2#,3#上部-202104.dxf",
-    "success": true,
-    "primitive_count": 5942,
-    "entity_count": 5940,
-    "entity_types": {
-      "other": 2712,
-      "wall": 1344,
-      "dimension": 808,
-      "column": 427,
-      "foundation": 246,
-      "opening": 140,
-      "lobby": 116,
-      "text": 98,
-      "floor": 29,
-      "slab": 11,
-      "door": 7,
-      "window": 1,
-      "water_reservoir": 1
-    },
-    "func_summary": {
-      "EXIST-090": {
-        "total": 1344,
-        "PASS": 1339,
-        "FAIL": 5
-      },
-      "EXIST-092": {
-        "total": 1344,
-        "PASS": 1339,
-        "FAIL": 5
-      },
-      "EXIST-067": {
-        "total": 148,
-        "PASS": 148,
-        "FAIL": 0
-      },
-      "EXIST-081": {
-        "total": 141,
-        "PASS": 141,
-        "FAIL": 0
-      },
-      "EXIST-021": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-065": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-113": {
-        "total": 7,
-        "PASS": 7,
-        "FAIL": 0
-      },
-      "EXIST-009": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-085": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      }
-    },
-    "total_findings": 3000
-  },
-  {
     "file": "2.1电气170825-报审.dxf",
     "success": true,
     "primitive_count": 0,
@@ -1008,6 +7,55 @@
     "entity_types": {},
     "func_summary": {},
     "total_findings": 0
+  },
+  {
+    "file": "4.通风BS170826.dxf",
+    "success": true,
+    "primitive_count": 9,
+    "entity_count": 9,
+    "entity_types": {
+      "window": 7,
+      "wall": 1,
+      "building": 1
+    },
+    "func_summary": {
+      "EXIST-090": {
+        "total": 1,
+        "PASS": 1,
+        "FAIL": 0
+      },
+      "EXIST-092": {
+        "total": 1,
+        "PASS": 1,
+        "FAIL": 0
+      },
+      "DIM-005": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      },
+      "DIM-008": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      },
+      "DIM-010": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      },
+      "EXIST-067": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      },
+      "EXIST-081": {
+        "total": 7,
+        "PASS": 7,
+        "FAIL": 0
+      }
+    },
+    "total_findings": 37
   },
   {
     "file": "6.火灾自动报警_（报审）_t3.dxf",
@@ -1028,45 +76,97 @@
     "total_findings": 0
   },
   {
+    "file": "A1IDC及通信机楼结构平面图20161227z.dxf",
+    "success": true,
+    "primitive_count": 0,
+    "entity_count": 0,
+    "entity_types": {},
+    "func_summary": {},
+    "total_findings": 0
+  },
+  {
+    "file": "A1云计算中心_水消防2017.03.31_t3.dxf",
+    "success": true,
+    "primitive_count": 0,
+    "entity_count": 0,
+    "entity_types": {},
+    "func_summary": {},
+    "total_findings": 0
+  },
+  {
+    "file": "A1云计算中心平面图0405_t3.dxf",
+    "success": true,
+    "primitive_count": 0,
+    "entity_count": 0,
+    "entity_types": {},
+    "func_summary": {},
+    "total_findings": 0
+  },
+  {
     "file": "东莞通-建筑-外部参照（不打印）.dxf",
     "success": true,
     "primitive_count": 34748,
-    "entity_count": 10000,
+    "entity_count": 9780,
     "entity_types": {
-      "other": 7503,
-      "wall": 1229,
-      "text": 644,
-      "window": 344,
-      "column": 164,
-      "door": 72,
+      "other": 4439,
+      "door": 2644,
+      "wall": 1482,
+      "text": 638,
+      "window": 265,
+      "column": 172,
+      "room": 98,
       "antechamber": 15,
       "fire_elevator": 14,
-      "stair": 5,
+      "stair": 4,
       "rescue_window": 3,
       "water_reservoir": 3,
       "floor": 2,
-      "exit": 1,
-      "room": 1
+      "exit": 1
     },
     "func_summary": {
       "EXIST-090": {
-        "total": 1229,
-        "PASS": 1229,
+        "total": 1482,
+        "PASS": 1482,
         "FAIL": 0
       },
       "EXIST-092": {
-        "total": 1229,
-        "PASS": 1229,
+        "total": 1482,
+        "PASS": 1482,
+        "FAIL": 0
+      },
+      "EXIST-021": {
+        "total": 2644,
+        "PASS": 2644,
+        "FAIL": 0
+      },
+      "EXIST-065": {
+        "total": 2648,
+        "PASS": 2648,
         "FAIL": 0
       },
       "EXIST-067": {
-        "total": 416,
-        "PASS": 416,
+        "total": 2909,
+        "PASS": 2909,
+        "FAIL": 0
+      },
+      "EXIST-113": {
+        "total": 2644,
+        "PASS": 2644,
+        "FAIL": 0
+      },
+      "DIM-006": {
+        "total": 610,
+        "PASS": 552,
+        "FAIL": 58
+      },
+      "DIM-009": {
+        "total": 648,
+        "PASS": 648,
         "FAIL": 0
       },
       "EXIST-081": {
-        "total": 344,
-        "PASS": 344,
+        "total": 265,
+        "PASS": 265,
         "FAIL": 0
       },
       "EXIST-050": {
@@ -1074,19 +174,24 @@
         "PASS": 15,
         "FAIL": 0
       },
-      "EXIST-021": {
-        "total": 72,
-        "PASS": 72,
+      "DIM-008": {
+        "total": 97,
+        "PASS": 97,
         "FAIL": 0
       },
-      "EXIST-065": {
-        "total": 77,
-        "PASS": 77,
+      "EXIST-020": {
+        "total": 98,
+        "PASS": 98,
         "FAIL": 0
       },
-      "EXIST-113": {
-        "total": 72,
-        "PASS": 72,
+      "EXIST-071": {
+        "total": 98,
+        "PASS": 98,
+        "FAIL": 0
+      },
+      "EXIST-025": {
+        "total": 98,
+        "PASS": 98,
         "FAIL": 0
       },
       "EXIST-083": {
@@ -1100,23 +205,23 @@
         "FAIL": 3
       },
       "EXIST-001": {
-        "total": 5,
-        "PASS": 5,
+        "total": 4,
+        "PASS": 4,
         "FAIL": 0
       },
       "EXIST-064": {
-        "total": 5,
-        "PASS": 5,
+        "total": 4,
+        "PASS": 4,
         "FAIL": 0
       },
       "EXIST-068": {
-        "total": 6,
-        "PASS": 6,
+        "total": 5,
+        "PASS": 5,
         "FAIL": 0
       },
       "EXIST-080": {
-        "total": 5,
-        "PASS": 5,
+        "total": 4,
+        "PASS": 4,
         "FAIL": 0
       },
       "EXIST-009": {
@@ -1155,52 +260,27 @@
         "FAIL": 0
       },
       "EVAC-001": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
+        "total": 6,
+        "PASS": 4,
+        "FAIL": 2
       },
       "EVAC-002": {
-        "total": 1,
-        "PASS": 1,
+        "total": 4,
+        "PASS": 4,
         "FAIL": 0
       },
       "EVAC-003": {
-        "total": 1,
-        "PASS": 1,
+        "total": 6,
+        "PASS": 6,
         "FAIL": 0
       },
       "EVAC-004": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-020": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-071": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "EXIST-025": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
-      },
-      "DIM-006": {
-        "total": 1,
-        "PASS": 0,
-        "FAIL": 1
-      },
-      "DIM-009": {
-        "total": 1,
-        "PASS": 1,
-        "FAIL": 0
+        "total": 6,
+        "PASS": 4,
+        "FAIL": 2
       }
     },
-    "total_findings": 3553
+    "total_findings": 15846
   },
   {
     "file": "东莞通-设备-外部参照（不打印）.dxf",
