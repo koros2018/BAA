@@ -116,7 +116,7 @@ from src.baa_engine.parsers.geometry import (
 class DrawingParser:
     """图纸解析引擎 - 基于 ezdxf"""
 
-    SUPPORTED_FORMATS = {".dxf", ".dwg"}
+    SUPPORTED_FORMATS = {".dxf", ".dwg", ".pdf"}
     LARGE_FILE_MB = 50
     PAGE_SIZE = 5000
     MEMORY_LIMIT_MB = 1500
@@ -128,17 +128,18 @@ class DrawingParser:
         self._cache_max = 50
 
     def parse(
-        self, file_path: str, file_id: str = None, detect_sheets: bool = False
+        self, file_path: str, file_id: str = None, detect_sheets: bool = False, page_index: int = 0
     ) -> (
         DrawingResult
-    ):  # method: def parse(self, file_path: str, file_id: str = None, detect_sheets: bool = False) -> Draw
+    ):  # method: def parse(self, file_path: str, file_id: str = None, detect_sheets: bool = False, page_index: int = 0) -> Draw
         """
-        解析 DXF/DWG 图纸，提取原始图元
+        解析 DXF/DWG/PDF 图纸，提取原始图元
 
         参数:
-            file_path: 图纸文件路径（支持 dxf, dwg）
+            file_path: 图纸文件路径（支持 dxf, dwg, pdf）
             file_id: 文件标识（可选，自动生成）
             detect_sheets: P73: 是否检测多Sheet（Layout）分区
+            page_index: P100: PDF 目标页索引（默认第 1 页），仅 PDF 有效
 
         返回:
             DrawingResult 包含原始图元列表（sheets 非空时 pritimives 为全部图元聚合）
@@ -225,15 +226,27 @@ class DrawingParser:
                         error="".join(diag_parts),  # function call
                     )  # code
                 self._doc = dxf_doc  # assignment
-            else:  # 否则
-                # ── P18 文件大小预检 ──────────────────────
-                file_size_mb = path.stat().st_size / (1024 * 1024)  # function call
-                use_paging = file_size_mb >= self.LARGE_FILE_MB  # assignment
-                if use_paging:  # condition: use_paging:
-                    # 大文件：ezdxf 低开销读取 + 分页提取
-                    self._doc = ezdxf.readfile(str(path))  # str conversion
-                else:  # else: default case
-                    self._doc = ezdxf.readfile(str(path))  # str conversion
+            elif ext == ".pdf":  # condition: ext == ".pdf" — P100 PDF 直接接入
+                # 委托到 parsers.pdf_parser 转 DXF，再走标准 DXF 解析
+                from src.baa_engine.parsers.pdf_parser import pdf_to_dxf  # 延迟导入避免循环
+
+                pdf_result = pdf_to_dxf(str(path), page_index=page_index)
+                if pdf_result is None:
+                    return DrawingResult(
+                        file_path=file_path,
+                        file_id=file_id or f"baa-file-{path.stem}",
+                        error="PDF 解析失败：无法提取矢量数据",
+                    )
+                # 读取生成的 DXF
+                self._doc = ezdxf.readfile(pdf_result["dxf_path"])
+                use_paging = False
+            else:  # 否则: .dxf 默认路径
+                file_size_mb = path.stat().st_size / (1024 * 1024)
+                use_paging = file_size_mb >= self.LARGE_FILE_MB
+                if use_paging:
+                    self._doc = ezdxf.readfile(str(path))
+                else:
+                    self._doc = ezdxf.readfile(str(path))
         except Exception as e:  # 捕获异常
             return DrawingResult(  # return
                 file_path=file_path,  # assignment
