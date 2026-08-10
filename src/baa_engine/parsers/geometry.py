@@ -140,17 +140,34 @@ def extract_properties(entity) -> Dict[str, Any]:
         elif entity.dxftype() == "LWPOLYLINE":
             if hasattr(entity, "length"):
                 props["length"] = entity.length
-            if entity.closed:
-                props["area"] = compute_polygon_area(entity)
+            # P84 fix: 不仅依赖 DXF closed flag（真实图纸极少设置），
+            # 还要检测几何闭合（首尾点重合）来计算面积
+            pts_list = []
             try:
-                pts = entity.dxf.get("points", [])
-                props["point_count"] = len(pts)
+                pts_list = list(entity.vertices())
             except Exception:
+                pass
+            geo_closed = bool(entity.closed) or (
+                len(pts_list) >= 3
+                and abs(pts_list[0][0] - pts_list[-1][0]) < 0.01
+                and abs(pts_list[0][1] - pts_list[-1][1]) < 0.01
+            )
+            if geo_closed:
+                props["area"] = compute_polygon_area(entity)
+            # P84 fix: 对所有有 >=3 顶点的 LWPOLYLINE 计算面积
+            # classify 阶段对 >=3 顶点即视为闭合，必须保证 area 可用
+            if len(pts_list) >= 3 and not geo_closed:
                 try:
-                    pts = list(entity.vertices())
-                    props["point_count"] = len(pts)
+                    area = compute_polygon_area(entity)
+                    props["area"] = area
                 except Exception:
                     pass
+            if pts_list:
+                # P84 fix: 同时存储 points，供 room.py 的 LINE 链合并使用
+                props["points"] = [(float(p[0]), float(p[1])) for p in pts_list]
+                props["point_count"] = len(pts_list)
+            # 记录是否几何闭合（classify 阶段可能用到）
+            props["closed"] = geo_closed
 
         elif entity.dxftype() == "ARC":
             props["radius"] = entity.dxf.radius
