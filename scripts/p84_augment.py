@@ -124,8 +124,8 @@ def world_bbox_to_pixel(bbox, img_w, img_h, world_x, world_y, world_w, world_h, 
         return None
     # 线型实体（wall/door/window 在 DXF 中为 LINE，零厚度）
     # 渲染后仅有 1px 厚度，需要最小像素兜底以保证 YOLO 可检测
-    # YOLOv8n anchor boxes 最小检测尺寸约 5-10px，3px 太小
-    MIN_THICKNESS = 10  # 像素
+    # YOLOv8n 下采样后 anchor 最小检测尺寸 ~4-8px，原始 512 图需至少 20px
+    MIN_THICKNESS = 20  # 像素，确保 YOLO 能看到
     if w < MIN_THICKNESS:
         cx = (x_min + x_max) / 2
         x_min = cx - MIN_THICKNESS / 2
