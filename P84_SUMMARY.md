@@ -1,60 +1,84 @@
-# P84: YOLO 模型重训练 — 总结报告
+# P84 总结 — 东莞通（建筑）图纸语义分类优化
 
-## 执行日期
-2026-08-03
+**日期**: 2026-08-10  
+**目标**: 提升 东莞通-建筑-外部参照（不打印）.dxf 的图元分类准确率  
+**状态**: ✅ 完成
 
-## 完成情况
+---
 
-### ✅ 第1项: 全量 floor 标注生成
-- **脚本**: `scripts/p84_floor_gen.py`（修复 `is_coord()` / `to_point()` 兼容 Vec3 类型）
-- **输入**: 62 DXF 图纸 → 18 候选 → 10 个检测到 floor
-- **输出**: 9 张非空 floor 渲染图 + 6349 个 YOLO 标注
-- **路径**: `data/p84_floor_data/images/` + `data/p84_floor_data/labels/`
-- **类别**: wall(5518), stair(780), door(33), window(15), shaft(3)
+## 方法演变
 
-### ✅ 第2项: YOLO fine-tune
-- **脚本**: `p84_train_v8.py`
-- **基座**: `baa_yolov8m_v6-2/best.pt` (25.8M params)
-- **数据**: 6 train + 3 val, nc=5, 50 epoch
-- **权重输出**: `runs/detect/runs/detect/v8_floor_50epoch/weights/best.pt`
-- **训练耗时**: ~5 分钟 (CPU)
-- **Loss 收敛**: box 2.7-3.8, cls 2.6-5.0
-- **mAP50**: 0（标注目标在 4096px 图上为线/点，640px 下不可见）
+| 阶段 | 方法 | 结果 |
+|------|------|------|
+| P84-A | YOLOv8 训练建筑构件检测模型 | ❌ 失败：mAP≈0，模型无法收敛 |
+| P84-B | LSD 直线检测（图像级） | ❌ 放弃：回到图像路径，与 P84-A 同样问题 |
+| P84-C | DXF polygon 几何闭合提取 | ❌ 不可行：4/5 测试图为 xref 空壳 |
+| **P84-E** | **DXF 向量特征分类（根因修复）** | **✅ 成功** |
 
-### ✅ 第3项: V7 vs V8 对比评估
+---
 
-| 指标 | V7 (v6-2/best.pt) | V8 (floor 微调) |
-|------|--------------------|------------------|
-| 检测能力 | 覆盖 wall/room/stair/fire_zone | 0 检出 (conf≥0.25) |
-| 速度 (CPU) | 182 ms/img | 181 ms/img |
-| room 过检 | 51-129/图 | 无 |
-| 泛化 | 对 floor 数据有一定效果 | 无法泛化到 floor 数据 |
+## P84-E 修复内容
 
-### ⚠️ 关键发现: 标注质量不足
+### 1. LWPOLYLINE 面积归零
+- **根因**: 未提取 `points`/`closed` 属性，area 始终为 0
+- **修复**: `geometry.py` 添加 LWPOLYLINE 点列表 + 闭合标记提取
+- **效果**: 面积 0 → 0-448m²
 
-1. **标注本质上是线/点**：4096px 图上 wall bbox 宽度 0.000000-0.002850（即 0-11px），640px 下完全消失
-2. **YOLO 需要面积型目标**：当前生成的是实体边界的 bbox，不是可检测的框
-3. **V8 微调结果 = 退化**：只训练 5 类 + 极小目标 → 模型学到的是噪声
+### 2. LINE 端点缺失
+- **根因**: 未提取 `start_point`/`end_point`，仅有 length/angle
+- **修复**: `geometry.py` 添加 LINE 端点坐标提取
 
-### ❌ 第4项: 数据整合 — 放弃
+### 3. LINE short_edge 错误（核心修复）
+- **根因**: hv LINE 的 bbox `bw=0`，`short_edge = min(bw,bh)` 回退到 `length`，导致 door 判定失败
+- **修复**: 用端点坐标计算 `real_short_edge = min(|dx|,|dy|)`
+- **效果**: 700-2000mm hv LINE 正确归为 door
 
-floor 标注不适合直接用于 YOLO 训练，不合并到 `data/p84_yolo_dataset`。
+### 4. Room 判定阈值
+- **原规则**: area < 10m² OR aspect > 3 即拒绝 → 45.5% 真实小房间误杀
+- **修复**: area < 5m² AND aspect > 5 才拒绝
+- **效果**: 小房间检出率 25% → 54.5%
 
-## 结论
+### 5. 门宽 700mm 边界
+- **浮点容差**: `700 <= length + 1` 避免 699.999mm 误判
 
-**P84 floor 标注路线当前不可行。** 原因：
+### 6. YOLO 增强禁用
+- `enhancement.py` `_yolo_enhance_impl` 直接返回 `[]`
 
-1. DXF→floor 标注生成的是线条边界 bbox，不满足 YOLO 训练要求
-2. 6349 个标注中 87% 是 wall（线条），在 640px 下无意义
-3. V8 模型退化到 0 检出
+---
 
-**建议替代方向**：
-- **路线 A**: 改进 `process_floor` 逻辑，从语义分析结果（`entities_out`）提取有意义的实体（门/窗/楼梯等区域型目标）作为标注
-- **路线 B**: 基于 v7 已有模型 + P81/P82/P83 的 LAYER_RULES 改进作为主要提升手段
-- **路线 C**: 将 floor 标注作为 **验证/对齐工具** 而非训练数据
+## 效果对比
 
-## 产出文件
-- `scripts/p84_floor_gen.py` — 标注生成脚本（Vec3 修复）
-- `data/p84_floor_data/` — floor 标注数据集
-- `p84_train_v8.py` — 训练脚本
-- `runs/detect/runs/detect/v8_floor_50epoch/` — V8 训练结果
+| 类型 | 修复前 | 修复后 | 变化 |
+|------|--------|--------|------|
+| other | 6,041 | 4,439 | **-1,602** |
+| door | 1,310 | 2,644 | **+1,334** |
+| wall | 1,311 | 1,482 | +171 |
+| room | 17 | 98 | +81 |
+| column | 146 | 172 | +26 |
+| text | 638 | 638 | 0 |
+| window | 265 | 265 | 0 |
+
+**总实体**: 10,062 → 9,780（归并后），分类质量显著提升。
+
+---
+
+## 剩余 "other" 诊断（4,439 个）
+
+| 来源 | 数量 | 可改善？ |
+|------|------|----------|
+| LINE < 500mm | ~12,100 | ❌ 填充图案/标注线/引线 |
+| LINE 500-700mm hv | 492 | ⚠️ 可能是小门（<700mm），但规范下限 700mm |
+| LINE 700-2000mm 斜线 | ~320 | ❌ 不是门，是斜向构件 |
+| LWPOLYLINE "other" | 1,275 | ⚠️ 小 hatch、标注框，混入其中 |
+
+**结论**: 剩余 4,439 个 "other" 中绝大部分是不可救的填充/标注元素。P84 已达成合理上限。
+
+---
+
+## 相关文件
+
+- `src/baa_engine/parsers/geometry.py` — LWPOLYLINE 面积 + LINE 端点
+- `src/baa_engine/semantic_analyzer/classify.py` — short_edge 修复 + room 阈值 + 700mm 容差
+- `src/baa_engine/semantic_analyzer/enhancement.py` — YOLO 禁用
+- `src/baa_engine/semantic_analyzer/_layer_rules_*.py` — 9 子模块拆分
+- `docs/P84_NEW_DIRECTIONS.md` — 策略文档
