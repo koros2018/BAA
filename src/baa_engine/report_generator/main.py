@@ -58,7 +58,7 @@ class ReviewReport:
         build_cover(buf, self.styles, self.page_w, self.margin, filename, summary, lang)
         buf.append(PageBreak())
 
-        build_score_page(buf, self.styles, self.page_w, self.margin, summary, lang)
+        build_score_page(buf, self.styles, self.page_w, self.margin, summary, lang, details)
         buf.append(PageBreak())
 
         build_summary_page(buf, self.styles, self.page_w, self.margin, filename, summary, details, lang)
