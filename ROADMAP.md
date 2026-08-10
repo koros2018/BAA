@@ -4,7 +4,7 @@
 
 ## 完成状态
 
-> 截至 2026-08-05 18:37：P1~P92 路线图内全部完成。P93（施工图审查模型参数导出）新立项。
+> 截至 2026-08-10：P1~P93 路线图内全部完成。
 
 ### v1.8.3~v1.8.5 — 真实图纸走廊宽度推断
 - ✅ `_compute_bbox` 4层兜底（LWPOLYLINE坐标修复）
@@ -571,8 +571,18 @@
 
 ---
 
-### P93: 施工图审查模型参数导出（垂直大模型微调数据生产）
+### P93: 施工图审查模型参数导出（垂直大模型微调数据生产）✅（2026-08-09）
 **目标**：将 BAA 审查引擎的判定规则、阈值参数、审查样本以结构化格式导出，供下游开源大模型（Qwen / DeepSeek / 等）做垂直领域 SFT / RLHF 微调数据准备。
+
+**已完成交付**：
+- 后端：`model_params/exporter.py`（374 行）+ `model_params_routes.py` 6 端点
+- 前端：`baa-model-params.js`（190 行，5 Tab：functions/layer-rules/cd-items/samples/export）
+- SDK：6 个新方法（functions/layer-rules/cd-items/samples/spatial-graph/export）
+- 测试：22/22 全绿（`test_model_params.py` 14 + `test_sdk_model_params.py` 8）
+- 格式支持：json/jsonl-sft/hf-dataset/csv
+- 8 commits: exporter+routes → 路由注册 → SDK → 5轮前端修复
+
+---
 
 **背景**：P48/P92 已构建 30 条施工图审查标准（CD），但其作为静态规范清单，产品价值有限。核心资产不是清单本身，而是 BAA 审查引擎积累的规则逻辑、判定参数、空间关系特征——这些才是开源大模型在建筑垂直领域微调时最稀缺的知识来源。
 
