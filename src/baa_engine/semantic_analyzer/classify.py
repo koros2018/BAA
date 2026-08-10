@@ -162,7 +162,8 @@ def _classify_by_geometry(
         # P84-E: 建筑门宽 ≥700mm 是基本约束，50-700mm 段的密集水平线
         # 在东莞通中是填充图案（y 聚类 21-27 条/行），不是真实门
         # 中等长度 LINE（700~2000mm）且近乎 hv → door
-        if 700 < length < 2000 and real_se < 50:  # check: numeric comparison
+        # P84 fix: 门宽 700mm 是下限边界，700mm 门 + 1mm 浮点容差
+        if 700 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
             return "door"
         # 短 LINE（<700mm）：填充图案/标注线/引线 → other
         return "other"
@@ -183,7 +184,8 @@ def _classify_by_geometry(
             else:
                 real_se = short_edge
             # P84-E: 建筑门宽 ≥700mm，短 LINE 归为 other
-            if 700 < length < 2000 and real_se < 50:  # check: numeric comparison
+            # P84 fix: 门宽 700mm 是下限边界，同样用 +1mm 浮点容差
+            if 700 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
                 return "door"
             return "other"
 
