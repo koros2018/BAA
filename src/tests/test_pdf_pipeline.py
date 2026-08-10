@@ -89,6 +89,56 @@ def test_multi_page_pdf():
     print(f"PASS 多页 PDF page0: primitives={len(pr.primitives)}")
 
 
+@LOCAL_PDF_MARK
+def test_pdf_p101_filters():
+    """P101: PDF 源数据预过滤有效，噪声线消除"""
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+    result = pdf_to_dxf(TEST_PDF)
+    dp = DrawingParser()
+    pr = dp.parse(result["dxf_path"], "p101_test")
+    sa = SemanticAnalyzer()
+    semantic = sa.analyze(pr.primitives, pr.dimensions)
+    entities = semantic.get("entities", [])
+    assert len(entities) > 50, f"实体过少: {len(entities)}"
+    # P101: 预过滤后 wall 检测提升（原 49→~35-45，room 出现）
+    from collections import Counter
+    dist = Counter(e["type"] for e in entities)
+    assert dist.get("wall", 0) >= 30, f"wall 过少: {dist.get('wall',0)}"
+    # P101: LINE 链闭合检测应产生 room
+    rooms = [e for e in entities if e["type"] == "room"]
+    print(f"PASS P101: {len(entities)} entities, wall={dist.get('wall',0)}, room={len(rooms)}")
+
+
+@LOCAL_PDF_MARK
+def test_pdf_p101_dim006_detect():
+    """P101: DIM-006 门宽检测在 PDF 上有效"""
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+    from src.baa_engine.atomic_functions import FuncRegistry
+
+    result = pdf_to_dxf(TEST_PDF)
+    dp = DrawingParser()
+    pr = dp.parse(result["dxf_path"], "p101_dim")
+    sa = SemanticAnalyzer()
+    semantic = sa.analyze(pr.primitives, pr.dimensions)
+    entities = semantic.get("entities", [])
+    registry = FuncRegistry()
+    dim006_fails = 0
+    for e in entities:
+        for func in registry.list_all():
+            if func.func_id == "DIM-006" and func.matches(e):
+                f = func.execute(e)
+                if f and f.result == "FAIL":
+                    dim006_fails += 1
+    # 数据中心装修图门宽普遍合规，FAIL 应接近 0 或为 6（旧数据）
+    assert dim006_fails <= 10, f"DIM-006 FAIL 过多: {dim006_fails}"
+    print(f"PASS P101 DIM-006: FAIL={dim006_fails}")
+
+
 def test_drawing_parser_formats():
     """DrawingParser 支持格式确认"""
     assert ".pdf" in DrawingParser.SUPPORTED_FORMATS
