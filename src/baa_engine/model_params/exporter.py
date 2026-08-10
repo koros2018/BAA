@@ -117,20 +117,23 @@ def get_review_samples(
     review_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    从任务队列数据库提取（输入特征 → 判定结果 → 判定依据）三元组。
-    供 SFT 微调使用。
-    当前架构 review history 在 task_queue.py 管理。
+    从审查历史数据库提取（输入特征 → 判定结果 → 判定依据）三元组。
+    供 SFT 微调使用。数据源：SQLite review_history 表。
     """
-    # P93-1: 先从 task_queue 数据库取 review 结果
     samples = []
     try:
-        from ..task_queue import get_review_history
+        from src.api.review.review_history import list_review_history
 
-        tasks = get_review_history()
-        # 按创建时间倒序，取最近的 N 条
-        tasks.sort(key=lambda t: t.get("created_at", ""), reverse=True)
+        history = list_review_history(limit=limit, offset=0)
+        tasks = history.get("items", history.get("data", []))
+        if isinstance(history, dict) and "data" in history and "items" not in history:
+            tasks = history["data"]
+        if not isinstance(tasks, list):
+            tasks = []
+
+        tasks.sort(key=lambda t: t.get("created_at", t.get("reviewedAt", "")), reverse=True)
         for task in tasks[:limit]:
-            if review_id and task.get("task_id") != review_id:
+            if review_id and task.get("task_id", task.get("id")) != review_id:
                 continue
             samples.append(_extract_sample(task))
     except Exception:
@@ -140,37 +143,72 @@ def get_review_samples(
 
 def _extract_sample(task: Dict[str, Any]) -> Dict[str, Any]:
     """从一条 review task 提取 SFT 样本"""
-    task_id = task.get("task_id", "")
-    drawing_name = task.get("drawing_name", "")
+    task_id = task.get("task_id", task.get("id", ""))
+    drawing_name = task.get("drawing_name", task.get("drawingName", ""))
     status = task.get("status", "")
-    results = task.get("results", {}) if isinstance(task.get("results"), dict) else {}
-    violations = results.get("violations", [])
-    passed = results.get("passed", [])
-    failed = results.get("failed", [])
+    summary = task.get("summary", {})
+    details = task.get("details", [])
+    corrections = task.get("corrections", [])
+
+    if not isinstance(summary, dict):
+        summary = {}
+    if not isinstance(details, list):
+        details = []
+    if not isinstance(corrections, list):
+        corrections = []
 
     # 构建输入特征描述
     features = {
         "drawing_name": drawing_name,
-        "total_checks": results.get("total_checks", 0),
-        "passed_count": len(passed) if isinstance(passed, list) else 0,
-        "failed_count": len(failed) if isinstance(failed, list) else 0,
+        "total_checks": summary.get("total_checks", 0),
+        "total_entities": summary.get("total_entities", 0),
+        "violations": summary.get("violations", len(details)),
+        "building_type": task.get("building_type", task.get("buildingType", "")),
+        "standard": task.get("standard", ""),
+        "score": summary.get("score", 0),
         "status": status,
     }
 
-    # 构建每条违规的判定记录
+    # 构建每条违规的判定记录（SFT 三元组）
     decisions = []
-    for v in violations if isinstance(violations, list) else failed:
+    for d in details:
         decisions.append(
             {
                 "input_features": {
-                    "entity_type": v.get("entity_type", ""),
-                    "func_id": v.get("func_id", ""),
-                    "actual_value": v.get("actual", v.get("actual_value", "")),
-                    "threshold": v.get("threshold", ""),
+                    "entity_id": d.get("entity_id", ""),
+                    "entity_type": d.get("entity_type", ""),
+                    "func_id": d.get("func_id", ""),
+                    "clause_id": d.get("clause_id", ""),
+                    "extracted_value": d.get("extracted_value", ""),
+                    "required_value": d.get("required_value", ""),
+                    "difference": d.get("difference", ""),
+                    "confidence": d.get("confidence", 0),
                 },
                 "output_label": "FAIL",
-                "rationale": v.get("description", v.get("violation", "")),
-                "standard_ref": v.get("clause_id", ""),
+                "rationale": d.get("explanation", d.get("violation", "")),
+                "standard_ref": d.get("clause_id", ""),
+                "suggestion": next(
+                    (c.get("suggestion", c.get("description", ""))
+                     for c in corrections
+                     if c.get("entity_id") == d.get("entity_id")),
+                    "",
+                ),
+            }
+        )
+
+    # 如果有修正建议也作为正例样本
+    for c in corrections:
+        decisions.append(
+            {
+                "input_features": {
+                    "entity_id": c.get("entity_id", ""),
+                    "clause_id": c.get("clause_id", ""),
+                    "func_id": c.get("func_id", ""),
+                },
+                "output_label": "PASS_AFTER_FIX",
+                "rationale": c.get("suggestion", c.get("description", "")),
+                "standard_ref": c.get("clause_id", ""),
+                "suggestion": "",
             }
         )
 
@@ -179,7 +217,9 @@ def _extract_sample(task: Dict[str, Any]) -> Dict[str, Any]:
         "input_features": features,
         "decisions": decisions,
         "metadata": {
-            "created_at": task.get("created_at", ""),
+            "created_at": task.get("created_at", task.get("reviewedAt", "")),
+            "drawing_name": drawing_name,
+            "total_decisions": len(decisions),
         },
     }
 
