@@ -147,14 +147,23 @@ def _classify_by_geometry(
     if dxf_type == "LINE":  # condition: dxf_type == "LINE":
         if length > 2000:  # check: numeric comparison
             return "wall"
-        # 中等长度 LINE（700~2000mm）：典型门宽范围 → door
-        if 700 < length < 2000 and short_edge < 50:  # check: numeric comparison
+        # P84-E fix: LINE 是 1D 对象，hv 线的 bbox short_edge 错误回退到 length
+        # 用端点坐标计算真实短边 = min(|dx|, |dy|)
+        sp = props.get("start_point", {})
+        ep = props.get("end_point", {})
+        if sp and ep:
+            real_se = min(
+                abs(ep.get("x", 0) - sp.get("x", 0)),
+                abs(ep.get("y", 0) - sp.get("y", 0)),
+            )  # 赋值
+        else:
+            real_se = short_edge
+        # P84-E: 建筑门宽 ≥700mm 是基本约束，50-700mm 段的密集水平线
+        # 在东莞通中是填充图案（y 聚类 21-27 条/行），不是真实门
+        # 中等长度 LINE（700~2000mm）且近乎 hv → door
+        if 700 < length < 2000 and real_se < 50:  # check: numeric comparison
             return "door"
-        # 短 LINE（50~700mm）可能是门的宽度线或小构件
-        if 50 < length < 700 and short_edge < 5:  # check: numeric comparison
-            return "door"
-        # LINE 类型 bbox 短边≈0（纯线无宽度），不可能是走廊
-        # 只有长度 > 2000mm 的 LINE 才可能归类为 wall（已处理）
+        # 短 LINE（<700mm）：填充图案/标注线/引线 → other
         return "other"
 
     if dxf_type in ("LWPOLYLINE", "POLYLINE"):  # check: membership test
@@ -163,9 +172,17 @@ def _classify_by_geometry(
             # 2 点 LWPOLYLINE：视为 LINE 等价
             if length > 2000:  # check: numeric comparison
                 return "wall"
-            if 700 < length < 2000 and short_edge < 50:  # check: numeric comparison
-                return "door"
-            if 50 < length < 700 and short_edge < 5:  # check: numeric comparison
+            # P84-E fix: 同样用端点坐标算真实短边
+            pts = props.get("points", [])
+            if len(pts) >= 2:
+                real_se = min(
+                    abs(pts[1][0] - pts[0][0]),
+                    abs(pts[1][1] - pts[0][1]),
+                )  # 赋值
+            else:
+                real_se = short_edge
+            # P84-E: 建筑门宽 ≥700mm，短 LINE 归为 other
+            if 700 < length < 2000 and real_se < 50:  # check: numeric comparison
                 return "door"
             return "other"
 
