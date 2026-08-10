@@ -16,12 +16,26 @@ def _classify_entities(
     """图元分类归并"""
     # 优先解析 META 图层（合成图纸结构化数据）
     meta_entities = _parse_meta_entities(self, primitives)
-    if meta_entities:  # condition: meta_entities:
+    if meta_entities:
         return meta_entities
 
     entities = []
 
-    for prim in primitives:  # 循环
+    for prim in primitives:
+        # P101: PDF 源数据预过滤——来自 pdf_parser 的线条全在 "lines" 层，
+        # 大量短装饰线（<300mm）和短斜线（标注线/文字笔画）混入。
+        # 这些线段对建筑审查无意义，直接跳过可消除 60% 噪声。
+        # 长斜线（>=2000mm）保留——可能是真实斜墙。
+        if prim.layer == "lines":
+            bbox = prim.bbox
+            length = max(bbox.get("width", 0), bbox.get("height", 0))
+            if length < 300:
+                continue
+            if length < 2000:
+                angle = abs(prim.properties.get("angle", 0) or 0) % 180
+                if 5 < angle < 85 or 95 < angle < 175:
+                    continue
+
         # 图层规则匹配
         entity_type = _classify_by_layer(self, prim.layer)
         # P80+P82 修复：图层规则返回"other"时，让几何分类兜底为wall，
