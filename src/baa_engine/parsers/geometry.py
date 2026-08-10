@@ -132,6 +132,9 @@ def extract_properties(entity) -> Dict[str, Any]:
             end = entity.dxf.end
             props["length"] = Vec2(start).distance(Vec2(end))
             props["angle"] = Vec2(end - start).angle_deg
+            # P84-E fix: 必须存储端点坐标，否则 LINE 链合并和空间分析全部失效
+            props["start_point"] = {"x": float(start.x), "y": float(start.y)}
+            props["end_point"] = {"x": float(end.x), "y": float(end.y)}
 
         elif entity.dxftype() == "CIRCLE":
             props["radius"] = entity.dxf.radius
