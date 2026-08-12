@@ -18,13 +18,42 @@ import math
 from .models import SemanticEntity
 from ..drawing_parser import RawPrimitive
 
-
 _NON_ROOM_LAYER_KW: Tuple[str, ...] = (
-    "COLU", "视口", "洞口", "板边", "梁边", "轴", "BASE", "梁",
-    "吊筋", "板层", "文字", "钢筋", "标注", "DIM", "立面看线",
-    "立面", "看线", "园林", "井", "电-", "电气", "照明", "插座",
-    "弱电", "消防", "火灾", "报警", "设备", "电缆", "系统",
-    "Defpoints", "WIRE", "线槽", "DOTLN", "DOT",
+    "COLU",
+    "视口",
+    "洞口",
+    "板边",
+    "梁边",
+    "轴",
+    "BASE",
+    "梁",
+    "吊筋",
+    "板层",
+    "文字",
+    "钢筋",
+    "标注",
+    "DIM",
+    "立面看线",
+    "立面",
+    "看线",
+    "园林",
+    "井",
+    "电-",
+    "电气",
+    "照明",
+    "插座",
+    "弱电",
+    "消防",
+    "火灾",
+    "报警",
+    "设备",
+    "电缆",
+    "系统",
+    "Defpoints",
+    "WIRE",
+    "线槽",
+    "DOTLN",
+    "DOT",
 )
 
 _MATCH_THRESHOLD = 100.0  # mm — PDF→DXF 精度损失
@@ -38,9 +67,7 @@ _Node = Tuple[float, float]
 _Edge = Tuple[int, int, str]
 
 
-def _is_near_closed(
-    self, prim: RawPrimitive, gap_threshold_mm: float = 500.0
-) -> bool:
+def _is_near_closed(self, prim: RawPrimitive, gap_threshold_mm: float = 500.0) -> bool:
     """接近闭合检测（向后兼容）。"""
     pts = prim.properties.get("points")
     if not pts or len(pts) < 3:
@@ -60,23 +87,22 @@ def _is_near_closed(
     return math.sqrt(dx * dx + dy * dy) < gap_threshold_mm
 
 
-def _sweep_line_detect_rooms(
-    self, primitives: List[RawPrimitive]
-) -> List[SemanticEntity]:
-    """扫线法房间检测 — 平面图面遍历法。"""
-    wall_lines = _collect_wall_lines(primitives)
-    if len(wall_lines) < 3:
+def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
+    """扫线法房间检测 — 平面图面遍历法。
+
+    支持 LINE 和 LWPOLYLINE 墙线：先收集墙线原始图元，再展开为线段。
+    """
+    wall_prims = _collect_wall_lines(primitives)
+    if len(wall_prims) < 3:
         return []
 
-    # ── 1. 转为内部线段表示 ──
-    segs: List[_Seg] = []
-    for prim in wall_lines:
-        sp = prim.properties.get("start_point", {})
-        ep = prim.properties.get("end_point", {})
-        x0, y0 = sp.get("x", 0.0), sp.get("y", 0.0)
-        x1, y1 = ep.get("x", 0.0), ep.get("y", 0.0)
-        length = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
-        segs.append((x0, y0, x1, y1, prim.layer or "", length))
+    # ── 1. 直接提取闭合 LWPOLYLINE 房间 ──
+    direct_rooms = _extract_closed_polyline_rooms(wall_prims, self)
+    if len(direct_rooms) >= 3:
+        return direct_rooms
+
+    # ── 2. 转为内部线段表示（LINE + LWPOLYLINE） ──
+    segs: List[_Seg] = _collect_wall_segments(wall_prims)
 
     if len(segs) < 3:
         return []
@@ -105,9 +131,11 @@ def _sweep_line_detect_rooms(
         if len(pts) < 3:
             continue
         area = abs(
-            sum(pts[i][0] * pts[(i + 1) % len(pts)][1]
-                - pts[(i + 1) % len(pts)][0] * pts[i][1]
-                for i in range(len(pts))) / 2.0
+            sum(
+                pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+                for i in range(len(pts))
+            )
+            / 2.0
         )
         if area < 1_000_000 or area > 500_000_000:
             continue
@@ -121,8 +149,12 @@ def _sweep_line_detect_rooms(
         if aspect > 8.0:
             continue
         # bbox 去重
-        key = (round(min(xs), -1), round(min(ys), -1),
-               round(max(xs) - min(xs), -1), round(max(ys) - min(ys), -1))
+        key = (
+            round(min(xs), -1),
+            round(min(ys), -1),
+            round(max(xs) - min(xs), -1),
+            round(max(ys) - min(ys), -1),
+        )
         if key in seen_bbox:
             continue
         seen_bbox.add(key)
@@ -130,10 +162,15 @@ def _sweep_line_detect_rooms(
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
         room_id = f"line_chain_room_{self._entity_counter}"
         self._entity_counter += 1
-        result.append(SemanticEntity(
-            entity_id=room_id, entity_type="room", layer="",
-            properties={"area": area / 1_000_000}, bbox=bbox,
-        ))
+        result.append(
+            SemanticEntity(
+                entity_id=room_id,
+                entity_type="room",
+                layer="",
+                properties={"area": area / 1_000_000},
+                bbox=bbox,
+            )
+        )
     # ── 7. 剔除外框面（外框面应包含所有其他面的中心点） ──
     if len(result) > 1:
         result.sort(key=lambda r: r.properties["area"], reverse=True)
@@ -172,24 +209,74 @@ def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
     """
     # 已知非建筑结构的图层关键词（大写子串匹配）
     non_wall_layer_kw = (
-        "表", "轴", "网格", "轴网", "BASE", "梁边", "板边", "板层",
-        "吊筋", "钢筋", "标注", "DIM", "立面", "看线", "园林", "井",
-        "电", "照明", "插座", "弱电", "消防", "火灾", "报警", "设备",
-        "电缆", "系统", "母线", "线槽", "DOTLN", "DOT", "WIRE",
-        "DEFPOINTS", "Defpoints", "图框", "PUB_HATCH", "HATCH",  # P82
-        "视口", "洞口", "文字", "立面看线",
-        "PDIM", "steel", "SLAB", "STRUCT", "Foundation", "foundation",
-        "footing", "Footing", "梁", "柱", "板", "钢", "钢构",
+        "表",
+        "轴",
+        "网格",
+        "轴网",
+        "BASE",
+        "梁边",
+        "板边",
+        "板层",
+        "吊筋",
+        "钢筋",
+        "标注",
+        "DIM",
+        "立面",
+        "看线",
+        "园林",
+        "井",
+        "电",
+        "照明",
+        "插座",
+        "弱电",
+        "消防",
+        "火灾",
+        "报警",
+        "设备",
+        "电缆",
+        "系统",
+        "母线",
+        "线槽",
+        "DOTLN",
+        "DOT",
+        "WIRE",
+        "DEFPOINTS",
+        "Defpoints",
+        "图框",
+        "PUB_HATCH",
+        "HATCH",  # P82
+        "视口",
+        "洞口",
+        "文字",
+        "立面看线",
+        "TSZ",
+        "TEL",  # 标题栏/打印标记
+        "PDIM",
+        "steel",
+        "SLAB",
+        "STRUCT",
+        "Foundation",
+        "foundation",
+        "footing",
+        "Footing",
+        "梁",
+        "柱",
+        "板",
+        "钢",
+        "钢构",
     )
     # 已知建筑结构相关图层关键词
     wall_layer_kw = ("WALL", "墙", "BEAM", "COLUMN", "column", "梁", "柱")
 
     lines: List[RawPrimitive] = []
     for prim in primitives:
-        if prim.dxf_type != "LINE":
+        if prim.dxf_type not in ("LINE", "LWPOLYLINE"):
             continue
-        length = max((prim.bbox or {}).get("width", 0),
-                     (prim.bbox or {}).get("height", 0))
+        # LWPOLYLINE: 使用 bbox 的 max(width,height) 近似长度
+        if prim.dxf_type == "LWPOLYLINE":
+            length = max((prim.bbox or {}).get("width", 0), (prim.bbox or {}).get("height", 0))
+        else:
+            length = max((prim.bbox or {}).get("width", 0), (prim.bbox or {}).get("height", 0))
         if length < 2000:
             continue
         layer = (prim.layer or "").upper()
@@ -203,6 +290,49 @@ def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
         # 3. 未分类图层（数字、单字母等）：宽松保留
         lines.append(prim)
     return lines
+
+
+def _collect_wall_segments(
+    primitives: List[RawPrimitive],
+) -> List[_Seg]:
+    """将墙线原始图元（LINE + LWPOLYLINE）转为内部线段列表。
+
+    LINE 直接取起点→终点。
+    LWPOLYLINE 展开为相邻点之间的线段；过滤退化段（< 10mm）。
+    """
+    segs: List[_Seg] = []
+    for prim in primitives:
+        layer = prim.layer or ""
+        if prim.dxf_type == "LINE":
+            sp = prim.properties.get("start_point", {})
+            ep = prim.properties.get("end_point", {})
+            if not sp or not ep:
+                continue
+            x0, y0 = sp.get("x", 0.0), sp.get("y", 0.0)
+            x1, y1 = ep.get("x", 0.0), ep.get("y", 0.0)
+            length = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+            if length < _MIN_SEGMENT_LEN:
+                continue
+            segs.append((x0, y0, x1, y1, layer, length))
+        elif prim.dxf_type == "LWPOLYLINE":
+            pts = prim.properties.get("points", [])
+            if not pts:
+                continue
+            for i in range(len(pts) - 1):
+                x0, y0 = pts[i]
+                x1, y1 = pts[i + 1]
+                length = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+                if length < _MIN_SEGMENT_LEN:
+                    continue
+                segs.append((x0, y0, x1, y1, layer, length))
+            # 闭合检测：若首末点距离在匹配阈值内，补一条闭合段
+            if len(pts) >= 4:
+                x0, y0 = pts[-1]
+                x1, y1 = pts[0]
+                gap = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+                if 0 < gap <= _MATCH_THRESHOLD:
+                    segs.append((x0, y0, x1, y1, layer, gap))
+    return segs
 
 
 def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
@@ -243,7 +373,9 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
             tx_i = ix[0]
             ty_i = ix[1]
             # 确保不重复添加端点附近的交叉点
-            if any(abs(tx_i - s[0]) < 0.001 for s in split_pts[i]) or any(abs(ty_i - s[0]) < 0.001 for s in split_pts[j]):
+            if any(abs(tx_i - s[0]) < 0.001 for s in split_pts[i]) or any(
+                abs(ty_i - s[0]) < 0.001 for s in split_pts[j]
+            ):
                 continue
             # 避免在端点处添加交叉点（端点处已有端点处理）
             if tx_i < 0.001 or tx_i > 0.999 or ty_i < 0.001 or ty_i > 0.999:
@@ -317,7 +449,7 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
             return pt_to_node[key]
         # 找最近节点
         best = -1
-        best_d = _MATCH_THRESHOLD ** 2
+        best_d = _MATCH_THRESHOLD**2
         for i, (nx, ny) in enumerate(node_list):
             d = (nx - x) ** 2 + (ny - y) ** 2
             if d < best_d:
@@ -348,7 +480,7 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
 
     # 邻接表
     adj: Dict[int, List[int]] = defaultdict(list)
-    for (a, b) in edge_layers:
+    for a, b in edge_layers:
         adj[a].append(b)
         adj[b].append(a)
 
@@ -373,6 +505,7 @@ def _sort_edges_at_nodes(graph: Dict[str, Any]) -> None:
         if not neighbors:
             continue
         cx, cy = nodes[nid]
+
         # 按 (neighbor) 相对于 (cx,cy) 的极角排序
         def _angle_key(nid_neighbor: int) -> float:
             nx, ny = nodes[nid_neighbor]
@@ -422,7 +555,7 @@ def _find_faces(graph: Dict[str, Any]) -> List[List[int]]:
                     break
                 if current == u:
                     # 只有 1-2 条边的退化环
-                    visited.add(tuple(face[i], face[i+1]) for i in range(len(face)-1))
+                    visited.add(tuple(face[i], face[i + 1]) for i in range(len(face) - 1))
                     break
                 # 在 current 处，找到 (prev→current) 在 adj_sorted[current] 中的位置
                 neighbors = adj_sorted.get(current, [])
@@ -473,3 +606,94 @@ def _point_in_polygon(point: Tuple[float, float], polygon: List[Tuple[float, flo
             if px < x:
                 inside = not inside
     return inside
+
+
+def _extract_closed_polyline_rooms(
+    wall_prims: List[RawPrimitive],
+    self,
+) -> List[SemanticEntity]:
+    """直接提取闭合 LWPOLYLINE 房间（绕开扫线法图遍历，因为多边形房间互不共享墙线）。
+
+    策略：
+    - 取 4+ 顶点的 LWPOLYLINE，计算面积
+    - 面积在 1m²~500m²，宽高比 ≤ 8
+    - 外框剔除：最大面若包含所有内框中心则丢弃
+    """
+    poly_rooms: List[SemanticEntity] = []
+    seen_bbox: Set[Tuple[int, int, int, int]] = set()
+
+    for prim in wall_prims:
+        if prim.dxf_type != "LWPOLYLINE":
+            continue
+        pts = prim.properties.get("points", [])
+        if len(pts) < 4:
+            continue
+
+        # Shoelace 面积
+        area = abs(
+            sum(
+                pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+                for i in range(len(pts))
+            )
+            / 2.0
+        )
+        if area < 1_000_000 or area > 500_000_000:
+            continue
+
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        bw = max(xs) - min(xs)
+        bh = max(ys) - min(ys)
+        if bw <= 0 or bh <= 0:
+            continue
+        aspect = max(bw, bh) / min(bw, bh)
+        if aspect > 8.0:
+            continue
+
+        # bbox 去重
+        key = (
+            round(min(xs), -1),
+            round(min(ys), -1),
+            round(max(xs) - min(xs), -1),
+            round(max(ys) - min(ys), -1),
+        )
+        if key in seen_bbox:
+            continue
+        seen_bbox.add(key)
+
+        bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
+        room_id = f"polyline_room_{self._entity_counter}"
+        self._entity_counter += 1
+        poly_rooms.append(
+            SemanticEntity(
+                entity_id=room_id,
+                entity_type="room",
+                layer="",
+                properties={"area": area / 1_000_000},
+                bbox=bbox,
+            )
+        )
+
+    # 外框面剔除（同扫线法逻辑）
+    if len(poly_rooms) > 1:
+        poly_rooms.sort(key=lambda r: r.properties["area"], reverse=True)
+        outer = poly_rooms[0]
+        ob = outer.bbox
+        outer_poly = [
+            (ob["x"], ob["y"]),
+            (ob["x"] + ob["width"], ob["y"]),
+            (ob["x"] + ob["width"], ob["y"] + ob["height"]),
+            (ob["x"], ob["y"] + ob["height"]),
+        ]
+        all_contained = True
+        for r in poly_rooms[1:]:
+            ib = r.bbox
+            cx = ib["x"] + ib["width"] / 2
+            cy = ib["y"] + ib["height"] / 2
+            if not _point_in_polygon((cx, cy), outer_poly):
+                all_contained = False
+                break
+        if all_contained:
+            poly_rooms = poly_rooms[1:]
+
+    return poly_rooms
