@@ -889,6 +889,10 @@ class SemanticAnalyzer:
     def _sweep_line_detect_rooms(self, primitives):
         return _sweep_line_detect_rooms(self, primitives)
 
+    def _merge_line_chains_to_rooms(self, entities, primitives):
+        # 兼容旧接口：测试中仍调用此方法名
+        return entities + self._sweep_line_detect_rooms(primitives)
+
     def _merge_overlapping(self, entities):
         return _merge_overlapping(self, entities)
 

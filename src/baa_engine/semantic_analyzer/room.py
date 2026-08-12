@@ -166,13 +166,42 @@ def _sweep_line_detect_rooms(
 
 
 def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
+    """收集墙线候选（LINE >= 2000mm，且图层属于墙/结构/未分类）。
+
+    排除电气、表格、图框、标注、轴网等非建筑结构图层。
+    """
+    # 已知非建筑结构的图层关键词（大写子串匹配）
+    non_wall_layer_kw = (
+        "表", "轴", "网格", "轴网", "BASE", "梁边", "板边", "板层",
+        "吊筋", "钢筋", "标注", "DIM", "立面", "看线", "园林", "井",
+        "电", "照明", "插座", "弱电", "消防", "火灾", "报警", "设备",
+        "电缆", "系统", "母线", "线槽", "DOTLN", "DOT", "WIRE",
+        "DEFPOINTS", "Defpoints", "图框", "PUB_HATCH", "HATCH",  # P82
+        "视口", "洞口", "文字", "立面看线",
+        "PDIM", "steel", "SLAB", "STRUCT", "Foundation", "foundation",
+        "footing", "Footing", "梁", "柱", "板", "钢", "钢构",
+    )
+    # 已知建筑结构相关图层关键词
+    wall_layer_kw = ("WALL", "墙", "BEAM", "COLUMN", "column", "梁", "柱")
+
     lines: List[RawPrimitive] = []
     for prim in primitives:
-        if prim.dxf_type == "LINE":
-            length = max((prim.bbox or {}).get("width", 0),
-                         (prim.bbox or {}).get("height", 0))
-            if length >= 2000:
-                lines.append(prim)
+        if prim.dxf_type != "LINE":
+            continue
+        length = max((prim.bbox or {}).get("width", 0),
+                     (prim.bbox or {}).get("height", 0))
+        if length < 2000:
+            continue
+        layer = (prim.layer or "").upper()
+        # 1. 明确非建筑图层：排除
+        if any(kw in layer for kw in non_wall_layer_kw):
+            continue
+        # 2. 已知墙/结构图层：保留
+        if any(kw in layer for kw in wall_layer_kw):
+            lines.append(prim)
+            continue
+        # 3. 未分类图层（数字、单字母等）：宽松保留
+        lines.append(prim)
     return lines
 
 
