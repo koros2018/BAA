@@ -20,7 +20,7 @@ from .classify import (
     _classify_by_geometry,
 )
 from .meta import _parse_meta_entities
-from .room import _is_near_closed, _merge_line_chains_to_rooms
+from .room import _is_near_closed, _sweep_line_detect_rooms
 from .merge import _merge_overlapping
 from .relations import (
     _build_relations,
@@ -105,8 +105,10 @@ class SemanticAnalyzer:
             except Exception as e:  # 捕获异常
                 logger.warning(f"YOLO 增强失败: {e}")  # call
 
-        # Step 1.4: 多段线复合房间识别（LINE 链闭合检测）
-        entities = self._merge_line_chains_to_rooms(entities, primitives)  # assign
+        # Step 1.4: 扫线法复合房间识别（LINE 闭合检测）
+        new_rooms = self._sweep_line_detect_rooms(primitives)  # assign
+        if new_rooms:  # condition: new_rooms:
+            entities = entities + new_rooms  # assign
 
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)  # assign
@@ -884,8 +886,8 @@ class SemanticAnalyzer:
     def _is_near_closed(self, prim, gap_threshold_mm=500.0):
         return _is_near_closed(self, prim, gap_threshold_mm=gap_threshold_mm)
 
-    def _merge_line_chains_to_rooms(self, entities, primitives):
-        return _merge_line_chains_to_rooms(self, entities, primitives)
+    def _sweep_line_detect_rooms(self, primitives):
+        return _sweep_line_detect_rooms(self, primitives)
 
     def _merge_overlapping(self, entities):
         return _merge_overlapping(self, entities)
