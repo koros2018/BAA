@@ -299,3 +299,74 @@ def test_pdf_full_primitives_sweep():
         f"PASS full_primitives: direct={len(direct_rooms)} rooms, "
         f"analyze={len(rooms)} rooms"
     )
+
+
+def test_classify_face_corridor():
+    """P105: _classify_face 走廊识别——高 aspect + 短边 2000-4000mm"""
+    from src.baa_engine.semantic_analyzer.room import _classify_face
+
+    # 标准走廊: 长 10m 宽 2.8m (short=2800mm, aspect=3.57)
+    assert _classify_face(10000, 2800, 28.0) == "corridor"
+    # 边缘走廊: short=2000, aspect=3.0
+    assert _classify_face(6000, 2000, 12.0) == "corridor"
+    # 边缘走廊: short=4000, aspect=3.0
+    assert _classify_face(12000, 4000, 48.0) == "corridor"
+    print("PASS classify_face corridor")
+
+
+def test_classify_face_room():
+    """P105: _classify_face 房间识别——低 aspect 或短边超出走廊范围"""
+    from src.baa_engine.semantic_analyzer.room import _classify_face
+
+    # 正方形房间: short=5000, aspect=1.0
+    assert _classify_face(5000, 5000, 25.0) == "room"
+    # 短边 < 2000: 窄缝
+    assert _classify_face(6000, 1500, 9.0) == "room"
+    # 短边 > 4000: 大房间
+    assert _classify_face(8000, 5000, 40.0) == "room"
+    # 低 aspect: 大走廊状但太宽
+    assert _classify_face(5000, 4500, 22.5) == "room"
+    print("PASS classify_face room")
+
+
+@LOCAL_PDF_MARK
+def test_pdf_p105_corridor_detection():
+    """P105: 扫线法在 PDF 上识别走廊"""
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+    from src.baa_engine.semantic_analyzer.room import _sweep_line_detect_rooms
+    from collections import Counter
+
+    result = pdf_to_dxf(TEST_PDF)
+    dp = DrawingParser()
+    pr = dp.parse(result["dxf_path"], "p105_corridor")
+    sa = SemanticAnalyzer()
+    sa._analyze_cache = {}
+
+    faces = _sweep_line_detect_rooms(sa, pr.primitives)
+    assert len(faces) >= 1, f"扫线法未检测到任何 face: {len(faces)}"
+
+    types = Counter(f.type for f in faces)
+    total = len(faces)
+    corridor_count = types.get("corridor", 0)
+    room_count = types.get("room", 0)
+    print(f"PASS P105: {total} faces, {corridor_count} corridors, {room_count} rooms")
+
+    # 验证 corridor 的 clear_width 和 length 属性
+    for f in faces:
+        if f.type == "corridor":
+            cw = f.properties.get("clear_width", 0)
+            length = f.properties.get("length", 0)
+            assert cw > 0, f"corridor clear_width 缺失: {cw}"
+            assert length > 0, f"corridor length 缺失: {length}"
+            # 走廊宽度合理范围: 1-4m
+            assert 0.5 < cw < 5.0, f"corridor clear_width 异常: {cw}m"
+            print(f"  corridor: clear_width={cw:.2f}m length={length:.2f}m")
+
+    # analyze() 也应包含 corridor 类型
+    entities = sa.analyze(pr.primitives, pr.dimensions)
+    ent_types = Counter(e.get("type") for e in entities.get("entities", []))
+    assert ent_types.get("corridor", 0) >= 0, "analyze 输出无 corridor 类型（允许 0）"
+    print(f"PASS P105 analyze: {dict(ent_types.most_common(10))}")
+

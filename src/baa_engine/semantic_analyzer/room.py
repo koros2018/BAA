@@ -176,14 +176,20 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         seen_centers.add(key)
 
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
-        room_id = f"line_chain_room_{self._entity_counter}"
+        # P105: 面分类
+        face_type = _classify_face(bw, bh, area / 1_000_000)
+        room_id = f"line_chain_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
+        props = {"area": area / 1_000_000}
+        if face_type == "corridor":
+            props["clear_width"] = min(bw, bh) * 0.001
+            props["length"] = max(bw, bh) * 0.001
         result.append(
             SemanticEntity(
                 entity_id=room_id,
-                entity_type="room",
+                entity_type=face_type,
                 layer="",
-                properties={"area": area / 1_000_000},
+                properties=props,
                 bbox=bbox,
             )
         )
@@ -276,14 +282,20 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         if is_dup:
             continue
 
-        room_id = f"line_chain_room_{self_obj._entity_counter}"
+        # P105: 面分类
+        face_type = _classify_face(bw, bh, area / 1_000_000)
+        room_id = f"line_chain_{face_type}_{self_obj._entity_counter}"
         self_obj._entity_counter += 1
+        props = {"area": area / 1_000_000}
+        if face_type == "corridor":
+            props["clear_width"] = min(bw, bh) * 0.001
+            props["length"] = max(bw, bh) * 0.001
         result.append(
             SemanticEntity(
                 entity_id=room_id,
-                entity_type="room",
+                entity_type=face_type,
                 layer="",
-                properties={"area": area / 1_000_000},
+                properties=props,
                 bbox=bbox,
             )
         )
@@ -323,11 +335,133 @@ _MIN_ROOM_AREA_MM2 = 5_000_000  # 最小房间面积 5m²（排除双线墙间�
 _MAX_ROOM_AREA_MM2 = 2_000_000_000  # 最大房间面积 2000m²（排除建筑外框面）
 _MIN_SHORT_EDGE_MM = 2000.0  # 最小短边 2000mm（排除墙厚度方向的间隙）
 _CENTER_DUP_TOL_MM = 2000.0  # 面质心去重容差（mm）
+_CORRIDOR_ASPECT_RATIO = 3.0  # 走廊最小宽高比
+_CORRIDOR_SHORT_EDGE_MAX_MM = 4000.0  # 走廊短边上限（>4000mm 为房间）
+_CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊短边下限（<2000mm 为门洞/窄缝）
+_DOORWAY_GAP_MIN_MM = 700.0  # 门洞最小间隙
+_DOORWAY_GAP_MAX_MM = 2500.0  # 门洞最大间隙
 _MIN_AREA_TO_BBOX_RATIO = 0.3  # 面实际面积/包围盒面积最小比（过滤外框面）
 
 
 # ═══════════════════════════════════════════
-#  辅助函数
+#  Face classification (P105: corridor/doorway/room)
+# ═══════════════════════════════════════════
+
+
+def _classify_face(bw: float, bh: float, area_m2: float) -> str:
+    """Classify a sweep face as corridor or room.
+
+    Corridor: aspect >= 3.0 and short_edge in [2000, 4000]mm
+    Room: everything else passing P104 filters.
+    """
+    short_edge = min(bw, bh)
+    aspect = max(bw, bh) / short_edge if short_edge > 0 else 0
+    if (
+        aspect >= _CORRIDOR_ASPECT_RATIO
+        and _CORRIDOR_SHORT_EDGE_MIN_MM <= short_edge <= _CORRIDOR_SHORT_EDGE_MAX_MM
+    ):
+        return "corridor"
+    return "room"
+
+
+def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
+    """Detect doorway gaps in wall segments.
+
+    Strategy: find gaps between adjacent collinear wall segments.
+    A doorway gap is 700-2500mm.
+    """
+    if len(segs) < 3:
+        return []
+
+    horizontal: List[_Seg] = []
+    vertical: List[_Seg] = []
+    for s in segs:
+        x0, y0, x1, y1, _, _ = s
+        if abs(y1 - y0) <= 500:
+            horizontal.append(s)
+        elif abs(x1 - x0) <= 500:
+            vertical.append(s)
+
+    gaps: List[Tuple[float, float, float, float]] = []
+    _find_gaps_in_axis(horizontal, gaps, "horizontal")
+    _find_gaps_in_axis(vertical, gaps, "vertical")
+
+    result: List[SemanticEntity] = []
+    for x, y, w, h in gaps:
+        result.append(
+            SemanticEntity(
+                entity_id="",
+                entity_type="doorway",
+                layer="",
+                properties={"gap_width_mm": min(w, h)},
+                bbox={"x": x, "y": y, "width": w, "height": h},
+            )
+        )
+    return result
+
+
+def _find_gaps_in_axis(
+    segs: List[_Seg],
+    gaps: List[Tuple[float, float, float, float]],
+    direction: str,
+) -> None:
+    """Find gaps between collinear wall segments along an axis.
+
+    1. Cluster segments by coordinate (same wall line)
+    2. Within each cluster, sort by start point
+    3. Find gaps between adjacent segments
+    """
+    tol = 1000.0
+    coord_list: List[float] = []
+    by_coord: Dict[int, List[_Seg]] = {}
+
+    for s in segs:
+        x0, y0, x1, y1, _, _ = s
+        coord = (y0 + y1) / 2 if direction == "horizontal" else (x0 + x1) / 2
+
+        idx = -1
+        for i, c in enumerate(coord_list):
+            if abs(c - coord) <= tol:
+                idx = i
+                break
+        if idx >= 0:
+            by_coord[idx].append(s)
+        else:
+            idx = len(coord_list)
+            coord_list.append(coord)
+            by_coord[idx] = [s]
+
+    for idx in sorted(by_coord):
+        coord = coord_list[idx]
+        cluster = by_coord[idx]
+        if direction == "horizontal":
+            sorted_segs = sorted(cluster, key=lambda s: min(s[0], s[2]))
+        else:
+            sorted_segs = sorted(cluster, key=lambda s: min(s[1], s[3]))
+
+        for i in range(len(sorted_segs) - 1):
+            a = sorted_segs[i]
+            b = sorted_segs[i + 1]
+            if direction == "horizontal":
+                gap = min(b[0], b[2]) - max(a[0], a[2])
+                gap_y = coord
+                if gap < _DOORWAY_GAP_MIN_MM or gap > _DOORWAY_GAP_MAX_MM:
+                    continue
+                gaps.append(
+                    (max(a[0], a[2]), gap_y, gap, max(200.0, abs(a[3] - a[1])))
+                )
+            else:
+                gap = min(b[1], b[3]) - max(a[1], a[3])
+                gap_x = coord
+                if gap < _DOORWAY_GAP_MIN_MM or gap > _DOORWAY_GAP_MAX_MM:
+                    continue
+                gaps.append(
+                    (gap_x, max(a[1], a[3]), max(200.0, abs(a[2] - a[0])), gap)
+                )
+
+
+# ═══════════════════════════════════════════
+#  Auxiliary functions
 # ═══════════════════════════════════════════
 
 
@@ -903,14 +1037,20 @@ def _extract_closed_polyline_rooms(
         if is_dup:
             continue
 
-        room_id = f"polyline_room_{self._entity_counter}"
+        # P105: 面分类
+        face_type = _classify_face(bw, bh, area / 1_000_000)
+        room_id = f"polyline_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
+        props = {"area": area / 1_000_000}
+        if face_type == "corridor":
+            props["clear_width"] = min(bw, bh) * 0.001
+            props["length"] = max(bw, bh) * 0.001
         poly_rooms.append(
             SemanticEntity(
                 entity_id=room_id,
-                entity_type="room",
+                entity_type=face_type,
                 layer="",
-                properties={"area": area / 1_000_000},
+                properties=props,
                 bbox=bbox,
             )
         )
