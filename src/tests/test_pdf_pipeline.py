@@ -370,3 +370,73 @@ def test_pdf_p105_corridor_detection():
     assert ent_types.get("corridor", 0) >= 0, "analyze 输出无 corridor 类型（允许 0）"
     print(f"PASS P105 analyze: {dict(ent_types.most_common(10))}")
 
+
+
+def test_detect_doorway_gaps():
+    """P105: 门洞间隙检测——原始墙段上找共线间隙"""
+    from src.baa_engine.semantic_analyzer.room import _detect_doorway_gaps, _Seg
+
+    # 水平墙线: 三段连续，中间有间隙
+    # [0, 5000] [6000, 11000] [12000, 17000]
+    # 间隙: 1000mm + 1000mm
+    segs: List[_Seg] = [
+        (0, 1000, 5000, 1000, "wall", 5000),
+        (6000, 1000, 11000, 1000, "wall", 5000),
+        (12000, 1000, 17000, 1000, "wall", 5000),
+    ]
+    doorways = _detect_doorway_gaps(segs)
+    assert len(doorways) == 2, f"预期 2 个门洞, 得到 {len(doorways)}"
+    for d in doorways:
+        gap = d.properties["gap_width_mm"]
+        assert 700 <= gap <= 2500, f"门洞宽度异常: {gap}"
+    print("PASS doorway gaps: 2 gaps detected")
+
+
+def test_detect_doorway_gaps_no_gap():
+    """P105: 无间隙时不产生门洞"""
+    from src.baa_engine.semantic_analyzer.room import _detect_doorway_gaps, _Seg
+
+    segs: List[_Seg] = [
+        (0, 1000, 5000, 1000, "wall", 5000),
+        (5000, 1000, 10000, 1000, "wall", 5000),
+    ]
+    doorways = _detect_doorway_gaps(segs)
+    # 无间隙（端点相接）→ 0 门洞
+    assert len(doorways) == 0, f"预期 0, 得到 {len(doorways)}"
+    print("PASS no gap: 0 doorways")
+
+
+def test_detect_doorway_gaps_too_wide():
+    """P105: 间隙过大 (>2500mm) 不视为门洞"""
+    from src.baa_engine.semantic_analyzer.room import _detect_doorway_gaps, _Seg
+
+    segs: List[_Seg] = [
+        (0, 1000, 5000, 1000, "wall", 5000),
+        (9000, 1000, 14000, 1000, "wall", 5000),  # gap=4000mm
+    ]
+    doorways = _detect_doorway_gaps(segs)
+    assert len(doorways) == 0, f"过大间隙不应视为门洞: {len(doorways)}"
+    print("PASS too wide: 0 doorways")
+
+
+def test_sweep_line_includes_doorways():
+    """P105: 扫线法返回结果包含 doorway 类型"""
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+    from src.baa_engine.semantic_analyzer.room import _sweep_line_detect_rooms
+
+    # 用装饰图纸验证
+    path = "/mnt/d/BaiduNetdiskDownload/测试图纸/山东斐讯云翔大数据中心二期项目图纸（打印版）/00装饰/装饰图纸0929.dxf"
+    if not os.path.exists(path):
+        pytest.skip("本地测试文件不存在")
+
+    dp = DrawingParser()
+    result = dp.parse(path, file_id="p105_doorway")
+    sa = SemanticAnalyzer()
+
+    faces = _sweep_line_detect_rooms(sa, result.primitives)
+    types = Counter(f.type for f in faces)
+    assert "doorway" in types, f"扫线法未产生 doorway: {dict(types)}"
+    assert types["doorway"] >= 5, f"门洞数量不足: {types['doorway']}"
+    print(f"PASS sweep doorways: {types['doorway']} doorways")
+
