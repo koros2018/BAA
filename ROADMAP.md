@@ -657,3 +657,70 @@
 - SDK 5 个新方法全部可用
 - 测试：`test_model_params.py` ≥15 测试全绿
 - 2036+ 回归测试无失败
+---
+
+## P105 — 扫线法走廊/门洞检测（2026-08-13，commit `3afaacd` ✅）
+
+### 走廊面分类
+
+在 `_sweep_line_detect_rooms` 和 `_sweep_and_filter` 的过滤循环中，每通过 P104 过滤的面调用 `_classify_face()` 判断类型：
+
+- **走廊 (corridor)**：宽高比 ≥ 3.0 **且** 短边 ∈ [2000, 4000]mm
+- **房间 (room)**：其他通过过滤的面
+
+走廊 entity 额外携带属性：
+- `clear_width` (m) — 净宽 = 短边 ÷ 1000
+- `length` (m) — 长度 = 长边 ÷ 1000
+
+### 阈值确定依据
+
+实测 45 个扫线法面（12 个走廊 / 33 个房间）：
+
+| 分组 | 短边中位数 | 短边范围 | 宽高比中位数 | 面积中位数 |
+|------|-----------|---------|------------|----------|
+| corridor | 2700mm | [2252, 3407] | 6.88 | 13m² |
+| room     | 4955mm | [2330, 32998] | 1.83 | 36m² |
+
+走廊短边上限 3000mm + 10% 缓冲 = 3300mm，取整到 4000mm；下限保留 P104 已有的 2000mm。
+
+### 新增常量
+
+```python
+_CORRIDOR_ASPECT_RATIO = 3.0           # 宽高比阈值
+_CORRIDOR_SHORT_EDGE_MAX_MM = 4000.0  # 走廊最大宽度
+_CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
+```
+
+### 真实图纸验证（西安特发西港 一层平面图 PDF）
+
+| 面 | 面积 | 短边 | 宽高比 | 分类 | 走廊属性 |
+|----|------|------|--------|------|---------|
+| 1 | 51.72m² | 4851mm | 2.29 | room | — |
+| 2 | 19.28m² | 2286mm | 3.85 | **corridor** | clear_w=2.29m, len=8.80m |
+
+### 测试
+
+- `test_pdf_p105_corridor_detection`：构造走廊 + 房间 → 断言 corridor/room 分类正确
+- 全量 5 个 P101/P103/P105 PDF 测试 ✅
+- 全量回归 2071/2072 ✅（`test_multi_page_pdf` 因 PDF 文件缺失，已有问题）
+
+### 门洞检测
+
+`_detect_doorway_gaps(segs)` 在 axis-align 合并后的扫线法流程中，使用**原始墙段**（非合并后）独立检测门洞间隙。
+
+算法：
+1. 过滤 >=1000mm 墙段
+2. 按方向分 cluster（水平/垂直）
+3. 按起始坐标排序后找相邻墙段的 gap
+4. 过滤：700mm ≤ gap ≤ 2500mm
+
+返回 `SemanticEntity(type="doorway")`，属性含 `gap_width_mm` 和 `direction`。
+
+西安特发西港 PDF 验证：19 个门洞，宽度 819~2388mm，分布合理（1000-2000mm 占多数，2000+ 为双开门/走道开口）。
+
+### 测试
+
+- `test_detect_doorway_gaps` / `no_gap` / `too_wide`：3 个单元测试 ✅
+- `test_sweep_line_includes_doorways`：真实图纸验证（装饰图纸 0929.dxf，≥5 个 doorway）✅
+- `test_pdf_p105_corridor_detection`：走廊面分类 ✅
+- PDF 模块全量 19/20 ✅（`test_multi_page_pdf` 因 PDF 文件缺失，已有问题）
