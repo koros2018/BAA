@@ -99,7 +99,10 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     # ── 1. 直接提取闭合 LWPOLYLINE 房间 ──
     direct_rooms = _extract_closed_polyline_rooms(wall_prims, self)
     if len(direct_rooms) >= 3:
-        return direct_rooms
+        # P105: 附加门洞检测
+        segs: List[_Seg] = _collect_wall_segments(wall_prims)
+        doorways = _detect_doorway_gaps(segs)
+        return direct_rooms + doorways
 
     # ── 2. 转为内部线段表示（LINE + LWPOLYLINE） ──
     segs: List[_Seg] = _collect_wall_segments(wall_prims)
@@ -113,8 +116,10 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     merged_segs = _axis_align_merge(segs)
     if len(merged_segs) >= 3:
         room_candidates = _sweep_and_filter(merged_segs, self)
+        # P105: 门洞检测（使用原始墙段，非 axis-merged）
+        doorway_candidates = _detect_doorway_gaps(segs)
         if len(room_candidates) >= 1:
-            return room_candidates
+            return room_candidates + doorway_candidates
 
     # ── 2. T-junction 分割 ──
     segs = _split_t_junctions(segs)
@@ -365,53 +370,70 @@ def _classify_face(bw: float, bh: float, area_m2: float) -> str:
 
 
 def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
-    """Detect doorway gaps in wall segments.
+    """Detect doorway gaps in raw wall segments (pre axis-merge).
 
-    Strategy: find gaps between adjacent collinear wall segments.
-    A doorway gap is 700-2500mm.
+    Strategy:
+    1. Collect LINE segments >= 1000mm (filter noise from PDF bezier artifacts)
+    2. Cluster by direction + coordinate
+    3. Within each cluster, sort by start point and find gaps
+    4. Filter gaps in doorway range (700-2500mm)
     """
     if len(segs) < 3:
         return []
 
+    # Use raw segments but filter out very short noise
+    filtered = [s for s in segs if s[5] >= 1000]
+    if len(filtered) < 3:
+        return []
+
     horizontal: List[_Seg] = []
     vertical: List[_Seg] = []
-    for s in segs:
+    for s in filtered:
         x0, y0, x1, y1, _, _ = s
-        if abs(y1 - y0) <= 500:
+        if abs(y1 - y0) <= 300:
             horizontal.append(s)
-        elif abs(x1 - x0) <= 500:
+        elif abs(x1 - x0) <= 300:
             vertical.append(s)
 
-    gaps: List[Tuple[float, float, float, float]] = []
-    _find_gaps_in_axis(horizontal, gaps, "horizontal")
-    _find_gaps_in_axis(vertical, gaps, "vertical")
+    gaps: List[Tuple[float, float, float, float, str]] = []
+    _find_gaps_in_axis_v2(horizontal, gaps, "horizontal")
+    _find_gaps_in_axis_v2(vertical, gaps, "vertical")
 
     result: List[SemanticEntity] = []
-    for x, y, w, h in gaps:
+    seen_keys: Set[Tuple[int, int]] = set()
+    for x, y, w, h, direction in gaps:
+        # Dedup by location (500mm grid)
+        key = (round(x, -3), round(y, -3))
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
         result.append(
             SemanticEntity(
                 entity_id="",
                 entity_type="doorway",
                 layer="",
-                properties={"gap_width_mm": min(w, h)},
+                properties={
+                    "gap_width_mm": w if direction == "horizontal" else h,
+                    "direction": direction,
+                },
                 bbox={"x": x, "y": y, "width": w, "height": h},
             )
         )
     return result
 
 
-def _find_gaps_in_axis(
+def _find_gaps_in_axis_v2(
     segs: List[_Seg],
-    gaps: List[Tuple[float, float, float, float]],
+    gaps: List[Tuple[float, float, float, float, str]],
     direction: str,
 ) -> None:
-    """Find gaps between collinear wall segments along an axis.
+    """Find doorway gaps between adjacent wall segments on the same line.
 
-    1. Cluster segments by coordinate (same wall line)
-    2. Within each cluster, sort by start point
-    3. Find gaps between adjacent segments
+    Uses a two-pass approach:
+    1. Cluster segments by coordinate (approximate same wall line)
+    2. Within each cluster, sort by start point and detect gaps
     """
-    tol = 1000.0
+    tol = 1500.0  # coordinate clustering tolerance
     coord_list: List[float] = []
     by_coord: Dict[int, List[_Seg]] = {}
 
@@ -432,7 +454,6 @@ def _find_gaps_in_axis(
             by_coord[idx] = [s]
 
     for idx in sorted(by_coord):
-        coord = coord_list[idx]
         cluster = by_coord[idx]
         if direction == "horizontal":
             sorted_segs = sorted(cluster, key=lambda s: min(s[0], s[2]))
@@ -444,20 +465,20 @@ def _find_gaps_in_axis(
             b = sorted_segs[i + 1]
             if direction == "horizontal":
                 gap = min(b[0], b[2]) - max(a[0], a[2])
-                gap_y = coord
+                gap_x = max(a[0], a[2])
+                gap_y = (a[1] + a[3]) / 2
                 if gap < _DOORWAY_GAP_MIN_MM or gap > _DOORWAY_GAP_MAX_MM:
                     continue
-                gaps.append(
-                    (max(a[0], a[2]), gap_y, gap, max(200.0, abs(a[3] - a[1])))
-                )
+                wall_thick = max(200.0, abs(a[3] - a[1]))
+                gaps.append((gap_x, gap_y, gap, wall_thick, "horizontal"))
             else:
                 gap = min(b[1], b[3]) - max(a[1], a[3])
-                gap_x = coord
+                gap_x = (a[0] + a[2]) / 2
+                gap_y = max(a[1], a[3])
                 if gap < _DOORWAY_GAP_MIN_MM or gap > _DOORWAY_GAP_MAX_MM:
                     continue
-                gaps.append(
-                    (gap_x, max(a[1], a[3]), max(200.0, abs(a[2] - a[0])), gap)
-                )
+                wall_thick = max(200.0, abs(a[2] - a[0]))
+                gaps.append((gap_x, gap_y, wall_thick, gap, "vertical"))
 
 
 # ═══════════════════════════════════════════
