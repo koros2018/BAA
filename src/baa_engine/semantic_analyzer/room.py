@@ -107,6 +107,15 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     if len(segs) < 3:
         return []
 
+    # ── 2a. PDF 墙段轴对齐合并（P103）──
+    # PDF→DXF 的贝塞尔离散化产生大量近轴对齐的短段（75°~95° 区间为主），
+    # 直接扫线法无法闭合。投影到轴后合并共线段，再扫线。
+    merged_segs = _axis_align_merge(segs)
+    if len(merged_segs) >= 3:
+        room_candidates = _sweep_and_filter(merged_segs, self)
+        if len(room_candidates) >= 3:
+            return room_candidates
+
     # ── 2. T-junction 分割 ──
     segs = _split_t_junctions(segs)
     if len(segs) < 3:
@@ -197,9 +206,199 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     return result
 
 
+def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
+    """通用扫线法：T-junction → 平面图 → 左手定则面遍历 → 过滤。"""
+    segs = _split_t_junctions(segs)
+    if len(segs) < 3:
+        return []
+
+    graph = _build_planar_graph(segs)
+    if not graph["nodes"] or not graph["edges"]:
+        return []
+
+    _sort_edges_at_nodes(graph)
+    faces = _find_faces(graph)
+
+    result: List[SemanticEntity] = []
+    seen_bbox: Set[Tuple[int, int, int, int]] = set()
+    for face in faces:
+        pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
+        if len(pts) < 3:
+            continue
+        area = abs(
+            sum(
+                pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+                for i in range(len(pts))
+            )
+            / 2.0
+        )
+        if area < 1_000_000 or area > 500_000_000:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        bw = max(xs) - min(xs)
+        bh = max(ys) - min(ys)
+        if bw <= 0 or bh <= 0:
+            continue
+        aspect = max(bw, bh) / min(bw, bh)
+        if aspect > 8.0:
+            continue
+        key = (
+            round(min(xs), -1),
+            round(min(ys), -1),
+            round(max(xs) - min(xs), -1),
+            round(max(ys) - min(ys), -1),
+        )
+        if key in seen_bbox:
+            continue
+        seen_bbox.add(key)
+
+        bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
+        room_id = f"line_chain_room_{self_obj._entity_counter}"
+        self_obj._entity_counter += 1
+        result.append(
+            SemanticEntity(
+                entity_id=room_id,
+                entity_type="room",
+                layer="",
+                properties={"area": area / 1_000_000},
+                bbox=bbox,
+            )
+        )
+    # 剔除外框面
+    if len(result) > 1:
+        result.sort(key=lambda r: r.properties["area"], reverse=True)
+        outer = result[0]
+        ob = outer.bbox
+        outer_poly = [
+            (ob["x"], ob["y"]),
+            (ob["x"] + ob["width"], ob["y"]),
+            (ob["x"] + ob["width"], ob["y"] + ob["height"]),
+            (ob["x"], ob["y"] + ob["height"]),
+        ]
+        all_contained = True
+        for r in result[1:]:
+            ib = r.bbox
+            cx = ib["x"] + ib["width"] / 2
+            cy = ib["y"] + ib["height"] / 2
+            if not _point_in_polygon((cx, cy), outer_poly):
+                all_contained = False
+                break
+        if all_contained and len(result) > 1:
+            result = result[1:]
+
+    return result
+
+
+# ═══════════════════════════════════════════
+#  轴对齐合并（P103：PDF 墙段碎片化修复）
+# ═══════════════════════════════════════════
+
+_AXIS_TOL_DEG = 30.0  # 近轴对齐角度容差（度）
+_AXIS_MERGE_TOL_MM = 200.0  # 共线合并距离容差（mm）
+_AXIS_MIN_LEN_MM = 500.0  # 最小墙段长度
+
+
 # ═══════════════════════════════════════════
 #  辅助函数
 # ═══════════════════════════════════════════
+
+
+def _axis_align_merge(segs: List[_Seg]) -> List[_Seg]:
+    """将 PDF 碎片化的近轴对齐墙段投影到轴上合并为完整墙线。
+
+    PDF→DXF 贝塞尔离散化产生大量 75°~95° 的近垂直/近水平短段，
+    扫线法无法直接闭合。投影到轴后按坐标聚类合并，恢复标准墙线段。
+    """
+    near_axis = []
+    for s in segs:
+        x0, y0, x1, y1, _, length = s
+        if length < _AXIS_MIN_LEN_MM:
+            continue
+        dx, dy = abs(x1 - x0), abs(y1 - y0)
+        if dx + dy < 100:
+            continue
+        angle = math.atan2(dy, dx) if dx > 0 else math.pi / 2
+        if angle > math.pi / 2:
+            angle = math.pi - angle
+        tol_rad = math.radians(_AXIS_TOL_DEG)
+        if angle <= tol_rad or angle >= math.pi / 2 - tol_rad:
+            near_axis.append(s)
+
+    if len(near_axis) < 3:
+        return []
+
+    # 投影到轴
+    snapped: List[Tuple[float, float, float, float]] = []
+    for s in near_axis:
+        x0, y0, x1, y1, _, length = s
+        dx, dy = abs(x1 - x0), abs(y1 - y0)
+        if dx >= dy:  # 近水平
+            mid_y = (y0 + y1) / 2
+            snapped.append((min(x0, x1), mid_y, max(x0, x1), mid_y))
+        else:  # 近垂直
+            mid_x = (x0 + x1) / 2
+            snapped.append((mid_x, min(y0, y1), mid_x, max(y0, y1)))
+
+    tol = _AXIS_MERGE_TOL_MM
+
+    # 分别合并水平段和垂直段
+    horizontal: List[Tuple[float, float, float]] = []
+    vertical: List[Tuple[float, float, float]] = []
+    for x0, y0, x1, y1 in snapped:
+        if abs(y1 - y0) < tol:
+            horizontal.append((min(x0, x1), max(x0, x1), y0))
+        else:
+            vertical.append((min(y0, y1), max(y0, y1), x0))
+
+    h_merged = _merge_collinear(horizontal, tol)
+    v_merged = _merge_collinear(vertical, tol)
+
+    result: List[_Seg] = []
+    for lo, hi, y in h_merged:
+        result.append((lo, y, hi, y, "", hi - lo))
+    for lo, hi, x in v_merged:
+        result.append((x, lo, x, hi, "", hi - lo))
+
+    return result
+
+
+def _merge_collinear(
+    intervals: List[Tuple[float, float, float]], tol: float
+) -> List[Tuple[float, float, float]]:
+    """合并共线区间：先按坐标聚类，再在每簇内合并重叠区间。
+
+    intervals: [(lo, hi, coord)]  coord 是与区间垂直的方向坐标。
+    """
+    coord_list: List[float] = []
+    by_coord: Dict[int, List[Tuple[float, float]]] = {}
+    for lo, hi, coord in intervals:
+        idx = -1
+        for i, c in enumerate(coord_list):
+            if abs(c - coord) <= tol:
+                idx = i
+                break
+        if idx >= 0:
+            by_coord[idx].append((lo, hi))
+        else:
+            idx = len(coord_list)
+            coord_list.append(coord)
+            by_coord[idx] = [(lo, hi)]
+
+    merged: List[Tuple[float, float, float]] = []
+    for idx in sorted(by_coord):
+        coord = coord_list[idx]
+        sorted_intervals = sorted(by_coord[idx])
+        cur_lo, cur_hi = sorted_intervals[0]
+        for lo, hi in sorted_intervals[1:]:
+            if lo <= cur_hi + tol:
+                cur_hi = max(cur_hi, hi)
+            else:
+                merged.append((cur_lo, cur_hi, coord))
+                cur_lo, cur_hi = lo, hi
+        merged.append((cur_lo, cur_hi, coord))
+
+    return merged
 
 
 def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
