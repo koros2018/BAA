@@ -113,7 +113,7 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     merged_segs = _axis_align_merge(segs)
     if len(merged_segs) >= 3:
         room_candidates = _sweep_and_filter(merged_segs, self)
-        if len(room_candidates) >= 3:
+        if len(room_candidates) >= 1:
             return room_candidates
 
     # ── 2. T-junction 分割 ──
@@ -134,7 +134,7 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
 
     # ── 6. 过滤 ──
     result: List[SemanticEntity] = []
-    seen_bbox: Set[Tuple[int, int, int, int]] = set()
+    seen_centers: Set[Tuple[int, int]] = set()
     for face in faces:
         pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
         if len(pts) < 3:
@@ -148,25 +148,32 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         )
         if area < 1_000_000 or area > 500_000_000:
             continue
+        # P104: 面积过滤——排除双线墙间隙和建筑外框面
+        if area < _MIN_ROOM_AREA_MM2 or area > _MAX_ROOM_AREA_MM2:
+            continue
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         bw = max(xs) - min(xs)
         bh = max(ys) - min(ys)
         if bw <= 0 or bh <= 0:
             continue
+        # P104: 短边过滤——双线墙间隙短边≈墙厚度 (<2000mm)
+        if min(bw, bh) < _MIN_SHORT_EDGE_MM:
+            continue
         aspect = max(bw, bh) / min(bw, bh)
         if aspect > 8.0:
             continue
-        # bbox 去重
-        key = (
-            round(min(xs), -1),
-            round(min(ys), -1),
-            round(max(xs) - min(xs), -1),
-            round(max(ys) - min(ys), -1),
-        )
-        if key in seen_bbox:
+        # P104: 实际面积/包围盒面积比——排除外框面（实际面积远小于 bbox）
+        bbox_area = bw * bh
+        if bbox_area > 0 and (area / bbox_area) < _MIN_AREA_TO_BBOX_RATIO:
             continue
-        seen_bbox.add(key)
+        # P104: 质心去重（2000mm 容差）
+        cx = sum(xs) / len(xs)
+        cy = sum(ys) / len(ys)
+        key = (round(cx, -3), round(cy, -3))
+        if key in seen_centers:
+            continue
+        seen_centers.add(key)
 
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
         room_id = f"line_chain_room_{self._entity_counter}"
@@ -220,7 +227,7 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
     faces = _find_faces(graph)
 
     result: List[SemanticEntity] = []
-    seen_bbox: Set[Tuple[int, int, int, int]] = set()
+    seen_centers: Set[Tuple[int, int]] = set()
     for face in faces:
         pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
         if len(pts) < 3:
@@ -234,26 +241,41 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         )
         if area < 1_000_000 or area > 500_000_000:
             continue
+        # P104: 房间面积过滤——排除双线墙间隙和建筑外框面
+        if area < _MIN_ROOM_AREA_MM2 or area > _MAX_ROOM_AREA_MM2:
+            continue
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         bw = max(xs) - min(xs)
         bh = max(ys) - min(ys)
         if bw <= 0 or bh <= 0:
             continue
+        # P104: 短边过滤——双线墙间隙短边≈墙厚度 (<2000mm)
+        if min(bw, bh) < _MIN_SHORT_EDGE_MM:
+            continue
         aspect = max(bw, bh) / min(bw, bh)
         if aspect > 8.0:
             continue
-        key = (
-            round(min(xs), -1),
-            round(min(ys), -1),
-            round(max(xs) - min(xs), -1),
-            round(max(ys) - min(ys), -1),
-        )
-        if key in seen_bbox:
+        # P104: 实际面积/包围盒面积比——排除外框面（实际面积远小于 bbox）
+        bbox_area = bw * bh
+        if bbox_area > 0 and (area / bbox_area) < _MIN_AREA_TO_BBOX_RATIO:
             continue
-        seen_bbox.add(key)
-
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
+        # P104: bbox 重叠去重——新 face 若与已存 room bbox 重叠 >80% 则跳过
+        is_dup = False
+        for existing in result:
+            eb = existing.bbox
+            ox = max(0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"]))
+            oy = max(0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"]))
+            if ox <= 0 or oy <= 0:
+                continue
+            overlap = ox * oy / (bbox["width"] * bbox["height"])
+            if overlap > 0.8:
+                is_dup = True
+                break
+        if is_dup:
+            continue
+
         room_id = f"line_chain_room_{self_obj._entity_counter}"
         self_obj._entity_counter += 1
         result.append(
@@ -297,6 +319,11 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
 _AXIS_TOL_DEG = 30.0  # 近轴对齐角度容差（度）
 _AXIS_MERGE_TOL_MM = 200.0  # 共线合并距离容差（mm）
 _AXIS_MIN_LEN_MM = 500.0  # 最小墙段长度
+_MIN_ROOM_AREA_MM2 = 5_000_000  # 最小房间面积 5m²（排除双线墙间隙）
+_MAX_ROOM_AREA_MM2 = 2_000_000_000  # 最大房间面积 2000m²（排除建筑外框面）
+_MIN_SHORT_EDGE_MM = 2000.0  # 最小短边 2000mm（排除墙厚度方向的间隙）
+_CENTER_DUP_TOL_MM = 2000.0  # 面质心去重容差（mm）
+_MIN_AREA_TO_BBOX_RATIO = 0.3  # 面实际面积/包围盒面积最小比（过滤外框面）
 
 
 # ═══════════════════════════════════════════
@@ -819,7 +846,7 @@ def _extract_closed_polyline_rooms(
     - 外框剔除：最大面若包含所有内框中心则丢弃
     """
     poly_rooms: List[SemanticEntity] = []
-    seen_bbox: Set[Tuple[int, int, int, int]] = set()
+    seen_centers: Set[Tuple[int, int]] = set()
 
     for prim in wall_prims:
         if prim.dxf_type != "LWPOLYLINE":
@@ -838,6 +865,9 @@ def _extract_closed_polyline_rooms(
         )
         if area < 1_000_000 or area > 500_000_000:
             continue
+        # P104: 面积过滤
+        if area < _MIN_ROOM_AREA_MM2 or area > _MAX_ROOM_AREA_MM2:
+            continue
 
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
@@ -845,22 +875,34 @@ def _extract_closed_polyline_rooms(
         bh = max(ys) - min(ys)
         if bw <= 0 or bh <= 0:
             continue
+        # P104: 短边过滤
+        if min(bw, bh) < _MIN_SHORT_EDGE_MM:
+            continue
         aspect = max(bw, bh) / min(bw, bh)
         if aspect > 8.0:
             continue
 
-        # bbox 去重
-        key = (
-            round(min(xs), -1),
-            round(min(ys), -1),
-            round(max(xs) - min(xs), -1),
-            round(max(ys) - min(ys), -1),
-        )
-        if key in seen_bbox:
+        # P104: 实际面积/包围盒面积比
+        bbox_area = bw * bh
+        if bbox_area > 0 and (area / bbox_area) < _MIN_AREA_TO_BBOX_RATIO:
             continue
-        seen_bbox.add(key)
 
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
+        # P104: bbox 重叠去重
+        is_dup = False
+        for existing in poly_rooms:
+            eb = existing.bbox
+            ox = max(0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"]))
+            oy = max(0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"]))
+            if ox <= 0 or oy <= 0:
+                continue
+            overlap = ox * oy / (bbox["width"] * bbox["height"])
+            if overlap > 0.8:
+                is_dup = True
+                break
+        if is_dup:
+            continue
+
         room_id = f"polyline_room_{self._entity_counter}"
         self._entity_counter += 1
         poly_rooms.append(
