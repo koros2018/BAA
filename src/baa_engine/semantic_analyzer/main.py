@@ -78,6 +78,8 @@ class SemanticAnalyzer:
             fingerprint = None  # init: set to None
 
         # 采样限制，防止全量关系构建OOM
+        # 保留原始 primitives 供扫线法使用（扫线只消费 LINE/LWPOLYLINE）
+        full_primitives = primitives
         if len(primitives) > max_entities:  # check: numeric comparison
             import random  # stdlib import
 
@@ -106,7 +108,8 @@ class SemanticAnalyzer:
                 logger.warning(f"YOLO 增强失败: {e}")  # call
 
         # Step 1.4: 扫线法复合房间识别（LINE 闭合检测）
-        new_rooms = self._sweep_line_detect_rooms(primitives)  # assign
+        # 使用全量原语，避免采样导致 wall 段不完整
+        new_rooms = self._sweep_line_detect_rooms(full_primitives)  # assign
         if new_rooms:  # condition: new_rooms:
             entities = entities + new_rooms  # assign
 

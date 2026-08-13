@@ -204,3 +204,98 @@ def test_pdf_parser_no_scale():
         print(f"PASS 无比例尺默认 1:1")
     finally:
         os.remove(tmp)
+
+@LOCAL_PDF_MARK
+def test_pdf_p103_axis_merge_rooms():
+    """P103: 轴对齐合并后 PDF 房间检测有效
+
+    P103 修复：
+    1. _axis_align_merge: PDF 贝塞尔碎片化墙段(75°~95°近垂直为主)
+       投影到轴上合并共线段
+    2. SemanticAnalyzer.analyze() 扫线法使用全量 primitives，
+       避免 random.sample(10000) 丢弃 wall 段
+    3. 效果: 西安特发西港装修 PDF room 检测 0→14
+    """
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+    # 通过 pdf_to_dxf → DrawingParser 全链路
+    result = pdf_to_dxf(TEST_PDF)
+    dp = DrawingParser()
+    pr = dp.parse(result["dxf_path"], "p103_axis_merge")
+    sa = SemanticAnalyzer()
+    semantic = sa.analyze(pr.primitives, pr.dimensions)
+    entities = semantic.get("entities", [])
+    rooms = [e for e in entities if e.get("type") == "room"]
+    # P103: 轴对齐合并后应能检测到多个房间（原扫线法在 PDF 上为 0）
+    assert len(rooms) >= 5, f"房间检测失败: 仅 {len(rooms)} 个 (预期 >=5)"
+    # room area 应合理 (10m² ~ 500m²)
+    areas = [r.get("properties", {}).get("area", 0) for r in rooms]
+    assert any(a > 5 and a < 500 for a in areas), f"room area 异常: {areas}"
+    print(f"PASS P103: {len(entities)} entities, rooms={len(rooms)}, areas=[{areas[0]:.1f}...]m²")
+
+
+def test_axis_align_merge_unit():
+    """轴对齐合并单元测试：近水平/近垂直线段合并，对角噪声丢弃"""
+    from src.baa_engine.semantic_analyzer.room import _axis_align_merge
+
+    # 三条共线水平段（y=1000，x 方向 2000~5000）
+    # 应合并为一条 2000~5000 的水平线
+    segs = [
+        (2000, 990, 3000, 1010, "test", 1000),   # 近水平
+        (3100, 1005, 4000, 995, "test", 900),    # 近水平
+        (4000, 998, 5000, 1002, "test", 1000),   # 近水平
+        (0, 0, 5000, 5000, "test", 7071),        # 对角噪声
+        (0, 100, 100, 0, "test", 141),            # 短对角
+    ]
+
+    merged = _axis_align_merge(segs)
+    # 应得到 1 条合并后的水平线段
+    h_segs = [s for s in merged if abs(s[2] - s[0]) > abs(s[3] - s[1])]
+    v_segs = [s for s in merged if abs(s[3] - s[1]) > abs(s[2] - s[0])]
+    assert len(h_segs) >= 1, f"水平段缺失: {merged}"
+    # 合并后长度应接近 3000mm (5000-2000)
+    h_len = h_segs[0][2] - h_segs[0][0]
+    assert h_len > 2500, f"水平段长度不对: {h_len}"
+    # 对角噪声应被丢弃
+    assert len(v_segs) == 0, f"对角噪声未过滤: {v_segs}"
+    print(f"PASS axis_align_merge: {len(segs)} segs → {len(merged)} merged")
+
+
+@LOCAL_PDF_MARK
+def test_pdf_full_primitives_sweep():
+    """扫线法使用全量 primitives，不被采样截断
+
+    回归测试：确保 SemanticAnalyzer.analyze() 对扫线法
+    传入全量原始图元，而非 random.sample 后的子集。
+    """
+    from src.baa_engine.drawing_parser import DrawingParser
+    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+    from src.baa_engine.semantic_analyzer.room import (
+        _sweep_line_detect_rooms,
+        _collect_wall_lines,
+        _collect_wall_segments,
+    )
+
+    result = pdf_to_dxf(TEST_PDF)
+    dp = DrawingParser()
+    pr = dp.parse(result["dxf_path"], "p103_full_sweep")
+    sa = SemanticAnalyzer()
+
+    prims = pr.primitives
+    # 直接扫线法应能检测到 rooms
+    direct_rooms = _sweep_line_detect_rooms(sa, prims)
+    assert len(direct_rooms) >= 5, f"直接扫线 rooms 不足: {len(direct_rooms)}"
+
+    # analyze() 内部也应检测到 rooms
+    semantic = sa.analyze(prims, pr.dimensions)
+    entities = semantic.get("entities", [])
+    rooms = [e for e in entities if e.get("type") == "room"]
+    assert len(rooms) >= 5, f"analyze() rooms 不足: {len(rooms)}"
+
+    print(
+        f"PASS full_primitives: direct={len(direct_rooms)} rooms, "
+        f"analyze={len(rooms)} rooms"
+    )
