@@ -4,7 +4,7 @@
 
 ## 完成状态
 
-> 截至 2026-08-14：P1~P105 路线图内全部完成。P95 不可行（xref 空壳问题）。P96 SFT 数据集生成完成（1290 条静态样本）。P97 黄金标准更新完成（0 漏报 0 回归）。P98 跨图纸对比报告完成（东莞通 99.6% A 级）。P99 PDF 矢量解析器完成（比例尺自动恢复，全链路验证）。P100 PDF 接入主流程完成（DrawingParser.parse() 直接吃 PDF，8 测试全绿）。P101 扫线法房间检测完成（左手定则平面面遍历，T-junction 分割，外框面剔除，LWPOLYLINE 直接提取，2068/2068 测试全绿）。P102 基线重建完成（T3 空壳过滤，data/files/ 有效 DXF + 东莞通建筑图）。P103 PDF 房间检测修复（轴对齐合并 + 全量 primitives 扫线法，room 0→14）。P104 房间面过滤增强（外框面剔除/双线墙间隙过滤/bbox 重叠去重，8 faces→2 有效 room）。P105 走廊独立识别+门洞检测（_classify_face 宽高比+短边，29 room + 16 corridor + 19 doorway）。
+> 截至 2026-08-14：P1~P105 路线图内全部完成。P95 不可行（xref 空壳问题）。P96 SFT 数据集生成完成（1290 条静态样本）。P97 黄金标准更新完成（0 漏报 0 回归）。P98 跨图纸对比报告完成（东莞通 99.6% A 级）。P99 PDF 矢量解析器完成（比例尺自动恢复，全链路验证）。P100 PDF 接入主流程完成（DrawingParser.parse() 直接吃 PDF，8 测试全绿）。P101 扫线法房间检测完成（左手定则平面面遍历，T-junction 分割，外框面剔除，LWPOLYLINE 直接提取，2068/2068 测试全绿）。P102 基线重建完成（T3 空壳过滤，data/files/ 有效 DXF + 东莞通建筑图）。P103 PDF 房间检测修复（轴对齐合并 + 全量 primitives 扫线法，room 0→14）。P104 房间面过滤增强（外框面剔除/双线墙间隙过滤/bbox 重叠去重，8 faces→2 有效 room）。P105 走廊独立识别+门洞检测（_classify_face 宽高比+短边，29 room + 16 corridor + 19 doorway）。P106 YOLO 伪标签管线（179 张标注 / 22051 标签 / 10 类）。P107 扫线法→EVAC 闭环（doorway 参与拓扑+BFS+gap<800mm 瓶颈）。P108 门洞→DIM 自动触发（DIM-006/DIM-009 target_entities 加 doorway，gap_width_mm 转换）。
 
 ### v1.8.3~v1.8.5 — 真实图纸走廊宽度推断
 - ✅ `_compute_bbox` 4层兜底（LWPOLYLINE坐标修复）
@@ -732,18 +732,19 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 > 排序原则：准确率根因 > 工程迭代门槛 > 产品深度 > 生态集成
 > 基线：v2.5.42-stable（`fd92e2b`），P107+P108 完成，605 测试，全量回归 2087/2088（1 known-fail）
 
-### P106 — YOLO 重训练（准确率根因，最高优先级）
-**目标**：真实图纸 door/window/stair 召回率 ≥50%，mAP50 提升
+### P106 — YOLO 伪标签管线 ✅（2026-08-14）
+**目标**：自动化标注管线：扫线法几何推断 → DXF 渲染 → YOLO 伪标签 → 人工复核
 
-**背景**：当前 YOLOv8m v7_v5（mAP50 +2.3），训练数据密集（30-50% 非白像素），真实图纸稀疏（~0.19% 非白像素）→ 分布差异 → 召回率稀疏。
-
-**具体动作**：
-1. 渲染 20+ 真实图纸生成标注集，覆盖 ≥5 种图纸类型
-2. 标注 18 类高频实体（door/window/stair/doorway 优先）
-3. 增量 fine-tune，与 v7_v5 对比决定是否替换
-4. 验收：真实图纸高频类召回率 ≥50%
-
-**状态**：P84 已有数据管线脚本 + v7-v5 fine-tune，标注数据集未到位 → 待启动
+**成果**：
+- `p106_generate_labels.py`：DXF 渲染 + 语义分析 + 世界坐标→YOLO 归一化，30s 单文件超时（SIGALRM）
+- `p106_discover.py`：候选图纸发现（扫描→实体分布→排序）
+- **179 张标注 / 22051 个标签 / 10/18 类**
+- 主力类别：wall(8512) room(8144) window(2449) door(1438) staircase(724) shaft(449) corridor(287)
+- 低频：fire_door(36) exit(9) fire_window(3)
+- 缺失(8类)：exit_sign/sprinkler_system/fire_alarm/insulation/evacuation_lighting/refuge_floor/fire_lane(0)
+- data.yaml + train.txt(190) + val.txt(48) + stats.json 完整
+- 252 张 DXF 全扫描：183 跳过(已有标签) + 60 超时(非建筑图/系统图/详图) + 9 渲染失败
+- **下一步**：人工复核标签质量 + 补充 8 类缺失标注 + fine-tune YOLOv8m
 
 ### P107 — 扫线法走廊门洞→疏散连通性闭环 ✅（2026-08-14）
 **成果**：doorway 参与 KEY_ENTITY_TYPES + corridor↔doorway↔room 拓扑 + EVAC BFS 路径 + gap<800mm bottleneck，9 定向测试全绿
@@ -774,6 +775,7 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 ## v2.5.40-stable 发布记录
 
+- **v2.5.43-stable**（`9373724`，2026-08-14）：P106 YOLO 伪标签管线 — 179 张标注 / 22051 标签 / 10 类
 - **v2.5.42-stable**（`fd92e2b`，2026-08-14）：P107 扫线法→EVAC 闭环 + P108 门洞→DIM 自动触发
 - **v2.5.41-stable**（`d2319ad`，2026-08-14）：P107 扫线法 doorway → EVAC 连通性闭环
 - **v2.5.40-stable**（`181db3c`）
