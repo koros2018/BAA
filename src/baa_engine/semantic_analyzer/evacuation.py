@@ -159,8 +159,12 @@ def _analyze_evacuation_routes_impl(
     fallback_exits = [
         e for e in entities if e.type in ("door", "fire_door")
     ]  # assign: membership check
+    # P107: 扫线法产出的 doorway 可作为疏散路径上的门连接节点
+    fallback_exits_sweep = [
+        e for e in entities if e.type == "doorway"
+    ]  # assign: membership check
     # 有明确出口就用明确出口，否则用 door/fire_door 兜底
-    exits = strict_exits if strict_exits else fallback_exits  # assign
+    exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
 
     rooms = [e for e in entities if e.type == "room"]  # compare: equality
 
@@ -280,7 +284,10 @@ def _verify_evacuation_connectivity_impl(
     fallback_exits = [
         e for e in entities if e.type in ("door", "fire_door")
     ]  # assign: membership check
-    exits = strict_exits if strict_exits else fallback_exits  # assign
+    fallback_exits_sweep = [
+        e for e in entities if e.type == "doorway"
+    ]  # assign: membership check
+    exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
     exit_ids = {e.id for e in exits}  # assign: membership check
 
     results = []  # init: empty list
@@ -337,6 +344,18 @@ def _verify_evacuation_connectivity_impl(
                         "type": "door_too_narrow",  # code
                         "entity_id": ent.id,  # code
                         "width": width,  # code
+                        "threshold": 0.8,  # code
+                    }  # code
+
+            # P107: 扫线法门洞宽度检查（gap_width_mm 单位 mm）
+            if ent.type == "doorway":  # check: membership test
+                gap_mm = ent.properties.get("gap_width_mm", 0)  # assign
+                if gap_mm > 0 and gap_mm < 800:  # check: numeric comparison <0.8m
+                    bottleneck = True  # assign
+                    bottleneck_details = {  # assign
+                        "type": "doorway_too_narrow",  # code
+                        "entity_id": ent.id,  # code
+                        "width": gap_mm * 0.001,  # code mm→m
                         "threshold": 0.8,  # code
                     }  # code
 
