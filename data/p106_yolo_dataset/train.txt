@@ -1,0 +1,190 @@
+data/p106_yolo_dataset/images/3.业务网光纤槽道平面图_t3.png
+data/p106_yolo_dataset/images/G-04负一层墙柱平面定位图 .png
+data/p106_yolo_dataset/images/03-ZY项目1#数据中心机房幕墙图20210412.png
+data/p106_yolo_dataset/images/M-00-03-01~03.主要设备选型参数表（一）~（三）.png
+data/p106_yolo_dataset/images/G-03.管桩说明z.png
+data/p106_yolo_dataset/images/D-0-01-01动力总体管道平面图.png
+data/p106_yolo_dataset/images/西安嘉昱-暖通-5制冷机房0416_t3.png
+data/p106_yolo_dataset/images/7.安防平面图_t3_t3.png
+data/p106_yolo_dataset/images/消防疏散示意图_t3.png
+data/p106_yolo_dataset/images/G-08四~八层墙柱平面定位图.png
+data/p106_yolo_dataset/images/华为：A2、A3电气.png
+data/p106_yolo_dataset/images/弱电设计与施工说明.png
+data/p106_yolo_dataset/images/2#配电房 弱电平面图（安防）_t3.png
+data/p106_yolo_dataset/images/M-00-10-06.通风系统流程图、多联机冷媒管系统流程图.png
+data/p106_yolo_dataset/images/G-06二层墙柱平面定位图 .png
+data/p106_yolo_dataset/images/E-01-30-02 UPS蓄电池低压电缆桥架平面图.png
+data/p106_yolo_dataset/images/1#机房楼 弱电平面图（智能照明）1_t3 _t3.png
+data/p106_yolo_dataset/images/屋面层结构平面图.png
+data/p106_yolo_dataset/images/西安嘉昱-暖通-3风平面0416_t3.png
+data/p106_yolo_dataset/images/G-18二层板配筋平面图.png
+data/p106_yolo_dataset/images/屋面层梁配筋平面图.png
+data/p106_yolo_dataset/images/A23云计算中心_给排水2017.03.31_t3.png
+data/p106_yolo_dataset/images/楼梯结构施工图.png
+data/p106_yolo_dataset/images/G-07三层墙柱平面定位图.png
+data/p106_yolo_dataset/images/卫生间详图.png
+data/p106_yolo_dataset/images/D-0-00-01-动力设计与施工说明.png
+data/p106_yolo_dataset/images/汕尾给排水总平面2017.03.31_t3.png
+data/p106_yolo_dataset/images/E-01-10-07 低压配电干线系统图.png
+data/p106_yolo_dataset/images/总平面图.png
+data/p106_yolo_dataset/images/G-10~G-14墙柱配筋.png
+data/p106_yolo_dataset/images/E-01-10-03~06 低压配电系统图.png
+data/p106_yolo_dataset/images/A1云计算中心平面图0405_t3.png
+data/p106_yolo_dataset/images/G-22楼梯表.png
+data/p106_yolo_dataset/images/A1云计算中心报警施工图20170217无签名.png
+data/p106_yolo_dataset/images/04-动力配电平面图（去ATS）_t8.png
+data/p106_yolo_dataset/images/E-01-30-03 配变电所低压母线平面图.png
+data/p106_yolo_dataset/images/M-00-40-01.蓄冷罐接管示意图.png
+data/p106_yolo_dataset/images/10 海绵设施大样图.png
+data/p106_yolo_dataset/images/E-00-00-04~05 火灾自动报警设计说明.png
+data/p106_yolo_dataset/images/宿舍楼目录.png
+data/p106_yolo_dataset/images/03-动照配电系统图(去ATS)_t8.png
+data/p106_yolo_dataset/images/G-25天面层梁配筋平面图 .png
+data/p106_yolo_dataset/images/2#配电房 弱电平面图（电力监控）_t3.png
+data/p106_yolo_dataset/images/243352SM(A).pdf2dxf.png
+data/p106_yolo_dataset/images/3.高压系统、直流屏.png
+data/p106_yolo_dataset/images/E-01-30-04 配变电所电气设备布置图.png
+data/p106_yolo_dataset/images/E-01-12-01~05 照明配电箱系统图.png
+data/p106_yolo_dataset/images/00-设计说明及图例.png
+data/p106_yolo_dataset/images/墙身大样图.png
+data/p106_yolo_dataset/images/T-00-21-01室外弱电系统图.png
+data/p106_yolo_dataset/images/西安数据中心机房-装修-0416.png
+data/p106_yolo_dataset/images/01-04 海绵城市设计说明 (1).png
+data/p106_yolo_dataset/images/G-27屋架层梁配筋平面图.png
+data/p106_yolo_dataset/images/总平面0329_t3.png
+data/p106_yolo_dataset/images/00-电专业目录.png
+data/p106_yolo_dataset/images/05-IT母线路由图，低压配电平面图_t8.png
+data/p106_yolo_dataset/images/四、五层梁配筋平面图.png
+data/p106_yolo_dataset/images/G-28~G-30墙身大样.png
+data/p106_yolo_dataset/images/M-02-00-00.2#配电房图纸目录.png
+data/p106_yolo_dataset/images/M-00-10-01~02.空调水系统流程图.png
+data/p106_yolo_dataset/images/弱电系统设计图例.png
+data/p106_yolo_dataset/images/G-05首层墙柱平面定位图.png
+data/p106_yolo_dataset/images/节能专篇(二)_t3.png
+data/p106_yolo_dataset/images/00-智能照明系统拓扑图.png
+data/p106_yolo_dataset/images/西安嘉昱-暖通-1说明0416_t3.png
+data/p106_yolo_dataset/images/汕尾A1-电气-高低压部分-正式报审版20170310.png
+data/p106_yolo_dataset/images/E-00-01-01 室外电气总平面图.png
+data/p106_yolo_dataset/images/G-20三层板配筋平面图 .png
+data/p106_yolo_dataset/images/E-01-03-01 主要设备材料.png
+data/p106_yolo_dataset/images/4.变压器、UPS、MCC低压接线图.png
+data/p106_yolo_dataset/images/汕尾华为云计算中心A1-电源施工图设计-20170308_recover.png
+data/p106_yolo_dataset/images/_建筑底图参照.png
+data/p106_yolo_dataset/images/四、五层结构平面图.png
+data/p106_yolo_dataset/images/20210409-3#泵房_t3.png
+data/p106_yolo_dataset/images/04-电气配电平面图（母线及桥架）.png
+data/p106_yolo_dataset/images/E-00-00-01~03 电气设计施工说明.png
+data/p106_yolo_dataset/images/西安嘉昱-暖通-2系统图0416_t3.png
+data/p106_yolo_dataset/images/A23云计算中心_气体灭火2017.03.31_t3.png
+data/p106_yolo_dataset/images/G-21三层梁配筋平面图 .png
+data/p106_yolo_dataset/images/0.封面及目录.png
+data/p106_yolo_dataset/images/M-00-10-03~04.用户侧水系统流程图.png
+data/p106_yolo_dataset/images/G-01结构总说明(新规范）V1.00.png
+data/p106_yolo_dataset/images/楼电梯详图_t3.png
+data/p106_yolo_dataset/images/20210223中原人工智能计算中心base.png
+data/p106_yolo_dataset/images/M-02-20-01.2#配电房风管平面布置图.png
+data/p106_yolo_dataset/images/M-00-40-05.水管支吊架安装大样图.png
+data/p106_yolo_dataset/images/E-01-10-00 供电系统框架示意图.png
+data/p106_yolo_dataset/images/2.系统图_t3.png
+data/p106_yolo_dataset/images/G-22四~八层板配筋平面图.png
+data/p106_yolo_dataset/images/西安嘉昱-给排水-2系统图0416_t3.png
+data/p106_yolo_dataset/images/柱子定位图.png
+data/p106_yolo_dataset/images/E-02-10kV用户开关站电气施工图_t3.png
+data/p106_yolo_dataset/images/气体灭火平面图.png
+data/p106_yolo_dataset/images/设备表和图例.png
+data/p106_yolo_dataset/images/2#配电房.png
+data/p106_yolo_dataset/images/结构设计说明-202104.png
+data/p106_yolo_dataset/images/一层平面图.pdf2dxf.png
+data/p106_yolo_dataset/images/E-03-水泵房电气施工图_t3.png
+data/p106_yolo_dataset/images/5.其它电气相关系统图.png
+data/p106_yolo_dataset/images/华为（深汕）云计算服务基地A4(20170705宿舍户型修改)_t3.png
+data/p106_yolo_dataset/images/柱表.png
+data/p106_yolo_dataset/images/D-目录.png
+data/p106_yolo_dataset/images/G-19二层梁配筋平面图.png
+data/p106_yolo_dataset/images/机房楼墙身_t6_t6_t6_t3.png
+data/p106_yolo_dataset/images/G-31 LT-3、LT-4楼梯表.png
+data/p106_yolo_dataset/images/泵房详图.png
+data/p106_yolo_dataset/images/L-0-60-01景观电气图_t3.png
+data/p106_yolo_dataset/images/1#机房楼 弱电平面图（安防）1_t3_t3.png
+data/p106_yolo_dataset/images/淄博暖通_审核修改版_2021080928__t3.png
+data/p106_yolo_dataset/images/热通道封闭示意图_t6_t6_t6_t3.png
+data/p106_yolo_dataset/images/基础结构平面图.png
+data/p106_yolo_dataset/images/华为A1机楼发电机房环保施工图-170302.png
+data/p106_yolo_dataset/images/L-0-00~40-01总平面图_t3.png
+data/p106_yolo_dataset/images/A23云计算中心_水消防2017.03.31_t3.png
+data/p106_yolo_dataset/images/华为电气总平面.png
+data/p106_yolo_dataset/images/防水节点详图_t6_t6_t6_t3.png
+data/p106_yolo_dataset/images/4.业务网铜缆桥架平面图_t3.png
+data/p106_yolo_dataset/images/6.运维网综合布线平面图_t3_t3.png
+data/p106_yolo_dataset/images/G-19楼梯表.png
+data/p106_yolo_dataset/images/汕尾A1-电气-高低压部分-正式报审版20170310_recover.png
+data/p106_yolo_dataset/images/L-0-50-01种植平面图_t3.png
+data/p106_yolo_dataset/images/中原人工智能计算中心总图-0409_t3.png
+data/p106_yolo_dataset/images/G-23四~八层梁配筋平面图.png
+data/p106_yolo_dataset/images/2.低压配电系统单线图.png
+data/p106_yolo_dataset/images/L-0-80-01景观详图_t3.png
+data/p106_yolo_dataset/images/T-00-40 安保中心布置图.png
+data/p106_yolo_dataset/images/E-01-22,23-01~04 照明，应急照明平面图.png
+data/p106_yolo_dataset/images/A1通风施工图_t3.png
+data/p106_yolo_dataset/images/西安嘉昱-给排水-3平面图0416_t3.png
+data/p106_yolo_dataset/images/屋架层结构平面图.png
+data/p106_yolo_dataset/images/20170410-A1云计算中心动力+照明22_recover.png
+data/p106_yolo_dataset/images/消防平面图.png
+data/p106_yolo_dataset/images/E-01-50-01~02火灾自动报警系统图.png
+data/p106_yolo_dataset/images/G-24天面层板配筋平面图 .png
+data/p106_yolo_dataset/images/M-00-40-04.风管及防火阀安装大样图.png
+data/p106_yolo_dataset/images/M-00-00-01.设计说明.png
+data/p106_yolo_dataset/images/9.极早期报警平面图_t3.png
+data/p106_yolo_dataset/images/06-接地平面图_t8.png
+data/p106_yolo_dataset/images/M-01-20-01~05.1#数据中心机房一~屋顶层平面布置图.png
+data/p106_yolo_dataset/images/E-01-51-01~08 火灾自动报警平面.png
+data/p106_yolo_dataset/images/E-00-11-01电力配电箱系统图.png
+data/p106_yolo_dataset/images/节能专篇（一）.png
+data/p106_yolo_dataset/images/二层梁配筋平面图.png
+data/p106_yolo_dataset/images/05-09 图纸.png
+data/p106_yolo_dataset/images/E-01-10-01~02 中压配电系统图.png
+data/p106_yolo_dataset/images/汕尾华为云计算中心A1-电源施工图设计-20170308.png
+data/p106_yolo_dataset/images/M-00-00-04.控制和监测专篇.png
+data/p106_yolo_dataset/images/A2A3桩基础平面图及柱定位图z.png
+data/p106_yolo_dataset/images/首层梁配筋平面图.png
+data/p106_yolo_dataset/images/G-17首层梁配筋平面图.png
+data/p106_yolo_dataset/images/M-03-20-01.3#泵房一层空调风管平面布置图.png
+data/p106_yolo_dataset/images/设备布置图_t3.png
+data/p106_yolo_dataset/images/L-0-70-01 景观给排水设计说明_t3.png
+data/p106_yolo_dataset/images/3#泵房 弱电平面图（安防）_t3.png
+data/p106_yolo_dataset/images/1#机房楼 弱电平面图（动环）1_t3_t3.png
+data/p106_yolo_dataset/images/A2A3云计算中心报警施工图20170227无签名.png
+data/p106_yolo_dataset/images/8.DCIM动力环境监控平面图_t3_t3.png
+data/p106_yolo_dataset/images/E-01-13-01~02 精密配电系统图.png
+data/p106_yolo_dataset/images/E-01-20-05~08 防雷，接地平面图.png
+data/p106_yolo_dataset/images/243352JS8(A).pdf2dxf.png
+data/p106_yolo_dataset/images/E-01-20,21-01~04 电力,插座平面图.png
+data/p106_yolo_dataset/images/G-15地下室底板结构大样图.png
+data/p106_yolo_dataset/images/数据中心设备平面图.png
+data/p106_yolo_dataset/images/建筑用料表_t3.png
+data/p106_yolo_dataset/images/1.消防系统图.png
+data/p106_yolo_dataset/images/给排水及消防系统展开原理图.png
+data/p106_yolo_dataset/images/泵房定位图.png
+data/p106_yolo_dataset/images/D-0-03-01-动力设备订购或材料表.png
+data/p106_yolo_dataset/images/A1云计算中心_水消防2017.03.31_t3.png
+data/p106_yolo_dataset/images/二层结构平面图.png
+data/p106_yolo_dataset/images/屋架层梁配筋平面图.png
+data/p106_yolo_dataset/images/07-照明平面图（配套）_t8.png
+data/p106_yolo_dataset/images/5.运维网桥架平面图_t3.png
+data/p106_yolo_dataset/images/M-00-10-05.控制原理图.png
+data/p106_yolo_dataset/images/E-01-14-02 消防应急照明疏散指示系统图.png
+data/p106_yolo_dataset/images/M-03-00-00.3#泵房图纸目录.png
+data/p106_yolo_dataset/images/T-00-20-01弱电总平面图.png
+data/p106_yolo_dataset/images/D-0-10-01-应急柴油发电机房燃油系统图（单电磁阀）.png
+data/p106_yolo_dataset/images/M-00-00-02~03.施工说明（一）~（二）.png
+data/p106_yolo_dataset/images/1#机房楼 弱电平面图（布线）1_t3_t3.png
+data/p106_yolo_dataset/images/E-01-24-01 精密配电平面图.png
+data/p106_yolo_dataset/images/2#配电房 弱电系统图（电力监控）.png
+data/p106_yolo_dataset/images/L-0-70-02种植灌溉_t3.png
+data/p106_yolo_dataset/images/G-16首层板配筋平面图.png
+data/p106_yolo_dataset/images/03-照明配电箱系统图_t8.png
+data/p106_yolo_dataset/images/A23云计算中心平面图20170321x.png
+data/p106_yolo_dataset/images/现浇柱大样及筋表(20161104.png
+data/p106_yolo_dataset/images/E-01-11-07~19 电力配电箱系统图.png
+data/p106_yolo_dataset/images/E-01-14-01 电气火灾监控 消防电源监控.png
+data/p106_yolo_dataset/images/1.供电系统总体架构图.png

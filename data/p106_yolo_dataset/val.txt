@@ -1,0 +1,48 @@
+data/p106_yolo_dataset/images/E-01-30-01 配变电所中压电力，控制电缆平面图.png
+data/p106_yolo_dataset/images/给排水设计说明.png
+data/p106_yolo_dataset/images/西安嘉昱-给排水-1说明0416_t3.png
+data/p106_yolo_dataset/images/E-01-10-08~11 直流控制屏系统图.png
+data/p106_yolo_dataset/images/给排水平面图.png
+data/p106_yolo_dataset/images/202109409-2#配电房_t3.png
+data/p106_yolo_dataset/images/气体灭火系统设计说明.png
+data/p106_yolo_dataset/images/E-01-11-01~06 电力配电箱系统图（冷源）.png
+data/p106_yolo_dataset/images/装饰图纸0929.png
+data/p106_yolo_dataset/images/图纸目录_t3.png
+data/p106_yolo_dataset/images/243352JS1(A).pdf2dxf.png
+data/p106_yolo_dataset/images/总平面1220_t3.png
+data/p106_yolo_dataset/images/00-主要房间平均照度计算表_t6.png
+data/p106_yolo_dataset/images/A2A3通信机楼结构平面图20161223z.png
+data/p106_yolo_dataset/images/M-00-40-02.空调末端接管示意图.png
+data/p106_yolo_dataset/images/G-09天面层墙柱平面定位图.png
+data/p106_yolo_dataset/images/A1IDC及通信机楼结构平面图20161227z.png
+data/p106_yolo_dataset/images/G-03基础结构平面图（独基+筏板）.png
+data/p106_yolo_dataset/images/西安嘉昱-暖通-3水平面0416_t3.png
+data/p106_yolo_dataset/images/基础+2#,3#上部-202104.png
+data/p106_yolo_dataset/images/三层结构平面图.png
+data/p106_yolo_dataset/images/封面+目录.png
+data/p106_yolo_dataset/images/6.电源列头柜及电池柜系统图.png
+data/p106_yolo_dataset/images/M-00-00-05.空调通风图例.png
+data/p106_yolo_dataset/images/门窗表及门窗详图_t3.png
+data/p106_yolo_dataset/images/M-01-00-00.1#数据中心机房图纸目录.png
+data/p106_yolo_dataset/images/G-26屋架层板配筋平面图.png
+data/p106_yolo_dataset/images/A1云计算中心_给排水2017.03.31_t3.png
+data/p106_yolo_dataset/images/A123大样详图20161205_t3.png
+data/p106_yolo_dataset/images/1#箱体和上部结构图-202104.png
+data/p106_yolo_dataset/images/01-10kV-变压器系统图.png
+data/p106_yolo_dataset/images/02-UPS-电池开关柜系统图_t8.png
+data/p106_yolo_dataset/images/G-03管桩说明z.png
+data/p106_yolo_dataset/images/M-00-40-03.通风设备安装大样图.png
+data/p106_yolo_dataset/images/1#机房楼 弱电系统图.png
+data/p106_yolo_dataset/images/M-00-00-00.总体图纸目录.png
+data/p106_yolo_dataset/images/运维网桥架平面图.png
+data/p106_yolo_dataset/images/华为（深汕）云计算服务基地A4建筑图纸z.png
+data/p106_yolo_dataset/images/1.目录+设计说明+图例_t3.png
+data/p106_yolo_dataset/images/平面布置底图0712(1).png
+data/p106_yolo_dataset/images/20170410-A1云计算中心动力+照明22.png
+data/p106_yolo_dataset/images/A1云计算中心_气体灭火2017.03.31_t3.png
+data/p106_yolo_dataset/images/A1桩基础平面图及柱定位图z.png
+data/p106_yolo_dataset/images/A2A3通信机楼剪力墙结构图.png
+data/p106_yolo_dataset/images/建筑施工图设计说明_t3_t3.png
+data/p106_yolo_dataset/images/01-10KV供电系统单线图.png
+data/p106_yolo_dataset/images/10.自控系统原理图.png
+data/p106_yolo_dataset/images/ZY项目1#数据中心机房平立剖面图_t7_t3.png
