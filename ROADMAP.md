@@ -730,7 +730,7 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 ## P106+ 下一步方向（2026-08-14，v2.5.40-stable 后）
 
 > 排序原则：准确率根因 > 工程迭代门槛 > 产品深度 > 生态集成
-> 基线：v2.5.40-stable（`181db3c`），真实图纸 8/8 全绿，591 测试，2078/2079
+> 基线：v2.5.42-stable（`fd92e2b`），P107+P108 完成，605 测试，全量回归 2087/2088（1 known-fail）
 
 ### P106 — YOLO 重训练（准确率根因，最高优先级）
 **目标**：真实图纸 door/window/stair 召回率 ≥50%，mAP50 提升
@@ -745,28 +745,11 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 **状态**：P84 已有数据管线脚本 + v7-v5 fine-tune，标注数据集未到位 → 待启动
 
-### P107 — 扫线法走廊门洞→疏散连通性闭环
-**目标**：P105 走廊+门洞直接接入 EVAC 连通性，消除当前 BFS 依赖 YOLO 检测的 gap
+### P107 — 扫线法走廊门洞→疏散连通性闭环 ✅（2026-08-14）
+**成果**：doorway 参与 KEY_ENTITY_TYPES + corridor↔doorway↔room 拓扑 + EVAC BFS 路径 + gap<800mm bottleneck，9 定向测试全绿
 
-**背景**：P54 疏散连通性（BFS >120s→1.51s）依赖 door/stair 检测，但扫线法（P101-P105）产出的 room/corridor/doorway 更可靠。打通此链路，EVAC 从"依赖 YOLO"转向"依赖几何拓扑"。
-
-**具体动作**：
-1. 扫线法输出（room→corridor→doorway→exit）构造连通性图
-2. `_classify_face` 走廊+门洞 → `_build_evacuation_graph()`
-3. BFS 在扫线法图上验证 room→stair/exit 路径
-4. 真实图纸 8/8 验证 has_route 提升
-
-**验收标准**：真实图纸 has_route 正确率提升 ≥30%
-
-### P108 — 扫线法门洞语义推断
-**目标**：doorway gap → 自动推断 door 属性（宽度、方向、是否防火门）
-
-**背景**：P105 检测出门洞 gap 几何，但尚未与原子函数（DIM-006/DIM-009/EVAC-001）关联。doorway 应直接触发 DIM 宽度判定。
-
-**具体动作**：
-1. doorway 实体属性补全（width/direction/room_pair）
-2. DIM-006（疏散门宽度≥0.9m）/ DIM-009 增加 doorway 作为输入源
-3. 验证：真实图纸 doorway → DIM-006 自动触发
+### P108 — 扫线法门洞→DIM 自动触发 ✅（2026-08-14）
+**成果**：DIM-006/DIM-009 target_entities 加 doorway，gap_width_mm(mm)→m 转换，doorway 同 exit_door 始终判定，14 定向测试全绿
 
 ### P109 — 扫线法房间属性自动推断
 **目标**：扫线法 room → 自动推断房间类型（客厅/卧室/楼梯间/设备房），替代 YOLO 房间分类
@@ -791,7 +774,9 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 ## v2.5.40-stable 发布记录
 
-- **标签**：v2.5.40-stable（`181db3c`）
+- **v2.5.42-stable**（`fd92e2b`，2026-08-14）：P107 扫线法→EVAC 闭环 + P108 门洞→DIM 自动触发
+- **v2.5.41-stable**（`d2319ad`，2026-08-14）：P107 扫线法 doorway → EVAC 连通性闭环
+- **v2.5.40-stable**（`181db3c`）
 - **发布日**：2026-08-14
 - **关键交付**：P105 走廊面分类 + 门洞间隙检测
 - **测试**：2078/2079（1 known-fail: test_multi_page_pdf PDF 文件缺失）
