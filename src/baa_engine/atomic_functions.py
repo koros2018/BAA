@@ -470,9 +470,17 @@ class AtomicFunction:  # class definition
 
         # L2 新增函数
         if func_id in ("DIM-006", "DIM-007"):  # 疏散门净宽 / 防火卷帘宽度
-            val = props.get("width", props.get("clear_width", 0.0))  # function call
-            if val < 0.01:  # check: numeric comparison
-                return None  # 无宽度数据，跳过判定
+            # P108: doorway 使用 gap_width_mm（单位 mm），转 m
+            if entity_type == "doorway":  # check: membership test
+                gap_mm = props.get("gap_width_mm", 0.0)  # function call
+                if gap_mm < 100.0:  # check: numeric comparison <10cm 跳过
+                    return None  # 无有效门洞宽度
+                val = gap_mm / 1000.0  # assign: mm→m
+            else:  # 非 doorway：走常规 width/clear_width 路径
+                val = props.get("width", props.get("clear_width", 0.0))  # function call
+                if val < 0.01:  # check: numeric comparison
+                    return None  # 无宽度数据，跳过判定
+
             # YOLO 检测的实体尺寸不精确，跳过尺寸判定
             if (
                 props.get("detection_source") == "yolo"
@@ -482,7 +490,8 @@ class AtomicFunction:  # class definition
             # 0.8~1.3m 的门是标准单开门/双开门，不是人员密集场所疏散门
             if func_id == "DIM-006":  # condition: func_id == "DIM-006":
                 entity_type = entity.get("type", "")  # function call
-                if entity_type != "exit_door" and val < 1.3:  # check: numeric comparison
+                # P108: doorway 同 exit_door，始终判定（扫线法几何检测精度高于 YOLO）
+                if entity_type not in ("exit_door", "doorway") and val < 1.3:  # check: numeric comparison
                     return None  # 普通门（<1.3m）不是疏散门，不适用此规范
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
@@ -550,13 +559,20 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "DIM-009":  # 疏散出口宽度
-            val = props.get("width", props.get("clear_width", 0.0))  # function call
-            if val < 0.01:  # check: numeric comparison
-                return None  # 无宽度数据，跳过判定
+            # P108: doorway 使用 gap_width_mm（单位 mm），转 m
+            entity_type = entity.get("type", "")  # function call
+            if entity_type == "doorway":  # check: membership test
+                gap_mm = props.get("gap_width_mm", 0.0)  # function call
+                if gap_mm < 100.0:  # check: numeric comparison <10cm 跳过
+                    return None  # 无有效门洞宽度
+                val = gap_mm / 1000.0  # assign: mm→m
+            else:  # 非 doorway：走常规 width/clear_width 路径
+                val = props.get("width", props.get("clear_width", 0.0))  # function call
+                if val < 0.01:  # check: numeric comparison
+                    return None  # 无宽度数据，跳过判定
             # DIM-009 疏散出口宽度：仅适用于 exit/exit_door 或宽度 >= 1.3m 的 door
             # 0.8~1.3m 的门是标准单开门，不是疏散出口
-            entity_type = entity.get("type", "")  # function call
-            if entity_type not in ("exit", "exit_door") and val < 1.3:  # check: numeric comparison
+            if entity_type not in ("exit", "exit_door", "doorway") and val < 1.3:  # check: numeric comparison
                 return None  # 普通门（<1.3m）不是疏散出口，不适用此规范
             # 小门（<0.8m）不适用疏散出口宽度判定
             if val < 0.8:  # check: numeric comparison
