@@ -73,7 +73,8 @@ AtomicFunction(
         ">=",
         1.4,
         "m",
-        target_entities=["exit_door", "door"],
+        # P108: 扫线法产出的 doorway 参与 DIM-006（疏散门宽度）判定
+        target_entities=["exit_door", "door", "doorway"],
     ),
 AtomicFunction(
         "DIM-007",
@@ -106,7 +107,8 @@ AtomicFunction(
         ">=",
         0.9,
         "m",
-        target_entities=["exit", "exit_door", "door"],
+        # P108: 扫线法产出的 doorway 参与 DIM-009（疏散出口宽度）判定
+        target_entities=["exit", "exit_door", "door", "doorway"],
     ),
 AtomicFunction(
         "DIM-010",
