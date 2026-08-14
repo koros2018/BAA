@@ -1,0 +1,4 @@
+train: data/p106_yolo_dataset/images
+val: data/p106_yolo_dataset/images
+nc: 18
+names: ["wall", "door", "window", "staircase", "corridor", "fire_door", "exit", "fire_lane", "fire_zone", "fire_window", "shaft", "room", "exit_sign", "sprinkler_system", "fire_alarm", "insulation", "evacuation_lighting", "refuge_floor"]
