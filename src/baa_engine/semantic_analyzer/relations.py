@@ -55,6 +55,7 @@ def _build_relations(
         # 疏散 BFS 的核心路径，缺 wall 导致所有 room has_route=False
         "wall",
         "facade",  # 外墙参与 room↔facade↔exit 路径
+        "doorway",  # P107: 扫线法产出的 doorway 参与相邻关系构建
     }
 
     CELL_SIZE = 100.0  # mm
@@ -116,8 +117,11 @@ def _build_relations(
     #   门 bbox 必须与墙 bbox 的某条边重叠（门在墙上）
     #   取最近/重叠最大的墙作为门的宿主墙
     walls = [e for e in entities if e.type == "wall"]  # compare: equality
+    # P107: doorway 与 door 同为墙体开口，参与 host_wall 匹配
     openings = [
-        e for e in entities if e.type in ("door", "window", "fire_door", "exit_door")
+        e
+        for e in entities
+        if e.type in ("door", "window", "fire_door", "exit_door", "doorway")
     ]
 
     for opening in openings:  # 循环
@@ -191,8 +195,11 @@ def _build_relations(
     # 用 _min_edge_distance 判断门是否连接走廊/房间
     corridors = [e for e in entities if e.type == "corridor"]  # compare: equality
     rooms = [e for e in entities if e.type == "room"]  # compare: equality
+    # P107: 扫线法产出的 doorway 与 door 等价，参与走廊-门-房间拓扑
     doors = [
-        e for e in entities if e.type in ("door", "fire_door", "exit_door")
+        e
+        for e in entities
+        if e.type in ("door", "fire_door", "exit_door", "doorway")
     ]
 
     for door in doors:  # 循环
@@ -354,4 +361,3 @@ def _infer_attribute_name(
         return "measurement"
 
 # ── 走廊拓扑网络 ────────────────────────────────────
-

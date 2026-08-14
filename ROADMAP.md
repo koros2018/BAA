@@ -4,7 +4,7 @@
 
 ## 完成状态
 
-> 截至 2026-08-13：P1~P94 路线图内全部完成。P95 不可行（xref 空壳问题）。P96 SFT 数据集生成完成（1290 条静态样本）。P97 黄金标准更新完成（0 漏报 0 回归）。P98 跨图纸对比报告完成（东莞通 99.6% A 级）。P99 PDF 矢量解析器完成（比例尺自动恢复，全链路验证）。P100 PDF 接入主流程完成（DrawingParser.parse() 直接吃 PDF，8 测试全绿）。P101 扫线法房间检测完成（左手定则平面面遍历，T-junction 分割，外框面剔除，LWPOLYLINE 直接提取，2068/2068 测试全绿）。P102 基线重建完成（T3 空壳过滤，data/files/ 有效 DXF + 东莞通建筑图）。P103 PDF 房间检测修复（轴对齐合并 + 全量 primitives 扫线法，room 0→14）。P104 房间面过滤增强（外框面剔除/双线墙间隙过滤/bbox 重叠去重，8 faces→2 有效 room）。P105 走廊独立识别（_classify_face 宽高比+短边，29 room + 16 corridor）。
+> 截至 2026-08-14：P1~P105 路线图内全部完成。P95 不可行（xref 空壳问题）。P96 SFT 数据集生成完成（1290 条静态样本）。P97 黄金标准更新完成（0 漏报 0 回归）。P98 跨图纸对比报告完成（东莞通 99.6% A 级）。P99 PDF 矢量解析器完成（比例尺自动恢复，全链路验证）。P100 PDF 接入主流程完成（DrawingParser.parse() 直接吃 PDF，8 测试全绿）。P101 扫线法房间检测完成（左手定则平面面遍历，T-junction 分割，外框面剔除，LWPOLYLINE 直接提取，2068/2068 测试全绿）。P102 基线重建完成（T3 空壳过滤，data/files/ 有效 DXF + 东莞通建筑图）。P103 PDF 房间检测修复（轴对齐合并 + 全量 primitives 扫线法，room 0→14）。P104 房间面过滤增强（外框面剔除/双线墙间隙过滤/bbox 重叠去重，8 faces→2 有效 room）。P105 走廊独立识别+门洞检测（_classify_face 宽高比+短边，29 room + 16 corridor + 19 doorway）。
 
 ### v1.8.3~v1.8.5 — 真实图纸走廊宽度推断
 - ✅ `_compute_bbox` 4层兜底（LWPOLYLINE坐标修复）
@@ -724,3 +724,77 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 - `test_sweep_line_includes_doorways`：真实图纸验证（装饰图纸 0929.dxf，≥5 个 doorway）✅
 - `test_pdf_p105_corridor_detection`：走廊面分类 ✅
 - PDF 模块全量 19/20 ✅（`test_multi_page_pdf` 因 PDF 文件缺失，已有问题）
+
+---
+
+## P106+ 下一步方向（2026-08-14，v2.5.40-stable 后）
+
+> 排序原则：准确率根因 > 工程迭代门槛 > 产品深度 > 生态集成
+> 基线：v2.5.40-stable（`181db3c`），真实图纸 8/8 全绿，591 测试，2078/2079
+
+### P106 — YOLO 重训练（准确率根因，最高优先级）
+**目标**：真实图纸 door/window/stair 召回率 ≥50%，mAP50 提升
+
+**背景**：当前 YOLOv8m v7_v5（mAP50 +2.3），训练数据密集（30-50% 非白像素），真实图纸稀疏（~0.19% 非白像素）→ 分布差异 → 召回率稀疏。
+
+**具体动作**：
+1. 渲染 20+ 真实图纸生成标注集，覆盖 ≥5 种图纸类型
+2. 标注 18 类高频实体（door/window/stair/doorway 优先）
+3. 增量 fine-tune，与 v7_v5 对比决定是否替换
+4. 验收：真实图纸高频类召回率 ≥50%
+
+**状态**：P84 已有数据管线脚本 + v7-v5 fine-tune，标注数据集未到位 → 待启动
+
+### P107 — 扫线法走廊门洞→疏散连通性闭环
+**目标**：P105 走廊+门洞直接接入 EVAC 连通性，消除当前 BFS 依赖 YOLO 检测的 gap
+
+**背景**：P54 疏散连通性（BFS >120s→1.51s）依赖 door/stair 检测，但扫线法（P101-P105）产出的 room/corridor/doorway 更可靠。打通此链路，EVAC 从"依赖 YOLO"转向"依赖几何拓扑"。
+
+**具体动作**：
+1. 扫线法输出（room→corridor→doorway→exit）构造连通性图
+2. `_classify_face` 走廊+门洞 → `_build_evacuation_graph()`
+3. BFS 在扫线法图上验证 room→stair/exit 路径
+4. 真实图纸 8/8 验证 has_route 提升
+
+**验收标准**：真实图纸 has_route 正确率提升 ≥30%
+
+### P108 — 扫线法门洞语义推断
+**目标**：doorway gap → 自动推断 door 属性（宽度、方向、是否防火门）
+
+**背景**：P105 检测出门洞 gap 几何，但尚未与原子函数（DIM-006/DIM-009/EVAC-001）关联。doorway 应直接触发 DIM 宽度判定。
+
+**具体动作**：
+1. doorway 实体属性补全（width/direction/room_pair）
+2. DIM-006（疏散门宽度≥0.9m）/ DIM-009 增加 doorway 作为输入源
+3. 验证：真实图纸 doorway → DIM-006 自动触发
+
+### P109 — 扫线法房间属性自动推断
+**目标**：扫线法 room → 自动推断房间类型（客厅/卧室/楼梯间/设备房），替代 YOLO 房间分类
+
+**背景**：扫线法精确检测 room bbox，但 room_type 仍依赖 LAYER_RULES + YOLO。结合几何特征（面积/宽高比/相邻关系）可提升 room_type 精度。
+
+**具体动作**：
+1. 基于面积/宽高比/相邻走廊数推断 room_type 概率
+2. 与 LAYER_RULES 交叉验证，置信度加权
+3. 验证：东莞通 room_type 精确率 ≥80%
+
+### P110 — 工程重构 + 产品力收尾（迭代门槛）
+**目标**：消除大文件瓶颈，推进 P85 未完成部分，锁定 P86/P87
+
+**具体动作**：
+1. `semantic_analyzer/main.py` 若仍 >1000 行 → 按语义拆分
+2. `report_generator.py` 拆分到 sections/
+3. P86 前端骨架屏/toast 收尾
+4. P87 批量审查并发 + SSE 进度推送
+
+---
+
+## v2.5.40-stable 发布记录
+
+- **标签**：v2.5.40-stable（`181db3c`）
+- **发布日**：2026-08-14
+- **关键交付**：P105 走廊面分类 + 门洞间隙检测
+- **测试**：2078/2079（1 known-fail: test_multi_page_pdf PDF 文件缺失）
+- **总测试函数**：591（21 测试文件）
+- **服务状态**：gunicorn 2 workers，`0.0.0.0:8000`，零错误
+- **日志清理**：旧实例 traceback 噪声归档至 `data/logs/archive/`，当前日志干净
