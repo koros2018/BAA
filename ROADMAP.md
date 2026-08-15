@@ -752,29 +752,23 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 ### P108 — 扫线法门洞→DIM 自动触发 ✅（2026-08-14）
 **成果**：DIM-006/DIM-009 target_entities 加 doorway，gap_width_mm(mm)→m 转换，doorway 同 exit_door 始终判定，14 定向测试全绿
 
-### P109 — 扫线法房间属性自动推断
-**目标**：扫线法 room → 自动推断房间类型（客厅/卧室/楼梯间/设备房），替代 YOLO 房间分类
+### P109 — 扫线法房间属性自动推断 ✅（2026-08-15）
+**成果**：`room_type_infer.py` 14 类规则（几何+走廊+文本关键词加权），`main.py` 集成 `_infer_room_types`，16 单元测试，保守策略（仅 subtype），2115/2117
 
-**背景**：扫线法精确检测 room bbox，但 room_type 仍依赖 LAYER_RULES + YOLO。结合几何特征（面积/宽高比/相邻关系）可提升 room_type 精度。
-
-**具体动作**：
-1. 基于面积/宽高比/相邻走廊数推断 room_type 概率
-2. 与 LAYER_RULES 交叉验证，置信度加权
-3. 验证：东莞通 room_type 精确率 ≥80%
-
-### P110 — 工程重构 + 产品力收尾（迭代门槛）
-**目标**：消除大文件瓶颈，推进 P85 未完成部分，锁定 P86/P87
-
-**具体动作**：
-1. `semantic_analyzer/main.py` 若仍 >1000 行 → 按语义拆分
-2. `report_generator.py` 拆分到 sections/
-3. P86 前端骨架屏/toast 收尾
-4. P87 批量审查并发 + SSE 进度推送
+### P110 — 工程重构 + 产品力收尾 ✅（2026-08-15）
+**成果**：
+1. `main.py` 993 行 < 1000 阈值 ✅
+2. `report_generator.py` 已拆包（8 子模块）✅
+3. P86: `baa-core.js` 新增 `showSkeleton/hideSkeleton/renderSkeletonContainer`，批量面板骨架屏 HTML
+4. P87: `baa-sse-batch.js` SSE 流式消费者 + `batch_routes.py` 并发限制（Semaphore(4) + 120s 超时）
+5. 测试：2115/2117 ✅
 
 ---
 
 ## v2.5.40-stable 发布记录
 
+- **v2.5.45-stable**（`0b7e5f0`，2026-08-15）：P110 工程重构收尾 — 骨架屏API + SSE流式批量审查 + 并发限制
+- **v2.5.44-stable**（`196989d`，2026-08-15）：P109 扫线法房间属性自动推断 — 14类规则几何特征+文本关键词
 - **v2.5.43-stable**（`9373724`，2026-08-14）：P106 YOLO 伪标签管线 — 179 张标注 / 22051 标签 / 10 类
 - **v2.5.42-stable**（`fd92e2b`，2026-08-14）：P107 扫线法→EVAC 闭环 + P108 门洞→DIM 自动触发
 - **v2.5.41-stable**（`d2319ad`，2026-08-14）：P107 扫线法 doorway → EVAC 连通性闭环
