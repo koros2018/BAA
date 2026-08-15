@@ -27,6 +27,7 @@ from .relations import (
     _bind_dimensions,
     _infer_attribute_name,
 )
+from .room_type_infer import infer_room_type
 
 
 class SemanticAnalyzer:
@@ -168,6 +169,9 @@ class SemanticAnalyzer:
 
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
+
+        # Step 2.1: P109 — 扫线法 room 属性推断（几何特征 + 文本关键词）
+        entities = self._infer_room_types(entities, primitives, relations)  # assign
 
         # Step 3: 尺寸标注语义化
         attributes = self._bind_dimensions(entities, dimensions or [])  # assign
@@ -901,6 +905,86 @@ class SemanticAnalyzer:
 
     def _build_relations(self, entities):
         return _build_relations(self, entities)
+
+    def _infer_room_types(
+        self,
+        entities: List[SemanticEntity],
+        primitives: List[RawPrimitive],
+        relations: List[SpatialRelation],
+    ) -> List[SemanticEntity]:
+        """P109: 对扫线法产生的 room 推断具体房间类型"""
+        # 1. 收集附近 TEXT 实体（用于关键词匹配）
+        text_primitives: List[RawPrimitive] = [
+            p for p in primitives if p.dxf_type == "TEXT" and p.properties.get("text")
+        ]
+
+        # 2. 建立 room_id → 相邻 corridor/doorway 计数
+        corridor_adj: Dict[str, int] = {}
+        for rel in relations:
+            if rel.type == "adjacent":
+                src = [e for e in entities if e.id == rel.source_id]
+                tgt = [e for e in entities if e.id == rel.target_id]
+                src_types = {s.type for s in src}
+                tgt_types = {t.type for t in tgt}
+                if "room" in src_types and "corridor" in tgt_types:
+                    corridor_adj[rel.source_id] = corridor_adj.get(rel.source_id, 0) + 1
+                if "room" in tgt_types and "corridor" in src_types:
+                    corridor_adj[rel.target_id] = corridor_adj.get(rel.target_id, 0) + 1
+
+        # 3. 对每个扫线法 room 推断类型
+        changed = 0
+        for ent in entities:
+            # 只对扫线法产生的 entity_type=="room" 且 subtype 为空的实体生效
+            if ent.type != "room" or ent.subtype:
+                continue
+
+            area_m2 = ent.properties.get("area", 0)
+            if area_m2 <= 0:
+                continue
+
+            bbox = ent.bbox
+            bw = bbox.get("width", 0)
+            bh = bbox.get("height", 0)
+            if bw <= 0 or bh <= 0:
+                continue
+            aspect = max(bw, bh) / min(bw, bh)
+
+            # 收集该 room 附近的 TEXT 文本（bbox 内及周围）
+            rx, ry = bbox.get("x", 0), bbox.get("y", 0)
+            rw, rh = bbox.get("width", 0), bbox.get("height", 0)
+            pad = max(rw, rh) * 0.3  # 30% 外扩
+            nearby_texts = []
+            for tp in text_primitives:
+                tb = tp.bbox or {}
+                tx, ty = tb.get("x", 0), tb.get("y", 0)
+                tw, th = tb.get("width", 0), tb.get("height", 0)
+                # 检查是否在扩充 bbox 内
+                if (
+                    rx - pad <= tx <= rx + rw + pad
+                    and ry - pad <= ty <= ry + rh + pad
+                    and tx + tw <= rx + rw + pad
+                    and ty + th <= ry + rh + pad
+                ):
+                    txt = (tp.properties.get("text") or "").strip()
+                    if txt:
+                        nearby_texts.append(txt)
+
+            adj_count = corridor_adj.get(ent.id, 0)
+            rtype, confidence, override = infer_room_type(
+                area_m2=area_m2,
+                aspect=aspect,
+                corridor_adj_count=adj_count,
+                nearby_texts=nearby_texts,
+            )
+
+            if rtype:
+                ent.subtype = rtype
+                ent.properties["inferred_type"] = rtype
+                ent.properties["subtype_confidence"] = confidence
+
+        if changed:
+            logger.info(f"P109: {changed} 个 room 已推断类型")
+        return entities
 
     def _bind_dimensions(self, entities, dimensions):
         return _bind_dimensions(self, entities, dimensions)
