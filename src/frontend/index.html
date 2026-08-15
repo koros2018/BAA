@@ -243,13 +243,18 @@
           <h3 class="text-sm font-medium mb-3">选择多个图纸文件</h3>
           <input id="batch-file-input" type="file" multiple accept=".dxf,.dwg,.pdf" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
           <div id="batch-file-list" class="text-xs text-gray-400 mb-2"></div>
-          <button onclick="runBatchReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" id="batch-review-start-btn">
+          <button onclick="runBatchReviewSSE()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" id="batch-review-start-btn">
             📚 批量审查
           </button>
           <div id="batch-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
         </div>
         <div class="card">
           <h3 class="text-sm font-medium mb-3">批量审查结果</h3>
+          <div id="batch-review-skeleton" class="skeleton-overlay hidden">
+            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-48"></span><span class="skeleton-text flex-1"></span></div>
+            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>
+            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-24"></span><span class="skeleton-text flex-1"></span></div>
+          </div>
           <div id="batch-review-summary" class="text-sm text-gray-400">选择文件后开始批量审查</div>
           <div id="batch-review-details" class="mt-3 space-y-2 text-sm"></div>
         </div>
@@ -1179,5 +1184,6 @@
 <script src="/static/baa-model-params.js?v=1705"></script>
 <script src="/static/baa-initialize.js"></script>
 <script src="/static/baa-ext.js"></script>
+<script src="/static/baa-sse-batch.js"></script>
 </body>
 </html>
