@@ -1,0 +1,25 @@
+# P111 Clean Dataset — Full 18 Classes
+# Generated: 2026-08-15 15:51:10
+train: /mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/train.txt
+val: /mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/val.txt
+
+nc: 18
+names:
+  0: wall
+  1: door
+  2: window
+  3: staircase
+  4: corridor
+  5: fire_door
+  6: exit
+  7: fire_lane
+  8: fire_zone
+  9: fire_window
+  10: shaft
+  11: room
+  12: exit_sign
+  13: sprinkler_system
+  14: fire_alarm
+  15: insulation
+  16: evacuation_lighting
+  17: refuge_floor
