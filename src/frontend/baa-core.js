@@ -73,9 +73,55 @@ function showToast(message, type = 'info', duration = 4000) {
   toast.className = 'toast toast-' + type;
   toast.innerHTML = '<span>' + (icons[type] || 'ℹ️') + '</span><span>' + message + '</span>';
   container.appendChild(toast);
-  if (container.children.length > 5) container.firstChild.remove();
-  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(20px)'; }, duration);
-  setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, duration + 300);
+    if (container.children.length > 5) container.firstChild.remove();
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(20px)'; }, duration);
+    setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, duration + 300);
+}
+
+/* ── P86: 骨架屏 API ──────────────────────────────────────────
+ * showSkeleton(id): 显示指定骨架屏，隐藏目标内容
+ * hideSkeleton(id): 隐藏骨架屏，显示目标内容
+ *
+ * HTML 约定：
+ *   <div id="batch-skeleton" class="skeleton-overlay hidden">...</div>
+ *   <div id="batch-panel">实际内容</div>
+ *
+ * 骨架屏元素必须已有 .hidden 初始状态
+ */
+function showSkeleton(skeletonId, targetId) {
+  const skel = document.getElementById(skeletonId);
+  if (!skel) return;
+  skel.classList.remove('hidden');
+  if (targetId) {
+    const target = document.getElementById(targetId);
+    if (target) target.classList.add('hidden');
+  }
+}
+
+function hideSkeleton(skeletonId, targetId) {
+  const skel = document.getElementById(skeletonId);
+  if (!skel) return;
+  skel.classList.add('hidden');
+  if (targetId) {
+    const target = document.getElementById(targetId);
+    if (target) target.classList.remove('hidden');
+  }
+}
+
+/* ── P86: 通用数据卡片骨架屏渲染 ─────────────────────────
+ * 生成 N 行骨架屏，用于动态面板
+ * @param {HTMLElement} container - 骨架屏容器元素
+ * @param {number} rows - 行数
+ * @param {string} className - 容器样式（默认 skeleton-overlay）
+ */
+function renderSkeletonContainer(container, rows = 3, className = 'skeleton-overlay') {
+  if (!container) return;
+  const html = Array(rows).fill(0).map(() =>
+    '<div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>'
+  ).join('');
+  container.innerHTML = html;
+  container.className = className;
+  container.classList.remove('hidden');
 }
 
 /* ── 审查进度条 ──
@@ -718,4 +764,3 @@ async function testConnection() {
     s.textContent = '❌ 连接失败: ' + e.message;
   }
 }
-

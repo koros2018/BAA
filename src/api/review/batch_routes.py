@@ -28,6 +28,26 @@ import time
 from collections import Counter
 
 
+# P87: 批量审查并发限制
+# 限制同一批次内并发处理的文件数，防止大文件同时解析导致内存/磁盘压力
+_BATCH_SEMAPHORE = asyncio.Semaphore(4)  # 最多 4 个文件同时处理
+# 单文件处理超时（秒）—— 防止某个文件卡死阻塞整批
+_FILE_TIMEOUT_S = 120
+
+
+async def _run_with_semaphore_and_timeout(coro_func, *args, timeout=_FILE_TIMEOUT_S):
+    """P87: 带并发限制的超时执行包装器"""
+    async with _BATCH_SEMAPHORE:
+        try:
+            return await asyncio.wait_for(
+                coro_func(*args),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            return {"filename": args[0].filename or "unknown", "status": "error",
+                    "error_code": "TIMEOUT", "message": f"文件处理超时（>{timeout}s）"}
+
+
 @router.post("/batch-review")
 async def batch_review(
     files: List[UploadFile] = File(...),
@@ -232,7 +252,10 @@ async def batch_review(
                 "message": str(e),
             }
 
-    file_tasks = [asyncio.create_task(_review_single_file(f)) for f in files]
+    file_tasks = [
+        asyncio.create_task(_run_with_semaphore_and_timeout(_review_single_file, f))
+        for f in files
+    ]
     file_results = await asyncio.gather(*file_tasks)
 
     all_details = []
@@ -452,9 +475,13 @@ async def batch_review_stream(
             return {"filename": file_name, "status": "error", "error_code": "REVIEW_FAILED",
                 "message": msg[:200]}
 
-    # 启动所有文件并发审查
-    file_tasks = [asyncio.create_task(_stream_review_one(i, f))
-                  for i, f in enumerate(files)]
+    # 启动所有文件并发审查（P87: 并发限制）
+    file_tasks = [
+        asyncio.create_task(
+            _run_with_semaphore_and_timeout(_stream_review_one, i, f)
+        )
+        for i, f in enumerate(files)
+    ]
     # 完成信号
     completion_done = asyncio.Event()
 
