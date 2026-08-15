@@ -1,0 +1,23 @@
+data/p106_yolo_dataset/clean/images/基础+2#,3#上部-202104.png
+data/p106_yolo_dataset/clean/images/M-00-40-01.蓄冷罐接管示意图.png
+data/p106_yolo_dataset/clean/images/A1桩基础平面图及柱定位图z.png
+data/p106_yolo_dataset/clean/images/A1IDC及通信机楼结构平面图20161227z.png
+data/p106_yolo_dataset/clean/images/淄博暖通_审核修改版_2021080928__t3.png
+data/p106_yolo_dataset/clean/images/西安嘉昱-给排水-3平面图0416_t3.png
+data/p106_yolo_dataset/clean/images/05-09 图纸.png
+data/p106_yolo_dataset/clean/images/G-22四~八层板配筋平面图.png
+data/p106_yolo_dataset/clean/images/四、五层梁配筋平面图.png
+data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（智能照明）1_t3 _t3.png
+data/p106_yolo_dataset/clean/images/T-00-40 安保中心布置图.png
+data/p106_yolo_dataset/clean/images/节能专篇(二)_t3.png
+data/p106_yolo_dataset/clean/images/建筑用料表_t3.png
+data/p106_yolo_dataset/clean/images/1#箱体和上部结构图-202104.png
+data/p106_yolo_dataset/clean/images/西安嘉昱-暖通-5制冷机房0416_t3.png
+data/p106_yolo_dataset/clean/images/202109409-2#配电房_t3.png
+data/p106_yolo_dataset/clean/images/A1云计算中心平面图0405_t3.png
+data/p106_yolo_dataset/clean/images/A2A3桩基础平面图及柱定位图z.png
+data/p106_yolo_dataset/clean/images/E-00-01-01 室外电气总平面图.png
+data/p106_yolo_dataset/clean/images/汕尾A1-电气-高低压部分-正式报审版20170310_recover.png
+data/p106_yolo_dataset/clean/images/04-电气配电平面图（母线及桥架）.png
+data/p106_yolo_dataset/clean/images/2#配电房 弱电平面图（安防）_t3.png
+data/p106_yolo_dataset/clean/images/屋架层结构平面图.png
