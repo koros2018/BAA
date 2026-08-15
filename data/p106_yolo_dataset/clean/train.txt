@@ -1,88 +1,88 @@
-data/p106_yolo_dataset/clean/images/柱表.png
-data/p106_yolo_dataset/clean/images/L-0-00~40-01总平面图_t3.png
-data/p106_yolo_dataset/clean/images/20210409-3#泵房_t3.png
-data/p106_yolo_dataset/clean/images/2#配电房 弱电平面图（电力监控）_t3.png
-data/p106_yolo_dataset/clean/images/03-ZY项目1#数据中心机房幕墙图20210412.png
-data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（安防）1_t3_t3.png
-data/p106_yolo_dataset/clean/images/建筑施工图设计说明_t3_t3.png
-data/p106_yolo_dataset/clean/images/L-0-60-01景观电气图_t3.png
-data/p106_yolo_dataset/clean/images/西安嘉昱-暖通-3水平面0416_t3.png
-data/p106_yolo_dataset/clean/images/M-03-20-01.3#泵房一层空调风管平面布置图.png
-data/p106_yolo_dataset/clean/images/机房楼墙身_t6_t6_t6_t3.png
-data/p106_yolo_dataset/clean/images/柱子定位图.png
-data/p106_yolo_dataset/clean/images/结构设计说明-202104.png
-data/p106_yolo_dataset/clean/images/E-01-30-04 配变电所电气设备布置图.png
-data/p106_yolo_dataset/clean/images/G-28~G-30墙身大样.png
-data/p106_yolo_dataset/clean/images/L-0-70-02种植灌溉_t3.png
-data/p106_yolo_dataset/clean/images/G-10~G-14墙柱配筋.png
-data/p106_yolo_dataset/clean/images/M-02-20-01.2#配电房风管平面布置图.png
-data/p106_yolo_dataset/clean/images/G-19楼梯表.png
-data/p106_yolo_dataset/clean/images/首层梁配筋平面图.png
-data/p106_yolo_dataset/clean/images/屋架层梁配筋平面图.png
-data/p106_yolo_dataset/clean/images/E-01-22,23-01~04 照明，应急照明平面图.png
-data/p106_yolo_dataset/clean/images/E-03-水泵房电气施工图_t3.png
-data/p106_yolo_dataset/clean/images/9.极早期报警平面图_t3.png
-data/p106_yolo_dataset/clean/images/二层梁配筋平面图.png
-data/p106_yolo_dataset/clean/images/G-08四~八层墙柱平面定位图.png
-data/p106_yolo_dataset/clean/images/四、五层结构平面图.png
-data/p106_yolo_dataset/clean/images/A1通风施工图_t3.png
-data/p106_yolo_dataset/clean/images/A2A3通信机楼剪力墙结构图.png
-data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（动环）1_t3_t3.png
-data/p106_yolo_dataset/clean/images/4.变压器、UPS、MCC低压接线图.png
-data/p106_yolo_dataset/clean/images/平面布置底图0712(1).png
-data/p106_yolo_dataset/clean/images/5.运维网桥架平面图_t3.png
-data/p106_yolo_dataset/clean/images/宿舍楼目录.png
-data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（布线）1_t3_t3.png
-data/p106_yolo_dataset/clean/images/G-16首层板配筋平面图.png
-data/p106_yolo_dataset/clean/images/G-31 LT-3、LT-4楼梯表.png
-data/p106_yolo_dataset/clean/images/节能专篇（一）.png
-data/p106_yolo_dataset/clean/images/G-24天面层板配筋平面图 .png
-data/p106_yolo_dataset/clean/images/06-接地平面图_t8.png
-data/p106_yolo_dataset/clean/images/_建筑底图参照.png
-data/p106_yolo_dataset/clean/images/G-22楼梯表.png
-data/p106_yolo_dataset/clean/images/屋面层梁配筋平面图.png
-data/p106_yolo_dataset/clean/images/西安数据中心机房-装修-0416.png
-data/p106_yolo_dataset/clean/images/G-01结构总说明(新规范）V1.00.png
-data/p106_yolo_dataset/clean/images/L-0-50-01种植平面图_t3.png
-data/p106_yolo_dataset/clean/images/现浇柱大样及筋表(20161104.png
-data/p106_yolo_dataset/clean/images/M-00-40-02.空调末端接管示意图.png
-data/p106_yolo_dataset/clean/images/M-01-20-01~05.1#数据中心机房一~屋顶层平面布置图.png
-data/p106_yolo_dataset/clean/images/E-01-20,21-01~04 电力,插座平面图.png
-data/p106_yolo_dataset/clean/images/6.运维网综合布线平面图_t3_t3.png
-data/p106_yolo_dataset/clean/images/E-01-51-01~08 火灾自动报警平面.png
-data/p106_yolo_dataset/clean/images/E-02-10kV用户开关站电气施工图_t3.png
-data/p106_yolo_dataset/clean/images/3#泵房 弱电平面图（安防）_t3.png
-data/p106_yolo_dataset/clean/images/二层结构平面图.png
-data/p106_yolo_dataset/clean/images/05-IT母线路由图，低压配电平面图_t8.png
-data/p106_yolo_dataset/clean/images/7.安防平面图_t3_t3.png
-data/p106_yolo_dataset/clean/images/07-照明平面图（配套）_t8.png
-data/p106_yolo_dataset/clean/images/D-0-01-01动力总体管道平面图.png
-data/p106_yolo_dataset/clean/images/楼梯结构施工图.png
-data/p106_yolo_dataset/clean/images/G-07三层墙柱平面定位图.png
-data/p106_yolo_dataset/clean/images/04-动力配电平面图（去ATS）_t8.png
-data/p106_yolo_dataset/clean/images/G-18二层板配筋平面图.png
-data/p106_yolo_dataset/clean/images/A2A3通信机楼结构平面图20161223z.png
-data/p106_yolo_dataset/clean/images/G-05首层墙柱平面定位图.png
-data/p106_yolo_dataset/clean/images/G-06二层墙柱平面定位图 .png
-data/p106_yolo_dataset/clean/images/1#机房楼 弱电系统图.png
-data/p106_yolo_dataset/clean/images/G-09天面层墙柱平面定位图.png
-data/p106_yolo_dataset/clean/images/气体灭火平面图.png
-data/p106_yolo_dataset/clean/images/给排水平面图.png
-data/p106_yolo_dataset/clean/images/华为（深汕）云计算服务基地A4(20170705宿舍户型修改)_t3.png
-data/p106_yolo_dataset/clean/images/楼电梯详图_t3.png
-data/p106_yolo_dataset/clean/images/3.业务网光纤槽道平面图_t3.png
-data/p106_yolo_dataset/clean/images/基础结构平面图.png
-data/p106_yolo_dataset/clean/images/G-03基础结构平面图（独基+筏板）.png
-data/p106_yolo_dataset/clean/images/汕尾给排水总平面2017.03.31_t3.png
-data/p106_yolo_dataset/clean/images/4.业务网铜缆桥架平面图_t3.png
-data/p106_yolo_dataset/clean/images/00-主要房间平均照度计算表_t6.png
-data/p106_yolo_dataset/clean/images/西安嘉昱-暖通-3风平面0416_t3.png
-data/p106_yolo_dataset/clean/images/消防平面图.png
-data/p106_yolo_dataset/clean/images/G-26屋架层板配筋平面图.png
-data/p106_yolo_dataset/clean/images/装饰图纸0929.png
-data/p106_yolo_dataset/clean/images/G-20三层板配筋平面图 .png
-data/p106_yolo_dataset/clean/images/热通道封闭示意图_t6_t6_t6_t3.png
-data/p106_yolo_dataset/clean/images/屋面层结构平面图.png
-data/p106_yolo_dataset/clean/images/8.DCIM动力环境监控平面图_t3_t3.png
-data/p106_yolo_dataset/clean/images/三层结构平面图.png
-data/p106_yolo_dataset/clean/images/汕尾A1-电气-高低压部分-正式报审版20170310.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/柱表.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/L-0-00~40-01总平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/20210409-3#泵房_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/2#配电房 弱电平面图（电力监控）_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/03-ZY项目1#数据中心机房幕墙图20210412.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（安防）1_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/建筑施工图设计说明_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/L-0-60-01景观电气图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/西安嘉昱-暖通-3水平面0416_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/M-03-20-01.3#泵房一层空调风管平面布置图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/机房楼墙身_t6_t6_t6_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/柱子定位图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/结构设计说明-202104.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-01-30-04 配变电所电气设备布置图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-28~G-30墙身大样.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/L-0-70-02种植灌溉_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-10~G-14墙柱配筋.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/M-02-20-01.2#配电房风管平面布置图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-19楼梯表.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/首层梁配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/屋架层梁配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-01-22,23-01~04 照明，应急照明平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-03-水泵房电气施工图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/9.极早期报警平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/二层梁配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-08四~八层墙柱平面定位图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/四、五层结构平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/A1通风施工图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/A2A3通信机楼剪力墙结构图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（动环）1_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/4.变压器、UPS、MCC低压接线图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/平面布置底图0712(1).png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/5.运维网桥架平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/宿舍楼目录.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/1#机房楼 弱电平面图（布线）1_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-16首层板配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-31 LT-3、LT-4楼梯表.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/节能专篇（一）.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-24天面层板配筋平面图 .png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/06-接地平面图_t8.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/_建筑底图参照.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-22楼梯表.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/屋面层梁配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/西安数据中心机房-装修-0416.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-01结构总说明(新规范）V1.00.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/L-0-50-01种植平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/现浇柱大样及筋表(20161104.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/M-00-40-02.空调末端接管示意图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/M-01-20-01~05.1#数据中心机房一~屋顶层平面布置图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-01-20,21-01~04 电力,插座平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/6.运维网综合布线平面图_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-01-51-01~08 火灾自动报警平面.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/E-02-10kV用户开关站电气施工图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/3#泵房 弱电平面图（安防）_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/二层结构平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/05-IT母线路由图，低压配电平面图_t8.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/7.安防平面图_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/07-照明平面图（配套）_t8.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/D-0-01-01动力总体管道平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/楼梯结构施工图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-07三层墙柱平面定位图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/04-动力配电平面图（去ATS）_t8.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-18二层板配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/A2A3通信机楼结构平面图20161223z.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-05首层墙柱平面定位图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-06二层墙柱平面定位图 .png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/1#机房楼 弱电系统图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-09天面层墙柱平面定位图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/气体灭火平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/给排水平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/华为（深汕）云计算服务基地A4(20170705宿舍户型修改)_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/楼电梯详图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/3.业务网光纤槽道平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/基础结构平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-03基础结构平面图（独基+筏板）.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/汕尾给排水总平面2017.03.31_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/4.业务网铜缆桥架平面图_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/00-主要房间平均照度计算表_t6.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/西安嘉昱-暖通-3风平面0416_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/消防平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-26屋架层板配筋平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/装饰图纸0929.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/G-20三层板配筋平面图 .png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/热通道封闭示意图_t6_t6_t6_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/屋面层结构平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/8.DCIM动力环境监控平面图_t3_t3.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/三层结构平面图.png
+/mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/images/汕尾A1-电气-高低压部分-正式报审版20170310.png

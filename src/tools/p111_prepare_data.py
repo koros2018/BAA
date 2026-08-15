@@ -127,10 +127,10 @@ def prepare_dataset():
 
     with open(CLEAN_DIR.parent / "train.txt", "w") as f:
         for s in train_stems:
-            f.write(str(CLEAN_DIR / img_by_stem[s]) + "\n")
+            f.write(str((CLEAN_DIR / img_by_stem[s]).resolve()) + "\n")
     with open(CLEAN_DIR.parent / "val.txt", "w") as f:
         for s in val_stems:
-            f.write(str(CLEAN_DIR / img_by_stem[s]) + "\n")
+            f.write(str((CLEAN_DIR / img_by_stem[s]).resolve()) + "\n")
 
     print(f"\nSplit: train={len(train_stems)}, val={len(val_stems)}")
 

@@ -1,0 +1,16 @@
+# P111 Clean Dataset — Labeled 8 Classes Only
+# Generated: 2026-08-15 15:47:44
+# Using .txt path lists (each line is absolute path to an image)
+train: /mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/train.txt
+val: /mnt/d/OpenClawData3workspace/Projects/BAA/data/p106_yolo_dataset/clean/val.txt
+
+nc: 8
+names:
+  0: wall
+  1: door
+  2: window
+  3: staircase
+  4: corridor
+  5: shaft
+  6: room
+  7: fire_door
