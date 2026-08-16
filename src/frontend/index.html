@@ -148,9 +148,16 @@
       <!-- P112 Step 4: 审查面板（原 AI审图 Tab 内嵌，上传后在此审查） -->
       <div id="drawing-review-panel" class="hidden mt-6">
         <div class="card">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center justify-between mb-3">
             <h3 class="font-medium">🔎 审查与修正</h3>
             <button onclick="showDrawingReviewPanel(false)" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">✕ 收起</button>
+          </div>
+          <div id="dr-context-bar" class="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded text-xs">
+            <span>👥</span>
+            <select id="dr-team-select" class="border rounded px-1 py-0.5 flex-1 max-w-32" onchange="onReviewTeamSelect()"><option value="">全部团队</option></select>
+            <span>📋</span>
+            <select id="dr-project-select" class="border rounded px-1 py-0.5 flex-1 max-w-32" onchange="onReviewProjectSelect()"><option value="">全部项目</option></select>
+            <button onclick="loadReviewContext()" class="text-blue-600 underline">🔄刷新</button>
           </div>
           <div class="mb-3 flex gap-2 flex-wrap">
             <button id="dr-tab-single" class="px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700" onclick="switchDrawingTab('single')">📄 单图审查</button>
