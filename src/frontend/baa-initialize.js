@@ -38,8 +38,5 @@ function zoomImage(img) {
   modal.innerHTML = '<img src="' + img.src + '" class="max-w-[95vw] max-h-[95vh] object-contain" />';
 }
 
-// P43 collab frontend
-var collabToken = localStorage.getItem('baa_collab_token') || '';
-var collabUser = {};
-try { collabUser = JSON.parse(localStorage.getItem('baa_collab_user') || '{}'); } catch(e) {}
+// P43 collab frontend (已移至 baa-admin.js，保留注释占位)
 

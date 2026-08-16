@@ -805,6 +805,7 @@ function collabLogout() {
   collabToken = ''; collabUser = {};
   localStorage.removeItem('baa_collab_token');
   localStorage.removeItem('baa_collab_user');
+  updateUserStatus(false);
   document.getElementById('collab-main-section').style.display = 'none';
   document.getElementById('collab-login-section').style.display = 'block';
 }
@@ -814,6 +815,26 @@ function collabEnterMain() {
   document.getElementById('collab-main-section').style.display = 'block';
   document.getElementById('collab-user-display').textContent = '👤 ' + (collabUser.display_name || collabUser.username);
   collabRefresh();
+  updateUserStatus(true);
+}
+
+function updateUserStatus(loggedIn) {
+  var loggedOut = document.getElementById('user-status-logged-out');
+  var loggedInEl = document.getElementById('user-status-logged-in');
+  if (!loggedOut || !loggedInEl) return;
+  if (loggedIn) {
+    var nameEl = document.getElementById('user-status-name');
+    var roleEl = document.getElementById('user-status-role');
+    if (nameEl) nameEl.textContent = '👤 ' + (collabUser.display_name || collabUser.username || '—');
+    if (roleEl) roleEl.textContent = collabUser.role || 'user';
+  }
+  if (loggedIn) {
+    loggedOut.style.display = 'none';
+    loggedInEl.style.display = 'flex';
+  } else {
+    loggedOut.style.display = 'block';
+    loggedInEl.style.display = 'none';
+  }
 }
 
 function collabRefresh() { loadCollabStats(); loadCollabTeams(); }
@@ -970,8 +991,16 @@ function showReviewSessionDetail(sessionId) {
 if (collabToken) {
   setTimeout(function() {
     var page = document.getElementById('page-collab');
+    updateUserStatus(true);
     if (page && page.classList.contains('active')) {
       collabEnterMain();
+    }
+    // Also ensure page-collab shows main section even if not active
+    var mainSec = document.getElementById('collab-main-section');
+    var loginSec = document.getElementById('collab-login-section');
+    if (mainSec && loginSec) {
+      mainSec.style.display = 'block';
+      loginSec.style.display = 'none';
     }
   }, 500);
 }

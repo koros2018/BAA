@@ -701,8 +701,15 @@ document.querySelectorAll('.sidebar-item').forEach(item => {
       if (item.dataset.page === 'history') renderHistoryList();
       if (item.dataset.page === 'apikeys') loadAdminKeys();
       if (item.dataset.page === 'cases') { loadCaseStats(); loadCases(0); }
-      if (item.dataset.page === 'cd') loadCDItems();
+if (item.dataset.page === 'cd') loadCDItems();
       if (item.dataset.page === 'model-params') switchModelParamTab('functions');
+      // P112: 点击协作页时自动恢复登录态
+      if (item.dataset.page === 'collab' && typeof collabToken !== 'undefined' && collabToken) {
+        if (typeof updateUserStatus === 'function') updateUserStatus(true);
+        if (typeof collabEnterMain === 'function') {
+          setTimeout(function() { collabEnterMain(); }, 100);
+        }
+      }
     } catch(e) { console.error('页面加载错误:', e); }
   });
 });
