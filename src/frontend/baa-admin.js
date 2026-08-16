@@ -87,8 +87,9 @@ function renderSpecList() {
 }
 
 // ── 图纸管理：上传解析 ──────────────────────────────
-// 已解析图纸的全局存储
+// 已解析图纸的全局存储（挂载到 window，供 baa-core.js 访问）
 let parsedDrawings = [];
+window.parsedDrawings = parsedDrawings;
 // 文件缓存（用于AI审图时重新上传）
 let fileCache = {};
 
@@ -485,7 +486,10 @@ async function deleteReviewRecord(id) {
     reviewResults = reviewResults.filter(r => r.id !== id);
     renderHistoryList();
   } catch(e) {
-    showToast('删除失败: ' + e.message, 'error');
+    // P112: 404 降级（记录仅存本地）→ 仍从本地列表移除
+    reviewResults = reviewResults.filter(r => r.id !== id);
+    renderHistoryList();
+    showToast('已从本地移除（后端未找到该记录）', 'info');
   }
 }
 async function viewHistoryDetail(id) {
@@ -917,7 +921,11 @@ function createTeam() {
   if (!name) return;
   var desc = document.getElementById('modal-team-desc').value.trim();
   collabApi('/collab/teams', { method: 'POST', body: JSON.stringify({name: name, description: desc}) }).then(function(d) {
-    if (d.status === 'success') { closeCollabModal(); collabRefresh(); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+    if (d.status === 'success') {
+      setCurrentTeamId(d.team_id || d.id || '');
+      setCurrentProjectId('');
+      closeCollabModal(); collabRefresh();
+    } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
   });
 }
 
@@ -982,7 +990,11 @@ function createProject(teamId) {
   var desc = document.getElementById('modal-proj-desc').value.trim();
   var btype = document.getElementById('modal-proj-type').value.trim();
   collabApi('/collab/projects', { method: 'POST', body: JSON.stringify({name: name, team_id: teamId, description: desc, building_type: btype}) }).then(function(d) {
-    if (d.status === 'success') { showTeamDetail(teamId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+    if (d.status === 'success') {
+      setCurrentTeamId(teamId);
+      setCurrentProjectId(d.project_id || d.id || '');
+      showTeamDetail(teamId);
+    } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
   });
 }
 function showCreateReviewSessionModal(projectId) {

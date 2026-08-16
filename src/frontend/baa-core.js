@@ -811,8 +811,9 @@ function showDrawingReviewPanel(show) {
   el.classList.toggle('hidden', !show);
   // 展开时同步图纸列表到审查下拉框
   if (show) {
+    loadReviewContext(); // P112: 加载团队/项目上下文选择器
     var select = document.getElementById('review-drawing-select');
-    if (select && drawings.length > 0 && select.options.length <= 1) {
+    if (select && window.parsedDrawings && window.parsedDrawings.length > 0 && select.options.length <= 1) {
       refreshDrawingSelect();
     }
   }
@@ -842,4 +843,37 @@ function switchDrawingTab(tab) {
     renderThermalThresholds();
     renderThermalViolations(window._reviewThermalViolations || []);
   }
+}
+
+// ── P112: 审查面板上下文选择（团队/项目关联） ──
+function loadReviewContext() {
+  // 从后端协作 API 拉取 team/project 列表填充下拉
+  var teamSel = document.getElementById('dr-team-select');
+  var projSel = document.getElementById('dr-project-select');
+  if (!teamSel) return;
+  var curTeam = getCurrentTeamId() || '';
+  var curProj = getCurrentProjectId() || '';
+  // 从 baa-admin.js 的 collabApi 拉取
+  if (typeof collabApi === 'function') {
+    Promise.all([collabApi('/collab/teams'), collabApi('/collab/projects')]).then(function(r) {
+      var th = '<option value="">👥 全部团队</option>';
+      (r[0].teams || []).forEach(function(t) { th += '<option value="' + t.id + '" ' + (t.id===curTeam?'selected':'') + '>'+t.name+'</option>'; });
+      teamSel.innerHTML = th;
+      var ph = '<option value="">📋 全部项目</option>';
+      (r[1].projects || []).forEach(function(p) { ph += '<option value="' + p.id + '" ' + (p.id===curProj?'selected':'') + '>'+p.name+'</option>'; });
+      projSel.innerHTML = ph;
+    }).catch(function() {});
+  }
+}
+function onReviewTeamSelect() {
+  var teamId = document.getElementById('dr-team-select').value || '';
+  setCurrentTeamId(teamId);
+  // 清空项目，因为项目属于团队
+  setCurrentProjectId('');
+  var projSel = document.getElementById('dr-project-select');
+  if (projSel) projSel.value = '';
+}
+function onReviewProjectSelect() {
+  var projectId = document.getElementById('dr-project-select').value || '';
+  setCurrentProjectId(projectId);
 }
