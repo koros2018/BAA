@@ -15,10 +15,37 @@ function saveApiBase() {
 }
 
 const API_BASE = () => document.getElementById('api-base')?.value || 'http://localhost:8000';
+
+// P112 阶段二：全局协作上下文，自动注入所有审查请求 header
+// currentTeamId/currentProjectId 由 baa-admin.js 登录后持久化
+var currentTeamId = localStorage.getItem('baa_team_id') || '';
+var currentProjectId = localStorage.getItem('baa_project_id') || '';
+
+// HEADERS(): 返回所有审查请求所需的 headers（API Key + 团队/项目上下文）
 const HEADERS = () => {
-  const key = getActiveKeyValue();
-  return key ? {'Authorization': 'Bearer ' + key} : {};
+  var result = {};
+  var key = getActiveKeyValue();
+  if (key) result['Authorization'] = 'Bearer ' + key;
+  if (currentTeamId) result['X-Team-Id'] = currentTeamId;
+  if (currentProjectId) result['X-Project-Id'] = currentProjectId;
+  return result;
 };
+
+// P112：协作上下文设置器（baa-admin.js 调用）
+function setCurrentTeamId(id) {
+  currentTeamId = id || '';
+  localStorage.setItem('baa_team_id', currentTeamId);
+}
+function setCurrentProjectId(id) {
+  currentProjectId = id || '';
+  localStorage.setItem('baa_project_id', currentProjectId);
+}
+function getCurrentTeamId() { return currentTeamId; }
+function getCurrentProjectId() { return currentProjectId; }
+
+// 审查历史筛选状态（P112 Step 3）
+var historyTeamFilter = '';
+var historyProjectFilter = '';
 let reviewHistory = [];
 
 // ── 访问令牌管理（连接配置页用） ───────────────────
@@ -714,10 +741,15 @@ if (item.dataset.page === 'cd') loadCDItems();
   });
 });
 
-// ── API 调用 ──────────────────────────────────────────────
+// getHeaders(): 非审查 API 调用（规范库、密钥管理等）
+// P112: 也注入 team/project 上下文，保持一致
 function getHeaders() {
-  const key = getActiveKeyValue();
-  return key ? {'Authorization': 'Bearer ' + key} : {};
+  var result = {};
+  var key = getActiveKeyValue();
+  if (key) result['Authorization'] = 'Bearer ' + key;
+  if (currentTeamId) result['X-Team-Id'] = currentTeamId;
+  if (currentProjectId) result['X-Project-Id'] = currentProjectId;
+  return result;
 }
 
 async function apiGet(path) {
@@ -769,5 +801,45 @@ async function testConnection() {
   } catch (e) {
     s.className = 'text-xs text-red-600';
     s.textContent = '❌ 连接失败: ' + e.message;
+  }
+}
+
+// ── P112 Step 4: 图纸管理内嵌审查面板 ──
+function showDrawingReviewPanel(show) {
+  var el = document.getElementById('drawing-review-panel');
+  if (!el) return;
+  el.classList.toggle('hidden', !show);
+  // 展开时同步图纸列表到审查下拉框
+  if (show) {
+    var select = document.getElementById('review-drawing-select');
+    if (select && drawings.length > 0 && select.options.length <= 1) {
+      refreshDrawingSelect();
+    }
+  }
+}
+function switchDrawingTab(tab) {
+  // 复用 switchReviewTab 的逻辑，同时更新新面板按钮样式
+  var btnMap = {single:'dr-tab-single',batch:'dr-tab-batch',multisheet:'dr-tab-multisheet',feedback:'dr-tab-feedback',thermal:'dr-tab-thermal',structural:'dr-tab-structural'};
+  var sel = 'px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700';
+  var unsel = 'px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600';
+  Object.keys(btnMap).forEach(function(t) {
+    var el = document.getElementById(btnMap[t]);
+    if (el) el.className = (t === tab ? sel : unsel);
+  });
+  var panels = {single:'dr-panel-single',batch:'dr-panel-batch',multisheet:'dr-panel-multisheet',feedback:'dr-panel-feedback',thermal:'dr-panel-thermal',structural:'dr-panel-structural'};
+  Object.keys(panels).forEach(function(t) {
+    var el = document.getElementById(panels[t]);
+    if (el) el.classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'feedback' && typeof loadFeedbackStats === 'function') {
+    loadFeedbackStats(); loadFeedbacks();
+  }
+  if (tab === 'structural' && typeof renderStructuralThresholds === 'function') {
+    renderStructuralThresholds();
+    renderStructuralViolations(window._reviewStructuralViolations || []);
+  }
+  if (tab === 'thermal' && typeof renderThermalThresholds === 'function') {
+    renderThermalThresholds();
+    renderThermalViolations(window._reviewThermalViolations || []);
   }
 }

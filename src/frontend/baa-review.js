@@ -1379,9 +1379,14 @@ function downloadReviewJSON() {
 let reviewResults = [];
 
 function loadReviewResults() {
-  // 先尝试从后端 API 加载
   const apiBase = API_BASE();
-  return fetch(apiBase + '/review/history?limit=200')
+  // P112: 将 team/project 过滤参数传递到后端
+  const teamFilter = (document.getElementById('history-team-filter')?.value || '');
+  const projFilter = (document.getElementById('history-project-filter')?.value || '');
+  var params = 'limit=200';
+  if (teamFilter) params += '&team_id=' + encodeURIComponent(teamFilter);
+  if (projFilter) params += '&project_id=' + encodeURIComponent(projFilter);
+  return fetch(apiBase + '/review/history?' + params)
     .then(r => r.json())
     .then(data => {
       if (data && data.items && data.items.length > 0) {

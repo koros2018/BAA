@@ -382,23 +382,38 @@ let historyPage = 0;
 const HISTORY_PAGE_SIZE = 20;
 
 function renderHistoryList(resetPage = false) {
-  if (resetPage) historyPage = 0; // 搜索/筛选时重置到第一页
+  if (resetPage) historyPage = 0;
   const el = document.getElementById('history-list');
   if (!el) return;
   loadReviewResults();
   const search = (document.getElementById('history-search')?.value || '').toLowerCase();
   const filter = document.getElementById('history-filter')?.value || 'all';
+  const teamFilter = document.getElementById('history-team-filter')?.value || '';
+  const projFilter = document.getElementById('history-project-filter')?.value || '';
   let filtered = reviewResults;
   if (filter === 'civil') filtered = filtered.filter(r => r.buildingType === 'civil');
   else if (filter === 'industrial') filtered = filtered.filter(r => r.buildingType === 'industrial');
   else if (filter === 'violations') filtered = filtered.filter(r => (r.violationCount || 0) > 0);
   else if (filter === 'clean') filtered = filtered.filter(r => (r.violationCount || 0) === 0);
+  // P112: 按团队/项目过滤
+  if (teamFilter) filtered = filtered.filter(r => r.teamId === teamFilter);
+  if (projFilter) filtered = filtered.filter(r => r.projectId === projFilter);
   if (search) {
     filtered = filtered.filter(r =>
       r.drawingName.toLowerCase().includes(search) ||
       (r.details || []).some(v => (v.clause_id || '').toLowerCase().includes(search) || (v.clause_title || '').toLowerCase().includes(search))
     );
   }
+  // 显示当前上下文
+  var ctxEl = document.getElementById('history-context-info');
+  if (ctxEl) {
+    var ctxParts = [];
+    if (currentTeamId) ctxParts.push('📌团队已选');
+    if (currentProjectId) ctxParts.push('📋项目已选');
+    ctxEl.textContent = ctxParts.length ? ctxParts.join(' · ') : '';
+  }
+  // 动态填充团队/项目下拉框（只填充一次）
+  _populateHistoryFilters();
   const totalPages = Math.ceil(filtered.length / HISTORY_PAGE_SIZE) || 1;
   if (historyPage >= totalPages) historyPage = totalPages - 1;
   const pageData = filtered.slice(historyPage * HISTORY_PAGE_SIZE, (historyPage + 1) * HISTORY_PAGE_SIZE);
@@ -413,11 +428,14 @@ function renderHistoryList(resetPage = false) {
     const btLabel = r.buildingType === 'civil' ? '民用' : r.buildingType === 'industrial' ? '工业' : '--';
     const timeStr = new Date(r.reviewedAt || r.createdAt || Date.now()).toLocaleString();
     const color = viols === 0 ? 'green' : 'red';
+    // P112: 显示团队/项目标签
+    var teamTag = r.teamId ? '<span class="px-1 bg-blue-100 text-blue-600 rounded" title="团队">👥</span>' : '';
+    var projTag = r.projectId ? '<span class="px-1 bg-purple-100 text-purple-600 rounded" title="项目">📋</span>' : '';
     return '<div class="card p-3 hover:shadow-md transition-shadow">' +
       '<div class="flex items-center justify-between">' +
       '<div class="flex items-center gap-3 cursor-pointer flex-1" onclick="viewHistoryDetail(\'' + r.id + '\')">' +
       '<span class="text-' + color + '-500 text-lg">' + (viols === 0 ? '✅' : '🔴') + '</span>' +
-      '<div><div class="font-medium text-sm">' + r.drawingName + '</div>' +
+      '<div><div class="font-medium text-sm">' + r.drawingName + ' ' + teamTag + projTag + '</div>' +
       '<div class="text-xs text-gray-400">' + btLabel + ' · ' + timeStr + '</div></div></div>' +
       '<div class="text-right mr-3">' +
       '<div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div>' +
@@ -425,6 +443,31 @@ function renderHistoryList(resetPage = false) {
       '<button onclick="event.stopPropagation();deleteReviewRecord(\'' + r.id + '\')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button>' +
       '</div></div>';
   }).join('') + renderPagination(totalPages);
+}
+
+// P112: 动态填充审查记录页的团队/项目筛选下拉框
+function _populateHistoryFilters() {
+  var teamSelect = document.getElementById('history-team-filter');
+  var projSelect = document.getElementById('history-project-filter');
+  if (!reviewResults || reviewResults.length === 0) return;
+  var teams = {};
+  var projects = {};
+  reviewResults.forEach(function(r) {
+    if (r.teamId) teams[r.teamId] = r.teamId;
+    if (r.projectId) projects[r.projectId] = r.projectId;
+  });
+  if (teamSelect && Object.keys(teams).length > 0) {
+    var curTeam = teamSelect.value || '';
+    teamSelect.innerHTML = '<option value="">📌 全部团队</option>';
+    Object.keys(teams).forEach(function(id) { teamSelect.innerHTML += '<option value="' + id + '">' + id.substring(0, 12) + '</option>'; });
+    teamSelect.value = curTeam;
+  }
+  if (projSelect && Object.keys(projects).length > 0) {
+    var curProj = projSelect.value || '';
+    projSelect.innerHTML = '<option value="">📌 全部项目</option>';
+    Object.keys(projects).forEach(function(id) { projSelect.innerHTML += '<option value="' + id + '">' + id.substring(0, 12) + '</option>'; });
+    projSelect.value = curProj;
+  }
 }
 
 function renderPagination(totalPages) {
@@ -879,6 +922,9 @@ function createTeam() {
 }
 
 function showTeamDetail(teamId) {
+  // P112: 进入团队详情时持久化上下文
+  setCurrentTeamId(teamId);
+  setCurrentProjectId('');
   Promise.all([collabApi('/collab/teams/' + teamId), collabApi('/collab/teams/' + teamId + '/projects')]).then(function(r) {
     if (r[0].status !== 'success') return;
     var team = r[0].team, projects = r[1].projects || [];
@@ -901,21 +947,9 @@ function showTeamDetail(teamId) {
   });
 }
 
-function showCreateProjectModal(teamId) {
-  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u9879\u76ee</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="\u9879\u76ee\u540d\u79f0" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="\u5efa\u7b51\u7c7b\u578b" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail(&#39;' + teamId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createProject(&#39;' + teamId + '&#39;)">\u521b\u5efa</button></div>');
-}
-
-function createProject(teamId) {
-  var name = document.getElementById('modal-proj-name').value.trim();
-  if (!name) return;
-  var desc = document.getElementById('modal-proj-desc').value.trim();
-  var btype = document.getElementById('modal-proj-type').value.trim();
-  collabApi('/collab/projects', { method: 'POST', body: JSON.stringify({name: name, team_id: teamId, description: desc, building_type: btype}) }).then(function(d) {
-    if (d.status === 'success') { showTeamDetail(teamId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
-  });
-}
-
 function showProjectDetail(projectId) {
+  // P112: 进入项目详情时持久化上下文
+  setCurrentProjectId(projectId);
   Promise.all([collabApi('/collab/projects/' + projectId), collabApi('/collab/projects/' + projectId + '/review-sessions')]).then(function(r) {
     if (r[0].status !== 'success') return;
     var proj = r[0].project, sessions = r[1].review_sessions || [];
@@ -938,6 +972,19 @@ function showProjectDetail(projectId) {
   });
 }
 
+function showCreateProjectModal(teamId) {
+  setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u9879\u76ee</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="\u9879\u76ee\u540d\u79f0" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="\u5efa\u7b51\u7c7b\u578b" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail(&#39;' + teamId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createProject(&#39;' + teamId + '&#39;)">\u521b\u5efa</button></div>');
+}
+
+function createProject(teamId) {
+  var name = document.getElementById('modal-proj-name').value.trim();
+  if (!name) return;
+  var desc = document.getElementById('modal-proj-desc').value.trim();
+  var btype = document.getElementById('modal-proj-type').value.trim();
+  collabApi('/collab/projects', { method: 'POST', body: JSON.stringify({name: name, team_id: teamId, description: desc, building_type: btype}) }).then(function(d) {
+    if (d.status === 'success') { showTeamDetail(teamId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+  });
+}
 function showCreateReviewSessionModal(projectId) {
   setModalBody('<h3 class="text-lg font-bold mb-4">\u65b0\u5efa\u5ba1\u67e5\u4f1a\u8bdd</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="\u540d\u79f0" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="\u63cf\u8ff0" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail(&#39;' + projectId + '&#39;)">\u8fd4\u56de</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession(&#39;' + projectId + '&#39;)">\u521b\u5efa</button></div>');
 }
