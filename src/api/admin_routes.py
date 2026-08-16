@@ -242,7 +242,7 @@ async def verify_api_key_raw(  # code
 
 @router.get("/admin/bootstrap-key", tags=["admin"])  # function call
 async def bootstrap_admin_key():  # function call
-    """获取前端密钥管理页使用的管理令牌（免认证）
+    """获取前端密钥管理页使用的管理令牌（bootstrap 专用端点，设计如此）
 
     开发模式（BAA_API_KEY 未设置）时返回空字符串，
     此时后端 _ag.require_admin 不校验令牌，前端直接发请求即可。
@@ -680,7 +680,10 @@ async def delete_webhook(
 
 
 @router.post("/api/v1/feedbacks", tags=["Feedback"])  # function call
-async def submit_feedback(body: dict):  # function call
+async def submit_feedback(
+    body: dict,
+    api_key: str = Depends(_ag.verify_api_key),
+):  # function call
     """提交违规申诉（P10 反馈闭环）
 
     用户对审查结果有异议时，提交申诉。
@@ -706,6 +709,7 @@ async def list_feedbacks(  # code
     clause_id: str = Query("", description="筛选规范条款"),  # function call
     limit: int = Query(50, ge=1, le=200),  # function call
     offset: int = Query(0, ge=0),  # function call
+    api_key: str = Depends(_ag.verify_api_key),
 ):  # code
     """查询申诉列表（支持状态和规范条款筛选）"""
     items, total = _ag._feedback_manager.list_all(  # assignment
@@ -715,13 +719,13 @@ async def list_feedbacks(  # code
 
 
 @router.get("/api/v1/feedbacks/stats", tags=["Feedback"])  # function call
-async def feedback_stats():  # function call
+async def feedback_stats(api_key: str = Depends(_ag.verify_api_key)):  # function call
     """申诉统计（总数、待处理数、各类分布）"""
     return {"status": "success", "stats": _ag._feedback_manager.stats()}  # return: dict
 
 
 @router.get("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])  # function call
-async def get_feedback(feedback_id: str):  # function call
+async def get_feedback(feedback_id: str, api_key: str = Depends(_ag.verify_api_key)):  # function call
     """查询单条申诉详情"""
     record = _ag._feedback_manager.get(feedback_id)  # function call
     if not record:  # check: negated condition
@@ -740,6 +744,7 @@ async def get_feedback(feedback_id: str):  # function call
 async def review_feedback(  # code
     feedback_id: str,  # 操作
     body: dict,  # 操作
+    api_key: str = Depends(_ag.verify_api_key),
 ):  # code
     """审核申诉（P10 反馈闭环）
 
@@ -768,6 +773,7 @@ async def review_feedback(  # code
 async def adjust_threshold(  # code
     feedback_id: str,  # 操作
     body: dict,  # 操作
+    api_key: str = Depends(_ag.verify_api_key),
 ):  # code
     """基于申诉数据计算/应用阈值调整
 
