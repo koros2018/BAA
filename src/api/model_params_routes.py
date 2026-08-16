@@ -14,9 +14,10 @@ P93: 模型参数导出 API 路由
 from datetime import datetime
 import json
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response, JSONResponse
 
+from src.api.api_globals import verify_api_key
 from src.baa_engine.atomic_functions import FuncRegistry
 from src.baa_engine.model_params import exporter as mp_exporter
 
@@ -39,6 +40,7 @@ def _get_registry() -> FuncRegistry:
 def get_functions(
     limit: Optional[int] = Query(None, ge=1, le=5000, description="返回条数上限"),
     category: Optional[str] = Query(None, description="按分类过滤 (dimension/dist/exist/area/...)"),
+    api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """返回 422 个原子函数的完整参数结构"""
     funcs = mp_exporter.get_function_params(_get_registry())
@@ -61,6 +63,7 @@ def get_functions(
 def get_layer_rules(
     limit: Optional[int] = Query(None, ge=1, le=2000),
     source: Optional[str] = Query(None, description="LAYER_RULES / SHORT_LAYER_RULES"),
+    api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """返回 657 条图层→实体类型语义映射"""
     rules = mp_exporter.get_layer_rules()
@@ -83,6 +86,7 @@ def get_layer_rules(
 def get_cd_items(
     level: Optional[str] = Query(None, description="L1 / L2 / L3"),
     major: Optional[str] = Query(None, description="arch/struct/mech/elec/plumb"),
+    api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """返回 30 条施工图审查标准项"""
     items = mp_exporter.get_construction_review_params()
@@ -105,6 +109,7 @@ def get_cd_items(
 def get_review_samples(
     limit: int = Query(50, ge=1, le=500, description="返回样本数"),
     review_id: Optional[str] = Query(None, description="按 review_id 过滤"),
+    api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """从已完成审查中提取 SFT 样本三元组"""
     samples = mp_exporter.get_review_samples(limit=limit, review_id=review_id)
@@ -122,6 +127,7 @@ def get_review_samples(
 @router.get("/model-params/spatial-graph")  # noqa: F811
 def get_spatial_graph(
     review_id: str = Query(..., description="审查任务ID"),
+    api_key: str = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """提取空间关系（节点+边+几何属性）"""
     graph = mp_exporter.get_spatial_graph(review_id)
@@ -142,6 +148,7 @@ def export_model_params(
         "json", pattern="json|jsonl-sft|hf-dataset|csv", description="json|jsonl-sft|hf-dataset|csv"
     ),
     limit: int = Query(500, ge=1, le=5000, description="样本上限"),
+    api_key: str = Depends(verify_api_key),
 ) -> Any:
     """
     统一导出端点，支持多种格式：

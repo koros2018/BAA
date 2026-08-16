@@ -1014,6 +1014,7 @@ async def review_from_data(  # code
 @router.post("/thermal/k-value")  # function call
 async def compute_thermal_k(  # code
     body: dict,
+    api_key: str = Depends(verify_api_key),
 ):
     """P45 热工性能 K 值计算
 
