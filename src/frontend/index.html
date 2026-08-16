@@ -33,10 +33,10 @@
       <div class="sidebar-item active" data-page="home"><i class="fa fa-home w-5"></i>系统概览</div>
       <div class="sidebar-item" data-page="drawings">📐图纸管理</div>
       <div class="sidebar-item" data-page="specs">📖规范库</div>
-      <div class="sidebar-item" data-page="review">🔎AI审图</div>
+      <div class="sidebar-item" data-page="review" style="display:none">🔎AI审图</div>
       <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
       <div class="sidebar-item" data-page="history">📋审查记录</div>
-      <div class="sidebar-item" data-page="analysis">📊结果分析</div>
+      <div class="sidebar-item" data-page="analysis">📊统计仪表盘</div>
       <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
       <div class="sidebar-item" data-page="settings">🔌连接配置</div>
       <div class="sidebar-item" data-page="collab">👥协作</div>
@@ -86,7 +86,10 @@
 
     <!-- ===== 图纸管理 ===== -->
     <div class="page" id="page-drawings">
-      <h2 class="text-xl font-bold mb-6">图纸管理</h2>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold">📐 图纸管理与审查</h2>
+        <span class="text-xs text-gray-400">上传 → 解析 → 审查 → 分析，一站式入口</span>
+      </div>
       <div class="card mb-6">
         <div class="flex items-center gap-4 flex-wrap">
           <input type="file" id="file-input" accept=".dxf,.dwg" class="text-sm" />
@@ -104,6 +107,9 @@
           </label>
           <button onclick="uploadAndReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
             📤 上传并解析
+          </button>
+          <button onclick="switchDrawingTab('review')" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">
+            🔎 切换到审查 Tab →
           </button>
         </div>
         <p class="text-xs text-gray-400 mt-2">支持格式: .dxf, .dwg（最大50MB）</p>
@@ -137,6 +143,99 @@
           <thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2 w-8"></th><th class="pb-2 px-2">文件</th><th class="pb-2 px-2">建筑类型</th><th class="pb-2 px-2">实体</th><th class="pb-2 px-2">类型</th><th class="pb-2 px-2">时间</th><th class="pb-2 px-2">操作</th></tr></thead>
           <tbody id="drawing-list"><tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr></tbody>
         </table>
+      </div>
+
+      <!-- P112 Step 4: 审查面板（原 AI审图 Tab 内嵌，上传后在此审查） -->
+      <div id="drawing-review-panel" class="hidden mt-6">
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-medium">🔎 审查与修正</h3>
+            <button onclick="showDrawingReviewPanel(false)" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">✕ 收起</button>
+          </div>
+          <div class="mb-3 flex gap-2 flex-wrap">
+            <button id="dr-tab-single" class="px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700" onclick="switchDrawingTab('single')">📄 单图审查</button>
+            <button id="dr-tab-batch" class="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600" onclick="switchDrawingTab('batch')">📚 批量审查</button>
+            <button id="dr-tab-multisheet" class="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600" onclick="switchDrawingTab('multisheet')">📑 多Sheet审查</button>
+            <button id="dr-tab-feedback" class="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600" onclick="switchDrawingTab('feedback')">💬 反馈申诉</button>
+            <button id="dr-tab-thermal" class="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600" onclick="switchDrawingTab('thermal')">🌡️ 热工性能</button>
+            <button id="dr-tab-structural" class="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600" onclick="switchDrawingTab('structural')">🏗️ 结构荷载</button>
+          </div>
+          <div id="dr-panel-single">
+            <div class="card p-4">
+              <h4 class="text-sm font-medium mb-3">选择已解析图纸</h4>
+              <select id="review-drawing-select" class="text-sm border rounded px-2 py-1 mb-3 w-full" onchange="onReviewDrawingSelect()">
+                <option value="">— 请先在上方上传解析 —</option>
+              </select>
+              <div class="text-xs text-gray-400 mb-2" id="review-drawing-info"></div>
+              <button onclick="runReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" disabled id="review-start-btn">
+                🔍 开始审查
+              </button>
+              <div id="review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
+              <div id="review-summary" class="mt-3 text-sm text-gray-400"></div>
+              <div id="review-details" class="mt-3 space-y-2 text-sm"></div>
+              <div id="review-correction-panel" class="hidden mt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="text-xs font-medium text-gray-500">🤖 AI 修正建议</h4>
+                  <div class="flex gap-1">
+                    <select id="correction-mode-select" class="text-xs border rounded px-1 py-0.5" onchange="generateCorrectionSuggestions()">
+                      <option value="rule">规则引擎</option>
+                      <option value="hybrid">Hybrid</option>
+                      <option value="llm">LLM</option>
+                    </select>
+                    <button id="correction-generate-btn" onclick="generateCorrectionSuggestions()" class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">生成</button>
+                  </div>
+                </div>
+                <div id="correction-loading" class="hidden text-xs text-gray-500">⏳ 生成中...</div>
+                <div id="correction-results" class="text-xs space-y-1"></div>
+              </div>
+            </div>
+          </div>
+          <div id="dr-panel-batch" class="hidden">
+            <div class="card p-4">
+              <h4 class="text-sm font-medium mb-3">选择多个图纸文件</h4>
+              <input id="batch-file-input" type="file" multiple accept=".dxf,.dwg,.pdf" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
+              <div id="batch-file-list" class="text-xs text-gray-400 mb-2"></div>
+              <button onclick="runBatchReviewSSE()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" id="batch-review-start-btn">
+                📚 批量审查
+              </button>
+              <div id="batch-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
+              <div id="batch-review-summary" class="mt-3 text-sm text-gray-400">选择文件后开始批量审查</div>
+              <div id="batch-review-details" class="mt-3 space-y-2 text-sm"></div>
+            </div>
+          </div>
+          <div id="dr-panel-multisheet" class="hidden">
+            <div class="card p-4">
+              <h4 class="text-sm font-medium mb-3">📑 多Sheet/多区域图纸审查</h4>
+              <p class="text-xs text-gray-500 mb-3">上传 DXF/DWG 文件后，自动检测各 Layout/Sheet 分区，每个分区独立审查。</p>
+              <input id="ms-file-input" type="file" accept=".dxf,.dwg" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
+              <div class="flex gap-2 mb-3">
+                <select id="ms-building-type" class="text-sm border rounded px-2 py-1"><option value="civil">民用建筑</option><option value="industrial">工业建筑</option></select>
+                <select id="ms-standard" class="text-sm border rounded px-2 py-1"><option value="GB 50016-2014">GB 50016-2014</option><option value="GB 50016-2025">GB 50016-2025</option><option value="GB 50974-2014">GB 50974-2014</option></select>
+              </div>
+              <button onclick="runMultiSheetReview()" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 w-full" id="ms-review-start-btn">📑 开始多Sheet审查</button>
+              <div id="ms-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在多Sheet审查...</div>
+              <div id="ms-review-results" class="hidden mt-3"><div class="card"><div id="ms-project-summary" class="text-sm"></div></div><div class="card mt-3"><div id="ms-sheet-tabs" class="flex gap-1 text-xs mb-3"></div><div id="ms-sheet-detail" class="text-sm text-gray-400">选择一个 Sheet 查看详情</div></div></div>
+            </div>
+          </div>
+          <div id="dr-panel-feedback" class="hidden">
+            <div class="card p-4">
+              <h4 class="text-sm font-medium mb-3">提交申诉</h4>
+              <div class="space-y-3">
+                <input id="fb-task-id" type="text" placeholder="任务 ID" class="text-sm border rounded px-2 py-1 w-full" />
+                <input id="fb-clause-id" type="text" placeholder="规范条款 (如: GB50016-5.5.19)" class="text-sm border rounded px-2 py-1 w-full" />
+                <input id="fb-entity-id" type="text" placeholder="实体 ID（可选）" class="text-sm border rounded px-2 py-1 w-full" />
+                <textarea id="fb-reason" rows="2" placeholder="申诉理由" class="text-sm border rounded px-2 py-1 w-full" required></textarea>
+                <button onclick="submitFeedback()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full">💬 提交申诉</button>
+              </div>
+            </div>
+          </div>
+          <div id="dr-panel-thermal" class="hidden">
+            <div class="card p-4"><h4 class="text-sm font-medium mb-3">🌡️ 热工性能计算</h4>热工面板内容从原 page-review 迁移至此</div>
+          </div>
+          <div id="dr-panel-structural" class="hidden">
+            <div class="card p-4"><h4 class="text-sm font-medium mb-3">🏗️ 结构荷载分析</h4>结构荷载面板内容从原 page-review 迁移至此</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -204,272 +303,10 @@
       </div>
     </div>
 
-    <!-- ===== AI审图 ===== -->
-    <div class="page" id="page-review">
-      <h2 class="text-xl font-bold mb-6">AI审图与修正</h2>
-      <div class="mb-3 flex gap-2">
-        <button id="review-tab-single" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700" onclick="switchReviewTab('single')">📄 单图审查</button>
-        <button id="review-tab-batch" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('batch')">📚 批量审查</button>
-        <button id="review-tab-multisheet" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('multisheet')">📑 多Sheet审查</button>
-        <button id="review-tab-feedback" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('feedback')">💬 反馈申诉</button>
-        <button id="review-tab-thermal" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('thermal')">🌡️ 热工性能</button>
-        <button id="review-tab-structural" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600" onclick="switchReviewTab('structural')">🏗️ 结构荷载</button>
-      </div>
-      <div id="review-panel-single">
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">选择已解析图纸</h3>
-          <select id="review-drawing-select" class="text-sm border rounded px-2 py-1 mb-3 w-full" onchange="onReviewDrawingSelect()">
-            <option value="">— 请先在图纸管理上传解析 —</option>
-          </select>
-          <div class="text-xs text-gray-400 mb-2" id="review-drawing-info"></div>
-          <button onclick="runReview()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" disabled id="review-start-btn">
-            🔍 开始审查
-          </button>
-          <div id="review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
-        </div>
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">审查结果</h3>
-          <div id="review-summary" class="text-sm text-gray-400">选择图纸后开始审查</div>
-          <div id="review-details" class="mt-3 space-y-2 text-sm"></div>
-          <div id="review-correction-panel" class="hidden mt-4">
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="text-xs font-medium text-gray-500">🤖 AI 修正建议</h4>
-              <div class="flex gap-1">
-                <select id="correction-mode-select" class="text-xs border rounded px-1 py-0.5" onchange="generateCorrectionSuggestions()">
-                  <option value="rule">规则引擎</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="llm">LLM</option>
-                </select>
-                <button id="correction-generate-btn" onclick="generateCorrectionSuggestions()" class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">生成</button>
-              </div>
-            </div>
-            <div id="correction-loading" class="hidden text-xs text-gray-500">⏳ 生成中...</div>
-            <div id="correction-results" class="text-xs space-y-1"></div>
-          </div>
-        </div>
-      </div>
-      </div>
-      <div id="review-panel-batch" class="hidden">
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">选择多个图纸文件</h3>
-          <input id="batch-file-input" type="file" multiple accept=".dxf,.dwg,.pdf" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
-          <div id="batch-file-list" class="text-xs text-gray-400 mb-2"></div>
-          <button onclick="runBatchReviewSSE()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" id="batch-review-start-btn">
-            📚 批量审查
-          </button>
-          <div id="batch-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在审查...</div>
-        </div>
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">批量审查结果</h3>
-          <div id="batch-review-skeleton" class="skeleton-overlay hidden">
-            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-48"></span><span class="skeleton-text flex-1"></span></div>
-            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>
-            <div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-24"></span><span class="skeleton-text flex-1"></span></div>
-          </div>
-          <div id="batch-review-summary" class="text-sm text-gray-400">选择文件后开始批量审查</div>
-          <div id="batch-review-details" class="mt-3 space-y-2 text-sm"></div>
-        </div>
-      </div>
-      </div>
-      <!-- ── 多Sheet审查面板 ── -->
-      <div id="review-panel-multisheet" class="hidden">
-      <div class="grid grid-cols-1 gap-4 mb-4">
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">📑 多Sheet/多区域图纸审查</h3>
-          <p class="text-xs text-gray-500 mb-3">上传 DXF/DWG 文件后，自动检测各 Layout/Sheet 分区，每个分区独立审查，结果聚合为项目级报告。</p>
-          <input id="ms-file-input" type="file" accept=".dxf,.dwg" class="text-sm border rounded px-2 py-1 mb-3 w-full" />
-          <div class="flex gap-2 mb-3">
-            <select id="ms-building-type" class="text-sm border rounded px-2 py-1">
-              <option value="civil">民用建筑</option>
-              <option value="industrial">工业建筑</option>
-            </select>
-            <select id="ms-standard" class="text-sm border rounded px-2 py-1">
-              <option value="GB 50016-2014">GB 50016-2014</option>
-              <option value="GB 50016-2025">GB 50016-2025</option>
-              <option value="GB 50974-2014">GB 50974-2014</option>
-            </select>
-          </div>
-          <button onclick="runMultiSheetReview()" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 w-full" id="ms-review-start-btn">
-            📑 开始多Sheet审查
-          </button>
-          <div id="ms-review-loading" class="hidden mt-3 text-sm text-gray-500">⏳ 正在多Sheet审查...</div>
-        </div>
-      </div>
-      <!-- 多Sheet审查结果 -->
-      <div id="ms-review-results" class="hidden">
-        <div class="card mb-4">
-          <h3 class="text-sm font-medium mb-3">项目级总览</h3>
-          <div id="ms-project-summary" class="text-sm"></div>
-        </div>
-        <div class="card mb-4">
-          <div class="flex items-center gap-2 mb-3 overflow-x-auto">
-            <div id="ms-sheet-tabs" class="flex gap-1 text-xs"></div>
-          </div>
-          <div id="ms-sheet-detail" class="text-sm">
-            <div class="text-gray-400">选择一个 Sheet 查看详情</div>
-          </div>
-        </div>
-      </div>
-      </div>
-      <div id="review-panel-feedback" class="hidden">
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">提交申诉</h3>
-          <div class="space-y-3">
-            <div>
-              <label class="text-xs text-gray-500">任务 ID</label>
-              <input id="fb-task-id" type="text" placeholder="审查任务 ID" class="text-sm border rounded px-2 py-1 w-full" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">规范条款</label>
-              <input id="fb-clause-id" type="text" placeholder="如: GB50016-5.5.19" class="text-sm border rounded px-2 py-1 w-full" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">实体 ID</label>
-              <input id="fb-entity-id" type="text" placeholder="实体 ID（可选）" class="text-sm border rounded px-2 py-1 w-full" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">申诉理由</label>
-              <textarea id="fb-reason" rows="2" placeholder="申诉理由" class="text-sm border rounded px-2 py-1 w-full" required></textarea>
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">详细说明</label>
-              <textarea id="fb-description" rows="2" placeholder="详细说明（可选）" class="text-sm border rounded px-2 py-1 w-full"></textarea>
-            </div>
-            <div class="flex gap-2">
-              <input id="fb-original-value" type="number" step="0.01" placeholder="原始值" class="text-sm border rounded px-2 py-1 flex-1" />
-              <select id="fb-severity" class="text-sm border rounded px-2 py-1">
-                <option value="">严重程度</option>
-                <option value="critical">严重</option>
-                <option value="major">重要</option>
-                <option value="minor">轻微</option>
-              </select>
-            </div>
-            <button onclick="submitFeedback()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full">
-              💬 提交申诉
-            </button>
-          </div>
-        </div>
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">申诉统计</h3>
-          <div id="fb-stats" class="text-sm text-gray-400">加载中...</div>
-          <h3 class="text-sm font-medium mb-3 mt-4">申诉列表</h3>
-          <div id="fb-list" class="text-sm space-y-2 max-h-80 overflow-y-auto"></div>
-          <button onclick="loadFeedbacks()" class="px-4 py-2 bg-gray-100 text-sm rounded-lg hover:bg-gray-200 w-full mt-3">
-            🔄 刷新列表
-          </button>
-        </div>
-      </div>
-      </div>
-      <!-- ── 热工性能面板 ── -->
-      <div id="review-panel-thermal" class="hidden">
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">🌡️ 热工性能计算</h3>
-          <div class="space-y-3">
-            <div>
-              <label class="text-xs text-gray-500">构件类型</label>
-              <select id="thermal-comp-type" class="text-sm border rounded px-2 py-1 w-full" onchange="onThermalCompTypeChange()">
-                <option value="exterior_wall">外墙</option>
-                <option value="roof">屋顶</option>
-                <option value="ground_floor">地面</option>
-                <option value="exterior_window">外窗</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">保温材料</label>
-              <select id="thermal-material" class="text-sm border rounded px-2 py-1 w-full">
-                <option value="rockwool" data-lambda="0.035" data-density="800">岩棉板 (λ=0.035)</option>
-                <option value="eps" data-lambda="0.040" data-density="20">EPS聚苯板 (λ=0.040)</option>
-                <option value="xps" data-lambda="0.030" data-density="35">XPS挤塑板 (λ=0.030)</option>
-                <option value="pu" data-lambda="0.024" data-density="40">聚氨酯 (λ=0.024)</option>
-                <option value="aerogel" data-lambda="0.012" data-density="120">气凝胶 (λ=0.012)</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">保温层厚度 (mm)</label>
-              <input id="thermal-thickness" type="number" value="50" min="10" max="500" class="text-sm border rounded px-2 py-1 w-full" />
-            </div>
-            <div>
-              <label class="text-xs text-gray-500">气候带</label>
-              <select id="thermal-climate" class="text-sm border rounded px-2 py-1 w-full">
-                <option value="severe_cold">严寒地区</option>
-                <option value="cold">寒冷地区</option>
-                <option value="hot_cold">夏热冬冷</option>
-                <option value="hot_warm">夏热冬暖</option>
-              </select>
-            </div>
-            <button onclick="computeThermalK()" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 w-full">
-              🔥 计算 K 值
-            </button>
-            <div id="thermal-result" class="text-xs text-gray-500 mt-2"></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3 class="text-sm font-medium mb-3">📊 热工规范阈值（GB55015-3.2.2）</h3>
-          <div id="thermal-thresholds" class="text-xs space-y-1"></div>
-          <h3 class="text-sm font-medium mb-3 mt-4">🧱 最近热工审查结果</h3>
-          <div id="thermal-review-list" class="text-xs space-y-1 text-gray-500 max-h-48 overflow-y-auto">
-            请在单图审查中上传图纸后查看热工违规项
-          </div>
-        </div>
-      </div>
-      <!-- ── 多材料复合层计算 ── -->
-      <div class="card mt-4">
-        <h3 class="text-sm font-medium mb-3">🏗️ 多材料复合层 K 值计算</h3>
-        <div id="multi-layer-editor"></div>
-        <div id="multi-layer-result" class="text-xs mt-2"></div>
-      </div>
-      </div>
-
-      <!-- ── 结构荷载面板 ── -->
-      <div id="review-panel-structural" class="hidden">
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="card">
-            <h3 class="text-sm font-medium mb-3">🏗️ 结构荷载验算</h3>
-            <div class="space-y-3">
-              <div>
-                <label class="text-xs text-gray-500">构件类型</label>
-                <select id="structural-comp-type" class="text-sm border rounded px-2 py-1 w-full" onchange="onStructuralCompTypeChange()">
-                  <option value="floor_live">楼面活荷载</option>
-                  <option value="beam_reinforcement">梁配筋率</option>
-                  <option value="column_reinforcement">柱配筋率</option>
-                  <option value="foundation_depth">基础埋深</option>
-                  <option value="slab_thickness">楼板厚度</option>
-                  <option value="beam_height">梁高跨比</option>
-                  <option value="concrete_strength">混凝土强度</option>
-                  <option value="seismic_grade">抗震等级</option>
-                  <option value="seismic_intensity">抗震设防烈度</option>
-                  <option value="shear_wall_thickness">剪力墙厚度</option>
-                  <option value="pile_count">桩基数量</option>
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">实测值</label>
-                <input id="structural-value" type="number" value="2.0" step="0.01" class="text-sm border rounded px-2 py-1 w-full" />
-              </div>
-              <div>
-                <label class="text-xs text-gray-500">备注</label>
-                <input id="structural-note" type="text" placeholder="如：住宅/办公/商业、抗震等级等" class="text-sm border rounded px-2 py-1 w-full" />
-              </div>
-              <button onclick="computeStructuralCheck()" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 w-full">
-                🏗️ 验算
-              </button>
-              <div id="structural-result" class="text-xs text-gray-500 mt-2"></div>
-            </div>
-          </div>
-          <div class="card">
-            <h3 class="text-sm font-medium mb-3">📊 结构荷载规范阈值（GB50009/GB50010/GB55008）</h3>
-            <div id="structural-thresholds" class="text-xs space-y-1"></div>
-            <h3 class="text-sm font-medium mb-3 mt-4">🧱 最近结构审查结果</h3>
-            <div id="structural-review-list" class="text-xs space-y-1 text-gray-500 max-h-48 overflow-y-auto">
-              请在单图审查中上传图纸后查看结构违规项
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- ===== AI审图（已合并到图纸管理，保留以防遗留引用） ===== -->
+    <div class="page" id="page-review" style="display:none">
+      <h2 class="text-xl font-bold mb-6">AI审图与修正（已合并至图纸管理页）</h2>
+      <p class="text-sm text-gray-400">审查功能已整合到「图纸管理」页面，请在上传图纸后点击「切换到审查 Tab」。</p>
     </div>
 
     <!-- ===== 对比重构（Diff） ===== -->
@@ -653,6 +490,13 @@
             <option value="violations">有违规</option>
             <option value="clean">全部合规</option>
           </select>
+          <select id="history-team-filter" class="text-sm border rounded px-2 py-1" onchange="renderHistoryList(true)" style="max-width:120px">
+            <option value="">📌 全部团队</option>
+          </select>
+          <select id="history-project-filter" class="text-sm border rounded px-2 py-1" onchange="renderHistoryList(true)" style="max-width:120px">
+            <option value="">📌 全部项目</option>
+          </select>
+          <span class="text-xs text-gray-400" id="history-context-info"></span>
           <button onclick="clearReviewHistory()" class="px-3 py-1 text-xs border rounded hover:bg-red-50 text-red-500 hover:border-red-300">🗑️ 清空历史</button>
         </div>
       </div>
