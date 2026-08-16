@@ -148,6 +148,7 @@ def _build_structured_summary(details: list[dict]) -> dict:
 
 @router.post("/review")  # function call
 async def review(  # code
+    request: Request,
     file: UploadFile = File(...),  # function call
     full: bool = Query(False, description="返回完整图元列表"),  # function call
     building_type: str = Query(
@@ -165,7 +166,6 @@ async def review(  # code
     webhook_type: str = Query(
         "generic", description="P71: generic | feishu | dingtalk"
     ),  # function call
-    request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """图纸合规审查（免费试用）
@@ -558,9 +558,11 @@ async def review(  # code
         # P112: 从请求头读取 team_id/project_id，打通协作系统与审查历史
         team_id = request.headers.get("X-Team-Id", "") if request else ""
         project_id = request.headers.get("X-Project-Id", "") if request else ""
-        save_review_result(review_id, filename, response_data, team_id=team_id, project_id=project_id)
-    except Exception:
-        pass  # 保存失败不影响审查结果返回
+        logger.info(f"[P112] Saving review: id={review_id} team={team_id} proj={project_id} file={filename}")
+        ok = save_review_result(review_id, filename, response_data, team_id=team_id, project_id=project_id)
+        logger.info(f"[P112] Save result: ok={ok}")
+    except Exception as e:
+        logger.error(f"[P112] Save failed: {e}")
 
     return response_data  # return
 
@@ -727,8 +729,8 @@ async def export_review_export(
 
 @router.post("/review-from-data")  # function call
 async def review_from_data(  # code
+    request: Request,
     body: dict,  # 操作
-    request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """从已解析的结构化数据执行规范审查（无需重新上传文件）
@@ -1074,8 +1076,8 @@ async def compute_thermal_k(  # code
 
 @router.post("/reconstruct")  # function call
 async def reconstruct(  # code
+    request: Request,
     body: dict,  # 操作
-    request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """BIM 重构（需授权验证）
@@ -1135,8 +1137,8 @@ async def reconstruct(  # code
 
 @router.get("/order/{order_id}")  # function call
 async def get_order(  # code
+    request: Request,
     order_id: str,  # 操作
-    request: Request = None,  # assignment
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """订单状态查询
@@ -1175,13 +1177,13 @@ async def get_order(  # code
 # ── P73: 多Sheet 多区域图纸审查 ───────────────────────────
 @router.post("/review-multi-sheet", tags=["Review"])
 async def review_multi_sheet(
+    request: Request,
     file: UploadFile = File(...),
     building_type: str = Query("civil", description="建筑类型: civil(民用) / industrial(工业)"),
     building_types: Optional[List[str]] = Query(None, description="多建筑类型列表"),
     standard: str = Query("GB 50016-2014", description="规范标准"),
     webhook_url: Optional[str] = Query(None, description="P71: 审查完成后 POST 到此 URL"),
     webhook_type: str = Query("generic", description="P71: generic | feishu | dingtalk"),
-    request: Request = None,
     api_key: str = Depends(verify_api_key),
 ):
     """P73: 多Sheet/多区域图纸独立审查
