@@ -16,6 +16,19 @@
       <h1 class="text-lg font-bold text-blue-700">BAA</h1>
       <p class="text-xs text-gray-400">Blueprint AI Agent</p>
     </div>
+    <!-- 用户态指示器（P112） -->
+    <div id="user-status" class="p-3 border-b border-gray-100">
+      <div id="user-status-logged-out" class="text-center text-xs text-gray-400">
+        <span id="collab-quick-login" class="cursor-pointer text-blue-600 hover:underline" onclick="document.querySelector('[data-page=collab]').click()">点击协作登录</span>
+      </div>
+      <div id="user-status-logged-in" style="display:none" class="flex items-center gap-2">
+        <div class="flex-1 min-w-0">
+          <div id="user-status-name" class="text-sm font-medium text-gray-800 truncate"></div>
+          <div id="user-status-role" class="text-xs text-gray-400"></div>
+        </div>
+        <button onclick="collabLogout()" class="shrink-0 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">退出</button>
+      </div>
+    </div>
     <nav class="flex-1 p-3 space-y-1" id="sidebar">
       <div class="sidebar-item active" data-page="home"><i class="fa fa-home w-5"></i>系统概览</div>
       <div class="sidebar-item" data-page="drawings">📐图纸管理</div>

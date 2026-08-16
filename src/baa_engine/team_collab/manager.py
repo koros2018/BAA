@@ -45,6 +45,7 @@ from .models import (
     ProjectPermission,
     ApprovalStatus,
     ReviewStatus,
+    CommentType,
     User,
     Team,
     TeamMember,
