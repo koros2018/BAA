@@ -555,7 +555,10 @@ async def review(  # code
         from .review_history import save_review_result
 
         review_id = file_id or task_id or str(uuid.uuid4())
-        save_review_result(review_id, filename, response_data)
+        # P112: 从请求头读取 team_id/project_id，打通协作系统与审查历史
+        team_id = request.headers.get("X-Team-Id", "") if request else ""
+        project_id = request.headers.get("X-Project-Id", "") if request else ""
+        save_review_result(review_id, filename, response_data, team_id=team_id, project_id=project_id)
     except Exception:
         pass  # 保存失败不影响审查结果返回
 
@@ -1001,7 +1004,10 @@ async def review_from_data(  # code
 
         review_id = task_id or str(uuid.uuid4())
         drawing_name = body.get("drawing_name", body.get("filename", "from-data"))
-        save_review_result(review_id, drawing_name, response_data)
+        # P112: 从请求头读取 team_id/project_id
+        team_id = request.headers.get("X-Team-Id", "") if request else ""
+        project_id = request.headers.get("X-Project-Id", "") if request else ""
+        save_review_result(review_id, drawing_name, response_data, team_id=team_id, project_id=project_id)
     except Exception:
         pass
 
