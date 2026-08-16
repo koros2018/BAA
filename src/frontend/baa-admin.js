@@ -785,6 +785,17 @@ var collabToken = localStorage.getItem('baa_collab_token') || '';
 var collabUser = {};
 try { collabUser = JSON.parse(localStorage.getItem('baa_collab_user') || '{}'); } catch(e) {}
 
+function collabErrMsg(d) {
+  // 统一提取 API 错误信息（FastAPI 401/404 错误体可能嵌套在 detail 中）
+  if (!d) return '请求失败';
+  if (typeof d === 'string') return d;
+  if (typeof d.detail === 'string') return d.detail;
+  if (d.detail && typeof d.detail === 'object') {
+    return d.detail.message || d.detail.error_code || '请求失败';
+  }
+  return '请求失败';
+}
+
 function collabApi(path, options) {
   options = options || {};
   var url = API_BASE() + path;
@@ -792,7 +803,13 @@ function collabApi(path, options) {
   if (collabToken) headers['Authorization'] = 'Bearer ' + collabToken;
   if (options.headers) { for (var k in options.headers) headers[k] = options.headers[k]; }
   options.headers = headers;
-  return fetch(url, options).then(function(r) { return r.json(); });
+  return fetch(url, options).then(function(r) {
+    // 401 说明当前 token 失效：清除本地会话，避免后续请求继续 401 级联
+    if (r.status === 401 && collabToken && options.autoLogout !== false) {
+      collabLogout();
+    }
+    return r.json().catch(function() { return {}; });
+  });
 }
 
 function closeCollabModal() { var el = document.getElementById('collab-modal-overlay'); if (el) el.style.display = 'none'; }
@@ -818,14 +835,16 @@ function collabLogin() {
   var u = document.getElementById('collab-username').value.trim();
   var p = document.getElementById('collab-password').value;
   if (!u || !p) { document.getElementById('collab-auth-msg').textContent = '请输入用户名和密码'; return; }
-  collabApi('/collab/auth/login', { method: 'POST', body: JSON.stringify({username: u, password: p}) }).then(function(d) {
+  collabApi('/collab/auth/login', { method: 'POST', body: JSON.stringify({username: u, password: p}), autoLogout: false }).then(function(d) {
     if (d.status === 'success') {
       collabToken = d.token; collabUser = d.user;
       localStorage.setItem('baa_collab_token', collabToken);
       localStorage.setItem('baa_collab_user', JSON.stringify(collabUser));
       document.getElementById('collab-auth-msg').textContent = '';
       collabEnterMain();
-    } else { document.getElementById('collab-auth-msg').textContent = d.detail || '登录失败'; }
+    } else { document.getElementById('collab-auth-msg').textContent = collabErrMsg(d); }
+  }).catch(function(e) {
+    document.getElementById('collab-auth-msg').textContent = '网络错误: ' + e.message;
   });
 }
 
@@ -838,13 +857,15 @@ function collabRegister() {
   if (p.length < 6) { document.getElementById('collab-reg-msg').textContent = '密码至少6位'; return; }
   var body = {username: u, password: p};
   if (e) { body.email = e; body.display_name = dn; }
-  collabApi('/collab/auth/register', { method: 'POST', body: JSON.stringify(body) }).then(function(d) {
+  collabApi('/collab/auth/register', { method: 'POST', body: JSON.stringify(body), autoLogout: false }).then(function(d) {
     if (d.status === 'success') {
       document.getElementById('collab-reg-msg').textContent = '注册成功，请登录';
       document.getElementById('collab-reg-msg').style.color = '#059669';
       showCollabLogin();
       document.getElementById('collab-username').value = u;
-    } else { document.getElementById('collab-reg-msg').textContent = d.detail || '注册失败'; }
+    } else { document.getElementById('collab-reg-msg').textContent = collabErrMsg(d); }
+  }).catch(function(e) {
+    document.getElementById('collab-reg-msg').textContent = '网络错误: ' + e.message;
   });
 }
 
@@ -925,7 +946,7 @@ function createTeam() {
       setCurrentTeamId(d.team_id || d.id || '');
       setCurrentProjectId('');
       closeCollabModal(); collabRefresh();
-    } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+    } else { showToast(collabErrMsg(d), 'info'); }
   });
 }
 
@@ -994,7 +1015,7 @@ function createProject(teamId) {
       setCurrentTeamId(teamId);
       setCurrentProjectId(d.project_id || d.id || '');
       showTeamDetail(teamId);
-    } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+    } else { showToast(collabErrMsg(d), 'info'); }
   });
 }
 function showCreateReviewSessionModal(projectId) {
@@ -1006,7 +1027,7 @@ function createReviewSession(projectId) {
   if (!name) return;
   var desc = document.getElementById('modal-rs-desc').value.trim();
   collabApi('/collab/review-sessions', { method: 'POST', body: JSON.stringify({project_id: projectId, name: name, description: desc}) }).then(function(d) {
-    if (d.status === 'success') { showProjectDetail(projectId); } else { showToast(d.detail || '\u521b\u5efa\u5931\u8d25', 'info'); }
+    if (d.status === 'success') { showProjectDetail(projectId); } else { showToast(collabErrMsg(d), 'info'); }
   });
 }
 
@@ -1046,20 +1067,31 @@ function showReviewSessionDetail(sessionId) {
   });
 }
 
-// Auto-login if token exists
+// Auto-login if token exists — 先验证 token 有效性，无效则回退到登录页
 if (collabToken) {
   setTimeout(function() {
-    var page = document.getElementById('page-collab');
-    updateUserStatus(true);
-    if (page && page.classList.contains('active')) {
-      collabEnterMain();
-    }
-    // Also ensure page-collab shows main section even if not active
-    var mainSec = document.getElementById('collab-main-section');
-    var loginSec = document.getElementById('collab-login-section');
-    if (mainSec && loginSec) {
-      mainSec.style.display = 'block';
-      loginSec.style.display = 'none';
-    }
+    collabApi('/collab/users/me', { autoLogout: false }).then(function(d) {
+      if (d.status === 'success') {
+        collabUser = d.user;
+        localStorage.setItem('baa_collab_user', JSON.stringify(collabUser));
+        updateUserStatus(true);
+        var page = document.getElementById('page-collab');
+        if (page && page.classList.contains('active')) {
+          collabEnterMain();
+        } else {
+          var mainSec = document.getElementById('collab-main-section');
+          var loginSec = document.getElementById('collab-login-section');
+          if (mainSec && loginSec) {
+            mainSec.style.display = 'block';
+            loginSec.style.display = 'none';
+          }
+        }
+      } else {
+        // token 无效，清除并展示登录页
+        collabLogout();
+      }
+    }).catch(function() {
+      collabLogout();
+    });
   }, 500);
 }
