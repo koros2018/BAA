@@ -3,6 +3,8 @@
 
 将审查结果保存到 SQLite，支持查询、分页、删除。
 前端审查记录页面从此加载，而非仅依赖浏览器 localStorage。
+
+P112: 增加 team_id/project_id 字段，打通协作系统与审查历史。
 """
 
 import json
@@ -29,7 +31,7 @@ def _get_conn() -> sqlite3.Connection:
 
 
 def _init_db():
-    """初始化表结构"""
+    """初始化表结构，向后兼容：已存在的旧表自动增加 team_id/project_id"""
     conn = _get_conn()
     try:
         conn.execute("""
@@ -43,6 +45,8 @@ def _init_db():
                 details TEXT DEFAULT '[]',
                 corrections TEXT DEFAULT '[]',
                 file_id TEXT DEFAULT '',
+                team_id TEXT DEFAULT '',
+                project_id TEXT DEFAULT '',
                 score REAL DEFAULT 0,
                 violation_count INTEGER DEFAULT 0,
                 entity_count INTEGER DEFAULT 0,
@@ -51,14 +55,17 @@ def _init_db():
                 updated_at TEXT NOT NULL
             )
         """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_review_history_created
-            ON review_history(created_at DESC)
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_review_history_drawing
-            ON review_history(drawing_name)
-        """)
+        # 向后兼容：旧表先补列，再建索引（列不存在时 CREATE INDEX 会失败）
+        cols = [c[1] for c in conn.execute("PRAGMA table_info(review_history)")]
+        if "team_id" not in cols:
+            conn.execute("ALTER TABLE review_history ADD COLUMN team_id TEXT DEFAULT ''")
+        if "project_id" not in cols:
+            conn.execute("ALTER TABLE review_history ADD COLUMN project_id TEXT DEFAULT ''")
+        # 建索引（此时列已确保存在）
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_created ON review_history(created_at DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_drawing ON review_history(drawing_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_team ON review_history(team_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_project ON review_history(project_id)")
         conn.commit()
     finally:
         conn.close()
@@ -68,6 +75,8 @@ def save_review_result(
     review_id: str,
     drawing_name: str,
     response_data: dict,
+    team_id: str = "",
+    project_id: str = "",
 ) -> bool:
     """保存审查结果到数据库
 
@@ -75,6 +84,8 @@ def save_review_result(
         review_id: 审查记录唯一 ID
         drawing_name: 图纸文件名
         response_data: 审查 API 返回的完整响应数据
+        team_id: P112 所属团队 ID（可选，来自 X-Team-Id header）
+        project_id: P112 所属项目 ID（可选，来自 X-Project-Id header）
 
     Returns:
         True 保存成功，False 失败（如重复 ID）
@@ -95,13 +106,20 @@ def save_review_result(
         corrections = response_data.get("corrections", [])
         file_id = response_data.get("file_id", "")
 
+        # P112: 从 response_data 兜底读取 team_id/project_id（review_multi_sheet 等会写入）
+        if not team_id:
+            team_id = response_data.get("team_id", "")
+        if not project_id:
+            project_id = response_data.get("project_id", "")
+
         conn.execute(
             """INSERT INTO review_history
             (id, drawing_name, building_type, standard, status,
              summary, details, corrections, file_id,
+             team_id, project_id,
              score, violation_count, entity_count, processing_time_ms,
              created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 review_id,
                 drawing_name,
@@ -112,6 +130,8 @@ def save_review_result(
                 json.dumps(details, ensure_ascii=False),
                 json.dumps(corrections, ensure_ascii=False),
                 file_id,
+                team_id,
+                project_id,
                 score,
                 violation_count,
                 entity_count,
@@ -134,6 +154,8 @@ def list_review_history(
     drawing_name: Optional[str] = None,
     building_type: Optional[str] = None,
     status: Optional[str] = None,
+    team_id: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> Dict:
     """查询审查历史记录
 
@@ -154,6 +176,12 @@ def list_review_history(
         if status:
             conditions.append("status = ?")
             params.append(status)
+        if team_id:
+            conditions.append("team_id = ?")
+            params.append(team_id)
+        if project_id:
+            conditions.append("project_id = ?")
+            params.append(project_id)
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
@@ -167,7 +195,7 @@ def list_review_history(
         rows = conn.execute(
             f"""SELECT id, drawing_name, building_type, standard, status,
                        score, violation_count, entity_count, processing_time_ms,
-                       corrections, created_at
+                       corrections, team_id, project_id, created_at
                 FROM review_history {where}
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?""",
@@ -189,6 +217,8 @@ def list_review_history(
                     "entityCount": row["entity_count"],
                     "processingTimeMs": row["processing_time_ms"],
                     "correctionCount": len(corrections),
+                    "teamId": row["team_id"],
+                    "projectId": row["project_id"],
                     "reviewedAt": row["created_at"],
                 }
             )
@@ -220,6 +250,8 @@ def get_review_detail(review_id: str) -> Optional[Dict]:
             "violationCount": row["violation_count"],
             "entityCount": row["entity_count"],
             "processingTimeMs": row["processing_time_ms"],
+            "teamId": row["team_id"],
+            "projectId": row["project_id"],
             "reviewedAt": row["created_at"],
         }
     finally:

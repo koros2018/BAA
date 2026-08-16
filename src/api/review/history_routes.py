@@ -20,12 +20,23 @@ async def list_review_history(
     offset: int = Query(0, ge=0),
     drawing_name: str = Query(None, description="图纸名称搜索"),
     building_type: str = Query(None, description="建筑类型筛选"),
+    status: str = Query(None, description="状态筛选: success/failed"),
+    team_id: str = Query(None, description="P112: 按团队 ID 筛选"),
+    project_id: str = Query(None, description="P112: 按项目 ID 筛选"),
     api_key: str = Depends(verify_api_key),
 ):
-    """查询审查历史记录列表（分页）"""
+    """查询审查历史记录列表（分页，支持按团队/项目过滤）"""
     from .review_history import list_review_history as _list
 
-    return _list(limit=limit, offset=offset, drawing_name=drawing_name, building_type=building_type)
+    return _list(
+        limit=limit,
+        offset=offset,
+        drawing_name=drawing_name,
+        building_type=building_type,
+        status=status,
+        team_id=team_id,
+        project_id=project_id,
+    )
 
 
 @router.get("/review/history/{review_id}")  # 审查历史详情
