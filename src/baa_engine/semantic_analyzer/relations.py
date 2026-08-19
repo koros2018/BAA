@@ -1,5 +1,5 @@
-"""Spatial relations + dimension binding + attribute inference.
-"""
+"""Spatial relations + dimension binding + attribute inference."""
+
 from typing import List, Dict, Tuple, Set
 from .models import SemanticEntity, SpatialRelation
 from .geometry import (
@@ -11,11 +11,8 @@ from .geometry import (
     point_distance,
 )
 
-def _build_relations(
-    self, entities: List[SemanticEntity]
-) -> List[
-    SpatialRelation
-]:
+
+def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelation]:
     """构建空间关系（V2深度升级版）
 
     包括：
@@ -119,9 +116,7 @@ def _build_relations(
     walls = [e for e in entities if e.type == "wall"]  # compare: equality
     # P107: doorway 与 door 同为墙体开口，参与 host_wall 匹配
     openings = [
-        e
-        for e in entities
-        if e.type in ("door", "window", "fire_door", "exit_door", "doorway")
+        e for e in entities if e.type in ("door", "window", "fire_door", "exit_door", "doorway")
     ]
 
     for opening in openings:  # 循环
@@ -196,11 +191,7 @@ def _build_relations(
     corridors = [e for e in entities if e.type == "corridor"]  # compare: equality
     rooms = [e for e in entities if e.type == "room"]  # compare: equality
     # P107: 扫线法产出的 doorway 与 door 等价，参与走廊-门-房间拓扑
-    doors = [
-        e
-        for e in entities
-        if e.type in ("door", "fire_door", "exit_door", "doorway")
-    ]
+    doors = [e for e in entities if e.type in ("door", "fire_door", "exit_door", "doorway")]
 
     for door in doors:  # 循环
         for c in corridors:  # 循环
@@ -230,9 +221,7 @@ def _build_relations(
 
     # ── 4. 包含关系（房间包含设备/柱）──
     contained_types = {"column", "stair", "exit", "fire_door"}
-    containables = [
-        e for e in entities if e.type in contained_types
-    ]
+    containables = [e for e in entities if e.type in contained_types]
     for room in rooms:  # 循环
         for item in containables:  # 循环
             if is_inside(item.bbox, room.bbox):  # condition: self._is_inside(item.bbox, room.bbox):
@@ -298,13 +287,9 @@ def _build_relations(
     return relations
 
 
-
-
 def _bind_dimensions(
     self,
-    entities: List[
-        SemanticEntity
-    ],
+    entities: List[SemanticEntity],
     dimensions: List[Dict],
 ) -> Dict[str, Dict]:  # 操作
     """尺寸标注绑定到实体"""
@@ -333,15 +318,12 @@ def _bind_dimensions(
 
     return bindings
 
+
 # ── 几何工具函数 ────────────────────────────────────
 
+
 @staticmethod
-
-
-
-def _infer_attribute_name(
-    dim: Dict, entity: SemanticEntity
-) -> str:
+def _infer_attribute_name(dim: Dict, entity: SemanticEntity) -> str:
     """推断属性名"""
     entity_type = entity.type
 
@@ -359,5 +341,6 @@ def _infer_attribute_name(
         return "area"
     else:  # 否则
         return "measurement"
+
 
 # ── 走廊拓扑网络 ────────────────────────────────────

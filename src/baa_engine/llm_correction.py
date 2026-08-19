@@ -68,6 +68,7 @@ class LLMCorrectionEngine:
         timeout: int = DEFAULT_LLM_TIMEOUT,
         cache_size: int = DEFAULT_CACHE_SIZE,
     ):
+        """初始化实例。"""
         self.mode = mode or os.environ.get("BAA_CORRECTION_MODE", DEFAULT_MODE)
         self.llm_endpoint = llm_endpoint or os.environ.get("BAA_LLM_ENDPOINT", DEFAULT_LLM_ENDPOINT)
         self.api_key = api_key or os.environ.get("BAA_LLM_API_KEY", "")
@@ -89,6 +90,7 @@ class LLMCorrectionEngine:
     def generate(
         self, findings: List[Dict], entities: List[Dict], mode: str = None
     ) -> List[CorrectionSuggestion]:
+        """生成修正建议。"""
         effective_mode = mode or self.mode
         if effective_mode == self.MODE_RULE:
             return self._generate_rule(findings, entities)
@@ -126,6 +128,7 @@ class LLMCorrectionEngine:
     # ── 三种模式实现 ──────────────────────────────────────
 
     def _generate_rule(self, findings, entities) -> List[CorrectionSuggestion]:
+        """基于规则生成修正建议。"""
         raw = self.rule_engine.generate(findings, entities)
         suggestions = []
         for r in raw:
@@ -148,6 +151,7 @@ class LLMCorrectionEngine:
         return suggestions
 
     def _generate_llm(self, findings, entities) -> List[CorrectionSuggestion]:
+        """基于 LLM 生成修正建议。"""
         suggestions = []
         for finding in findings:
             cache_key = self._get_cache_key(finding)
@@ -196,6 +200,7 @@ class LLMCorrectionEngine:
         return suggestions
 
     def _generate_hybrid(self, findings, entities) -> List[CorrectionSuggestion]:
+        """混合规则与 LLM 生成修正建议。"""
         rule_suggestions = self._generate_rule(findings, entities)
         result = []
         for i, suggestion in enumerate(rule_suggestions):
@@ -231,6 +236,7 @@ class LLMCorrectionEngine:
     # ── LLM 调用 ──────────────────────────────────────────
 
     def _build_prompt(self, finding, entities, rule_suggestion=None) -> str:
+        """待补充。"""
         clause_id = finding.get("clause_id", "")
         clause_title = finding.get("clause_title", "")
         entity_type = finding.get("entity_type", "")
@@ -348,6 +354,7 @@ class LLMCorrectionEngine:
         return "\n".join(lines)
 
     def _call_llm(self, prompt: str) -> Optional[str]:
+        """待补充。"""
         if not self.api_key:
             logger.warning("LLM API key 未配置，跳过 LLM 调用")
             return None
@@ -375,6 +382,7 @@ class LLMCorrectionEngine:
             return None
 
     def _parse_llm_response(self, response: str) -> Optional[Dict]:
+        """待补充。"""
         if not response:
             return None
         text = response.strip()
@@ -411,23 +419,27 @@ class LLMCorrectionEngine:
     # ── 缓存 ──────────────────────────────────────────────
 
     def _get_cache_key(self, finding: Dict) -> str:
+        """待补充。"""
         clause_id = finding.get("clause_id", "")
         entity_type = finding.get("entity_type", "")
         raw = f"{clause_id}:{entity_type}"
         return hashlib.md5(raw.encode()).hexdigest()
 
     def _add_to_cache(self, key: str, value: Dict):
+        """待补充。"""
         if len(self._cache) >= self.cache_size:
             first_key = next(iter(self._cache))
             del self._cache[first_key]
         self._cache[key] = value
 
     def clear_cache(self):
+        """待补充。"""
         self._cache.clear()
 
     # ── 工具方法 ──────────────────────────────────────────
 
     def _dict_to_suggestion(self, d: Dict) -> CorrectionSuggestion:
+        """待补充。"""
         return CorrectionSuggestion(
             entity_id=d.get("entity_id", ""),
             entity_type=d.get("entity_type", ""),

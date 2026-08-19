@@ -764,6 +764,7 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
     """图纸修正建议生成引擎"""
 
     def __init__(self):  # 内部方法: __init__
+        """初始化实例。"""
         self._templates = CORRECTION_TEMPLATES  # 实例属性: _templates
 
     def generate(
@@ -804,7 +805,12 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
                     suggestions.append(suggestion)  # 追加元素
                 # 异常处理
                 except Exception as _e:  # 异常处理
-                    logger.debug("[P120] 修正建议模板执行失败 func_id=%s: %s: %s", func_id, type(_e).__name__, _e)
+                    logger.debug(
+                        "[P120] 修正建议模板执行失败 func_id=%s: %s: %s",
+                        func_id,
+                        type(_e).__name__,
+                        _e,
+                    )
 
         return suggestions  # 返回结果
 
@@ -888,6 +894,7 @@ class _FuncResult:  # 类定义: _FuncResult
     """内部简易结果对象"""
 
     def __init__(self, actual: float, threshold: float, delta: float):  # 内部方法: __init__
+        """初始化实例。"""
         self.actual = actual  # 实例属性: actual
         self.threshold = threshold  # 实例属性: threshold
         self.delta = delta  # 实例属性: delta

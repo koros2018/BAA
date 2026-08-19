@@ -19,6 +19,7 @@ class SemanticEntity:
         confidence: float = 1.0,
         properties: Dict[str, Any] = None,
     ):
+        """初始化实例。"""
         self.id = entity_id
         self.type = entity_type
         self.bbox = bbox
@@ -28,6 +29,7 @@ class SemanticEntity:
         self.properties = properties or {}
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "type": self.type,
@@ -51,6 +53,7 @@ class SpatialRelation:
         via: str = "",
         confidence: float = 1.0,
     ):
+        """初始化实例。"""
         self.source_id = source_id
         self.target_id = target_id
         self.type = rel_type  # adjacent / contains / connects_to

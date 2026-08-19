@@ -1,14 +1,11 @@
-"""Overlapping entity merge — spatial hash accelerated.
-"""
+"""Overlapping entity merge — spatial hash accelerated."""
+
 from typing import List
 from collections import defaultdict
 from .models import SemanticEntity
 
-def _merge_overlapping(
-    self, entities: List[SemanticEntity]
-) -> List[
-    SemanticEntity
-]:
+
+def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEntity]:
     """合并重叠/相邻的同类图元（空间哈希加速版）
 
     小数据量（<2000）直接 O(n²) 全量对比；
@@ -36,18 +33,14 @@ def _merge_overlapping(
                     cluster.append(b)  # append: add to list
                     used.add(j)  # call
             if len(cluster) > 1:  # check: numeric comparison
-                merged_bbox = self._union_bbox(
-                    [e.bbox for e in cluster]
-                )
+                merged_bbox = self._union_bbox([e.bbox for e in cluster])
                 merged.append(
                     SemanticEntity(  # code
                         entity_id=a.id,
                         entity_type=a.type,
                         bbox=merged_bbox,
                         layer=a.layer,
-                        confidence=max(
-                            e.confidence for e in cluster
-                        ),
+                        confidence=max(e.confidence for e in cluster),
                         properties=a.properties,
                     )
                 )  # code
@@ -114,9 +107,7 @@ def _merge_overlapping(
                 used.add(j)  # call
 
         if len(cluster) > 1:  # check: numeric comparison
-            merged_bbox = self._union_bbox(
-                [e.bbox for e in cluster]
-            )
+            merged_bbox = self._union_bbox([e.bbox for e in cluster])
             merged.append(
                 SemanticEntity(  # code
                     entity_id=a.id,
@@ -131,4 +122,3 @@ def _merge_overlapping(
             merged.append(a)  # append: add to list
 
     return merged
-

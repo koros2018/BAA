@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "ATTR-001",
         "防火门等级判定",
         FuncCategory.ATTR,
@@ -20,7 +20,7 @@ AtomicFunction(
         "级",
         target_entities=["fire_door", "door"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "ATTR-002",
         "保温材料等级判定",
         FuncCategory.ATTR,
@@ -31,7 +31,7 @@ AtomicFunction(
         "级",
         target_entities=["insulation", "wall_insulation", "roof_insulation"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "ATTR-003",
         "防火窗等级判定",
         FuncCategory.ATTR,
@@ -42,7 +42,7 @@ AtomicFunction(
         "h",
         target_entities=["fire_window", "window"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-004",
         name="防火墙耐火极限判定",
         description="防火墙的耐火极限不应低于3.00h（GB50016-6.1.1）",
@@ -54,7 +54,7 @@ AtomicFunction(
         unit="h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-005",
         name="防火门耐火等级判定",
         description="疏散楼梯间及其前室应采用乙级防火门（GB50016-6.4.3）",
@@ -66,7 +66,7 @@ AtomicFunction(
         unit="级",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-006",
         name="楼板耐火极限判定",
         description="一级耐火等级建筑楼板耐火极限不应低于1.50h（GB50016-5.1.2）",
@@ -78,7 +78,7 @@ AtomicFunction(
         unit="h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-007",
         name="建筑幕墙防火判定",
         description="建筑幕墙在每层楼板处应采用防火封堵（GB50016-6.2.9）",
@@ -90,7 +90,7 @@ AtomicFunction(
         unit="h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-010",
         name="楼梯间形式判定（封闭/防烟）",
         description="防烟楼梯间前室面积不应小于4.5㎡（GB50016-6.4.3）",
@@ -102,7 +102,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-011",
         name="保温材料燃烧性能判定",
         description="建筑外墙保温材料燃烧性能不应低于B1级（GB50016-6.7.4）",
@@ -114,7 +114,7 @@ AtomicFunction(
         unit="级",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-013",
         name="防火窗耐火极限判定",
         description="防火窗耐火极限不应低于1.00h，与防火墙连接的防火窗不应低于1.50h（GB50016-6.5.1-2）",
@@ -126,7 +126,7 @@ AtomicFunction(
         unit="h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-014",
         name="疏散门开启方向判定",
         description="疏散门应向疏散方向开启，不应设门槛（GB50016-6.4.11）",
@@ -138,7 +138,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-015",
         name="外墙保温材料防火等级判定",
         description="建筑外墙保温材料燃烧等级不应低于B1级，高层≥A级（GB50016-6.7.4）",
@@ -150,7 +150,7 @@ AtomicFunction(
         unit="级",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-016",
         name="消防电梯载重量判定",
         description="消防电梯载重量不应小于800kg（GB50016-7.3.8）",
@@ -162,7 +162,7 @@ AtomicFunction(
         unit="kg",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-017",
         name="建筑外墙开口防火分隔判定",
         description="建筑外墙上下层开口之间应设防火分隔（GB50016-6.3.5）",
@@ -174,7 +174,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-018",
         name="疏散楼梯踏步防滑判定",
         description="疏散楼梯踏步面层应防滑（GB50016-6.4.6）",
@@ -186,7 +186,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="ATTR-019",
         name="疏散楼梯间防火门等级判定",
         description="疏散楼梯间防火门应为乙级防火门（GB50016-6.4.14）",

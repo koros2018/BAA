@@ -624,7 +624,8 @@ async def deconstruct(  # code
         except Exception as e:  # 捕获异常
             logger.warning(
                 "[P120] YOLO 图元检测增强失败（不影响主流程）: %s: %s",
-                type(e).__name__, e,
+                type(e).__name__,
+                e,
             )
 
     # Step 2.75: DIMENSION 尺寸标注注入（自动反推实体属性）
@@ -638,7 +639,8 @@ async def deconstruct(  # code
     except Exception as e:  # 捕获异常
         logger.warning(
             "[P120] DIMENSION 尺寸标注注入失败（不影响主流程）: %s: %s",
-            type(e).__name__, e,
+            type(e).__name__,
+            e,
         )
 
     # Step 3: 规范判定（CPU 密集型，移到线程池避免阻塞事件循环）

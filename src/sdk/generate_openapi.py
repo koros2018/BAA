@@ -21,6 +21,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 
 def main():
+    """程序入口，生成 OpenAPI 规范文件。"""
     print("[openapi] 加载 FastAPI 应用...")
     from src.api.baa_api import app
 

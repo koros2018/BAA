@@ -13,6 +13,7 @@ _collab_manager = None
 
 
 def get_collab_manager():
+    """待补充。"""
     global _collab_manager
     if _collab_manager is None:
         from src.baa_engine.team_collab import CollaborationManager
@@ -22,6 +23,7 @@ def get_collab_manager():
 
 
 async def verify_collab_token(request: Request) -> Optional[str]:
+    """待补充。"""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(
@@ -49,6 +51,7 @@ async def verify_collab_token(request: Request) -> Optional[str]:
 
 @router.post("/collab/auth/register")
 async def collab_register(body: dict):
+    """待补充。"""
     cm = get_collab_manager()
     username = body.get("username", "")
     password = body.get("password", "")
@@ -92,6 +95,7 @@ async def collab_register(body: dict):
 
 @router.post("/collab/auth/login")
 async def collab_login(body: dict):
+    """待补充。"""
     cm = get_collab_manager()
     username = body.get("username", "")
     password = body.get("password", "")
@@ -119,6 +123,7 @@ async def collab_login(body: dict):
 
 @router.get("/collab/users/me")
 async def collab_get_me(user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     user = cm.get_user(user_id)
     if not user:
@@ -135,6 +140,7 @@ async def collab_get_me(user_id: str = Depends(verify_collab_token)):
 
 @router.put("/collab/users/me")
 async def collab_update_me(body: dict, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     result, msg = cm.update_user(user_id, body)
     if not result:
@@ -153,6 +159,7 @@ async def collab_update_me(body: dict, user_id: str = Depends(verify_collab_toke
 async def collab_search_users(
     query: str = "", limit: int = 20, _user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     users = cm.list_users(query, limit)
     return {"status": "success", "users": users}
@@ -160,6 +167,7 @@ async def collab_search_users(
 
 @router.post("/collab/teams")
 async def collab_create_team(body: dict, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     name = body.get("name", "")
     if not name:
@@ -188,6 +196,7 @@ async def collab_create_team(body: dict, user_id: str = Depends(verify_collab_to
 
 @router.get("/collab/teams")
 async def collab_list_teams(user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     teams = cm.list_user_teams(user_id)
     return {"status": "success", "teams": teams}
@@ -195,6 +204,7 @@ async def collab_list_teams(user_id: str = Depends(verify_collab_token)):
 
 @router.get("/collab/teams/{team_id}")
 async def collab_get_team(team_id: str, _user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     team = cm.get_team(team_id)
     if not team:
@@ -213,6 +223,7 @@ async def collab_get_team(team_id: str, _user_id: str = Depends(verify_collab_to
 async def collab_add_team_member(
     team_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     target_user_id = body.get("user_id", "")
     role = body.get("role", "member")
@@ -242,6 +253,7 @@ async def collab_add_team_member(
 async def collab_remove_team_member(
     team_id: str, target_id: str, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     ok, msg = cm.remove_team_member(team_id, user_id, target_id)
     if not ok:
@@ -258,6 +270,7 @@ async def collab_remove_team_member(
 
 @router.post("/collab/projects")
 async def collab_create_project(body: dict, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     name = body.get("name", "")
     if not name:
@@ -291,6 +304,7 @@ async def collab_create_project(body: dict, user_id: str = Depends(verify_collab
 
 @router.get("/collab/projects")
 async def collab_list_projects(status: str = "active", user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     projects = cm.list_user_projects(user_id, status)
     return {"status": "success", "projects": projects}
@@ -298,6 +312,7 @@ async def collab_list_projects(status: str = "active", user_id: str = Depends(ve
 
 @router.get("/collab/projects/{project_id}")
 async def collab_get_project(project_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     project = cm.get_project(project_id, user_id)
     if not project:
@@ -316,6 +331,7 @@ async def collab_get_project(project_id: str, user_id: str = Depends(verify_coll
 async def collab_add_project_member(
     project_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     target_id = body.get("user_id", "")
     permission = body.get("permission", "view")
@@ -345,6 +361,7 @@ async def collab_add_project_member(
 async def collab_update_project_member(
     project_id: str, target_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     permission = body.get("permission", "")
     if not permission:
@@ -373,6 +390,7 @@ async def collab_update_project_member(
 async def collab_remove_project_member(
     project_id: str, target_id: str, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     ok, msg = cm.remove_project_member(project_id, user_id, target_id)
     if not ok:
@@ -389,6 +407,7 @@ async def collab_remove_project_member(
 
 @router.get("/collab/teams/{team_id}/projects")
 async def collab_list_team_projects(team_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     projects = cm.list_team_projects(team_id, user_id)
     return {"status": "success", "projects": projects}
@@ -396,6 +415,7 @@ async def collab_list_team_projects(team_id: str, user_id: str = Depends(verify_
 
 @router.post("/collab/review-sessions")
 async def collab_create_review_session(body: dict, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     project_id = body.get("project_id", "")
     if not project_id:
@@ -428,6 +448,7 @@ async def collab_create_review_session(body: dict, user_id: str = Depends(verify
 
 @router.get("/collab/projects/{project_id}/review-sessions")
 async def collab_list_review_sessions(project_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     sessions = cm.list_review_sessions(project_id, user_id)
     return {"status": "success", "review_sessions": sessions}
@@ -435,6 +456,7 @@ async def collab_list_review_sessions(project_id: str, user_id: str = Depends(ve
 
 @router.get("/collab/review-sessions/{session_id}")
 async def collab_get_review_session(session_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     rs = cm.get_review_session(session_id, user_id)
     if not rs:
@@ -453,6 +475,7 @@ async def collab_get_review_session(session_id: str, user_id: str = Depends(veri
 async def collab_update_review_session_status(
     session_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     status = body.get("status", "")
     if not status:
@@ -481,6 +504,7 @@ async def collab_update_review_session_status(
 async def collab_add_comment(
     session_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     content = body.get("content", "")
     if not content:
@@ -518,6 +542,7 @@ async def collab_add_comment(
 async def collab_list_comments(
     session_id: str, include_resolved: bool = True, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     comments = cm.list_comments(session_id, user_id, include_resolved)
     return {"status": "success", "comments": comments}
@@ -525,6 +550,7 @@ async def collab_list_comments(
 
 @router.put("/collab/comments/{comment_id}/resolve")
 async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     ok, msg = cm.resolve_comment(comment_id, user_id)
     if not ok:
@@ -544,6 +570,7 @@ async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_
 async def collab_create_approval_flow(
     session_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     assignee_ids = body.get("assignee_ids", [])
     if not assignee_ids:
@@ -572,6 +599,7 @@ async def collab_create_approval_flow(
 
 @router.get("/collab/review-sessions/{session_id}/approval-flow")
 async def collab_get_approval_flow(session_id: str, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     flow = cm.get_approval_flow(session_id)
     if not flow:
@@ -590,6 +618,7 @@ async def collab_get_approval_flow(session_id: str, user_id: str = Depends(verif
 async def collab_approve_step(
     step_id: str, body: dict, user_id: str = Depends(verify_collab_token)
 ):
+    """待补充。"""
     cm = get_collab_manager()
     ok, msg = cm.approve_step(step_id, user_id, body.get("comment", ""))
     if not ok:
@@ -606,6 +635,7 @@ async def collab_approve_step(
 
 @router.post("/collab/approval-steps/{step_id}/reject")
 async def collab_reject_step(step_id: str, body: dict, user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     ok, msg = cm.reject_step(step_id, user_id, body.get("comment", ""))
     if not ok:
@@ -622,5 +652,6 @@ async def collab_reject_step(step_id: str, body: dict, user_id: str = Depends(ve
 
 @router.get("/collab/stats")
 async def collab_stats(_user_id: str = Depends(verify_collab_token)):
+    """待补充。"""
     cm = get_collab_manager()
     return {"status": "success", "stats": cm.get_stats()}

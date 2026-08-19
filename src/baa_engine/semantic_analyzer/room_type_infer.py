@@ -12,7 +12,6 @@ P109 — 扫线法房间属性自动推断
 
 from typing import List, Dict, Any, Optional, Tuple
 
-
 # ── 房间类型规则（按优先级排列）───────────────────────────────
 # area 单位: m², aspect: 长边/短边
 # text_keywords: 附近 TEXT 实体中出现的关键词（大小写不敏感）
@@ -174,9 +173,7 @@ def _score_corridor(adj_count: int, required: int) -> int:
     return 0
 
 
-def _score_text(
-    text_hits: int, text_total: int, keywords: List[str]
-) -> int:
+def _score_text(text_hits: int, text_total: int, keywords: List[str]) -> int:
     """附近文本关键词命中得分"""
     if not keywords or text_total == 0:
         return 0
@@ -224,11 +221,7 @@ def infer_room_type(
         score += _score_corridor(corridor_adj_count, rule.get("min_corridor_adj", 0))
         # 文本关键词匹配
         if text_total > 0:
-            hits = sum(
-                1
-                for kw in rule["text_keywords"]
-                if kw.lower() in " ".join(texts_lower)
-            )
+            hits = sum(1 for kw in rule["text_keywords"] if kw.lower() in " ".join(texts_lower))
             score += _score_text(hits, text_total, rule["text_keywords"])
 
         if score > best_score:

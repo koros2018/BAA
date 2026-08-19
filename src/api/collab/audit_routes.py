@@ -89,7 +89,9 @@ def confirm(
     note = (body or {}).get("note", "")
     item = confirm_item(item_id, user_id=user_id, note=note)
     if item is None:
-        raise HTTPException(status_code=404, detail={"message": "审核条目不存在", "item_id": item_id})
+        raise HTTPException(
+            status_code=404, detail={"message": "审核条目不存在", "item_id": item_id}
+        )
     return {"ok": True, "item": item}
 
 
@@ -108,7 +110,9 @@ def dismiss(
     note = body.get("note", "")
     item = dismiss_item(item_id, reason=reason, user_id=user_id, note=note)
     if item is None:
-        raise HTTPException(status_code=404, detail={"message": "审核条目不存在", "item_id": item_id})
+        raise HTTPException(
+            status_code=404, detail={"message": "审核条目不存在", "item_id": item_id}
+        )
     return {"ok": True, "item": item, "feedback_recorded": True}
 
 
@@ -123,7 +127,9 @@ def pending(
     note = (body or {}).get("note", "")
     item = pending_item(item_id, user_id=user_id, note=note)
     if item is None:
-        raise HTTPException(status_code=404, detail={"message": "审核条目不存在", "item_id": item_id})
+        raise HTTPException(
+            status_code=404, detail={"message": "审核条目不存在", "item_id": item_id}
+        )
     return {"ok": True, "item": item}
 
 
@@ -141,7 +147,9 @@ def note(
     user_id = body.get("user_id", "")
     item = update_note(item_id, note=note_text, user_id=user_id)
     if item is None:
-        raise HTTPException(status_code=404, detail={"message": "审核条目不存在", "item_id": item_id})
+        raise HTTPException(
+            status_code=404, detail={"message": "审核条目不存在", "item_id": item_id}
+        )
     return {"ok": True, "item": item}
 
 

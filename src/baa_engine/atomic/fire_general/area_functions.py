@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "AREA-001",
         "避难层面积判定",
         FuncCategory.AREA,
@@ -20,7 +20,7 @@ AtomicFunction(
         "㎡/人",
         target_entities=["refuge_floor", "refuge_area", "floor"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "AREA-002",
         "消防电梯前室面积判定",
         FuncCategory.AREA,
@@ -31,7 +31,7 @@ AtomicFunction(
         "㎡",
         target_entities=["elevator_lobby", "lobby"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-003",
         name="避难层净面积判定",
         description="避难层净面积按5.0人/sqm设计（GB50016-5.5.23）",
@@ -43,7 +43,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-004",
         name="消防控制室面积判定",
         description="消防控制室面积不应小于30sqm（GB50016-8.1.7）",
@@ -55,7 +55,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-005",
         name="柴油发电机房面积判定",
         description="柴油发电机房建筑面积不宜大于400m²（GB50016-5.4.15）",
@@ -67,7 +67,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-007",
         name="手术室避难间面积判定",
         description="手术室避难间净面积不应小于25.0sqm（GB50016-5.5.24-3）",
@@ -79,7 +79,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-009",
         name="避难层面积判定",
         description="避难层（间）净面积不应小于5人/㎡（GB50016-5.5.24）",
@@ -91,7 +91,7 @@ AtomicFunction(
         unit="人/㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-010",
         name="消防救援场地面积判定",
         description="消防救援场地长度不应小于15m，宽度不应小于10m（GB50016-7.2.1）",
@@ -103,7 +103,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-011",
         name="自然排烟窗口面积判定",
         description="自然排烟窗口面积不应小于地面面积的2%（GB50016-8.2.3）",
@@ -115,7 +115,7 @@ AtomicFunction(
         unit="%",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-012",
         name="汽车库排烟量判定",
         description="汽车库排烟量不应小于30000m³/h（GB50067-8.2.2）",
@@ -127,7 +127,7 @@ AtomicFunction(
         unit="m³/h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-013",
         name="消防救援窗净面积判定",
         description="消防救援窗净面积不应小于1.0㎡，窗口下沿距室内地面不宜大于1.2m（GB50016-7.2.4-2）",
@@ -139,7 +139,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-014",
         name="消防救援场地最小宽度判定",
         description="消防救援场地宽度不应小于10m，长度不应小于15m（GB50016-7.2.1）",
@@ -151,7 +151,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-015",
         name="避难层人均面积判定",
         description="避难层净面积应按5.0人/㎡计算，净面积不应小于50㎡（GB50016-7.4.1）",
@@ -163,7 +163,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-016",
         name="消防控制室最小面积判定",
         description="消防控制室面积不应小于20㎡（GB50016-8.1.7）",
@@ -175,7 +175,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-017",
         name="自然排烟窗面积比判定",
         description="自然排烟窗（口）面积不应小于该场所地面面积的2%（GB50016-9.2.1）",
@@ -187,7 +187,7 @@ AtomicFunction(
         unit="%",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-018",
         name="防烟楼梯间前室面积判定",
         description="公共建筑防烟楼梯间前室面积≥4.5m²，高层≥6.0m²（GB50016-6.4.3）",
@@ -199,7 +199,7 @@ AtomicFunction(
         unit="m²",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-019",
         name="消防电梯前室面积判定",
         description="消防电梯前室面积不应小于6.0m²（GB50016-7.3.2）",
@@ -211,7 +211,7 @@ AtomicFunction(
         unit="m²",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-020",
         name="避难层面积比判定",
         description="避难层(间)面积按5.0人/m²计算（GB50016-5.5.23）",
@@ -223,7 +223,7 @@ AtomicFunction(
         unit="人/m²",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="AREA-021",
         name="剪刀楼梯间前室面积判定",
         description="剪刀楼梯间前室面积不应小于6.0m²（GB50016-5.5.24）",

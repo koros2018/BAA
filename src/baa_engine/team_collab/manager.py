@@ -78,12 +78,12 @@ _TEAM_ROLE_HIERARCHY = {
 
 
 def _check_permission(user_perm: str, required_perm: str) -> bool:
-
+    """检查权限。"""
     return _PERMISSION_HIERARCHY.get(user_perm, 0) >= _PERMISSION_HIERARCHY.get(required_perm, 0)
 
 
 def _check_team_role(user_role: str, required_role: str) -> bool:
-
+    """检查团队角色。"""
     return _TEAM_ROLE_HIERARCHY.get(user_role, 0) >= _TEAM_ROLE_HIERARCHY.get(required_role, 0)
 
 
@@ -94,7 +94,7 @@ class CollaborationManager:
     _lock = threading.Lock()
 
     def __new__(cls, db_path: str = DEFAULT_DB_PATH):
-
+        """实现单例模式。"""
         with cls._lock:
 
             if cls._instance is None:
@@ -106,7 +106,7 @@ class CollaborationManager:
         return cls._instance
 
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
-
+        """初始化实例。"""
         if self._initialized:
 
             return
@@ -128,21 +128,21 @@ class CollaborationManager:
         logger.info(f"[Collab] DB ready: {db_path}")
 
     def _get_session(self) -> Session:
-
+        """获取审查会话。"""
         return self._session_factory()
 
     def _close_session(self, session: Session):
-
+        """待补充。"""
         session.close()
 
     def _generate_token(self, user_id: str) -> str:
-
+        """待补充。"""
         payload = f"{user_id}.{time.time() + TOKEN_EXPIRE_HOURS * 3600}.{COLLAB_SECRET}"
 
         return hashlib.sha256(payload.encode()).hexdigest()[:32]
 
     def verify_token(self, token: str) -> Optional[str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -158,6 +158,7 @@ class CollaborationManager:
     def register_user(
         self, username: str, password: str, email: str = "", display_name: str = ""
     ) -> Tuple[Optional[dict], str]:
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -317,7 +318,7 @@ class CollaborationManager:
     def create_team(
         self, name: str, owner_id: str, description: str = "", is_public: bool = False
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -405,7 +406,7 @@ class CollaborationManager:
     def add_team_member(
         self, team_id: str, inviter_id: str, user_id: str, role: str = TeamRole.MEMBER.value
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -504,7 +505,7 @@ class CollaborationManager:
         building_type: str = "",
         building_area: float = 0.0,
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -645,7 +646,7 @@ class CollaborationManager:
         user_id: str,
         permission: str = ProjectPermission.VIEW.value,
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -687,7 +688,7 @@ class CollaborationManager:
     def update_project_member_permission(
         self, project_id: str, requester_id: str, user_id: str, new_permission: str
     ) -> Tuple[bool, str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -731,7 +732,7 @@ class CollaborationManager:
     def remove_project_member(
         self, project_id: str, requester_id: str, user_id: str
     ) -> Tuple[bool, str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -791,7 +792,7 @@ class CollaborationManager:
         description: str = "",
         file_ids: List[str] = None,
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -889,7 +890,7 @@ class CollaborationManager:
     def update_review_session_status(
         self, session_id: str, user_id: str, status: str
     ) -> Tuple[bool, str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -941,7 +942,7 @@ class CollaborationManager:
         entity_id: str = "",
         severity: str = "info",
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -988,7 +989,7 @@ class CollaborationManager:
     def list_comments(
         self, review_session_id: str, user_id: str = "", include_resolved: bool = True
     ) -> List[dict]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:
@@ -1077,7 +1078,7 @@ class CollaborationManager:
         name: str = "标准审批",
         assignee_ids: List[str] = None,
     ) -> Tuple[Optional[dict], str]:
-
+        """待补充。"""
         session = self._get_session()
 
         try:

@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "DIST-001",
         "疏散距离判定",
         FuncCategory.DISTANCE,
@@ -20,7 +20,7 @@ AtomicFunction(
         "m",
         target_entities=["room", "space"],  # P71 修复: 去掉 floor（楼板尺寸≠疏散距离）
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIST-002",
         "防火间距判定",
         FuncCategory.DISTANCE,
@@ -31,7 +31,7 @@ AtomicFunction(
         "m",
         target_entities=["building", "factory", "warehouse"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIST-003",
         "袋形走道长度判定",
         FuncCategory.DISTANCE,
@@ -42,7 +42,7 @@ AtomicFunction(
         "m",
         target_entities=["corridor", "aisle", "passage"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIST-004",
         "救援窗口间距判定",
         FuncCategory.DISTANCE,
@@ -53,7 +53,7 @@ AtomicFunction(
         "m",
         target_entities=["rescue_window", "window"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-005",
         name="两个安全出口间距判定",
         description="两个安全出口之间的间距不应小于5.0m（GB50016-5.5.2）",
@@ -65,7 +65,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-006",
         name="排烟口与安全出口间距判定",
         description="排烟口与安全出口之间的距离不应小于1.5m（GB50016-9.2.3）",
@@ -77,7 +77,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-007",
         name="消防水源间距判定",
         description="室外消火栓间距不应大于120m（GB50016-8.1.3）",
@@ -89,7 +89,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-008",
         name="防火分区安全出口间距判定",
         description="同一防火分区两个安全出口间距不应小于5m（GB50016-5.5.2）",
@@ -101,7 +101,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-009",
         name="高层建筑消防登高场地间距判定",
         description="高层建筑消防登高操作场地间隔不应大于30m（GB50016-7.2.2）",
@@ -113,7 +113,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-010",
         name="室外消火栓保护半径判定",
         description="室外消火栓保护半径不应大于150m（GB50016-8.1.3）",
@@ -125,7 +125,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-016",
         name="防火卷帘与可燃物距离判定",
         description="防火卷帘两侧各0.5m范围内不应有可燃物（GB50016-6.5.3）",
@@ -137,7 +137,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-020",
         name="汽车库疏散距离判定",
         description="汽车库内最远点到疏散出口距离不应大于45m（GB50067-6.0.5）",
@@ -149,7 +149,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-021",
         name="汽车库与相邻建筑防火间距判定",
         description="汽车库与相邻建筑的防火间距不应小于10m（GB50067-4.2.1）",
@@ -161,7 +161,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-024",
         name="疏散距离判定（耐火等级二级）",
         description="一、二级耐火等级建筑内疏散距离不应大于40m（GB50016-5.5.12）",
@@ -173,7 +173,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-028",
         name="双向疏散距离判定",
         description="位于两个安全出口之间的房间，疏散距离不应大于40m（GB50016-5.5.17）",
@@ -185,7 +185,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-029",
         name="高层建筑防火间距判定",
         description="高层民用建筑之间的防火间距不应小于13m（GB50016-3.4.1）",
@@ -197,7 +197,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-030",
         name="排烟口与安全出口间距判定",
         description="排烟口与安全出口（疏散门）的间距不应小于1.5m（GB50016-9.2.3）",
@@ -209,7 +209,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-022",
         name="疏散指示标志间距判定",
         description="疏散指示标志间距不应大于20m，袋形走道≤10m（GB50016-10.3.2）",
@@ -221,7 +221,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIST-023",
         name="剪刀楼梯间间距判定",
         description="剪刀楼梯间间距不应小于4.0m（GB50016-5.5.25）",

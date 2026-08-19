@@ -69,6 +69,7 @@ class ReverseEngine:
     }
 
     def __init__(self):
+        """初始化实例。"""
         self.registry = FuncRegistry()
 
     # 房间类型 → 匹配的 target_entities（用于自动原子函数约束推导）
@@ -273,6 +274,7 @@ class ReverseEngine:
             return False
 
     def _line(self, x1, y1, x2, y2, layer):
+        """绘制线条。"""
         return [
             "0",
             "LINE",
@@ -293,6 +295,7 @@ class ReverseEngine:
         ]
 
     def _arc(self, cx, cy, r, start_angle, end_angle, layer):
+        """绘制弧线。"""
         return [
             "0",
             "ARC",
@@ -313,6 +316,7 @@ class ReverseEngine:
         ]
 
     def _text(self, text, x, y, height, layer):
+        """绘制文本标注。"""
         return [
             "0",
             "TEXT",
@@ -434,6 +438,7 @@ class MultiRoomEngine:
     CORRIDOR_MIN_WIDTH = 2000
 
     def __init__(self):
+        """初始化实例。"""
         self.engine = ReverseEngine()
 
     def generate_layout(self, room_specs: List[RoomSpec]) -> MultiRoomLayout:
@@ -795,6 +800,7 @@ class MultiRoomEngine:
         ]
 
     def _line(self, x1, y1, x2, y2, layer):
+        """绘制线条。"""
         return [
             "0",
             "LINE",
@@ -815,6 +821,7 @@ class MultiRoomEngine:
         ]
 
     def _arc(self, cx, cy, r, start_angle, end_angle, layer):
+        """绘制弧线。"""
         return [
             "0",
             "ARC",
@@ -835,6 +842,7 @@ class MultiRoomEngine:
         ]
 
     def _text(self, text, x, y, height, layer):
+        """绘制文本标注。"""
         return [
             "0",
             "TEXT",

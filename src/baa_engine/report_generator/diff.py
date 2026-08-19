@@ -3,8 +3,13 @@
 from typing import Any, Dict, List
 
 from .components import (
-    Paragraph, Spacer, StatCard, make_table,
-    C_DANGER, C_ACCENT, C_SECONDARY,
+    Paragraph,
+    Spacer,
+    StatCard,
+    make_table,
+    C_DANGER,
+    C_ACCENT,
+    C_SECONDARY,
 )
 
 
@@ -51,6 +56,11 @@ def build_diff_page(
             clause_id = item.get("clause_id", "")
             entity_id = item.get("entity_id", "")
             rows.append([type_label, clause_id, entity_id])
-        buf.append(make_table(styles, rows,
-                              col_widths=[(cw - 200) / 2, cw - 200, (cw - 200) / 2],
-                              headers=["变更类型", "条款ID", "实体ID"]))
+        buf.append(
+            make_table(
+                styles,
+                rows,
+                col_widths=[(cw - 200) / 2, cw - 200, (cw - 200) / 2],
+                headers=["变更类型", "条款ID", "实体ID"],
+            )
+        )

@@ -231,5 +231,5 @@ LAYER_RULES_P70_TAIL = {
     "室外楼梯": "external_stair",
     "FLOOR_SLAB": "floor_slab",  # 楼板（补充）
     "BLOCK": "block",  # 区块
-    "分区": "block"
+    "分区": "block",
 }

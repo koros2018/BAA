@@ -44,8 +44,7 @@ def _init_db() -> None:
     """初始化 review_audit_items 表（向后兼容）"""
     conn = _get_conn()
     try:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS review_audit_items (
                 id            TEXT PRIMARY KEY,
                 review_id     TEXT NOT NULL,
@@ -60,8 +59,7 @@ def _init_db() -> None:
                 reviewed_at   DATETIME,
                 FOREIGN KEY(review_id) REFERENCES review_history(id)
             )
-            """
-        )
+            """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ri_review ON review_audit_items(review_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ri_status ON review_audit_items(status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_ri_func ON review_audit_items(function_id)")
@@ -141,11 +139,10 @@ def get_items(
 
 
 def _get_item(item_id: str) -> Optional[Dict[str, Any]]:
+    """按 key 获取审计记录。"""
     conn = _get_conn()
     try:
-        row = conn.execute(
-            "SELECT * FROM review_audit_items WHERE id = ?", (item_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM review_audit_items WHERE id = ?", (item_id,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
@@ -158,6 +155,7 @@ def _update_item(
     note: str = "",
     reason: str = "",
 ) -> Optional[Dict[str, Any]]:
+    """更新审计记录。"""
     if status not in _VALID_STATUSES:
         raise ValueError(f"非法审核状态: {status}（允许: {', '.join(_VALID_STATUSES)}）")
 
@@ -187,9 +185,7 @@ def _update_item(
         conn.commit()
 
         updated = _get_item(item_id)
-        logger.info(
-            "[P119] 审核条目 %s → %s (user=%s)", item_id, status, user_id or "-"
-        )
+        logger.info("[P119] 审核条目 %s → %s (user=%s)", item_id, status, user_id or "-")
         return updated
     except Exception as e:
         conn.rollback()
@@ -269,7 +265,9 @@ def _submit_feedback(item: Dict[str, Any], reason: str) -> None:
             description=f"[P119 audit] 误报驳回: item={item.get('id')}",
             severity="dismissed",
         )
-        logger.info("[P119] 误报反馈已入库: item_id=%s func=%s", item["id"], item.get("function_id"))
+        logger.info(
+            "[P119] 误报反馈已入库: item_id=%s func=%s", item["id"], item.get("function_id")
+        )
     except Exception as e:
         logger.warning("[P119] 误报反馈入库失败: %s: %s", type(e).__name__, e)
 

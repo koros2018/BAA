@@ -161,6 +161,7 @@ def trigger_webhook(
     """
 
     async def _send():
+        """发送 Webhook 通知。"""
         return await send_webhook(url, payload, max_retries=max_retries, timeout=timeout)
 
     try:

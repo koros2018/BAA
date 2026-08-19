@@ -76,12 +76,14 @@ class ColorBar(Flowable):
     """顶部彩色标题栏"""
 
     def __init__(self, width: float, height: float = 60, color=...) -> None:
+        """初始化实例。"""
         Flowable.__init__(self)
         self.width = width
         self.height = height
         self.color = color
 
     def draw(self) -> None:
+        """绘制组件到画布。"""
         self.canv.setFillColor(self.color)
         self.canv.rect(0, 0, self.width, self.height, fill=1, stroke=0)
 
@@ -97,6 +99,7 @@ class StatCard(Flowable):
         width: float,
         height: float = 50,
     ) -> None:
+        """初始化实例。"""
         Flowable.__init__(self)
         self.label = label
         self.value = value
@@ -105,6 +108,7 @@ class StatCard(Flowable):
         self.height = height
 
     def draw(self) -> None:
+        """绘制组件到画布。"""
         c = self.canv
         c.setFillColor(self.color)
         c.setFont("WQY", 24)
@@ -121,56 +125,103 @@ def build_styles() -> Dict[str, ParagraphStyle]:
     """构建 PDF 段落样式字典"""
     return {
         "cover-title": ParagraphStyle(
-            "CoverTitle", fontName="WQY", fontSize=28,
-            textColor=C_PRIMARY, leading=36, spaceAfter=12,
+            "CoverTitle",
+            fontName="WQY",
+            fontSize=28,
+            textColor=C_PRIMARY,
+            leading=36,
+            spaceAfter=12,
         ),
         "cover-sub": ParagraphStyle(
-            "CoverSub", fontName="WQY", fontSize=14,
-            textColor=C_TEXT, leading=20, spaceAfter=6,
+            "CoverSub",
+            fontName="WQY",
+            fontSize=14,
+            textColor=C_TEXT,
+            leading=20,
+            spaceAfter=6,
         ),
         "cover-info": ParagraphStyle(
-            "CoverInfo", fontName="WQY", fontSize=11,
-            textColor=C_TEXT_LIGHT, leading=16, spaceAfter=4,
+            "CoverInfo",
+            fontName="WQY",
+            fontSize=11,
+            textColor=C_TEXT_LIGHT,
+            leading=16,
+            spaceAfter=4,
         ),
         "section-title": ParagraphStyle(
-            "SectionTitle", fontName="WQY", fontSize=16,
-            textColor=C_PRIMARY, leading=22, spaceAfter=10,
+            "SectionTitle",
+            fontName="WQY",
+            fontSize=16,
+            textColor=C_PRIMARY,
+            leading=22,
+            spaceAfter=10,
         ),
         "subsection-title": ParagraphStyle(
-            "SubsectionTitle", fontName="WQY", fontSize=13,
-            textColor=C_SECONDARY, leading=18, spaceAfter=8,
+            "SubsectionTitle",
+            fontName="WQY",
+            fontSize=13,
+            textColor=C_SECONDARY,
+            leading=18,
+            spaceAfter=8,
         ),
         "body": ParagraphStyle(
-            "Body", fontName="WQY", fontSize=9,
-            textColor=C_TEXT, leading=13, spaceAfter=6,
+            "Body",
+            fontName="WQY",
+            fontSize=9,
+            textColor=C_TEXT,
+            leading=13,
+            spaceAfter=6,
         ),
         "body-small": ParagraphStyle(
-            "BodySmall", fontName="WQY", fontSize=8,
-            textColor=C_TEXT_LIGHT, leading=11, spaceAfter=3,
+            "BodySmall",
+            fontName="WQY",
+            fontSize=8,
+            textColor=C_TEXT_LIGHT,
+            leading=11,
+            spaceAfter=3,
         ),
         "table-header": ParagraphStyle(
-            "TableHeader", fontName="WQY", fontSize=9,
-            textColor=C_WHITE, leading=13,
+            "TableHeader",
+            fontName="WQY",
+            fontSize=9,
+            textColor=C_WHITE,
+            leading=13,
         ),
         "table-cell": ParagraphStyle(
-            "TableCell", fontName="WQY", fontSize=9,
-            textColor=C_TEXT, leading=13,
+            "TableCell",
+            fontName="WQY",
+            fontSize=9,
+            textColor=C_TEXT,
+            leading=13,
         ),
         "violation-title": ParagraphStyle(
-            "ViolationTitle", fontName="WQY", fontSize=10,
-            textColor=C_TEXT, leading=14, spaceAfter=3,
+            "ViolationTitle",
+            fontName="WQY",
+            fontSize=10,
+            textColor=C_TEXT,
+            leading=14,
+            spaceAfter=3,
         ),
         "violation-detail": ParagraphStyle(
-            "ViolationDetail", fontName="WQY", fontSize=8,
-            textColor=C_TEXT_LIGHT, leading=11,
+            "ViolationDetail",
+            fontName="WQY",
+            fontSize=8,
+            textColor=C_TEXT_LIGHT,
+            leading=11,
         ),
         "correction-text": ParagraphStyle(
-            "CorrectionText", fontName="WQY", fontSize=9,
-            textColor=C_ACCENT, leading=13,
+            "CorrectionText",
+            fontName="WQY",
+            fontSize=9,
+            textColor=C_ACCENT,
+            leading=13,
         ),
         "footer": ParagraphStyle(
-            "Footer", fontName="WQY", fontSize=7,
-            textColor=C_TEXT_LIGHT, leading=9,
+            "Footer",
+            fontName="WQY",
+            fontSize=7,
+            textColor=C_TEXT_LIGHT,
+            leading=9,
         ),
     }
 
@@ -227,12 +278,16 @@ def build_doc(
     doc = BaseDocTemplate(
         output_path or "/tmp/baa_report.pdf",
         pagesize=A4,
-        leftMargin=margin, rightMargin=margin,
-        topMargin=margin, bottomMargin=margin,
+        leftMargin=margin,
+        rightMargin=margin,
+        topMargin=margin,
+        bottomMargin=margin,
     )
     frame = Frame(
-        margin, margin,
-        page_w - 2 * margin, page_h - 2 * margin,
+        margin,
+        margin,
+        page_w - 2 * margin,
+        page_h - 2 * margin,
         id="normal",
     )
     doc.addPageTemplates([PageTemplate(id="main", frames=frame)])

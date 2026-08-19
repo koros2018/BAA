@@ -126,6 +126,7 @@ async def get_stats(
 
     # 用线程池并行解析大量 JSON
     def _parse_one(item):
+        """解析单条统计数据。"""
         from .review.review_history import get_review_detail
 
         detail = get_review_detail(item["id"])

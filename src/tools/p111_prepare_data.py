@@ -26,17 +26,62 @@ CLEAN_LBL_DIR = BASE / "clean" / "labels"
 CLEAN_DATA_YAML = BASE / "clean" / "data.yaml"
 
 NON_FLOOR_KW = [
-    "系统图", "系统拓扑", "系统原理", "系统", "计算", "参数表",
-    "选型", "材料", "目录", "说明", "图例", "详图", "大样图",
-    "剖面图", "立面图", "断面图", "原理图", "单线图", "拓扑图",
-    "清单", "预算", "概算", "决算", "设备选型", "配电系统",
-    "供电系统", "消防系统", "给排水系统", "弱电系统", "强电系统",
-    "总体架构", "网络拓扑", "控制原理", "自控系统", "计算书",
-    "照度计算", "热工计算", "负荷计算", "系统总体",
+    "系统图",
+    "系统拓扑",
+    "系统原理",
+    "系统",
+    "计算",
+    "参数表",
+    "选型",
+    "材料",
+    "目录",
+    "说明",
+    "图例",
+    "详图",
+    "大样图",
+    "剖面图",
+    "立面图",
+    "断面图",
+    "原理图",
+    "单线图",
+    "拓扑图",
+    "清单",
+    "预算",
+    "概算",
+    "决算",
+    "设备选型",
+    "配电系统",
+    "供电系统",
+    "消防系统",
+    "给排水系统",
+    "弱电系统",
+    "强电系统",
+    "总体架构",
+    "网络拓扑",
+    "控制原理",
+    "自控系统",
+    "计算书",
+    "照度计算",
+    "热工计算",
+    "负荷计算",
+    "系统总体",
 ]
 
-FLOOR_KW = ["平面", "层", "楼", "户型", "房间", "轴线", "轴网",
-            "建筑", "结构", "装修", "顶板", "基础", "屋顶"]
+FLOOR_KW = [
+    "平面",
+    "层",
+    "楼",
+    "户型",
+    "房间",
+    "轴线",
+    "轴网",
+    "建筑",
+    "结构",
+    "装修",
+    "顶板",
+    "基础",
+    "屋顶",
+]
 
 
 def is_non_floor(name: str) -> bool:
@@ -110,10 +155,24 @@ def prepare_dataset():
 
     print(f"\nClean class distribution:")
     YOLO_CLASSES = [
-        "wall", "door", "window", "staircase", "corridor",
-        "fire_door", "exit", "fire_lane", "fire_zone", "fire_window",
-        "shaft", "room", "exit_sign", "sprinkler_system",
-        "fire_alarm", "insulation", "evacuation_lighting", "refuge_floor",
+        "wall",
+        "door",
+        "window",
+        "staircase",
+        "corridor",
+        "fire_door",
+        "exit",
+        "fire_lane",
+        "fire_zone",
+        "fire_window",
+        "shaft",
+        "room",
+        "exit_sign",
+        "sprinkler_system",
+        "fire_alarm",
+        "insulation",
+        "evacuation_lighting",
+        "refuge_floor",
     ]
     for i, name in enumerate(YOLO_CLASSES):
         cnt = class_counter.get(i, 0)
@@ -122,6 +181,7 @@ def prepare_dataset():
 
     # 6. Generate train.txt / val.txt (80/20 split)
     import random
+
     random.seed(42)
     floor_list = sorted(floor_stems)
     random.shuffle(floor_list)

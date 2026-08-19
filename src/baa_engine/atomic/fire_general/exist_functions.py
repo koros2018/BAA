@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "EXIST-001",
         "楼梯间存在判定",
         FuncCategory.EXIST,
@@ -20,7 +20,7 @@ AtomicFunction(
         "有/无",
         target_entities=["staircase", "stair"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-002",
         "管道井封堵判定",
         FuncCategory.EXIST,
@@ -31,7 +31,7 @@ AtomicFunction(
         "有/无",
         target_entities=["shaft", "pipe_shaft", "cable_shaft"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-003",
         "剪刀楼梯分隔判定",
         FuncCategory.EXIST,
@@ -42,7 +42,7 @@ AtomicFunction(
         "有/无",
         target_entities=["scissor_staircase", "staircase"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-004",
         "疏散指示标志判定",
         FuncCategory.EXIST,
@@ -53,7 +53,7 @@ AtomicFunction(
         "有/无",
         target_entities=["exit_sign", "sign", "evacuation_sign"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-005",
         "自动灭火系统判定",
         FuncCategory.EXIST,
@@ -70,7 +70,7 @@ AtomicFunction(
             "fire_system",
         ],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-006",
         "火灾报警系统判定",
         FuncCategory.EXIST,
@@ -81,7 +81,7 @@ AtomicFunction(
         "有/无",
         target_entities=["fire_alarm", "alarm_system", "smoke_detector", "fire_system"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-007",
         "消防电梯判定",
         FuncCategory.EXIST,
@@ -92,7 +92,7 @@ AtomicFunction(
         "有/无",
         target_entities=["fire_elevator", "elevator"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-008",
         "消防水箱判定",
         FuncCategory.EXIST,
@@ -103,7 +103,7 @@ AtomicFunction(
         "有/无",
         target_entities=["water_tank", "fire_system"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-009",
         "消防水池判定",
         FuncCategory.EXIST,
@@ -114,7 +114,7 @@ AtomicFunction(
         "有/无",
         target_entities=["water_reservoir", "fire_system"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-010",
         "应急广播判定",
         FuncCategory.EXIST,
@@ -125,7 +125,7 @@ AtomicFunction(
         "有/无",
         target_entities=["emergency_broadcast", "speaker", "fire_system"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-011",
         "应急照明判定",
         FuncCategory.EXIST,
@@ -136,7 +136,7 @@ AtomicFunction(
         "有/无",
         target_entities=["emergency_light", "exit_sign"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-012",
         "消防广播判定",
         FuncCategory.EXIST,
@@ -147,7 +147,7 @@ AtomicFunction(
         "有/无",
         target_entities=["alarm_device", "speaker", "emergency_broadcast"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-013",
         "消防水泵判定",
         FuncCategory.EXIST,
@@ -158,7 +158,7 @@ AtomicFunction(
         "有/无",
         target_entities=["fire_pump", "fire_hydrant"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-014",
         "消防水箱判定",
         FuncCategory.EXIST,
@@ -169,7 +169,7 @@ AtomicFunction(
         "有/无",
         target_entities=["water_tank", "fire_system"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EXIST-015",
         "排烟设备判定",
         FuncCategory.EXIST,
@@ -180,7 +180,7 @@ AtomicFunction(
         "有/无",
         target_entities=["smoke_exhaust", "fan"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-061",
         name="安全出口宽度不足时应设双向疏散",
         description="房间安全出口宽度不满足要求时需设两个出口（GB50016-5.5.8）",
@@ -192,7 +192,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-016",
         name="避难层消防设施判定",
         description="避难层应设消火栓、消防专线电话和应急广播（GB50016-5.5.23）",
@@ -204,7 +204,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-017",
         name="消防电梯设置判定",
         description="一类高层建筑应设消防电梯（GB50016-7.3.1）",
@@ -216,7 +216,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-018",
         name="自动喷水灭火系统判定",
         description="一类高层民用建筑应设自动喷水灭火系统（GB50016-8.3.3）",
@@ -228,7 +228,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-019",
         name="消防专用电话判定",
         description="消防控制室应设消防专用电话总机（GB50016-8.6.1）",
@@ -240,7 +240,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-020",
         name="消防控制室判定",
         description="设有火灾自动报警系统的建筑应设消防控制室（GB50016-8.1.6）",
@@ -252,7 +252,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-021",
         name="疏散门开启方向判定",
         description="疏散门应向疏散方向开启（GB50016-6.4.11）",
@@ -264,7 +264,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-022",
         name="防火阀设置判定",
         description="通风管道穿越防火分区处应设防火阀（GB50016-6.3.5）",
@@ -276,7 +276,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-023",
         name="室内消火栓设置判定",
         description="高层建筑和体积大于5000m³的公共建筑应设室内消火栓（GB50016-8.2.1）",
@@ -288,7 +288,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-024",
         name="电气线路防火保护判定",
         description="消防配电线路应采用阻燃电缆并采取防火保护措施（GB50016-10.2.1）",
@@ -300,7 +300,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-046",
         name="汽车库消防给水判定",
         description="汽车库应设置消防给水系统（GB50067-7.1.1）",
@@ -312,7 +312,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-047",
         name="汽车库自动喷水灭火系统判定",
         description="地下汽车库应设置自动喷水灭火系统（GB50067-7.2.1）",
@@ -324,7 +324,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-048",
         name="汽车库火灾报警系统判定",
         description="一、二类汽车库应设置火灾自动报警系统（GB50067-9.0.7）",
@@ -336,7 +336,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-049",
         name="汽车库排烟设施判定",
         description="地下汽车库应设置排烟设施（GB50067-8.2.1）",
@@ -348,7 +348,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-037",
         name="消防电梯设置判定",
         description="一类高层民用建筑应设消防电梯（GB50016-7.3.1）",
@@ -360,7 +360,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-039",
         name="消防警铃设置判定",
         description="设有火灾报警系统的场所应设置消防警铃或声光报警器（GB50016-8.4.1）",
@@ -372,7 +372,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-040",
         name="感温探测器设置判定",
         description="厨房、锅炉房等场所应设感温火灾探测器（GB50016-8.4.1）",
@@ -384,7 +384,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-042",
         name="应急电源设置判定",
         description="消防控制室、消防水泵房等应设应急电源（GB50016-10.1.6）",
@@ -396,7 +396,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-043",
         name="气体灭火系统判定",
         description="变配电室、计算机房等应设气体灭火系统（GB50016-8.3.8）",
@@ -408,7 +408,7 @@ AtomicFunction(
         unit="套",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-044",
         name="极早期烟雾探测判定",
         description="数据中心、重要机房宜设极早期烟雾探测系统（GB50016-8.4.1）",
@@ -420,7 +420,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-045",
         name="配电箱防火判定",
         description="配电箱不应直接安装在可燃材料上（GB50016-10.2.3）",
@@ -432,7 +432,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-050",
         name="住宅剪刀楼梯判定",
         description="住宅建筑剪刀楼梯间应设前室（GB50016-5.5.26）",
@@ -444,7 +444,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-051",
         name="住宅楼梯间形式判定",
         description="住宅建筑高度大于54m时每单元应设1个防烟楼梯间（GB50016-5.5.31）",
@@ -456,7 +456,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-052",
         name="防火墙上不应开设门窗洞口判定",
         description="防火墙上不应开设门、窗、洞口（GB50016-6.1.5）",
@@ -469,7 +469,7 @@ AtomicFunction(
         depends_on=[],
         requires_global_context=True,  # P70 修复: 需要全局上下文，不在逐实体循环中判定
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-053",
         name="管道井防火封堵判定",
         description="管道井应在每层楼板处进行防火封堵（GB50016-6.2.5）",
@@ -481,7 +481,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-054",
         name="防火门判定",
         description="防火门应向疏散方向开启（GB50016-6.5.1）",
@@ -493,7 +493,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-055",
         name="消防水源判定",
         description="建筑应设置消防水源（GB50016-8.1.2）",
@@ -505,7 +505,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-056",
         name="排烟设施判定",
         description="建筑内长度大于20m的疏散走道应设排烟设施（GB50016-8.2.2）",
@@ -517,7 +517,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-063",
         name="汽车库防火卷帘判定",
         description="汽车库防火分区间的防火卷帘耐火极限不应低于3.00h（GB50067-5.1.2）",
@@ -529,7 +529,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-064",
         name="汽车库封闭楼梯间判定",
         description="汽车库疏散楼梯应设封闭楼梯间（GB50067-6.0.6）",
@@ -541,7 +541,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-065",
         name="楼梯间首层直通室外判定",
         description="疏散楼梯间首层应直通室外（GB50016-6.4.1）",
@@ -553,7 +553,7 @@ AtomicFunction(
         unit="",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-067",
         name="防火墙上洞口防火门窗判定",
         description="防火墙上必须开设门窗洞口时，应设置甲级防火门、窗（GB50016-6.1.5）",
@@ -565,7 +565,7 @@ AtomicFunction(
         unit="级",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-068",
         name="楼梯间首层直通室外通道判定",
         description="楼梯间应在首层直通室外，或经扩大的封闭楼梯间通向室外，距离≤15m（GB50016-6.4.1）",
@@ -577,7 +577,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-069",
         name="管道井层间防火封堵判定",
         description="管道井应在每层楼板处采用不低于楼板耐火极限的不燃材料进行防火封堵（GB50016-6.6.1）",
@@ -589,7 +589,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-070",
         name="消防水源可靠性判定",
         description="消防水源应满足消防用水量和水压要求，市政供水不能满足时应设消防水池（GB50016-8.1.2）",
@@ -607,7 +607,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-071",
         name="消防控制室位置判定",
         description="消防控制室应设置在首层或地下一层，疏散门应直通室外或安全出口（GB50016-8.1.6）",
@@ -619,7 +619,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-072",
         name="一类高层自动灭火系统判定",
         description="一类高层民用建筑及建筑面积大于300㎡的商店等场所应设自动灭火系统（GB50016-8.3.1）",
@@ -631,7 +631,7 @@ AtomicFunction(
         unit="套",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-073",
         name="二类高层自动喷水灭火系统判定",
         description="二类高层民用建筑应设自动喷水灭火系统（GB50016-8.3.3）",
@@ -643,7 +643,7 @@ AtomicFunction(
         unit="套",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-074",
         name="重要机房气体灭火系统判定",
         description="重要设备用房、贵重物品库房等应设气体灭火系统（GB50016-8.3.8）",
@@ -655,7 +655,7 @@ AtomicFunction(
         unit="套",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-075",
         name="疏散走道排烟设施判定",
         description="长度大于20m的疏散走道应设排烟设施（GB50016-8.5.3）",
@@ -667,7 +667,7 @@ AtomicFunction(
         unit="套",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-076",
         name="消防专用电话设置判定",
         description="消防控制室应设消防专用电话总机，重要场所应设消防专用电话分机（GB50016-8.6.1）",
@@ -679,7 +679,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-077",
         name="一类高层消防电源负荷等级判定",
         description="一类高层民用建筑消防用电应为一级负荷，二类高层应为二级负荷（GB50016-10.1.6）",
@@ -691,7 +691,7 @@ AtomicFunction(
         unit="级",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-078",
         name="消防配电线路穿管保护判定",
         description="消防配电线路应穿金属管或阻燃管保护，暗敷时保护层厚度≥30mm（GB50016-10.2.1）",
@@ -703,7 +703,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-079",
         name="配电箱安装基材防火判定",
         description="配电箱应安装在A级不燃材料上，不应直接安装在B1级及以下可燃材料上（GB50016-10.2.3）",
@@ -715,7 +715,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-080",
         name="疏散楼梯间防火门判定",
         description="疏散楼梯间应设防火门，不应设卷帘（GB50016-6.4.1）",
@@ -727,7 +727,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-081",
         name="封闭楼梯间自然通风判定",
         description="封闭楼梯间应设可开启外窗，面积≥1.0m²（GB50016-6.4.2）",
@@ -739,7 +739,7 @@ AtomicFunction(
         unit="m²",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-082",
         name="消防车登高操作场地判定",
         description="高层建筑应设消防车登高操作场地，长度≥15m（GB50016-7.1.8）",
@@ -751,7 +751,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-083",
         name="消防救援窗设置判定",
         description="每个防火分区应设≥2个消防救援窗，间距≤20m（GB50016-7.2.1）",
@@ -768,7 +768,7 @@ AtomicFunction(
         depends_on=[],
         requires_global_context=True,  # P70 修复: 需要全局上下文
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-084",
         name="消防水泵房独立出口判定",
         description="消防水泵房应设独立出口，不应设在地下三层及以下（GB50016-8.1.2）",
@@ -780,7 +780,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-085",
         name="消防水池水位显示装置判定",
         description="消防水池应设就地水位显示装置，宜设高/低水位报警（GB50016-8.1.6）",
@@ -792,7 +792,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-086",
         name="一类高层自动喷水灭火系统判定",
         description="一类高层公共建筑应设自动喷水灭火系统（GB50016-8.3.3）",
@@ -804,7 +804,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-087",
         name="气体灭火系统判定",
         description="重要设备用房（变配电室、通信机房等）应设气体灭火系统（GB50016-8.3.8）",
@@ -821,7 +821,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-088",
         name="机械排烟设施判定",
         description="一类高层建筑内走道长度>20m应设机械排烟设施（GB50016-8.5.3）",
@@ -833,7 +833,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-089",
         name="避难层入口标志判定",
         description="避难层(间)入口应设明显标志（GB50016-5.5.31）",
@@ -845,7 +845,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-090",
         name="防火墙封堵判定",
         description="防火墙应封堵密实，不应设可开启门（GB50016-6.1.5）",
@@ -857,7 +857,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-091",
         name="管道井防火封堵判定",
         description="管道井每层应在楼板处封堵（GB50016-6.2.5）",
@@ -869,7 +869,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-092",
         name="建筑幕墙防火封堵判定",
         description="建筑幕墙应在每层楼板处设防火封堵（GB50016-6.2.9）",
@@ -881,7 +881,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-093",
         name="消防救援窗口设置判定",
         description="每个防火分区应设不少于2个消防救援窗口（GB50016-7.2.3）",
@@ -898,7 +898,7 @@ AtomicFunction(
         depends_on=[],
         requires_global_context=True,  # P70 修复: 需要全局上下文
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-094",
         name="消防水泵接合器判定",
         description="高层建筑应设消防水泵接合器（GB50016-8.6.1）",
@@ -910,7 +910,7 @@ AtomicFunction(
         unit="处",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="EXIST-095",
         name="消防排水设施判定",
         description="消防水泵房、消防电梯井底应设排水设施（GB50016-8.1.7）",

@@ -27,6 +27,7 @@ _REGISTRY: Optional[FuncRegistry] = None
 
 
 def _get_registry() -> FuncRegistry:
+    """获取原子函数注册表实例。"""
     global _REGISTRY
     if _REGISTRY is None:
         _REGISTRY = FuncRegistry()

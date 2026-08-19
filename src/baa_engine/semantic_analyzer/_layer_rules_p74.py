@@ -99,5 +99,5 @@ LAYER_RULES_P74 = {
     # 设备间
     "EQ_": "equipment_room",  # 设备间
     "DB": "equipment_room",  # 电井设备
-    "电井": "equipment_room"
+    "电井": "equipment_room",
 }

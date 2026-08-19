@@ -31,7 +31,6 @@ import asyncio
 import time
 from collections import Counter
 
-
 # P87: 批量审查并发限制
 # 限制同一批次内并发处理的文件数，防止大文件同时解析导致内存/磁盘压力
 _BATCH_SEMAPHORE = asyncio.Semaphore(4)  # 最多 4 个文件同时处理
@@ -48,8 +47,12 @@ async def _run_with_semaphore_and_timeout(coro_func, *args, timeout=_FILE_TIMEOU
                 timeout=timeout,
             )
         except asyncio.TimeoutError:
-            return {"filename": args[0].filename or "unknown", "status": "error",
-                    "error_code": "TIMEOUT", "message": f"文件处理超时（>{timeout}s）"}
+            return {
+                "filename": args[0].filename or "unknown",
+                "status": "error",
+                "error_code": "TIMEOUT",
+                "message": f"文件处理超时（>{timeout}s）",
+            }
 
 
 @router.post("/batch-review")
@@ -141,6 +144,7 @@ async def batch_review(
             details = []
 
             def get_strict_threshold(clause_id: str) -> tuple:
+                """获取条款严格模式阈值。"""
                 worst_val, worst_unit, worst_op = None, None, None
                 for bt in effective_types:
                     v, u, o = repo.get_threshold(clause_id, bt)
@@ -149,9 +153,7 @@ async def batch_review(
                 return worst_val, worst_unit, worst_op
 
             # P87: 并发执行 entity×func 判定，替代串行嵌套循环
-            func_specs = [
-                (f, *get_strict_threshold(f.clause_id)) for f in registry_funcs
-            ]
+            func_specs = [(f, *get_strict_threshold(f.clause_id)) for f in registry_funcs]
             for e in entities:
                 batch = _get_fr().execute_batch(e, func_specs)
                 for r in batch.values():
@@ -257,8 +259,7 @@ async def batch_review(
             }
 
     file_tasks = [
-        asyncio.create_task(_run_with_semaphore_and_timeout(_review_single_file, f))
-        for f in files
+        asyncio.create_task(_run_with_semaphore_and_timeout(_review_single_file, f)) for f in files
     ]
     file_results = await asyncio.gather(*file_tasks)
 
@@ -340,8 +341,9 @@ async def batch_review_stream(
     - batch.done 标记全部完成，含跨文件汇总
     """
     if len(files) > 20:
-        raise HTTPException(status_code=400,
-            detail={"status": "error", "error_code": "TOO_MANY_FILES"})
+        raise HTTPException(
+            status_code=400, detail={"status": "error", "error_code": "TOO_MANY_FILES"}
+        )
 
     from src.baa_engine.spec_repository import SpecRepository
     from dataclasses import replace
@@ -353,6 +355,7 @@ async def batch_review_stream(
     event_queue: "asyncio.Queue[dict]" = asyncio.Queue(maxsize=200)
 
     def _make_finding_detail(r, clause, entity, entity_type=""):
+        """构建违规明细字典。"""
         f = _get_aa().build_finding(r, clause, entity, [])
         return {
             "entity_id": entity.get("id", "") if isinstance(entity, dict) else "",
@@ -376,48 +379,88 @@ async def batch_review_stream(
 
             ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
             if ext not in SUPPORTED_FORMATS:
-                await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
-                    "error_code": "UNSUPPORTED_FORMAT"})
-                return {"filename": file_name, "status": "error", "error_code": "UNSUPPORTED_FORMAT"}
+                await event_queue.put(
+                    {
+                        "event": "file.error",
+                        "index": idx,
+                        "filename": file_name,
+                        "error_code": "UNSUPPORTED_FORMAT",
+                    }
+                )
+                return {
+                    "filename": file_name,
+                    "status": "error",
+                    "error_code": "UNSUPPORTED_FORMAT",
+                }
 
             content = await file.read()
             if len(content) > MAX_FILE_SIZE:
-                await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
-                    "error_code": "FILE_TOO_LARGE"})
+                await event_queue.put(
+                    {
+                        "event": "file.error",
+                        "index": idx,
+                        "filename": file_name,
+                        "error_code": "FILE_TOO_LARGE",
+                    }
+                )
                 return {"filename": file_name, "status": "error", "error_code": "FILE_TOO_LARGE"}
 
             file_id = generate_file_id()
             file_path = store_file(content, file_id, ext)
             avail_mb = psutil.virtual_memory().available / (1024 * 1024)
             if avail_mb < 2048:
-                await event_queue.put({
-                    "event": "file.error", "index": idx, "filename": file_name,
-                    "error_code": "LOW_MEMORY",
-                    "message": f"系统可用内存不足（{avail_mb:.0f}MB < 2048MB），请稍后重试"})
+                await event_queue.put(
+                    {
+                        "event": "file.error",
+                        "index": idx,
+                        "filename": file_name,
+                        "error_code": "LOW_MEMORY",
+                        "message": f"系统可用内存不足（{avail_mb:.0f}MB < 2048MB），请稍后重试",
+                    }
+                )
                 return {"filename": file_name, "status": "error", "error_code": "LOW_MEMORY"}
 
-            await event_queue.put({"event": "file.parsing", "index": idx, "filename": file_name, "file_id": file_id})
+            await event_queue.put(
+                {"event": "file.parsing", "index": idx, "filename": file_name, "file_id": file_id}
+            )
 
             result = await loop.run_in_executor(
-                _get_pool(), _get_dp().parse, str(file_path), file_id)
+                _get_pool(), _get_dp().parse, str(file_path), file_id
+            )
             if not result.success:
-                await event_queue.put({"event": "file.error", "index": idx, "filename": file_name,
-                    "error_code": "PARSE_FAILED", "message": str(result.error)})
+                await event_queue.put(
+                    {
+                        "event": "file.error",
+                        "index": idx,
+                        "filename": file_name,
+                        "error_code": "PARSE_FAILED",
+                        "message": str(result.error),
+                    }
+                )
                 return {"filename": file_name, "status": "error", "error_code": "PARSE_FAILED"}
 
             await event_queue.put({"event": "file.semantic", "index": idx, "filename": file_name})
             semantic = await loop.run_in_executor(
-                _get_pool(), lambda: _get_sa().analyze(
-                    result.primitives, result.dimensions, building_type=building_type))
+                _get_pool(),
+                lambda: _get_sa().analyze(
+                    result.primitives, result.dimensions, building_type=building_type
+                ),
+            )
             entities = semantic["entities"]
-            await event_queue.put({
-                "event": "file.checking", "index": idx, "filename": file_name,
-                "entity_count": len(entities)})
+            await event_queue.put(
+                {
+                    "event": "file.checking",
+                    "index": idx,
+                    "filename": file_name,
+                    "entity_count": len(entities),
+                }
+            )
 
             effective_types = building_types if building_types else [building_type]
             details = []
 
             def get_strict_threshold(clause_id: str) -> tuple:
+                """获取条款严格模式阈值。"""
                 worst_val, worst_unit, worst_op = None, None, None
                 for bt in effective_types:
                     v, u, o = repo.get_threshold(clause_id, bt)
@@ -431,8 +474,13 @@ async def batch_review_stream(
                 for r in batch.values():
                     if r.result == "PASS":
                         continue
-                    clause = {"standard": "GB50016", "clause_id": r.clause_id,
-                        "title": r.func_name, "text": "", "category": ""}
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": r.clause_id,
+                        "title": r.func_name,
+                        "text": "",
+                        "category": "",
+                    }
                     details.append(_make_finding_detail(r, clause, e))
 
             entity_types_set = set(e.get("type", "") for e in entities)
@@ -440,8 +488,13 @@ async def batch_review_stream(
             for r in missing_batch.values():
                 if r.result == "PASS":
                     continue
-                clause = {"standard": "GB50016", "clause_id": r.clause_id,
-                    "title": r.func_name, "text": "", "category": ""}
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": r.clause_id,
+                    "title": r.func_name,
+                    "text": "",
+                    "category": "",
+                }
                 details.append(_make_finding_detail(r, clause, {}, "missing"))
 
             entity_types = Counter(e["type"] for e in entities)
@@ -453,7 +506,9 @@ async def batch_review_stream(
                 score = max(0, 100.0 - len(details) * 5.0 - critical_count * 10 - major_count * 3)
 
             result_obj = {
-                "filename": file_name, "file_id": file_id, "status": "success",
+                "filename": file_name,
+                "file_id": file_id,
+                "status": "success",
                 "summary": {
                     "total_checks": len(entities) * len(registry_funcs),
                     "total_entities": len(entities),
@@ -463,27 +518,44 @@ async def batch_review_stream(
                     "score": score,
                 },
                 "details": details[:100],
-                "entities": [{"id": e.get("id", e.get("type", "")), "type": e["type"],
-                    "bbox": e["bbox"]} for e in entities],
+                "entities": [
+                    {"id": e.get("id", e.get("type", "")), "type": e["type"], "bbox": e["bbox"]}
+                    for e in entities
+                ],
             }
-            await event_queue.put({
-                "event": "file.done", "index": idx, "filename": file_name,
-                "violations": len(details), "score": score,
-                "entity_count": len(entities)})
+            await event_queue.put(
+                {
+                    "event": "file.done",
+                    "index": idx,
+                    "filename": file_name,
+                    "violations": len(details),
+                    "score": score,
+                    "entity_count": len(entities),
+                }
+            )
             return result_obj
 
         except Exception as e:
             msg = str(e)
-            await event_queue.put({"event": "file.error", "index": idx,
-                "filename": file_name, "error_code": "REVIEW_FAILED", "message": msg[:200]})
-            return {"filename": file_name, "status": "error", "error_code": "REVIEW_FAILED",
-                "message": msg[:200]}
+            await event_queue.put(
+                {
+                    "event": "file.error",
+                    "index": idx,
+                    "filename": file_name,
+                    "error_code": "REVIEW_FAILED",
+                    "message": msg[:200],
+                }
+            )
+            return {
+                "filename": file_name,
+                "status": "error",
+                "error_code": "REVIEW_FAILED",
+                "message": msg[:200],
+            }
 
     # 启动所有文件并发审查（P87: 并发限制）
     file_tasks = [
-        asyncio.create_task(
-            _run_with_semaphore_and_timeout(_stream_review_one, i, f)
-        )
+        asyncio.create_task(_run_with_semaphore_and_timeout(_stream_review_one, i, f))
         for i, f in enumerate(files)
     ]
     # 完成信号
@@ -523,22 +595,27 @@ async def batch_review_stream(
                 if any(d["clause_id"] == clause_id for d in r.get("details", [])):
                     involved_files.add(r.get("filename", ""))
             if involved_files:
-                cross_analysis.append({
-                    "clause_id": clause_id, "violations": count,
-                    "files": len(involved_files),
-                    "file_names": list(involved_files)[:5],
-                })
+                cross_analysis.append(
+                    {
+                        "clause_id": clause_id,
+                        "violations": count,
+                        "files": len(involved_files),
+                        "file_names": list(involved_files)[:5],
+                    }
+                )
 
-        await event_queue.put({
-            "event": "batch.done",
-            "total_files": len(files),
-            "success_files": sum(1 for r in all_results if r["status"] == "success"),
-            "failed_files": sum(1 for r in all_results if r["status"] != "success"),
-            "total_violations": total_violations,
-            "total_entities": total_entities,
-            "cross_analysis": cross_analysis,
-            "results": all_results,
-        })
+        await event_queue.put(
+            {
+                "event": "batch.done",
+                "total_files": len(files),
+                "success_files": sum(1 for r in all_results if r["status"] == "success"),
+                "failed_files": sum(1 for r in all_results if r["status"] != "success"),
+                "total_violations": total_violations,
+                "total_entities": total_entities,
+                "cross_analysis": cross_analysis,
+                "results": all_results,
+            }
+        )
         await event_queue.put({"event": "SIGNAL_DONE"})
         completion_done.set()
 
@@ -546,6 +623,7 @@ async def batch_review_stream(
     waiter = asyncio.create_task(_wait_and_signal())
 
     async def event_generator():
+        """生成 SSE 事件流。"""
         async for evt in _drain_and_yield():
             line = f"data: {json.dumps(evt, ensure_ascii=False, default=str)}\n\n"
             yield line

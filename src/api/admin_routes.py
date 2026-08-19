@@ -725,7 +725,9 @@ async def feedback_stats(api_key: str = Depends(_ag.verify_api_key)):  # functio
 
 
 @router.get("/api/v1/feedbacks/{feedback_id}", tags=["Feedback"])  # function call
-async def get_feedback(feedback_id: str, api_key: str = Depends(_ag.verify_api_key)):  # function call
+async def get_feedback(
+    feedback_id: str, api_key: str = Depends(_ag.verify_api_key)
+):  # function call
     """查询单条申诉详情"""
     record = _ag._feedback_manager.get(feedback_id)  # function call
     if not record:  # check: negated condition

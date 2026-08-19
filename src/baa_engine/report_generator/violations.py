@@ -3,8 +3,14 @@
 from typing import Any, Dict, List
 
 from .components import (
-    Paragraph, Spacer, HRFlowable,
-    C_DANGER, C_WARNING, C_PRIMARY, C_ACCENT, C_BORDER,
+    Paragraph,
+    Spacer,
+    HRFlowable,
+    C_DANGER,
+    C_WARNING,
+    C_PRIMARY,
+    C_ACCENT,
+    C_BORDER,
 )
 
 
@@ -53,13 +59,13 @@ def build_violation_pages(
                 "major": ("较大", C_WARNING),
                 "minor": ("一般", C_PRIMARY),
             }
-            sev_label, sev_color = severity_map.get(
-                severity, ("一般", C_PRIMARY)
-            )
+            sev_label, sev_color = severity_map.get(severity, ("一般", C_PRIMARY))
 
             # 置信度标签
             conf_label = "高" if confidence >= 0.85 else ("中" if confidence >= 0.6 else "低")
-            conf_color = C_ACCENT if confidence >= 0.85 else (C_WARNING if confidence >= 0.6 else C_DANGER)
+            conf_color = (
+                C_ACCENT if confidence >= 0.85 else (C_WARNING if confidence >= 0.6 else C_DANGER)
+            )
 
             # 实体位置
             location = item.get("location", item.get("bbox", {}))
@@ -75,13 +81,15 @@ def build_violation_pages(
             result_color = C_DANGER if "FAIL" in str(result) else C_WARNING
 
             # 标题行：编号 + 实体 + 严重度 + 置信度 + 结果
-            buf.append(Paragraph(
-                f"#{num}  [{entity_type}] {entity_id}  "
-                f'<font color="{sev_color.hexval()}">[{sev_label}]</font>  '
-                f'<font color="{conf_color.hexval()}">置信度{conf_label}</font>  '
-                f'<font color="{result_color.hexval()}">{result_label}</font>',
-                s["violation-title"],
-            ))
+            buf.append(
+                Paragraph(
+                    f"#{num}  [{entity_type}] {entity_id}  "
+                    f'<font color="{sev_color.hexval()}">[{sev_label}]</font>  '
+                    f'<font color="{conf_color.hexval()}">置信度{conf_label}</font>  '
+                    f'<font color="{result_color.hexval()}">{result_label}</font>',
+                    s["violation-title"],
+                )
+            )
 
             # 详情行：实际值 vs 要求值 + 偏差 + 位置
             detail_lines = []
@@ -101,7 +109,8 @@ def build_violation_pages(
 
             # 匹配修正建议
             matched = [
-                c for c in corrections
+                c
+                for c in corrections
                 if c.get("entity_id") == entity_id or c.get("clause_id") == clause_id
             ]
             for c in matched[:2]:

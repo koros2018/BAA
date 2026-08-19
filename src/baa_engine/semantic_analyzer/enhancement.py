@@ -12,9 +12,7 @@ from ..drawing_parser import RawPrimitive
 logger = logging.getLogger(__name__)
 
 
-def _yolo_enhance_impl(
-    self, dxf_path: str
-) -> List[SemanticEntity]:
+def _yolo_enhance_impl(self, dxf_path: str) -> List[SemanticEntity]:
     """对 DXF 执行 YOLO 检测，返回增强实体列表
 
     P84 状态（2026-08-10）：YOLO 渲染方案已确认不可行（mAP≈0），

@@ -22,7 +22,7 @@ WORKSPACE = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = WORKSPACE
 src_path = PROJECT_ROOT / "src"
 sys.path.insert(0, str(PROJECT_ROOT))  # for src.baa_engine 导入
-sys.path.insert(0, str(src_path))       # for baa_engine 导入
+sys.path.insert(0, str(src_path))  # for baa_engine 导入
 
 import ezdxf
 import numpy as np
@@ -36,45 +36,59 @@ from baa_engine.semantic_analyzer.main import SemanticAnalyzer
 # 语义分析器产出的 type → YOLO class index
 # 对应 baa_yolo_v2.yaml 的 names 列表
 YOLO_CLASSES = [
-    'wall', 'door', 'window', 'staircase', 'corridor',
-    'fire_door', 'exit', 'fire_lane', 'fire_zone', 'fire_window',
-    'shaft', 'room', 'exit_sign', 'sprinkler_system', 'fire_alarm',
-    'insulation', 'evacuation_lighting', 'refuge_floor',
+    "wall",
+    "door",
+    "window",
+    "staircase",
+    "corridor",
+    "fire_door",
+    "exit",
+    "fire_lane",
+    "fire_zone",
+    "fire_window",
+    "shaft",
+    "room",
+    "exit_sign",
+    "sprinkler_system",
+    "fire_alarm",
+    "insulation",
+    "evacuation_lighting",
+    "refuge_floor",
 ]
 
 # 语义分析器的 type → YOLO 类别名映射
 TYPE_TO_YOLO = {
-    'wall': 'wall',
-    'door': 'door',
-    'window': 'window',
-    'stair': 'staircase',        # 语义分析器用 stair，YOLO 用 staircase
-    'staircase': 'staircase',
-    'corridor': 'corridor',
-    'fire_door': 'fire_door',
-    'exit': 'exit',
-    'fire_lane': 'fire_lane',
-    'fire_zone': 'fire_zone',
-    'fire_window': 'fire_window',
-    'shaft': 'shaft',
-    'room': 'room',
-    'exit_sign': 'exit_sign',
-    'sprinkler_system': 'sprinkler_system',
-    'sprinkler': 'sprinkler_system',
-    'fire_alarm': 'fire_alarm',
-    'smoke_detector': 'fire_alarm',  # 烟雾探测器归入 fire_alarm
-    'detector': 'fire_alarm',        # 探测器归入 fire_alarm
-    'insulation': 'insulation',
-    'evacuation_lighting': 'evacuation_lighting',
-    'refuge_floor': 'refuge_floor',
+    "wall": "wall",
+    "door": "door",
+    "window": "window",
+    "stair": "staircase",  # 语义分析器用 stair，YOLO 用 staircase
+    "staircase": "staircase",
+    "corridor": "corridor",
+    "fire_door": "fire_door",
+    "exit": "exit",
+    "fire_lane": "fire_lane",
+    "fire_zone": "fire_zone",
+    "fire_window": "fire_window",
+    "shaft": "shaft",
+    "room": "room",
+    "exit_sign": "exit_sign",
+    "sprinkler_system": "sprinkler_system",
+    "sprinkler": "sprinkler_system",
+    "fire_alarm": "fire_alarm",
+    "smoke_detector": "fire_alarm",  # 烟雾探测器归入 fire_alarm
+    "detector": "fire_alarm",  # 探测器归入 fire_alarm
+    "insulation": "insulation",
+    "evacuation_lighting": "evacuation_lighting",
+    "refuge_floor": "refuge_floor",
     # 设备类 — 当前 YOLO 无对应类别，跳过
-    'fire_hydrant': None,
-    'fire_pump': None,
-    'equipment': None,
-    'titleblock': None,
-    'fire_wall': 'wall',              # 防火墙归入 wall
-    'fire_wall_line': 'wall',
-    'unknown': None,
-    'other': None,
+    "fire_hydrant": None,
+    "fire_pump": None,
+    "equipment": None,
+    "titleblock": None,
+    "fire_wall": "wall",  # 防火墙归入 wall
+    "fire_wall_line": "wall",
+    "unknown": None,
+    "other": None,
 }
 
 
@@ -85,6 +99,7 @@ def render_dxf_image(dxf_path: str, dpi: int = 100) -> tuple:
     即世界坐标边界和图像尺寸（英寸），用于后续像素→世界坐标映射。
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -157,18 +172,20 @@ def render_dxf_image(dxf_path: str, dpi: int = 100) -> tuple:
             elif dxftype == "CIRCLE":
                 cx, cy = entity.dxf.center[:2]
                 r = entity.dxf.radius
-                ax.add_patch(
-                    plt.Circle((cx, cy), r, fill=False, color="k", linewidth=0.3)
-                )
+                ax.add_patch(plt.Circle((cx, cy), r, fill=False, color="k", linewidth=0.3))
             elif dxftype == "ARC":
                 cx, cy = entity.dxf.center[:2]
                 r = entity.dxf.radius
                 ax.add_patch(
                     plt.Arc(
-                        (cx, cy), r * 2, r * 2, angle=0,
+                        (cx, cy),
+                        r * 2,
+                        r * 2,
+                        angle=0,
                         theta1=entity.dxf.start_angle,
                         theta2=entity.dxf.end_angle,
-                        color="k", linewidth=0.3,
+                        color="k",
+                        linewidth=0.3,
                     )
                 )
         except Exception:
@@ -193,12 +210,12 @@ def entities_to_yolo(
 ) -> tuple:
     """
     将语义分析器产出的实体列表转换为 YOLO 标签。
-    
+
     坐标映射：世界坐标 → 像素坐标（考虑 bbox_inches='tight' 裁剪）。
     由于 bbox_inches='tight' 会实际裁剪掉空白边缘，世界坐标边界
     (x_min, x_max, y_min, y_max) 是渲染前的轴范围，图像实际尺寸
     (img_w, img_h) 是裁剪后的。
-    
+
     简化假设：裁剪是均匀的（pad_inches 较小），直接用轴范围做线性映射。
     如果效果不好，后续可以用图像边缘检测重新校准。
     """
@@ -310,6 +327,7 @@ def annotate_single_dxf(dxf_path: str, output_dir: str, dpi: int = 100) -> dict:
     # 复制渲染图 + padding 成正方形
     img_out = out_dir / f"{base}.jpg"
     import shutil
+
     shutil.copy2(img_path, img_out)
     os.unlink(img_path)
 
@@ -377,8 +395,7 @@ def main():
     parser = argparse.ArgumentParser(description="P84 真实图纸自动标注")
     parser.add_argument("--dxf", help="单个 DXF 文件路径")
     parser.add_argument("--all", action="store_true", help="标注 data/ 下所有 DXF")
-    parser.add_argument("--output-dir", default="data/real_annotated",
-                        help="输出目录")
+    parser.add_argument("--output-dir", default="data/real_annotated", help="输出目录")
     parser.add_argument("--dpi", type=int, default=100, help="渲染 DPI")
     args = parser.parse_args()
 

@@ -24,33 +24,92 @@ IMG_DIR = BASE / "images"
 LBL_DIR = BASE / "labels"
 
 YOLO_CLASSES = [
-    "wall", "door", "window", "staircase", "corridor",
-    "fire_door", "exit", "fire_lane", "fire_zone", "fire_window",
-    "shaft", "room", "exit_sign", "sprinkler_system",
-    "fire_alarm", "insulation", "evacuation_lighting", "refuge_floor",
+    "wall",
+    "door",
+    "window",
+    "staircase",
+    "corridor",
+    "fire_door",
+    "exit",
+    "fire_lane",
+    "fire_zone",
+    "fire_window",
+    "shaft",
+    "room",
+    "exit_sign",
+    "sprinkler_system",
+    "fire_alarm",
+    "insulation",
+    "evacuation_lighting",
+    "refuge_floor",
 ]
 
 # 非建筑平面图关键词（按优先级排列，命中即剔除）
 NON_FLOOR_KW = [
-    "系统图", "系统拓扑", "系统原理", "系统", "计算", "参数表",
-    "选型", "材料", "目录", "说明", "图例", "详图", "大样图",
-    "剖面图", "立面图", "断面图", "剖面", "立面", "原理图",
-    "单线图", "拓扑图", "清单", "预算", "概算", "决算",
-    "设备选型", "配电系统", "供电系统", "消防系统",
-    "给排水系统", "弱电系统", "强电系统", "系统总体",
-    "总体架构图", "网络拓扑", "控制原理", "自控系统",
-    "计算书", "计算表", "照度计算", "热工计算", "负荷计算",
+    "系统图",
+    "系统拓扑",
+    "系统原理",
+    "系统",
+    "计算",
+    "参数表",
+    "选型",
+    "材料",
+    "目录",
+    "说明",
+    "图例",
+    "详图",
+    "大样图",
+    "剖面图",
+    "立面图",
+    "断面图",
+    "剖面",
+    "立面",
+    "原理图",
+    "单线图",
+    "拓扑图",
+    "清单",
+    "预算",
+    "概算",
+    "决算",
+    "设备选型",
+    "配电系统",
+    "供电系统",
+    "消防系统",
+    "给排水系统",
+    "弱电系统",
+    "强电系统",
+    "系统总体",
+    "总体架构图",
+    "网络拓扑",
+    "控制原理",
+    "自控系统",
+    "计算书",
+    "计算表",
+    "照度计算",
+    "热工计算",
+    "负荷计算",
 ]
 
 FLOOR_KW = [
-    "平面", "层", "楼", "户型", "房间", "轴线", "轴网",
-    "平面布置图", "建筑平面", "结构平面", "装修平面",
-    "顶板平面", "基础平面", "屋顶平面",
+    "平面",
+    "层",
+    "楼",
+    "户型",
+    "房间",
+    "轴线",
+    "轴网",
+    "平面布置图",
+    "建筑平面",
+    "结构平面",
+    "装修平面",
+    "顶板平面",
+    "基础平面",
+    "屋顶平面",
 ]
 
 # 低置信度/小框阈值
 MIN_BOX_AREA_PCT = 0.0001  # 最小框面积占比（宽×高）
-MIN_CONF = 0.3            # 最小置信度
+MIN_CONF = 0.3  # 最小置信度
 
 
 def load_txt_list(filepath):
@@ -153,7 +212,9 @@ def diagnose():
         for s in sorted(non_floor)[:20]:
             report.append(f"- `{s}`")
 
-    report.append(f"\n## 四、类别分布（{len(class_counter)} 类有标注 / {len(YOLO_CLASSES)} 类总）\n")
+    report.append(
+        f"\n## 四、类别分布（{len(class_counter)} 类有标注 / {len(YOLO_CLASSES)} 类总）\n"
+    )
     report.append(f"| Class ID | 名称 | 标注数 | 状态 |")
     report.append(f"|----------|------|--------|------|")
     for i, name in enumerate(YOLO_CLASSES):
@@ -166,7 +227,9 @@ def diagnose():
     report.append(f"|------|------|")
     report.append(f"| 空标签文件 | {len(empty_labels)} |")
     report.append(f"| 异常小框 | {len(bad_boxes)} | 宽×高 < {MIN_BOX_AREA_PCT} |")
-    report.append(f"| 低置信度框 | {sum(1 for b in bad_boxes if b.get('reason') == 'low_conf')} | 置信度 < {MIN_CONF} |")
+    report.append(
+        f"| 低置信度框 | {sum(1 for b in bad_boxes if b.get('reason') == 'low_conf')} | 置信度 < {MIN_CONF} |"
+    )
 
     report.append(f"\n## 六、有效数据集估算\n")
     report.append(f"| 指标 | 数值 |")
@@ -175,9 +238,13 @@ def diagnose():
     report.append(f"| 无标签平面图 | {len((img_stems - non_floor) - lbl_names)} |")
 
     report.append(f"\n## 七、修复建议\n")
-    report.append("1. **文件名对齐**：标签文件名必须与图像文件名完全一致（不含扩展名），当前 0 匹配需优先修复")
+    report.append(
+        "1. **文件名对齐**：标签文件名必须与图像文件名完全一致（不含扩展名），当前 0 匹配需优先修复"
+    )
     report.append("2. **剔除非平面图**：约 104 张系统图/计算表/目录等应剔除")
-    report.append("3. **扩充 8 类缺失类别**：exit_sign/sprinkler_system/fire_alarm/insulation/evacuation_lighting/refuge_floor/fire_lane/fire_zone")
+    report.append(
+        "3. **扩充 8 类缺失类别**：exit_sign/sprinkler_system/fire_alarm/insulation/evacuation_lighting/refuge_floor/fire_lane/fire_zone"
+    )
     report.append("4. **异常框过滤**：移除面积占比 < 0.0001 的标注框")
 
     content = "\n".join(report)

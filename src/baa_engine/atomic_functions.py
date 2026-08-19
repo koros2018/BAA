@@ -491,7 +491,9 @@ class AtomicFunction:  # class definition
             if func_id == "DIM-006":  # condition: func_id == "DIM-006":
                 entity_type = entity.get("type", "")  # function call
                 # P108: doorway 同 exit_door，始终判定（扫线法几何检测精度高于 YOLO）
-                if entity_type not in ("exit_door", "doorway") and val < 1.3:  # check: numeric comparison
+                if (
+                    entity_type not in ("exit_door", "doorway") and val < 1.3
+                ):  # check: numeric comparison
                     return None  # 普通门（<1.3m）不是疏散门，不适用此规范
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
@@ -572,7 +574,9 @@ class AtomicFunction:  # class definition
                     return None  # 无宽度数据，跳过判定
             # DIM-009 疏散出口宽度：仅适用于 exit/exit_door 或宽度 >= 1.3m 的 door
             # 0.8~1.3m 的门是标准单开门，不是疏散出口
-            if entity_type not in ("exit", "exit_door", "doorway") and val < 1.3:  # check: numeric comparison
+            if (
+                entity_type not in ("exit", "exit_door", "doorway") and val < 1.3
+            ):  # check: numeric comparison
                 return None  # 普通门（<1.3m）不是疏散出口，不适用此规范
             # 小门（<0.8m）不适用疏散出口宽度判定
             if val < 0.8:  # check: numeric comparison
@@ -769,6 +773,7 @@ class FuncRegistry:  # class definition
     # atomic/__init__.py 合并了所有模块的 ATOMIC_FUNCTIONS 列表
 
     def __init__(self, timeout: int = 30):  # function: def __init__(self, timeout: int = 30):
+        """初始化实例。"""
         self._funcs: Dict[str, AtomicFunction] = {}  # assignment
         self._dependency_graph: Dict[str, List[str]] = {}  # 依赖图
         self._timeout = timeout  # assignment
@@ -783,10 +788,13 @@ class FuncRegistry:  # class definition
         for func in ATOMIC_FUNCTIONS:  # 循环
             self.register(func)  # function call
         # 预计算拓扑排序（非全局函数列表）
-        self._ordered_func_ids = self.resolve_dependencies([
-            fid for fid, f in self._funcs.items()
-            if not getattr(f, 'requires_global_context', False)
-        ])
+        self._ordered_func_ids = self.resolve_dependencies(
+            [
+                fid
+                for fid, f in self._funcs.items()
+                if not getattr(f, "requires_global_context", False)
+            ]
+        )
 
     def register(self, func: AtomicFunction):  # function: def register(self, func: AtomicFunction):
         """注册"""

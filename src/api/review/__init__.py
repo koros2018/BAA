@@ -9,42 +9,52 @@ from src.api import api_globals as _api_globals
 
 # 惰性获取引擎引用
 def _get_dp():
+    """获取 DrawingParser 实例（懒加载）。"""
     return _api_globals._drawing_parser
 
 
 def _get_sa():
+    """获取 SemanticAnalyzer 实例（懒加载）。"""
     return _api_globals._semantic_analyzer
 
 
 def _get_fr():
+    """获取 FeedbackRepository 实例（懒加载）。"""
     return _api_globals._func_registry
 
 
 def _get_sr():
+    """获取 SessionRepository 实例（懒加载）。"""
     return _api_globals._spec_repo
 
 
 def _get_aa():
+    """获取 Audit 实例（懒加载）。"""
     return _api_globals._attribution_analyzer
 
 
 def _get_pool():
+    """获取连接池实例。"""
     return _api_globals.ENGINE_THREAD_POOL
 
 
 def _get_rq():
+    """获取 Redis 队列实例。"""
     return _api_globals._review_queue
 
 
 def _get_pc():
+    """获取 ProjectClient 实例。"""
     return _api_globals._persistent_cache
 
 
 def _get_rc():
+    """获取 ReviewClient 实例。"""
     return _api_globals._review_cache
 
 
 def _get_rc_max():
+    """获取 ReviewClient 最大连接数。"""
     return _api_globals._REVIEW_CACHE_MAX
 
 

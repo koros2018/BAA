@@ -36,6 +36,7 @@ class ReviewReport:
     """合规审查报告 PDF 生成器（薄层编排器）"""
 
     def __init__(self) -> None:
+        """初始化实例。"""
         ensure_font()
         self.styles = build_styles()
         self.page_w, self.page_h = A4
@@ -61,11 +62,15 @@ class ReviewReport:
         build_score_page(buf, self.styles, self.page_w, self.margin, summary, lang, details)
         buf.append(PageBreak())
 
-        build_summary_page(buf, self.styles, self.page_w, self.margin, filename, summary, details, lang)
+        build_summary_page(
+            buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
+        )
         buf.append(PageBreak())
 
         if structured_summary:
-            build_structured_summary_page(buf, self.styles, self.page_w, self.margin, structured_summary, lang)
+            build_structured_summary_page(
+                buf, self.styles, self.page_w, self.margin, structured_summary, lang
+            )
             buf.append(PageBreak())
 
         if diff_report:

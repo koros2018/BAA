@@ -25,7 +25,10 @@ def build_summary_page(
     # 概要表
     rows = [
         ["文件名", filename],
-        ["建筑类型", "民用建筑" if summary.get("building_type", "civil") == "civil" else "工业建筑"],
+        [
+            "建筑类型",
+            "民用建筑" if summary.get("building_type", "civil") == "civil" else "工业建筑",
+        ],
         ["图元总数", str(summary.get("total_entities", 0))],
         ["检查项次", str(summary.get("total_checks", 0))],
         ["违规总数", str(summary.get("violations", 0))],
@@ -48,8 +51,14 @@ def build_summary_page(
                     title = d.get("clause_title", "")
                     break
             rows.append([clause_id, title[:50], str(count)])
-        buf.append(make_table(styles, rows, col_widths=[70, cw - 130, 60],
-                              headers=["条款ID", "条款名称", "违规数量"]))
+        buf.append(
+            make_table(
+                styles,
+                rows,
+                col_widths=[70, cw - 130, 60],
+                headers=["条款ID", "条款名称", "违规数量"],
+            )
+        )
     else:
         buf.append(Paragraph("无", s["body"]))
     buf.append(Spacer(1, 16))
@@ -60,8 +69,14 @@ def build_summary_page(
         buf.append(Paragraph("实体类型分布", s["subsection-title"]))
         buf.append(Spacer(1, 6))
         rows = sorted(entity_types.items(), key=lambda x: -x[1])
-        buf.append(make_table(styles, [list(r) for r in rows], col_widths=[cw - 80, 80],
-                              headers=["实体类型", "数量"]))
+        buf.append(
+            make_table(
+                styles,
+                [list(r) for r in rows],
+                col_widths=[cw - 80, 80],
+                headers=["实体类型", "数量"],
+            )
+        )
 
 
 def build_structured_summary_page(
@@ -106,10 +121,20 @@ def build_structured_summary_page(
             clause_title = (v.get("clause_title", "") or "")[:40]
             severity = v.get("severity", "")
             confidence = v.get("confidence", 0)
-            conf_str = f"{int(confidence * 100)}%" if isinstance(confidence, (int, float)) else str(confidence)
+            conf_str = (
+                f"{int(confidence * 100)}%"
+                if isinstance(confidence, (int, float))
+                else str(confidence)
+            )
             rows.append([rank, priority, clause_id, clause_title, severity, conf_str])
-        buf.append(make_table(styles, rows, col_widths=[30, 35, 70, cw - 210, 50, 45],
-                              headers=["排名", "优先级", "条款ID", "条款名称", "严重度", "置信度"]))
+        buf.append(
+            make_table(
+                styles,
+                rows,
+                col_widths=[30, 35, 70, cw - 210, 50, 45],
+                headers=["排名", "优先级", "条款ID", "条款名称", "严重度", "置信度"],
+            )
+        )
         buf.append(Spacer(1, 16))
     else:
         buf.append(Paragraph("暂无数据", s["body"]))
@@ -129,5 +154,11 @@ def build_structured_summary_page(
             paths = act.get("action_paths", [])
             path_str = "; ".join(paths[:3])[:60] if paths else ""
             action_rows.append([p_name, str(count), description, path_str])
-        buf.append(make_table(styles, action_rows, col_widths=[80, 40, cw - 210, 90],
-                              headers=["优先级", "数量", "说明", "合规路径"]))
+        buf.append(
+            make_table(
+                styles,
+                action_rows,
+                col_widths=[80, 40, cw - 210, 90],
+                headers=["优先级", "数量", "说明", "合规路径"],
+            )
+        )

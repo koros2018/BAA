@@ -39,6 +39,7 @@ class FeedbackRecord:  # definition: feedback record dataclass
     )  # slots end
 
     def __init__(self, data: dict):  # constructor: create from dict
+        """初始化实例。"""
         self.feedback_id = data.get(
             "feedback_id", str(uuid.uuid4())[:8]
         )  # field: unique feedback identifier
@@ -63,6 +64,7 @@ class FeedbackRecord:  # definition: feedback record dataclass
         )  # field: original value before change
 
     def to_dict(self) -> dict:  # method: serialize record to dict
+        """序列化为字典。"""
         return {  # dict: return record as dictionary
             "feedback_id": self.feedback_id,  # 字段
             "task_id": self.task_id,  # 字段
@@ -88,6 +90,7 @@ class FeedbackManager:  # definition: feedback persistence manager
     """反馈管理：申诉提交、审核、查询、持久化"""
 
     def __init__(self, data_dir: Path):  # constructor: initialize with data directory
+        """初始化实例。"""
         self.data_file = data_dir / "feedbacks.json"  # path: JSON storage file
         self._feedbacks: Dict[str, dict] = {}  # dict: in-memory feedback index
         self._load()  # call: load existing feedbacks from disk
@@ -161,6 +164,7 @@ class FeedbackManager:  # definition: feedback persistence manager
         return record  # return: updated record
 
     def get(self, feedback_id: str) -> Optional[dict]:  # method: get single feedback by ID
+        """待补充。"""
         return self._feedbacks.get(feedback_id)  # return: record or None
 
     def list_all(  # method: list feedbacks with filtering
@@ -227,6 +231,7 @@ class LearningEngine:  # definition: learning engine for threshold adjustment
     """基于反馈数据的阈值微调引擎"""
 
     def __init__(self, feedback_manager: FeedbackManager):  # constructor: inject feedback manager
+        """初始化实例。"""
         self._fm = feedback_manager  # store: reference to FeedbackManager
 
     def compute_adjustment(  # method: compute recommended threshold adjustment

@@ -276,8 +276,12 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         is_dup = False
         for existing in result:
             eb = existing.bbox
-            ox = max(0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"]))
-            oy = max(0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"]))
+            ox = max(
+                0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"])
+            )
+            oy = max(
+                0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"])
+            )
             if ox <= 0 or oy <= 0:
                 continue
             overlap = ox * oy / (bbox["width"] * bbox["height"])
@@ -825,6 +829,7 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
     pt_to_node: Dict[Tuple[float, float], int] = {}
 
     def _find_or_create(x: float, y: float) -> int:
+        """查找或创建房间。"""
         key = (x, y)
         if key in pt_to_node:
             return pt_to_node[key]
@@ -889,6 +894,7 @@ def _sort_edges_at_nodes(graph: Dict[str, Any]) -> None:
 
         # 按 (neighbor) 相对于 (cx,cy) 的极角排序
         def _angle_key(nid_neighbor: int) -> float:
+            """计算角度键值用于聚类。"""
             nx, ny = nodes[nid_neighbor]
             return math.atan2(ny - cy, nx - cx)
 
@@ -1047,8 +1053,12 @@ def _extract_closed_polyline_rooms(
         is_dup = False
         for existing in poly_rooms:
             eb = existing.bbox
-            ox = max(0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"]))
-            oy = max(0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"]))
+            ox = max(
+                0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"])
+            )
+            oy = max(
+                0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"])
+            )
             if ox <= 0 or oy <= 0:
                 continue
             overlap = ox * oy / (bbox["width"] * bbox["height"])

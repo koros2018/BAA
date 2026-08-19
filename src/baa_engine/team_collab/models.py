@@ -122,18 +122,21 @@ class User(Base):
     # 设置密码：salt 随机生成 16 字节，与密码拼接后 sha256 散列
     # 存储格式 salt$hash，防止彩虹表攻击
     def set_password(self, password: str):
+        """设置密码：salt+sha256 散列存储。"""
         salt = secrets.token_hex(16)
         self.password_hash = f"{salt}${hashlib.sha256((salt + password).encode()).hexdigest()}"
 
     # 验证密码：从存储的 hash 中提取 salt，重新计算后比对
     # 返回 False 时上层应记录登录失败次数
     def verify_password(self, password: str) -> bool:
+        """验证密码：从存储哈希中提取 salt 重新计算并比对。"""
         if "$" not in self.password_hash:
             return False
         salt, stored_hash = self.password_hash.split("$", 1)
         return stored_hash == hashlib.sha256((salt + password).encode()).hexdigest()
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "username": self.username,
@@ -166,6 +169,7 @@ class Team(Base):
     projects = relationship("Project", back_populates="team", lazy="dynamic")
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "name": self.name,
@@ -193,6 +197,7 @@ class TeamMember(Base):
     user = relationship("User", back_populates="team_memberships", lazy="selectin")
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "team_id": self.team_id,
@@ -231,6 +236,7 @@ class Project(Base):
     )
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "name": self.name,
@@ -262,6 +268,7 @@ class ProjectMember(Base):
     user = relationship("User", back_populates="project_memberships", lazy="selectin")
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -301,6 +308,7 @@ class ReviewSession(Base):
     )
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "project_id": self.project_id,
@@ -339,6 +347,7 @@ class ReviewComment(Base):
     author = relationship("User", back_populates="comments", lazy="selectin")
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "review_session_id": self.review_session_id,
@@ -381,6 +390,7 @@ class ApprovalFlow(Base):
     )
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "review_session_id": self.review_session_id,
@@ -411,6 +421,7 @@ class ApprovalStep(Base):
     assignee = relationship("User", lazy="selectin")
 
     def to_dict(self) -> dict:
+        """序列化为字典。"""
         return {
             "id": self.id,
             "flow_id": self.flow_id,

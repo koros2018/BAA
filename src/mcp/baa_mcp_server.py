@@ -37,6 +37,7 @@ class BAAMCPServer:
 
     def __init__(self):
         # 引擎组件懒加载 — MCP client 首次调用具体工具时才初始化
+        """初始化实例。"""
         self._drawing_parser: Optional[DrawingParser] = None
         self._semantic_analyzer: Optional[SemanticAnalyzer] = None
         self._func_registry: Optional[FuncRegistry] = None
@@ -52,6 +53,7 @@ class BAAMCPServer:
         # 付费工具（reconstruct）需要 JWT token 校验
         @self.server.list_tools()
         async def list_tools() -> list[Tool]:
+            """列出 MCP 可用工具列表。"""
             return [
                 Tool(
                     name="baa_deconstruct",
@@ -166,6 +168,7 @@ class BAAMCPServer:
         # 提供状态快照信息，MCP client 可通过 resource:// 协议读取
         @self.server.list_resources()
         async def list_resources() -> list[Resource]:
+            """列出 MCP 可用资源列表。"""
             return [
                 Resource(
                     uri="baa://functions/count",
@@ -183,6 +186,7 @@ class BAAMCPServer:
 
         @self.server.read_resource()
         async def read_resource(uri: str) -> ReadResourceContents:
+            """读取 MCP 资源（如函数计数、健康状态）。"""
             self._ensure_engine()
             if uri == "baa://functions/count":
                 return ReadResourceContents(
@@ -214,6 +218,7 @@ class BAAMCPServer:
         # 统一的异常处理：所有 handler 的异常被 catch 为 JSON 错误响应，而非崩溃
         @self.server.call_tool()
         async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+            """处理 MCP 工具调用，分派到对应 handler。"""
             try:
                 handlers = {
                     "baa_deconstruct": self._handle_deconstruct,
@@ -243,11 +248,13 @@ class BAAMCPServer:
 
     def _get_func_count(self) -> int:
         # 引擎未初始化时返回 0（避免触发懒加载），Resource 描述仅显示占位值
+        """获取原子函数注册数量。"""
         return self._func_registry.count if self._func_registry else 0
 
     def _ensure_engine(self):
         # 懒加载：只在首次需要时初始化所有引擎组件
         # 原因：DrawingParser/SemanticAnalyzer 初始化加载 YOLO 模型和规范库，约 2-3 秒
+        """确保 BAA 引擎已初始化。"""
         if self._drawing_parser is not None:
             return
         self._drawing_parser = DrawingParser()
@@ -257,6 +264,7 @@ class BAAMCPServer:
         self._spec_repo = SpecRepository()
 
     async def _handle_health(self, args: dict) -> dict:
+        """处理 health 工具调用。"""
         self._ensure_engine()
         return {
             "status": "ok",
@@ -270,6 +278,7 @@ class BAAMCPServer:
         }
 
     async def _handle_list_functions(self, args: dict) -> dict:
+        """处理 list_functions 工具调用。"""
         self._ensure_engine()
         cat = args.get("category", "").strip().lower()
         funcs = self._func_registry.list_all()
@@ -296,6 +305,7 @@ class BAAMCPServer:
         }
 
     async def _handle_deconstruct(self, args: dict) -> dict:
+        """处理图纸解构请求。"""
         self._ensure_engine()
         file_path = args["file_path"]
         building_type = args.get("building_type", "civil")
@@ -351,6 +361,7 @@ class BAAMCPServer:
         }
 
     async def _handle_review(self, args: dict) -> dict:
+        """处理审查请求。"""
         self._ensure_engine()
         file_path = args["file_path"]
         building_type = args.get("building_type", "civil")
@@ -397,6 +408,7 @@ class BAAMCPServer:
     def _do_clustering(self, entities: list, building_type: str) -> tuple:
         # 全量审查核心：每个实体 x 每个原子函数 → O(N*M) 笛卡尔积
         # 当前 260 个原子函数，实体通常 20-200 个，约 5k-50k 次检查
+        """对实体进行聚类分析。"""
         findings = []
         registry_funcs = self._func_registry.list_all()
         total_checks = 0
@@ -411,7 +423,12 @@ class BAAMCPServer:
                     func.unit = u
                     func.operator = op
                 except Exception as _e:
-                    logger.warning("[P120] 原子函数阈值查询失败，使用默认值: func=%s %s: %s", func.clause_id, type(_e).__name__, _e)
+                    logger.warning(
+                        "[P120] 原子函数阈值查询失败，使用默认值: func=%s %s: %s",
+                        func.clause_id,
+                        type(_e).__name__,
+                        _e,
+                    )
                 r = func.execute(e)
                 if r is None or r.result == "PASS":
                     continue
@@ -440,6 +457,7 @@ class BAAMCPServer:
         return findings, total_checks
 
     async def _handle_review_from_data(self, args: dict) -> dict:
+        """从原始数据执行审查流程。"""
         self._ensure_engine()
         entities = args["entities"]
         building_type = args.get("building_type", "civil")
@@ -458,6 +476,7 @@ class BAAMCPServer:
         }
 
     async def _handle_reconstruct(self, args: dict) -> dict:
+        """处理反向重构请求。"""
         self._ensure_engine()
         auth_payload = verify_auth_token(args["auth_token"])
         # verify_auth_token 返回 None 表示 token 过期或签名无效
@@ -484,6 +503,7 @@ class BAAMCPServer:
     async def run_stdio(self):
         # stdio 传输模式：MCP client 通过 stdin/stdout 与本 server 通信
         # 适用于本地 CLI 工具和 VS Code 等 IDE 集成
+        """以 stdio 模式启动 MCP 服务。"""
         from mcp.server.stdio import stdio_server
 
         async with stdio_server() as (rs, ws):
@@ -501,12 +521,14 @@ class BAAMCPServer:
 
     async def run_http(self, host="0.0.0.0", port=8080):
         # streamable HTTP 传输模式：适用于远程部署和 WebSocket 场景
+        """以 HTTP 模式启动 MCP 服务。"""
         from mcp.server.http import run_server
 
         await run_server(self.server, host=host, port=port)
 
 
 def main():
+    """程序入口，生成 OpenAPI 规范文件。"""
     import argparse
 
     p = argparse.ArgumentParser(description="BAA MCP Server")

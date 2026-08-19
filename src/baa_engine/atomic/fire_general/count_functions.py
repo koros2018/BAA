@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "COUNT-001",
         "安全出口数量判定",
         FuncCategory.COUNT,
@@ -20,7 +20,7 @@ AtomicFunction(
         "个",
         target_entities=["floor", "fire_zone"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-002",
         name="高层建筑避难层数量判定",
         description="建筑高度大于100m时每50m应设一个避难层（GB50016-5.5.23）",
@@ -32,7 +32,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-003",
         name="封闭楼梯间数量判定",
         description="建筑高度不大于21m的住宅建筑可采用敞开楼梯间（GB50016-5.5.25）",
@@ -44,7 +44,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-004",
         name="柴油发电机储油量判定",
         description="柴油发电机房储油间储油量不应大于1m³（GB50016-5.4.15）",
@@ -56,7 +56,7 @@ AtomicFunction(
         unit="m3",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-013",
         name="汽车库疏散出口数量判定",
         description="汽车库每个防火分区安全出口不应少于2个（GB50067-6.0.2）",
@@ -68,7 +68,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-014",
         name="消防电梯数量判定",
         description="高层民用建筑每个防火分区消防电梯不应少于1台（GB50016-7.3.2）",
@@ -80,7 +80,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-015",
         name="疏散楼梯数量判定",
         description="公共建筑每个防火分区安全出口不应少于2个（GB50016-5.5.8）",
@@ -92,7 +92,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-016",
         name="房间疏散门数量判定",
         description="公共建筑内每个房间疏散门不应少于2个（GB50016-5.5.15）",
@@ -104,7 +104,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-017",
         name="住宅安全出口数量判定",
         description="住宅建筑每个单元安全出口不应少于2个（GB50016-5.5.29）",
@@ -116,7 +116,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-019",
         name="防火分区安全出口数量判定",
         description="公共建筑每个防火分区安全出口不应少于2个（GB50016-5.5.8）",
@@ -128,7 +128,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-020",
         name="大房间疏散门数量判定",
         description="面积大于50㎡的房间疏散门数量不应少于2个（GB50016-5.5.15）",
@@ -140,7 +140,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-021",
         name="住宅单元每层安全出口数量判定",
         description="住宅建筑每个单元每层安全出口不应少于2个（GB50016-5.5.25）",
@@ -152,7 +152,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-022",
         name="18层以上住宅安全出口数量判定",
         description="18层以上住宅建筑每个单元每层安全出口不应少于2个（GB50016-5.5.29）",
@@ -164,7 +164,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-023",
         name="防火分区消防电梯数量判定",
         description="每个防火分区消防电梯数量不应少于1台（GB50016-7.3.2）",
@@ -176,7 +176,7 @@ AtomicFunction(
         unit="台",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-024",
         name="高层住宅安全出口数量判定",
         description="高层住宅建筑每个单元安全出口不应少于2个（GB50016-5.5.26）",
@@ -188,7 +188,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-025",
         name="公共建筑安全出口数量判定",
         description="公共建筑每个防火分区安全出口不应少于2个（GB50016-5.5.15）",
@@ -200,7 +200,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="COUNT-026",
         name="房间疏散门数量判定",
         description="建筑面积大于50m²的房间应设不少于2个疏散门（GB50016-5.5.16）",

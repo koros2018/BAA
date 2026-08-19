@@ -3,12 +3,20 @@
 from typing import Any, Dict, List
 
 from .components import (
-    Paragraph, Spacer, StatCard, make_table,
-    C_ACCENT, C_PRIMARY, C_WARNING, C_DANGER,
+    Paragraph,
+    Spacer,
+    StatCard,
+    make_table,
+    C_ACCENT,
+    C_PRIMARY,
+    C_WARNING,
+    C_DANGER,
 )
 
 
-def _build_category_bar(buf: List[Any], details: List[Dict[str, Any]], cw: float, s: Dict[str, Any]) -> None:
+def _build_category_bar(
+    buf: List[Any], details: List[Dict[str, Any]], cw: float, s: Dict[str, Any]
+) -> None:
     """P94: 违规分类条状图（按 category 聚合，纯文本+Paragraph 实现，稳定无绘图开销）"""
     from collections import Counter
 
@@ -27,10 +35,12 @@ def _build_category_bar(buf: List[Any], details: List[Dict[str, Any]], cw: float
         # 用色块字符模拟进度条
         bar = "█" * min(40, max(1, int(bar_len / (bar_max_w / 40))))
         bar_pct = f"{pct:.1f}%"
-        buf.append(Paragraph(
-            f"<b>{cat}</b>  {'█' * min(30, max(1, int(30 * count / max_count)))} {count} ({bar_pct})",
-            s["body"],
-        ))
+        buf.append(
+            Paragraph(
+                f"<b>{cat}</b>  {'█' * min(30, max(1, int(30 * count / max_count)))} {count} ({bar_pct})",
+                s["body"],
+            )
+        )
         buf.append(Spacer(1, 2))
 
 
@@ -77,8 +87,7 @@ def build_score_page(
     if compliance_pct != 0:
         card_w = (cw - 16) / 2
         cr_color = (
-            C_ACCENT if compliance_pct >= 80
-            else (C_WARNING if compliance_pct >= 50 else C_DANGER)
+            C_ACCENT if compliance_pct >= 80 else (C_WARNING if compliance_pct >= 50 else C_DANGER)
         )
         buf.append(StatCard("通过率", f"{compliance_pct}%", cr_color, card_w, 70))
         buf.append(Spacer(1, 6))
@@ -101,8 +110,14 @@ def build_score_page(
         buf.append(Paragraph("实体类型分布", s["subsection-title"]))
         buf.append(Spacer(1, 6))
         rows = sorted(entity_types.items(), key=lambda x: -x[1])
-        buf.append(make_table(styles, [list(r) for r in rows], col_widths=[cw - 80, 80],
-                              headers=["实体类型", "数量"]))
+        buf.append(
+            make_table(
+                styles,
+                [list(r) for r in rows],
+                col_widths=[cw - 80, 80],
+                headers=["实体类型", "数量"],
+            )
+        )
 
     # 平均置信度
     avg_confidence = summary.get("avg_confidence")
@@ -110,7 +125,8 @@ def build_score_page(
         buf.append(Spacer(1, 12))
         card_w = (cw - 16) / 2
         conf_color = (
-            C_ACCENT if avg_confidence >= 0.85
+            C_ACCENT
+            if avg_confidence >= 0.85
             else (C_WARNING if avg_confidence >= 0.6 else C_DANGER)
         )
         buf.append(StatCard("平均置信度", f"{int(avg_confidence * 100)}%", conf_color, card_w, 70))

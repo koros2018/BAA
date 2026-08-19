@@ -334,6 +334,7 @@ async def review(  # code
         registry_funcs = _get_fr().list_all()
 
         def get_strict_threshold(clause_id: str) -> tuple:
+            """获取条款严格模式阈值。"""
             worst_val, worst_unit, worst_op = None, None, None
             for bt in _effective_types:
                 v, u, o = repo.get_threshold(clause_id, bt)
@@ -599,8 +600,12 @@ async def review(  # code
         # P112: 从请求头读取 team_id/project_id，打通协作系统与审查历史
         team_id = request.headers.get("X-Team-Id", "") if request else ""
         project_id = request.headers.get("X-Project-Id", "") if request else ""
-        _logger.info(f"[P112] Saving review: id={review_id} team={team_id} proj={project_id} file={filename}")
-        ok = save_review_result(review_id, filename, response_data, team_id=team_id, project_id=project_id)
+        _logger.info(
+            f"[P112] Saving review: id={review_id} team={team_id} proj={project_id} file={filename}"
+        )
+        ok = save_review_result(
+            review_id, filename, response_data, team_id=team_id, project_id=project_id
+        )
         _logger.info(f"[P112] Save result: ok={ok}")
     except Exception as e:
         _logger.error(f"[P112] Save failed: {e}")
@@ -823,6 +828,7 @@ async def review_from_data(  # code
             def get_strict_threshold(
                 clause_id: str,
             ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
+                """获取条款严格模式阈值。"""
                 worst_val, worst_unit, worst_op = None, None, None
                 for bt in _effective_types_from_data:
                     v, u, o = repo.get_threshold(clause_id, bt)
@@ -1050,12 +1056,16 @@ async def review_from_data(  # code
         # P112: 从请求头读取 team_id/project_id
         team_id = request.headers.get("X-Team-Id", "") if request else ""
         project_id = request.headers.get("X-Project-Id", "") if request else ""
-        save_review_result(review_id, drawing_name, response_data, team_id=team_id, project_id=project_id)
+        save_review_result(
+            review_id, drawing_name, response_data, team_id=team_id, project_id=project_id
+        )
     except Exception as e:
         # P120 异常处理全量修复：审查历史入库失败静默吞掉会让用户以为已保存
         _logger.error(
             "[P120] 审查历史入库失败 review_id=%s: %s: %s",
-            task_id or review_id, type(e).__name__, e,
+            task_id or review_id,
+            type(e).__name__,
+            e,
         )
 
     return response_data  # return
@@ -1306,6 +1316,7 @@ async def review_multi_sheet(
 
         # ── 主图审查 ────────────────────────────────────
         def _do_main_review(primitives, dims):
+            """执行主审查流程。"""
             semantic = _get_sa().analyze(primitives, dims, building_type=building_type)
             entities = semantic.get("entities", [])
 
@@ -1322,6 +1333,7 @@ async def review_multi_sheet(
             ]
 
             def get_strict_threshold(clause_id: str) -> tuple:
+                """获取条款严格模式阈值。"""
                 worst_val, worst_unit, worst_op = None, None, None
                 for bt in _effective_types:
                     v, u, o = repo.get_threshold(clause_id, bt)
@@ -1460,6 +1472,7 @@ async def review_multi_sheet(
             for sheet in result.sheets:
 
                 def _do_sheet_review(sheet_entities, sheet_dims):
+                    """执行 Sheet 级别审查。"""
                     semantic = _get_sa().analyze(
                         sheet_entities, sheet_dims, building_type=building_type
                     )
@@ -1474,6 +1487,7 @@ async def review_multi_sheet(
                     registry_funcs = _get_fr().list_all()
 
                     def get_strict_threshold(clause_id: str) -> tuple:
+                        """获取条款严格模式阈值。"""
                         worst_val, worst_unit, worst_op = None, None, None
                         for bt in _effective_types:
                             v, u, o = repo.get_threshold(clause_id, bt)
@@ -1614,7 +1628,9 @@ async def review_multi_sheet(
         except Exception as e:
             # P120 异常处理全量修复：文件清理失败不应遮蔽主异常，仅 warning
             _logger.warning(
-                "[P120] 临时文件清理失败: %s: %s", type(e).__name__, e,
+                "[P120] 临时文件清理失败: %s: %s",
+                type(e).__name__,
+                e,
             )
 
 
