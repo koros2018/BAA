@@ -208,6 +208,7 @@ class VersionManager:
     """规范版本管理器 — 查询版本、对比差异"""
 
     def __init__(self):
+        """初始化实例。"""
         self._versions = SUPPORTED_VERSIONS
         self._change_logs = {
             ("GB 50016", "2014", "2025"): GB50016_CHANGE_LOG_2014_TO_2025,

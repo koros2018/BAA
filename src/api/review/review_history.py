@@ -62,10 +62,18 @@ def _init_db():
         if "project_id" not in cols:
             conn.execute("ALTER TABLE review_history ADD COLUMN project_id TEXT DEFAULT ''")
         # 建索引（此时列已确保存在）
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_created ON review_history(created_at DESC)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_drawing ON review_history(drawing_name)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_team ON review_history(team_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_review_history_project ON review_history(project_id)")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_review_history_created ON review_history(created_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_review_history_drawing ON review_history(drawing_name)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_review_history_team ON review_history(team_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_review_history_project ON review_history(project_id)"
+        )
         conn.commit()
     finally:
         conn.close()

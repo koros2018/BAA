@@ -48,6 +48,7 @@ class PersistentCache:  # persistent cache with SQLite backend
     _lock = threading.Lock()  # singleton initialization lock
 
     def __new__(cls, db_path: str = DEFAULT_DB_PATH):  # override to enforce singleton
+        """实现单例模式。"""
         with cls._lock:  # critical section for singleton init
             if cls._instance is None:  # create instance if not yet created
                 cls._instance = super().__new__(cls)  # allocate new class instance
@@ -55,6 +56,7 @@ class PersistentCache:  # persistent cache with SQLite backend
         return cls._instance  # return singleton instance
 
     def __init__(self, db_path: str = DEFAULT_DB_PATH):  # initialize cache database
+        """初始化实例。"""
         if self._initialized:  # skip if already initialized
             return  # early return
         self._initialized = True  # mark as initialized

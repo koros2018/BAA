@@ -160,9 +160,7 @@ def _analyze_evacuation_routes_impl(
         e for e in entities if e.type in ("door", "fire_door")
     ]  # assign: membership check
     # P107: 扫线法产出的 doorway 可作为疏散路径上的门连接节点
-    fallback_exits_sweep = [
-        e for e in entities if e.type == "doorway"
-    ]  # assign: membership check
+    fallback_exits_sweep = [e for e in entities if e.type == "doorway"]  # assign: membership check
     # 有明确出口就用明确出口，否则用 door/fire_door 兜底
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
 
@@ -284,9 +282,7 @@ def _verify_evacuation_connectivity_impl(
     fallback_exits = [
         e for e in entities if e.type in ("door", "fire_door")
     ]  # assign: membership check
-    fallback_exits_sweep = [
-        e for e in entities if e.type == "doorway"
-    ]  # assign: membership check
+    fallback_exits_sweep = [e for e in entities if e.type == "doorway"]  # assign: membership check
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
     exit_ids = {e.id for e in exits}  # assign: membership check
 

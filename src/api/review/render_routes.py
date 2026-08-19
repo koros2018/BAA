@@ -9,6 +9,7 @@ _logger = logging.getLogger(__name__)
 
 
 def _confidence_tier(confidence: float) -> str:
+    """将置信度映射为展示等级标签。"""
     if confidence >= 0.85:
         return "confirmed"
     if confidence >= 0.60:

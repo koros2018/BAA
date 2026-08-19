@@ -245,7 +245,8 @@ class ApiKeyManager:  # class definition
             except (json.JSONDecodeError, IOError) as e:  # 捕获异常
                 logger.error(
                     "[P120] API 密钥存储文件损坏，使用内存缓存: %s: %s",
-                    type(e).__name__, e,
+                    type(e).__name__,
+                    e,
                 )
         self._loaded = True  # assignment
 

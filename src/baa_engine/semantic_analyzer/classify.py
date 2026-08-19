@@ -1,5 +1,5 @@
-"""Semantic classifier — layer + geometry + entity-level.
-"""
+"""Semantic classifier — layer + geometry + entity-level."""
+
 from typing import List
 from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES
 from .models import SemanticEntity
@@ -8,11 +8,8 @@ from .meta import _parse_meta_entities
 from .room import _is_near_closed
 from ..drawing_parser import RawPrimitive
 
-def _classify_entities(
-    self, primitives: List[RawPrimitive]
-) -> List[
-    SemanticEntity
-]:
+
+def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """图元分类归并"""
     # 优先解析 META 图层（合成图纸结构化数据）
     meta_entities = _parse_meta_entities(self, primitives)
@@ -98,11 +95,7 @@ def _classify_entities(
     return entities
 
 
-
-
-def _classify_by_layer(
-    self, layer: str
-) -> str:
+def _classify_by_layer(self, layer: str) -> str:
     """图层规则归类
 
     长关键字（≥3字符）：子串匹配
@@ -125,8 +118,7 @@ def _classify_by_layer(
             while idx >= 0:  # 循环
                 pre_ok = idx == 0 or layer_upper[idx - 1] == "_"  # compare: equality
                 post_ok = (
-                    idx + len(keyword) >= len(layer_upper)
-                    or layer_upper[idx + len(keyword)] == "_"
+                    idx + len(keyword) >= len(layer_upper) or layer_upper[idx + len(keyword)] == "_"
                 )  # compare: equality
                 if pre_ok and post_ok:  # check: AND condition
                     return entity_type
@@ -135,11 +127,7 @@ def _classify_by_layer(
     return "unknown"
 
 
-
-
-def _classify_by_geometry(
-    self, prim: RawPrimitive
-) -> str:
+def _classify_by_geometry(self, prim: RawPrimitive) -> str:
     """几何特征兜底归类（V2深度升级版）
 
     新增规则：
@@ -251,9 +239,7 @@ def _classify_by_geometry(
                 "DOT",
                 "Defpoints",
             ]
-            if any(
-                kw in prim.layer.upper() for kw in non_room_layers
-            ):  # check: membership test
+            if any(kw in prim.layer.upper() for kw in non_room_layers):  # check: membership test
                 if aspect_ratio > 3:  # check: numeric comparison
                     return "other"
                 return "wall"
@@ -305,9 +291,7 @@ def _classify_by_geometry(
         radius = props.get("radius", 0)
         # 大半径 ARC（>3000mm）且弧线角度大 → 弧形房间轮廓
         if radius > 3000:  # check: numeric comparison
-            angle_span = (
-                abs(props.get("start_angle", 0) - props.get("end_angle", 0)) or 0
-            )
+            angle_span = abs(props.get("start_angle", 0) - props.get("end_angle", 0)) or 0
             # 弧线跨度 > 90° 视为房间轮廓
             if angle_span > 90:  # check: numeric comparison
                 return "room"
@@ -328,8 +312,7 @@ def _classify_by_geometry(
             # 结合图层判断
             layer = prim.layer.upper()
             if any(
-                kw in layer
-                for kw in ["消防", "FIRE", "FAS", "报警", "ALARM", "喷淋", "SPRINKLER"]
+                kw in layer for kw in ["消防", "FIRE", "FAS", "报警", "ALARM", "喷淋", "SPRINKLER"]
             ):  # check: membership test
                 return "sprinkler"
             if any(
@@ -385,9 +368,7 @@ def _classify_by_geometry(
         # ── 消防设施/系统关键词（用于真实图纸 TEXT 辅助识别） ──
         if "消火栓" in text or "HYDRANT" in text_upper:  # check: membership test
             return "fire_hydrant"
-        if (
-            "喷淋" in text or "洒水" in text or "SPRINKLER" in text_upper
-        ):  # check: membership test
+        if "喷淋" in text or "洒水" in text or "SPRINKLER" in text_upper:  # check: membership test
             return "sprinkler"
         if "灭火器" in text or "灭火" in text:  # check: membership test
             return "fire_extinguisher"
@@ -401,9 +382,7 @@ def _classify_by_geometry(
             return "water_tank"
         if "消防水池" in text or "水池" in text:  # check: membership test
             return "water_reservoir"
-        if (
-            "广播" in text or "音箱" in text or "SPEAKER" in text_upper
-        ):  # check: membership test
+        if "广播" in text or "音箱" in text or "SPEAKER" in text_upper:  # check: membership test
             return "emergency_broadcast"
         if "应急照明" in text or "EVAC" in text_upper:  # check: membership test
             return "evacuation_lighting"
@@ -570,9 +549,7 @@ def _classify_by_geometry(
         ):  # check: membership test
             return "distribution_box"
         if (
-            "EMERGENCY_LIGHT" in block_name
-            or "应急照明" in block_name
-            or "应急灯" in block_name
+            "EMERGENCY_LIGHT" in block_name or "应急照明" in block_name or "应急灯" in block_name
         ):  # check: membership test
             return "emergency_lighting"
         if (

@@ -32,12 +32,11 @@ BAA Python SDK — 轻量 HTTP 客户端
     # Webhook
     client.register_webhook({"url": "https://hook.example.com/notify", "events": ["review.done"]})
 """
+from __future__ import annotations
+
 import logging
 
 _sdk_logger = logging.getLogger(__name__)
-
-
-from __future__ import annotations
 
 import json
 import mimetypes
@@ -69,6 +68,7 @@ class BAAClient:
         base_url: str = "http://localhost:8000",
         timeout: float = 300.0,
     ):
+        """初始化实例。"""
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -76,12 +76,14 @@ class BAAClient:
     # ── 内部 HTTP 层 ──────────────────────────────────────
 
     def _headers(self, content_type: Optional[str] = None) -> dict[str, str]:
+        """构建请求头。"""
         h = {"Authorization": f"Bearer ***", "User-Agent": "baa-sdk/1.0"}
         if content_type:
             h["Content-Type"] = content_type
         return h
 
     def _url(self, path: str, params: Optional[dict] = None) -> str:
+        """拼接请求 URL。"""
         url = f"{self.base_url}{path}"
         if params:
             url += "?" + urlencode(params)
@@ -114,6 +116,7 @@ class BAAClient:
         files: Optional[dict],
         data: Optional[dict],
     ) -> dict:
+        """使用 httpx 发送请求。"""
         with httpx.Client(timeout=self.timeout) as client:
             if files:
                 r = client.request(method, url, headers=headers, files=files, data=data)
@@ -171,6 +174,7 @@ class BAAClient:
         return result
 
     def _get(self, path: str, params: Optional[dict] = None) -> dict:
+        """发送 GET 请求。"""
         return self._request("GET", path, params=params)
 
     def _post(

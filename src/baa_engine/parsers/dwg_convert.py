@@ -120,6 +120,7 @@ def _names_match(
 
     def normalize(name: str) -> str:  # method: def normalize(name: str) -> str:
         # 去掉 _t3 后缀
+        """归一化转换数据。"""
         name = re.sub(r"_t3$", "", name, flags=re.IGNORECASE)  # regex operation
         # 去掉开头的数字编号（如 "6.", "20210409-3#"）
         name = re.sub(r"^[\d#\-\.\s]+", "", name)  # regex operation
@@ -198,7 +199,9 @@ sys.exit(2)
                     if count > 10:
                         return dxf_doc
                 except Exception as _e:
-                    logger.warning("[P120] ezdwg export_dxf 读取失败: %s: %s", type(_e).__name__, _e)
+                    logger.warning(
+                        "[P120] ezdwg export_dxf 读取失败: %s: %s", type(_e).__name__, _e
+                    )
     except Exception as e:
         logger.warning("[P120] ezdwg export_dxf 流程异常: %s: %s", type(e).__name__, e)
     finally:
@@ -594,7 +597,9 @@ def _try_manual_convert(
                                     )  # code
                                     total += 1  # accumulate
                         except Exception as _e:  # catch exception
-                            logger.warning("[P120] xref 实体写入失败: %s: %s", type(_e).__name__, _e)
+                            logger.warning(
+                                "[P120] xref 实体写入失败: %s: %s", type(_e).__name__, _e
+                            )
                     elif dxf_type == "SOLID":  # elif condition
                         pts_2d = [
                             (d.get(f"{ax}{i}", 0), d.get(f"{ay}{i}", 0))  # function call
@@ -617,7 +622,9 @@ def _try_manual_convert(
                         )  # int conversion
                         total += 1  # accumulate
                 except Exception as _e:  # catch exception
-                    logger.warning("[P120] xref 模型空间实体写入失败: %s: %s", type(_e).__name__, _e)
+                    logger.warning(
+                        "[P120] xref 模型空间实体写入失败: %s: %s", type(_e).__name__, _e
+                    )
 
         if total > 10:  # check: numeric comparison
             return dxf_doc  # return
@@ -844,6 +851,7 @@ def _insert_block_expand(
         sin_r = math.sin(math.radians(rotation))  # math operation
 
         def transform_point(p):  # method: def transform_point(p):
+            """变换点坐标。"""
             dx = (p[0] - base_x) * scale  # function call
             dy = (p[1] - base_y) * scale  # function call
             rx = dx * cos_r - dy * sin_r + base_x  # assignment

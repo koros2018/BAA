@@ -4,8 +4,15 @@ import datetime
 from typing import Any, Dict, List
 
 from .components import (
-    Paragraph, Spacer, ColorBar, StatCard,
-    C_PRIMARY, C_TEXT, C_TEXT_LIGHT, C_DANGER, C_ACCENT,
+    Paragraph,
+    Spacer,
+    ColorBar,
+    StatCard,
+    C_PRIMARY,
+    C_TEXT,
+    C_TEXT_LIGHT,
+    C_DANGER,
+    C_ACCENT,
 )
 
 
@@ -31,9 +38,7 @@ def build_cover(
     buf.append(Paragraph(f"文件名：{filename}", s["cover-sub"]))
 
     building_type = summary.get("building_type", "civil")
-    type_label = (
-        "民用建筑" if building_type == "civil" else "工业建筑"
-    )
+    type_label = "民用建筑" if building_type == "civil" else "工业建筑"
     buf.append(Paragraph(f"建筑类型：{type_label}", s["cover-info"]))
 
     now = datetime.datetime.now()

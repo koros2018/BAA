@@ -151,5 +151,5 @@ LAYER_RULES_P70_FREQ = {
     "GAS_EXT": "gas_extinguishing",  # 气体灭火
     "气体灭火": "gas_extinguishing",
     "DRIP": "drain",  # 排水
-    "排水": "drain"
+    "排水": "drain",
 }

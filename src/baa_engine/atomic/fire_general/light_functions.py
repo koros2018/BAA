@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "LIGHT-001",
         "应急照明照度判定",
         FuncCategory.DIMENSION,
@@ -20,7 +20,7 @@ AtomicFunction(
         "lx",
         target_entities=["evacuation_lighting", "light", "lighting"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "LIGHT-002",
         "楼梯间应急照明照度判定",
         FuncCategory.DIMENSION,
@@ -31,7 +31,7 @@ AtomicFunction(
         "lx",
         target_entities=["staircase", "stair", "lobby", "corridor"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-003",
         name="消防控制室应急照明照度判定",
         description="消防控制室、消防水泵房等应保持正常照明照度（GB50016-10.3.3）",
@@ -43,7 +43,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-004",
         name="疏散走道疏散照明照度判定",
         description="疏散走道疏散照明地面最低照度不应低于1.0lx（GB50016-10.3.2）",
@@ -55,7 +55,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-005",
         name="避难层应急照明照度判定",
         description="避难层应急照明照度不应低于3.0lx（GB50016-10.3.2）",
@@ -67,7 +67,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-006",
         name="应急照明灯具设置判定",
         description="封闭楼梯间、防烟楼梯间应设应急照明（GB50016-10.3.1）",
@@ -79,7 +79,7 @@ AtomicFunction(
         unit="盏",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-007",
         name="楼梯间应急照明照度判定",
         description="楼梯间、前室应急照明照度不应低于5.0lx（GB50016-10.1.5）",
@@ -91,7 +91,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-008",
         name="消防水泵房应急照明照度判定",
         description="消防水泵房、配电室等设备用房应急照明照度不应低于1.0lx（GB50016-10.3.3）",
@@ -103,7 +103,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-009",
         name="疏散走道照度判定",
         description="疏散走道地面最低水平照度不应低于1.0lx（GB50016-10.1.5）",
@@ -115,7 +115,7 @@ AtomicFunction(
         unit="lx",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="LIGHT-010",
         name="设备用房应急照明照度判定",
         description="消防水泵房、配电室等设备用房应急照明照度≥1.0lx（GB50016-10.3.3）",

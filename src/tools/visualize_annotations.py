@@ -1,6 +1,7 @@
 """可视化 YOLO 标签，验证自动标注质量。
 用法: python src/tools/visualize_annotations.py --sample <n>
 """
+
 import argparse
 import os
 import sys
@@ -11,33 +12,48 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 YOLO_CLASSES = [
-    'wall', 'door', 'window', 'staircase', 'corridor',
-    'fire_door', 'exit', 'fire_lane', 'fire_zone', 'fire_window',
-    'shaft', 'room', 'exit_sign', 'sprinkler_system', 'fire_alarm',
-    'insulation', 'evacuation_lighting', 'refuge_floor',
+    "wall",
+    "door",
+    "window",
+    "staircase",
+    "corridor",
+    "fire_door",
+    "exit",
+    "fire_lane",
+    "fire_zone",
+    "fire_window",
+    "shaft",
+    "room",
+    "exit_sign",
+    "sprinkler_system",
+    "fire_alarm",
+    "insulation",
+    "evacuation_lighting",
+    "refuge_floor",
 ]
 
 # 类别颜色
 CLASS_COLORS = [
-    (200, 0, 0),    # wall - 红
+    (200, 0, 0),  # wall - 红
     (0, 100, 200),  # door - 蓝
-    (0, 200, 0),    # window - 绿
+    (0, 200, 0),  # window - 绿
     (200, 200, 0),  # staircase - 黄
     (150, 0, 150),  # corridor - 紫
-    (255, 80, 0),   # fire_door - 橙红
-    (0, 0, 200),    # exit - 深蓝
+    (255, 80, 0),  # fire_door - 橙红
+    (0, 0, 200),  # exit - 深蓝
     (255, 200, 0),  # fire_lane
-    (100, 200, 100),# fire_zone
-    (200, 100, 200),# fire_window
-    (100, 100, 100),# shaft
-    (200, 200, 200),# room - 浅灰
+    (100, 200, 100),  # fire_zone
+    (200, 100, 200),  # fire_window
+    (100, 100, 100),  # shaft
+    (200, 200, 200),  # room - 浅灰
     (255, 255, 0),  # exit_sign
     (200, 0, 100),  # sprinkler_system
     (255, 150, 0),  # fire_alarm
-    (100, 150, 200),# insulation
+    (100, 150, 200),  # insulation
     (0, 255, 255),  # evacuation_lighting
-    (255, 100, 100),# refuge_floor
+    (255, 100, 100),  # refuge_floor
 ]
+
 
 def draw_annotations(img_path, label_path, output_path, scale=1.0):
     img = Image.open(img_path).convert("RGB")
@@ -85,7 +101,7 @@ def draw_annotations(img_path, label_path, output_path, scale=1.0):
                 font = ImageFont.load_default()
             text = cls_name
             bbox = draw.textbbox((x1, y1), text, font=font)
-            draw.rectangle([bbox[0]-1, bbox[1]-1, bbox[2]+1, bbox[3]+1], fill=color)
+            draw.rectangle([bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1], fill=color)
             draw.text((x1, y1 - 15), text, fill=(255, 255, 255), font=font)
 
         cls_name = YOLO_CLASSES[cls_idx]
@@ -102,7 +118,7 @@ def find_image_path(label_path: Path, data_dir: Path) -> Path:
     stem = label_path.stem
     candidates = [
         data_dir / stem.replace(".txt", ""),  # 不会命中，占位
-        data_dir / f"{stem}.jpg",              # 常规情况
+        data_dir / f"{stem}.jpg",  # 常规情况
     ]
     for c in candidates:
         if c.exists():
@@ -135,6 +151,7 @@ def main():
 
     if args.sample > 0 and args.sample < len(labels):
         import random
+
         random.seed(42)
         labels = random.sample(labels, args.sample)
         print(f"Sampling {args.sample} for visualization")

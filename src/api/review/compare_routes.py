@@ -64,6 +64,7 @@ async def review_compare(  # code
     loop = asyncio.get_event_loop()  # function call
 
     async def _run_review(file: UploadFile) -> tuple:  # function call
+        """执行对比审查。"""
         content = await file.read()  # function call
         filename = file.filename or "unknown"  # assignment
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # function call

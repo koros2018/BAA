@@ -1,14 +1,11 @@
-"""Meta entity parsing from META layer.
-"""
+"""Meta entity parsing from META layer."""
+
 from typing import List
 from .models import SemanticEntity
 from ..drawing_parser import RawPrimitive
 
-def _parse_meta_entities(
-    self, primitives
-) -> List[
-    SemanticEntity
-]:
+
+def _parse_meta_entities(self, primitives) -> List[SemanticEntity]:
     """
     解析 META 图层的结构化实体元数据。
     格式: ENTITY:<type>|x:<x>|y:<y>|w:<w>|h:<h>|key:value|...
@@ -62,4 +59,3 @@ def _parse_meta_entities(
         entities.append(entity)  # append: add to list
 
     return entities
-

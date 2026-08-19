@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "EVAC-001",
         "疏散路径连通性判定",
         FuncCategory.EVAC,
@@ -20,7 +20,7 @@ AtomicFunction(
         "有/无",
         target_entities=["room", "space", "floor"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EVAC-002",
         "疏散路径长度判定",
         FuncCategory.EVAC,
@@ -32,7 +32,7 @@ AtomicFunction(
         target_entities=["room", "space", "floor"],
         depends_on=["EVAC-001"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EVAC-003",
         "疏散路径合规性判定",
         FuncCategory.EVAC,
@@ -44,7 +44,7 @@ AtomicFunction(
         target_entities=["room", "space", "floor"],
         depends_on=["EVAC-001"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "EVAC-004",
         "疏散路径瓶颈判定",
         FuncCategory.EVAC,

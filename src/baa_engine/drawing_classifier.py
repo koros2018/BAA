@@ -2,9 +2,9 @@
 P121 Phase 1: 图纸类型分类器
 基于图层名 + 实体类型 + 文件名关键词判断图纸类型（建筑/结构/电气/给排水/暖通/其他）
 """
+
 import re
 from typing import Dict, Any
-
 
 # ── 分类规则 ──────────────────────────────────────────────
 
@@ -19,8 +19,33 @@ _FILENAME_RULES: Dict[str, list] = {
 # 图层名关键词 → 类型
 _LAYER_RULES: Dict[str, list] = {
     "结构": ["STR_", "BEAM", "COLUMN", "SLAB", "WALL_STR", "结构", "STR_LAYER", "柱", "梁", "板"],
-    "电气": ["EL_", "ELEC", "POWER", "LIGHT", "配电", "照明", "电气", "ELT", "FE_", "消防电气", "火灾报警"],
-    "暖通": ["HVAC", "DUCT", "PIPE", "给排水", "暖通", "水暖", "MEP", "PLUMB", "VENT", "风管", "水管", "水消防"],
+    "电气": [
+        "EL_",
+        "ELEC",
+        "POWER",
+        "LIGHT",
+        "配电",
+        "照明",
+        "电气",
+        "ELT",
+        "FE_",
+        "消防电气",
+        "火灾报警",
+    ],
+    "暖通": [
+        "HVAC",
+        "DUCT",
+        "PIPE",
+        "给排水",
+        "暖通",
+        "水暖",
+        "MEP",
+        "PLUMB",
+        "VENT",
+        "风管",
+        "水管",
+        "水消防",
+    ],
     "建筑": ["ARCH", "DWG_", "AXIS", "DIM_", "TEXT", "墙", "门", "窗", "房间", "楼板"],
 }
 
@@ -127,6 +152,7 @@ def classify_drawing(
 
 
 # ── 损坏/无效文件检测 ────────────────────────────────────
+
 
 def is_likely_corrupt(filepath: str, min_size_bytes: int = 10000) -> Dict[str, Any]:
     """

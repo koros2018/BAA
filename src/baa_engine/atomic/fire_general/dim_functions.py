@@ -9,7 +9,7 @@ from ...atomic_functions import (
 )
 
 MODULE_FUNCS = [
-AtomicFunction(
+    AtomicFunction(
         "DIM-001",
         "疏散楼梯净宽判定",
         FuncCategory.DIMENSION,
@@ -20,7 +20,7 @@ AtomicFunction(
         "m",
         target_entities=["staircase", "stair"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-002",
         "防火分区面积判定",
         FuncCategory.DIMENSION,
@@ -31,7 +31,7 @@ AtomicFunction(
         "㎡",
         target_entities=["fire_zone"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-003",
         "消防车道宽度判定",
         FuncCategory.DIMENSION,
@@ -42,7 +42,7 @@ AtomicFunction(
         "m",
         target_entities=["fire_lane", "road", "driveway"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-004",
         "疏散走道宽度判定",
         FuncCategory.DIMENSION,
@@ -53,7 +53,7 @@ AtomicFunction(
         "m",
         target_entities=["corridor", "aisle", "passage"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-005",
         "窗净面积判定",
         FuncCategory.DIMENSION,
@@ -64,7 +64,7 @@ AtomicFunction(
         "㎡",
         target_entities=["fire_window", "window"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-006",
         "疏散门净宽判定",
         FuncCategory.DIMENSION,
@@ -76,7 +76,7 @@ AtomicFunction(
         # P108: 扫线法产出的 doorway 参与 DIM-006（疏散门宽度）判定
         target_entities=["exit_door", "door", "doorway"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-007",
         "防火卷帘宽度判定",
         FuncCategory.DIMENSION,
@@ -87,7 +87,7 @@ AtomicFunction(
         "m",
         target_entities=["fire_curtain", "curtain"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-008",
         "排烟窗面积判定",
         FuncCategory.DIMENSION,
@@ -98,7 +98,7 @@ AtomicFunction(
         "㎡",
         target_entities=["smoke_exhaust_window", "window", "room"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-009",
         "疏散出口宽度判定",
         FuncCategory.DIMENSION,
@@ -110,7 +110,7 @@ AtomicFunction(
         # P108: 扫线法产出的 doorway 参与 DIM-009（疏散出口宽度）判定
         target_entities=["exit", "exit_door", "door", "doorway"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-010",
         "消防救援窗面积判定",
         FuncCategory.DIMENSION,
@@ -121,7 +121,7 @@ AtomicFunction(
         "㎡",
         target_entities=["rescue_window", "window"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-011",
         "消防车道净高判定",
         FuncCategory.DIMENSION,
@@ -132,7 +132,7 @@ AtomicFunction(
         "m",
         target_entities=["fire_lane", "road", "driveway"],
     ),
-AtomicFunction(
+    AtomicFunction(
         "DIM-012",
         "避难走道净宽判定",
         FuncCategory.DIMENSION,
@@ -143,7 +143,7 @@ AtomicFunction(
         "m",
         target_entities=["exit_passageway", "passage", "corridor"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-013",
         name="安全出口净高不应小于2.0m",
         description="疏散走道和楼梯的最小净宽度不应小于2.0m（GB50016-5.5.18）",
@@ -155,7 +155,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-014",
         name="疏散指示标志间距不应大于20m",
         description="疏散指示标志间距不大于20m（GB50016-10.3.1）",
@@ -167,7 +167,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-015",
         name="袋形走道疏散距离不应大于15m",
         description="袋形走道的疏散距离不应大于15m（GB50016-5.5.17）",
@@ -179,7 +179,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-016",
         name="消防车道净高不应小于4.0m",
         description="消防车道的净高不应小于4.0m（GB50016-7.1.8）",
@@ -191,7 +191,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-017",
         name="防火分区最大允许建筑面积判定",
         description="一、二级耐火等级建筑防火分区最大允许建筑面积（GB50016-5.3.1）",
@@ -203,7 +203,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-018",
         name="防烟楼梯间前室面积判定",
         description="防烟楼梯间前室使用面积不应小于6.0sqm（GB50016-6.4.3）",
@@ -215,7 +215,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-019",
         name="合用前室面积判定",
         description="消防电梯与防烟楼梯间合用前室使用面积不应小于10.0sqm（GB50016-6.4.3）",
@@ -227,7 +227,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-020",
         name="疏散楼梯最小净宽判定",
         description="疏散楼梯最小净宽度不应小于1.1m（GB50016-5.5.18）",
@@ -239,7 +239,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-021",
         name="首层疏散外门净宽判定",
         description="首层疏散外门净宽度不应小于1.1m（GB50016-5.5.19）",
@@ -251,7 +251,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-022",
         name="人员密集场所疏散门净宽判定",
         description="人员密集场所疏散门净宽度不应小于1.4m（GB50016-5.5.19）",
@@ -263,7 +263,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-023",
         name="防火卷帘宽度判定",
         description="防火卷帘宽度不应超过规范允许值（GB50016-6.5.3）",
@@ -275,7 +275,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-024",
         name="观众厅疏散门数量判定",
         description="观众厅每个疏散门的平均疏散人数不应超过250人（GB50016-5.5.16）",
@@ -287,7 +287,7 @@ AtomicFunction(
         unit="个",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-025",
         name="地下建筑疏散楼梯宽度判定",
         description="地下或半地下建筑疏散楼梯净宽度不应小于1.1m（GB50016-5.5.20）",
@@ -299,7 +299,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-026",
         name="室外疏散楼梯净宽判定",
         description="室外疏散楼梯净宽度不应小于0.9m（GB50016-6.4.5）",
@@ -311,7 +311,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-027",
         name="机械排烟系统排烟量判定",
         description="机械排烟系统最小排烟量不应小于7200m³/h（GB50016-9.3.1）",
@@ -323,7 +323,7 @@ AtomicFunction(
         unit="m3h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-028",
         name="储油间储油量判定",
         description="锅炉房储油间储油量不应大于1m³（GB50016-5.4.15）",
@@ -335,7 +335,7 @@ AtomicFunction(
         unit="m3",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-029",
         name="消防电梯运行速度判定",
         description="消防电梯从首层到顶层运行时间不应超过60s（GB50016-7.3.8）",
@@ -347,7 +347,7 @@ AtomicFunction(
         unit="s",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-030",
         name="消防救援场地宽度判定",
         description="消防救援场地宽度不应小于10m（GB50016-7.2.2）",
@@ -359,7 +359,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-031",
         name="消防车道转弯半径判定",
         description="消防车道转弯半径不应小于9m（GB50016-7.1.3）",
@@ -371,7 +371,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-032",
         name="消防救援窗口尺寸判定",
         description="消防救援窗口净高和净宽均不应小于1.0m（GB50016-7.2.4）",
@@ -383,7 +383,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-033",
         name="封闭楼梯间门宽度判定",
         description="封闭楼梯间门净宽度不应小于0.9m（GB50016-5.5.18）",
@@ -395,7 +395,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-034",
         name="疏散门开启净宽度判定",
         description="疏散门开启后净宽度应按门扇净宽减去0.05m计算（GB50016-5.5.18）",
@@ -407,7 +407,7 @@ AtomicFunction(
         unit="mm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-056",
         name="地下商店疏散距离判定",
         description="地下商店疏散距离不应大于30m（GB50016-5.5.17-3）",
@@ -419,7 +419,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-057",
         name="歌舞娱乐放映场所疏散宽度判定",
         description="歌舞娱乐放映场所疏散总净宽不应小于每100人1.0m（GB50016-5.5.21-2）",
@@ -431,7 +431,7 @@ AtomicFunction(
         unit="m/百人",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-058",
         name="高层病房楼避难间面积判定",
         description="高层病房楼避难间净面积不应小于25.0sqm（GB50016-5.5.24-2）",
@@ -443,7 +443,7 @@ AtomicFunction(
         unit="sqm",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-065",
         name="汽车疏散坡道宽度判定",
         description="汽车疏散坡道宽度不应小于4.0m，双车道不应小于7.0m（GB50067-6.0.10）",
@@ -455,7 +455,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-066",
         name="停车位宽度判定",
         description="平行停车位宽度不应小于2.4m，垂直停车位宽度不应小于2.5m（GB50067-4.1.5）",
@@ -467,7 +467,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-067",
         name="停车位长度判定",
         description="停车位长度不应小于5.3m（GB50067-4.1.5）",
@@ -479,7 +479,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-068",
         name="汽车通道宽度判定",
         description="汽车库内汽车通道宽度不应小于5.5m（GB50067-4.1.6）",
@@ -491,7 +491,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-069",
         name="汽车库防火分区面积判定",
         description="地下汽车库防火分区最大允许面积不应大于2000㎡（GB50067-5.1.1）",
@@ -503,7 +503,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-070",
         name="修车库防火分区面积判定",
         description="修车库防火分区最大允许面积不应大于2000㎡（GB50067-5.1.1）",
@@ -515,7 +515,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-071",
         name="汽车库疏散楼梯宽度判定",
         description="汽车库内疏散楼梯净宽度不应小于1.1m（GB50067-6.0.3）",
@@ -527,7 +527,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-072",
         name="汽车库疏散出口宽度判定",
         description="汽车库疏散出口净宽度不应小于0.9m（GB50067-6.0.3）",
@@ -539,7 +539,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-073",
         name="消防电梯前室面积判定",
         description="消防电梯前室使用面积不应小于6.0m²（GB50016-7.3.5）",
@@ -551,7 +551,7 @@ AtomicFunction(
         unit="m²",
         depends_on=["AREA-001"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-074",
         name="防火分区最大允许面积判定",
         description="高层民用建筑每个防火分区最大允许建筑面积不应大于1500m²（GB50016-5.3.1）",
@@ -563,7 +563,7 @@ AtomicFunction(
         unit="m²",
         depends_on=["AREA-001"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-075",
         name="防烟楼梯间前室面积判定",
         description="防烟楼梯间前室使用面积不应小于4.5m²，合用前室不应小于6.0m²（GB50016-6.4.3）",
@@ -575,7 +575,7 @@ AtomicFunction(
         unit="m²",
         depends_on=["AREA-001"],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-078",
         name="走道最小净宽度判定",
         description="疏散走道最小净宽度不应小于1.1m（GB50016-5.5.13）",
@@ -587,7 +587,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-079",
         name="疏散宽度指标判定",
         description="人员密集场所疏散宽度应按百人宽度指标计算（GB50016-5.5.21）",
@@ -599,7 +599,7 @@ AtomicFunction(
         unit="m/百人",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-080",
         name="住宅走道宽度判定",
         description="住宅建筑疏散走道净宽度不应小于1.1m（GB50016-5.5.30）",
@@ -611,7 +611,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-081",
         name="建筑幕墙防火封堵宽度判定",
         description="建筑幕墙在每层楼板处应设防火封堵，宽度不小于楼板厚度（GB50016-6.2.4）",
@@ -623,7 +623,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-082",
         name="封闭楼梯间门宽度判定",
         description="封闭楼梯间门应向疏散方向开启，净宽不小于1.0m（GB50016-6.4.2）",
@@ -635,7 +635,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-083",
         name="室外楼梯净宽判定",
         description="室外疏散楼梯净宽度不应小于0.9m（GB50016-6.4.6）",
@@ -647,7 +647,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-084",
         name="首层疏散门净宽判定",
         description="首层疏散外门净宽度不应小于1.2m（GB50016-6.4.7）",
@@ -659,7 +659,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-085",
         name="消防车道净高判定",
         description="消防车道净高不应小于4.0m（GB50016-7.1.2）",
@@ -671,7 +671,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-086",
         name="消防车道转弯半径判定",
         description="消防车道转弯半径不应小于12m（GB50016-7.1.4）",
@@ -683,7 +683,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-087",
         name="救援窗口尺寸判定",
         description="救援窗口净高不应小于1.0m，净宽不应小于1.0m（GB50016-7.2.3）",
@@ -695,7 +695,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-091",
         name="汽车库自动灭火分区面积判定",
         description="设有自动灭火系统时，汽车库防火分区面积可增加1倍（GB50067-5.1.4）",
@@ -707,7 +707,7 @@ AtomicFunction(
         unit="㎡",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-094",
         name="袋形走道疏散距离判定",
         description="袋形走道尽端房间疏散门至安全出口距离不应大于15m（高层），一二类建筑不应大于20m（GB50016-5.5.17-2）",
@@ -719,7 +719,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-095",
         name="疏散走道最小净宽度判定",
         description="疏散走道最小净宽度不应小于1.2m，高层医疗建筑不应小于1.4m（GB50016-5.5.18-2）",
@@ -731,7 +731,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-096",
         name="疏散出口最小净宽度判定",
         description="疏散出口最小净宽度不应小于0.8m，医疗建筑不应小于0.9m（GB50016-5.5.18-3）",
@@ -743,7 +743,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-097",
         name="幕墙防火封堵宽度判定",
         description="建筑幕墙与每层楼板、隔墙处的缝隙防火封堵宽度不应小于0.2m（GB50016-6.2.4）",
@@ -755,7 +755,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-098",
         name="消防车道净高判定",
         description="消防车道净高不应小于4.0m（GB50016-7.1.1）",
@@ -767,7 +767,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-099",
         name="救援窗口最小净高判定",
         description="消防救援窗口净高和净宽均不应小于1.0m，窗口下沿距室内地面≤1.2m（GB50016-7.2.3）",
@@ -779,7 +779,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-100",
         name="机械排烟系统最小排烟量判定",
         description="机械排烟系统排烟量不应小于7200m³/h，每个防烟分区排烟量≥15000m³/h（GB50016-9.3.1）",
@@ -791,7 +791,7 @@ AtomicFunction(
         unit="m³/h",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-101",
         name="疏散楼梯间形式判定",
         description="封闭楼梯间宽度≥1.1m，防烟楼梯间前室面积≥4.5m²（GB50016-5.5.2）",
@@ -803,7 +803,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-102",
         name="避难层净高判定",
         description="避难层(间)净高不应低于2.0m（GB50016-5.5.13）",
@@ -815,7 +815,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-103",
         name="人员密集场所疏散走道宽度判定",
         description="剧院、礼堂、体育馆等人员密集场所疏散走道宽度≥1.0m（GB50016-5.5.20）",
@@ -827,7 +827,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-104",
         name="住宅疏散走道宽度判定",
         description="住宅建筑疏散走道净宽≥1.0m，高层住宅≥1.1m（GB50016-5.5.29）",
@@ -839,7 +839,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-105",
         name="住宅户门净宽判定",
         description="住宅户门净宽不应小于0.8m（GB50016-5.5.30）",
@@ -851,7 +851,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-106",
         name="室外疏散楼梯宽度判定",
         description="室外疏散楼梯净宽≥0.9m，倾斜角度≤45°（GB50016-6.4.5）",
@@ -863,7 +863,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-107",
         name="疏散楼梯扶手高度判定",
         description="疏散楼梯扶手高度不应低于1.10m（GB50016-6.4.7）",
@@ -875,7 +875,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-108",
         name="消防车道宽度判定",
         description="消防车道宽度不应小于4.0m，净高不应小于4.0m（GB50016-7.1.2）",
@@ -887,7 +887,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-109",
         name="消防水池有效容积判定",
         description="消防水池有效容积≥100m³，一类高层≥200m³（GB50016-8.2.3）",
@@ -899,7 +899,7 @@ AtomicFunction(
         unit="m³",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-110",
         name="自然排烟窗面积比判定",
         description="自然排烟窗有效面积不应小于地面面积的2%（GB50016-9.2.3）",
@@ -911,7 +911,7 @@ AtomicFunction(
         unit="%",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-111",
         name="排烟口风速判定",
         description="排烟口风速不应大于10m/s（GB50016-9.3.1）",
@@ -923,7 +923,7 @@ AtomicFunction(
         unit="m/s",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-112",
         name="消防电源切换时间判定",
         description="消防电源自动切换时间不应大于30s（GB50016-10.1.6）",
@@ -935,7 +935,7 @@ AtomicFunction(
         unit="s",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-113",
         name="房间疏散门净宽判定",
         description="房间疏散门净宽不应小于0.9m（GB50016-5.5.21）",
@@ -947,7 +947,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-114",
         name="消防救援窗口尺寸判定",
         description="消防救援窗口净高≥1.0m，净宽≥0.8m（GB50016-7.2.2）",
@@ -959,7 +959,7 @@ AtomicFunction(
         unit="m",
         depends_on=[],
     ),
-AtomicFunction(
+    AtomicFunction(
         func_id="DIM-115",
         name="防烟楼梯间前室宽度判定",
         description="防烟楼梯间前室宽度不应小于1.5m（GB50016-6.4.3）",

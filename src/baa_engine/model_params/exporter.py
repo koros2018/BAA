@@ -192,9 +192,11 @@ def _extract_sample(task: Dict[str, Any]) -> Dict[str, Any]:
                 "rationale": d.get("explanation", d.get("violation", "")),
                 "standard_ref": d.get("clause_id", ""),
                 "suggestion": next(
-                    (c.get("suggestion", c.get("description", ""))
-                     for c in corrections
-                     if c.get("entity_id") == d.get("entity_id")),
+                    (
+                        c.get("suggestion", c.get("description", ""))
+                        for c in corrections
+                        if c.get("entity_id") == d.get("entity_id")
+                    ),
                     "",
                 ),
             }

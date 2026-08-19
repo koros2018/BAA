@@ -126,5 +126,5 @@ LAYER_RULES_P70_B5 = {
     "FIRE_STAIR": "fire_stair",  # 消防楼梯
     "FIRE_SUPP": "fire_suppression",  # 消防抑制
     "FIRE_WATER_POND": "fire_water_pond",  # 消防水池
-    "GAS_FIREFIGHT": "gas_fire_suppression"
+    "GAS_FIREFIGHT": "gas_fire_suppression",
 }

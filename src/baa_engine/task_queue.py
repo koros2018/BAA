@@ -50,6 +50,7 @@ class ReviewQueue:
     """
 
     def __init__(self, max_concurrent: int = 4, queue_timeout: float = 300.0):
+        """初始化实例。"""
         self._max_concurrent = max_concurrent
         self._queue_timeout = queue_timeout
 
@@ -71,24 +72,29 @@ class ReviewQueue:
 
     @property
     def max_concurrent(self) -> int:
+        """待补充。"""
         return self._max_concurrent
 
     @max_concurrent.setter
     def max_concurrent(self, value: int) -> None:
+        """待补充。"""
         self._max_concurrent = value
         # 可能有更多槽位了，通知等待者
         self._slot_available.set()
 
     @property
     def running_count(self) -> int:
+        """待补充。"""
         return self._running_count
 
     @property
     def queued_count(self) -> int:
+        """待补充。"""
         return self._queue.qsize()
 
     @property
     def total_count(self) -> int:
+        """待补充。"""
         return self.queued_count + self.running_count
 
     def enqueue(

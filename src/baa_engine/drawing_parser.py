@@ -58,6 +58,7 @@ class RawPrimitive:  # class definition
         bbox: Dict[str, float],
         properties: Dict[str, Any] = None,
     ):  # assignment
+        """初始化实例。"""
         self.dxf_type = dxf_type  # LINE, LWPOLYLINE, CIRCLE, TEXT, DIMENSION...
         self.layer = layer  # 图层名
         self.handle = handle  # DXF handle
@@ -90,6 +91,7 @@ class DrawingResult:  # class definition
         drawing_type: Optional[Dict] = None,  # P121: 图纸类型分类
         corrupt: Optional[Dict] = None,  # P121: 损坏检测
     ):  # 操作
+        """初始化实例。"""
         self.file_path = file_path  # assignment
         self.file_id = file_id  # assignment
         self.primitives = primitives or []  # assignment
@@ -131,6 +133,7 @@ class DrawingParser:
     MAX_PAGES = 20
 
     def __init__(self):
+        """初始化实例。"""
         self._doc = None
         self._parse_cache: Dict[str, DrawingResult] = {}
         self._cache_max = 50
@@ -206,7 +209,11 @@ class DrawingParser:
                                 ver = header[:6].decode("ascii", errors="ignore")  # function call
                                 version_hint = f" (AutoCAD {ver})"  # function call
                         except Exception as _e:  # catch exception
-                            logger.debug("[P120] DWG 版本头读取失败，跳过版本探测: %s: %s", type(_e).__name__, _e)
+                            logger.debug(
+                                "[P120] DWG 版本头读取失败，跳过版本探测: %s: %s",
+                                type(_e).__name__,
+                                _e,
+                            )
 
                     # 构建诊断信息
                     diag_parts = ["DWG 解析失败"]  # assignment
@@ -347,7 +354,9 @@ class DrawingParser:
                     result.sheets = sheets
                     result.warning = (result.warning or "") + f"检测到 {len(sheets)} 个分区(Layout)"
             except Exception as e:
-                logger.warning("[P120] 多Sheet 检测失败，回退为单Sheet 解析: %s: %s", type(e).__name__, e)
+                logger.warning(
+                    "[P120] 多Sheet 检测失败，回退为单Sheet 解析: %s: %s", type(e).__name__, e
+                )
 
         # ── P18 分页警告 ────────────────────────────────
         if page_warning:  # condition: page_warning:
@@ -423,7 +432,9 @@ class DrawingParser:
                         truncated = True  # assignment
                         break  # code
                 except Exception as _e:  # catch exception
-                    logger.debug("[P120] 分页内存监控失败，继续下一页: %s: %s", type(_e).__name__, _e)
+                    logger.debug(
+                        "[P120] 分页内存监控失败，继续下一页: %s: %s", type(_e).__name__, _e
+                    )
 
                 # ── 进度提示 ──────────────────────────────
                 if page_idx > 0 and page_idx % 5 == 0:  # check: numeric comparison

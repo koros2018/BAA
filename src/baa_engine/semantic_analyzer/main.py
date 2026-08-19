@@ -34,11 +34,10 @@ class SemanticAnalyzer:
     ADJACENT_THRESHOLD = 50.0  # 相邻距离阈值(mm)
 
     def __init__(self):
+        """初始化实例。"""
         self._entity_counter = 0  # assign: self attribute
         self._analyze_cache: Dict[str, Dict[str, Any]] = {}  # hash -> result
         self._cache_max = 50  # assign: self attribute
-
-
 
     def analyze(
         self,
@@ -247,11 +246,7 @@ class SemanticAnalyzer:
 
         return result  # return
 
-
-
-    def _detect_floor_levels(
-        self, primitives: List[RawPrimitive]
-    ) -> List[Dict]:
+    def _detect_floor_levels(self, primitives: List[RawPrimitive]) -> List[Dict]:
         """检测图纸中的楼层分隔线和标高文字（P35）
 
         策略：
@@ -503,8 +498,6 @@ class SemanticAnalyzer:
         unique.sort(key=lambda f: f["level"])  # assign
         return unique  # return
 
-
-
     def _assign_entities_to_floors(
         self,
         entities: List[SemanticEntity],  # code
@@ -545,13 +538,9 @@ class SemanticAnalyzer:
 
         return assignments  # return
 
-
-
     def _infer_corridor_widths(
         self,
-        entities: List[
-            SemanticEntity
-        ],
+        entities: List[SemanticEntity],
         primitives: List[RawPrimitive] = None,
     ) -> List[SemanticEntity]:  # 操作
         """从 bbox 短边和平行线聚类推断走廊/门的宽度（真实图纸适配）
@@ -835,75 +824,89 @@ class SemanticAnalyzer:
 
         return entities  # return
 
-
-
     def build_corridor_topology(self, entities, relations):
+        """构建走廊拓扑结构。"""
         from .evacuation import _build_corridor_topology_impl
 
         return _build_corridor_topology_impl(self, entities, relations)
 
     def analyze_evacuation_routes(self, entities, topology=None):
+        """分析疏散路线。"""
         from .evacuation import _analyze_evacuation_routes_impl
 
         return _analyze_evacuation_routes_impl(self, entities, topology)
 
     def verify_evacuation_connectivity(self, entities, relations=None, evacuation_routes=None):
+        """验证疏散连通性。"""
         from .evacuation import _verify_evacuation_connectivity_impl
 
         return _verify_evacuation_connectivity_impl(self, entities, relations, evacuation_routes)
 
     def _yolo_enhance(self, dxf_path):
+        """使用YOLO模型增强检测结果。"""
         from .enhancement import _yolo_enhance_impl
 
         return _yolo_enhance_impl(self, dxf_path)
 
     def _merge_yolo_results(self, rule_entities, yolo_detections):
+        """合并YOLO检测结果与规则检测实体。"""
         from .enhancement import _merge_yolo_results_impl
 
         return _merge_yolo_results_impl(self, rule_entities, yolo_detections)
 
-
-
     def _compute_iou(self, bbox1, bbox2):
+        """计算两个边界框的IoU。"""
         return compute_iou(bbox1, bbox2)
 
     def _union_bbox(self, bboxes):
+        """合并多个边界框为包围盒。"""
         return union_bbox(bboxes)
 
     def _bbox_center(self, bbox):
+        """获取边界框中心点。"""
         return bbox_center(bbox)
 
     def _point_distance(self, p1, p2):
+        """计算两点间欧氏距离。"""
         return point_distance(p1, p2)
 
     # ── 委派到子模块（向后兼容：测试/外部代码直接调用 analyzer._xxx） ──
 
     def _classify_entities(self, primitives, *args, **kwargs):
+        """按图层和几何特征对实体进行分类。"""
         return _classify_entities(self, primitives, *args, **kwargs)
 
     def _classify_by_layer(self, layer):
+        """根据图层名称分类实体。"""
         return _classify_by_layer(self, layer)
 
     def _classify_by_geometry(self, prim):
+        """根据几何形状分类实体。"""
         return _classify_by_geometry(self, prim)
 
     def _parse_meta_entities(self, primitives):
+        """解析元数据实体（标注、文字等）。"""
         return _parse_meta_entities(self, primitives)
 
     def _is_near_closed(self, prim, gap_threshold_mm=500.0):
+        """判断线段是否接近闭合。"""
         return _is_near_closed(self, prim, gap_threshold_mm=gap_threshold_mm)
 
     def _sweep_line_detect_rooms(self, primitives):
+        """用扫线法检测房间边界。"""
         return _sweep_line_detect_rooms(self, primitives)
 
     def _merge_line_chains_to_rooms(self, entities, primitives):
         # 兼容旧接口：测试中仍调用此方法名
+        """将折线链合并为房间。"""
         return entities + self._sweep_line_detect_rooms(primitives)
 
     def _merge_overlapping(self, entities):
+        """合并重叠的实体。"""
         return _merge_overlapping(self, entities)
 
     def _build_relations(self, entities):
+        """构建实体间相邻关系。"""
         return _build_relations(self, entities)
 
     def _infer_room_types(
@@ -987,7 +990,9 @@ class SemanticAnalyzer:
         return entities
 
     def _bind_dimensions(self, entities, dimensions):
+        """将尺寸标注绑定到对应实体。"""
         return _bind_dimensions(self, entities, dimensions)
 
     def _infer_attribute_name(self, dim, entity):
+        """从尺寸标注推断实体属性名称。"""
         return _infer_attribute_name(dim, entity)
