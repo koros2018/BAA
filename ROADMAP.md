@@ -71,15 +71,47 @@
 ### 后续方向（按价值排序）
 
 > ⚠️ **2026-08-17 复盘后优先级重置**（基于 docs/复盘_20260817.md）：
-> P111~P118 原排序中 P111（YOLO训练）已被证伪（mAP50=0.001），P112~P118 顺序重排。
-> 新增 P119~P123 为复盘识别的 P0/P1 级缺口。
+> P111（YOLO训练）已证伪终止。新增 P119~P123 为复盘识别的 P0/P1 级缺口。
 > **停止堆原子函数数量，停止YOLO训练，先修工作流闭环+异常处理+大文件能力。**
+
+---
+
+## 🚦 复盘后开发指南（2026-08-18）
+
+> 源自 `docs/复盘_20260817.md` 核心结论，作为后续所有 P 项开发的硬性约束。
+
+### 开发禁令（立即生效）
+
+| 禁令 | 原因 |
+|------|------|
+| ❌ 禁止新增原子函数数量 | 422个已足够，缺的是真实数据验证和精度提升，不是数量 |
+| ❌ 禁止在现有前端架构上新增功能 | 每次加功能都在恶化全局变量+innerHTML 技术债 |
+| ❌ 禁止继续 YOLO 训练 | 伪标签路线已证伪（mAP50=0.001），换路径 |
+| ❌ 禁止在核心文件追加 >1000 行 | 先拆后写，不得在 review_routes.py/test_engine.py/manager.py/baa_api.py 上继续堆叠 |
+| ❌ 禁止 `pass` 空吞和裸 `except:` | 所有异常必须有 log + 用户友好错误 |
+
+### 北极星指标
+
+| 指标 | 当前 | 目标 |
+|------|------|------|
+| 工作流闭环 | 无（审查→结束） | 有（审查→审核→整改→复查→归档） |
+| 前端可维护性 | 2/10 | ≥ 6/10 |
+| 异常处理 | 3/10 | ≥ 8/10 |
+| 大文件可用率 | 30% | ≥ 70% |
+| 前端测试覆盖 | 0 | ≥ 3 E2E + 关键组件单测 |
+
+### 开发节奏原则
+
+1. **每个 P 项必须有真实数据验证** — 不再出现 P57 式爆发式扩展（3天从58→390），每批必须过一轮真实图纸验证
+2. **先修基础设施再堆功能** — 异常处理（P120）在一切之前，因为修完它之后所有后续开发才有可靠的错误可见性
+3. **前端重构与功能开发并行但隔离** — P122（安全修复）和 P123（架构重构）先做，期间新功能前端部分暂缓
+4. **稳定标签策略延续** — 每完成一组功能打 `-stable` 标签，回退路径清晰
 
 | 优先级 | 事项 | 状态 |
 |--------|------|------|
 | ~~P7-P40~~ | 已完成 | ✅ |
 | P119 | 违规审核工作流（确认/误报/待核实） | 🔴 未启动 |
-| P120 | 异常处理全量修复（pass空吞/裸except） | 🔴 未启动 |
+| P120 | 异常处理全量修复（pass空吞/裸except） | ✅ 2026-08-19 完成（`89f44ca`） |
 | P121 | 大文件解析（结构图SKIP44%+大图SKIP18%） | 🔴 未启动 |
 | P122 | 前端安全修复（XSS/innerHTML/测试框架） | 🔴 未启动 |
 | P123 | 前端架构重构（Vite+TS+组件化） | 🔴 未启动 |
@@ -760,26 +792,55 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 **复盘结论：** BAA 当前工作流是"上传→审查→看文本列表→结束"，行业标准是"上传→AI审查→工程师逐条审核→整改通知单→复查→归档"。没有工作流闭环，产品停留在演示Demo。
 
-**具体动作：**
-1. **违规审核数据库模型**
-   - 新增 `review_items` 表：`review_id`, `entity_id`, `function_id`, `status`（pass/fail/skip/override）, `user_id`, `note`, `reviewed_at`
-   - 每条违规生成独立审核记录，可逐条操作
-2. **后端审核API**
-   - `POST /review/{id}/items/{item_id}/verify`：确认违规（`status=confirmed`）
-   - `POST /review/{id}/items/{item_id}/dismiss`：标记误报（`status=dismissed`），反馈入库
-   - `POST /review/{id}/items/{item_id}/pending`：待核实（`status=pending`）
-   - `POST /review/{id}/items/{item_id}/note`：添加批注
-   - 审核状态变更同步更新 `review_results` 汇总统计
-3. **前端审核面板**
-   - 违规列表每条增加「确认/误报/待核实」按钮 + 批注输入框
-   - 顶部统计：`已审核 X/总数 Y`，按状态分组筛选
-   - 审核完成后可生成整改通知单（P116衔接）
-4. **整改通知单生成**
-   - 审核完成后，`report_generator` 输出整改清单：图纸名→违规条款→确认状态→整改建议
-5. **验收标准**
-   - 完整流程：上传→审查→逐条审核→整改单→导出
-   - 至少 5 个后端测试 + 2 个 E2E 测试
-   - 审核状态变更不改变原始审查结果，只产生覆盖记录
+**数据库模型**（新增 `src/baa_engine/collab/audit.py`）：
+```python
+# SQLite 表 review_audit_items（复用现有 collab DB）
+CREATE TABLE review_audit_items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id   TEXT NOT NULL,               -- 关联 review_results.review_id
+    item_index  INTEGER NOT NULL,            -- 在同一次审查中的违规序号
+    function_id TEXT NOT NULL,               -- 触发的原子函数 ID
+    entity_id   TEXT,                        -- 关联实体 ID（可选）
+    status      TEXT NOT NULL DEFAULT 'unreviewed',  -- unreviewed|confirmed|dismissed|pending
+    user_id     TEXT,                        -- 审核人
+    note        TEXT,                        -- 批注
+    reason      TEXT,                        -- 误报原因（dismissed 时必填）
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME,
+    FOREIGN KEY(review_id) REFERENCES review_results(review_id)
+);
+CREATE INDEX idx_ri_review ON review_audit_items(review_id);
+CREATE INDEX idx_ri_status ON review_audit_items(status);
+```
+
+**后端实现**（`src/api/collab/audit_routes.py`，注册到 `baa_api.py`）：
+- `GET /api/v1/audit/items?review_id=` → 返回该审查的所有审核条目（含状态、批注）
+- `POST /api/v1/audit/items/{item_id}/confirm` → `status=confirmed`
+- `POST /api/v1/audit/items/{item_id}/dismiss` → `status=dismissed`（body 需 `reason`）
+- `POST /api/v1/audit/items/{item_id}/pending` → `status=pending`
+- `POST /api/v1/audit/items/{item_id}/note` → 更新 `note` 字段
+- `GET /api/v1/audit/stats?review_id=` → 返回 `{total, confirmed, dismissed, pending, unreviewed}`
+- 误报（dismissed）自动写入 `feedback_engine`，供 P113 黄金标准扩库使用
+
+**前端实现**（`src/frontend/js/baa-audit.js` 新文件）：
+- 在 `baa-review.js` 的违规列表每条行末追加操作列：`[✓确认][✗误报][?待核实][批注]`
+- 顶部统计条：`已审核 X/总数 Y | 确认 C | 误报 D | 待核实 P`
+- 筛选下拉：全部/未审核/已确认/已驳回/待核实
+- 误报按钮弹窗要求输入原因（reason）
+- 审核完成（全部非 unreviewed）时显示"生成整改通知单"按钮，跳转 P116 报告页
+
+**整改通知单生成**（`report_generator.py` 新增 `generate_correction_report()`）：
+- 输入：`review_id` + 审核状态
+- 输出：`{drawing, func_id, standard_ref, violation_desc, status, note, suggested_fix}`
+- 仅包含 `status=confirmed` 的条目，按 function_id 分组
+- PDF 格式（复用现有 `pdf_report.py` 渲染管线），新增"整改通知单"模板
+
+**验收标准：**
+- 完整流程：上传→审查→逐条审核（确认/误报/待核实）→整改通知单→导出 PDF
+- 后端测试：≥8 个（CRUD + 状态转换 + 误报反馈入库）
+- E2E 测试：≥2 个（审核全流程 + 整改单生成）
+- 审核状态变更不修改原始 `review_results`，只产生 `review_audit_items` 覆盖层
+- 误报条目自动进入 `feedback_engine` 入库
 
 ---
 
@@ -787,24 +848,46 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 **复盘结论：** `baa_api.py` 3处`pass`空吞，`drawing_parser.py`多处`except Exception`无log，`collab_routes.py`多处`pass`。用户看到"审查完成"但结果空白，完全不知道为什么失败。
 
-**具体动作：**
-1. **全量扫描**
-   - `grep -rn "except.*:" src --include="*.py" | grep "pass"`：找出所有空吞
-   - `grep -rn "except Exception" src --include="*.py"`：找出所有裸异常捕获
-   - `grep -rn "except:" src --include="*.py"`：找出所有无类型异常捕获
-2. **修复规则**
-   - `pass` → `logger.error(f"函数名: {e}")` + 返回结构化错误响应
-   - `except Exception` → 替换为具体异常类型（`FileNotFoundError`/`ValueError`/`TimeoutError`）
-   - 所有异常必须 `logger.exception(e)` 至少记录 traceback
-3. **用户友好错误**
-   - 解析失败 → `{"error": "图纸解析失败", "detail": "文件损坏或格式不支持"}`
-   - 审查超时 → `{"error": "审查超时", "detail": "图纸过大，请拆分后重试"}`
-   - 空结果 → 明确提示"未检测到违规"而非空白
-4. **验收标准**
-   - 全仓库 `pass` 空吞 = 0
-   - 全仓库 `except:`（无类型）= 0
-   - 所有 `except Exception` 均有 `logger.error/exception`
-   - 全量测试 2117+ 回归通过
+**扫描命令**（P120 第一步，产出异常清单）：
+```bash
+# 1. 空吞 pass（except 块内直接 pass）
+grep -rn "pass" src --include="*.py" | grep -B1 "except" > /tmp/p120_pass_list.txt
+# 2. 裸 except（无异常类型）
+grep -rn "except:" src --include="*.py" > /tmp/p120_bare_except.txt
+# 3. except Exception 但无 log
+awk '/except Exception/{f=1; next} /logger|print|raise/{f=0} f && /pass|return/{print FILENAME":"FNR}' src/**/*.py
+```
+
+**目标文件（已知问题热点）：**
+| 文件 | 已知问题 | 优先级 |
+|------|---------|--------|
+| `src/baa_engine/api/baa_api.py` | 行75/618/629 三处 `pass` 空吞 | P0 |
+| `src/baa_engine/drawing_parser.py` | 多处 `except Exception` 无 log 无 traceback | P0 |
+| `src/api/collab/collab_routes.py` | 多处 `pass` | P1 |
+| `src/baa_engine/test_engine.py` | 原子函数执行异常静默跳过 | P1 |
+| `src/baa_engine/semantic_analyzer/*.py` | 扫线法异常路径无提示 | P1 |
+
+**修复规则：**
+- `pass` → `logger.error(f"{func_name}: {type(e).__name__}: {e}")` + 返回 `HTTPException(status_code=500, detail=...)` 或 `return {"ok": False, "error": ..., "detail": ...}`
+- `except Exception` → 替换为具体异常类型（`FileNotFoundError`/`ValueError`/`TimeoutError`/`json.JSONDecodeError`）
+- 解析失败 → `HTTPException(422, "图纸解析失败: 文件损坏或格式不支持")`
+- 审查超时 → `HTTPException(504, "审查超时: 图纸过大，建议拆分后重试")`
+- 空结果 → 前端显式提示"未检测到违规"，而非渲染空白列表
+
+**新增错误响应标准**（`src/baa_engine/errors.py` 新文件）：
+```python
+class BAAParseError(Exception):   # 图纸解析失败
+class BAATimeoutError(Exception): # 审查超时
+class BAAValidationError(Exception): # 数据校验失败
+# 统一异常处理器 @app.exception_handler()
+```
+
+**验收标准：**
+- 全仓库 `pass` 空吞 = 0（`grep` 验证）
+- 全仓库裸 `except:` = 0
+- 所有 `except Exception` 均有 `logger.error/exception` 或具体异常类型替换
+- 全量测试 2117+ 回归通过
+- 新增 `test_error_handling.py` ≥10 测试（模拟各异常路径，断言错误响应格式）
 
 ---
 
@@ -812,23 +895,40 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 **复盘结论：** 135张真实图纸中59张结构图SKIP（44%）+ 25张>20MB大图SKIP（18%），62%不可用。用户上传50MB图纸直接跳过，体验极差。
 
-**具体动作：**
-1. **结构图解析策略**
-   - 分析59张结构图SKIP原因：是实体类型不同（梁/板/柱）还是解析器不识别？
-   - 方案A：为结构图定义独立的 LAYER_RULES（结构层名映射到构件类型）
-   - 方案B：如果结构图不属于审查范围，在上传时明确分类并给出替代提示
-2. **大图纸分页解析**
-   - 当前已有大图纸超时保护，但直接SKIP不给用户选项
-   - 增加"按图纸/楼层分页解析"选项，每页独立审查后合并结果
-   - 内存监控：单实体超过阈值触发分页
-3. **超时体验优化**
-   - TIMEOUT 4张 → 增加用户可配置超时时间（默认30s→可选60/120/300s）
-   - 超时后展示已解析的部分结果而非完全空白
-4. **验收标准**
-   - 结构图可用率：从0%→≥50%（可解析或明确分类）
-   - 大图SKIP率：从18%→≤5%
-   - 整体可用率：从30%→≥70%
-   - 全量测试 2117+ 回归通过
+**Phase 1：结构图分类与解析（第1周）**
+1. **根因分析**
+   - 运行 `python3 -c "from baa_engine.drawing_parser import *; d=parse('结构图样本.dxf'); print(d.entity_counts)"` 对59张结构图逐张扫描
+   - 产出一份`docs/P121_结构图分析报告.md`，记录：图层分布、实体类型分布、SKIP触发点（超时？空实体？格式不识别？）
+2. **方案选择**（基于分析报告）：
+   - 如果结构图有足够 wall/column 实体 → 方案A：新增 `LAYER_RULES_STRUCT`（结构层名→构件类型映射），复用现有扫线法
+   - 如果结构图与建筑图差异过大 → 方案B：上传时自动分类（基于图层名关键词：`STR`/`结构`/`梁`/`柱`/`板`），展示"结构图暂不支持AI审查"，但保留基础解析和渲染
+3. **实现**：
+   - 新文件 `src/baa_engine/drawing_classifier.py`：基于图层名+实体类型判断图纸类型（建筑/结构/电气/给排水）
+   - 上传接口返回 `drawing_type` 字段，前端据此展示能力说明
+
+**Phase 2：大图纸分页解析（第2周）**
+1. **分页策略**：
+   - DXF：按图纸边界框（`EXTMIN`/`EXTMAX`）切分为网格（每格 ≤ 5000mm × 5000mm）
+   - 每页独立解析 + 独立审查，结果按坐标聚合
+   - 跨页实体（如走廊穿越分界线）：用缓冲区（buffer=200mm）重复检测后去重
+2. **实现**：
+   - `src/baa_engine/drawing_parser.py` 新增 `_chunk_large_drawing(bbox, max_size=5000)` 方法
+   - 审查接口新增 `chunk_size` 参数（默认 5000mm，可选 3000/5000/10000）
+   - 前端上传页增加"大图纸分页"选项（默认开启，可关闭）
+3. **内存保护**：单实体 > 100万点 → 自动触发分页，不等待用户配置
+
+**Phase 3：超时体验优化（第3周）**
+1. **可配置超时**：审查接口新增 `timeout_seconds` 参数（默认 60s，可选 30/60/120/300）
+2. **部分结果返回**：超时后返回已完成的审查阶段结果（解析结果 + 已完成的原子函数），标记 `partial: true`
+3. **前端展示**：超时不显示空白，显示"已解析 X 个实体，审查进行到 Y%" + 部分结果列表
+
+**验收标准：**
+- 结构图：可用率从 0% → ≥50%（可解析或明确分类并给出替代提示）
+- 大图 SKIP 率：从 18% → ≤5%
+- 整体可用率：从 30% → ≥70%
+- 分页解析：50MB 图纸可在 120s 内返回部分或完整结果
+- 全量测试 2117+ 回归通过
+- 新增 `test_large_drawing.py` ≥5 测试（分页 + 超时 + 部分结果）
 
 ---
 
@@ -859,23 +959,44 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 **复盘结论：** 10个JS文件全局函数互相调用，104个`var`，72个内联`onclick`，无构建工具，无模块化，无类型检查。任何新增功能都在恶化同一堆代码。
 
-**具体动作：**
-1. **Phase 1：Vite + TypeScript 接入（2周）**
-   - 引入 `vite` + `@vitejs/plugin-react`（或纯TS）
-   - 将10个JS文件逐步迁移为TS模块
-   - 全局变量→`import/export`
-   - 内联`onclick`→事件监听
-2. **Phase 2：组件化（2周）**
-   - 抽象组件：`ReviewTable`（违规列表）/ `ReviewItem`（单条违规）/ `DrawingCanvas`（图纸渲染）/ `BatchQueue`（批量队列）/ `Skeleton`（骨架屏）/ `Modal`（弹窗）/ `Toast`（提示）
-   - 每个组件独立测试
-3. **Phase 3：路由 + 状态管理（1周）**
-   - DOM显示/隐藏→前端路由
-   - 全局状态→简单的状态管理（不用Redux，用Context API或类似轻量方案）
-4. **验收标准**
-   - Vite构建产物 < 原CDN加载大小
-   - 全局`var` = 0，内联`onclick` = 0
-   - 组件化覆盖率 ≥ 80%
-   - E2E测试全部通过
+**Phase 1：Vite + TypeScript 接入（2周）**
+1. **脚手架**
+   ```bash
+   npm install -D vite typescript @vitejs/plugin-react tsx
+   # vite.config.ts: 配置 rollup 产出到 src/frontend/dist/
+   ```
+2. **迁移策略**（渐进式，不一次性推翻）：
+   - 第1步：将 `baa-core.js`（工具函数）→ `src/frontend/ts/core/` 目录，拆为 `utils.ts` / `toast.ts` / `skeleton.ts` / `api-client.ts`
+   - 第2步：`baa-review.js` → `src/frontend/ts/components/ReviewTable.tsx` + `ReviewItem.tsx`
+   - 第3步：其余 JS 文件逐一迁移，每完成一个就减少一个 `index.html` 的 `<script>` 标签
+3. **全局变量消除**：`grep -rn "^var \\|^var " src/frontend/js/` → 全部改为 `export const` / `export function`
+4. **内联 onclick 消除**：`grep -rn 'onclick=' src/frontend/index.html` → 改为 `addEventListener` 注册
+
+**Phase 2：组件化（2周）**
+抽象以下组件（每个独立文件 + 独立测试）：
+| 组件 | 职责 | 优先级 |
+|------|------|--------|
+| `ReviewTable` | 违规列表表格 + 分页 + 排序 + 筛选 | P0 |
+| `ReviewItem` | 单条违规卡片（含 P119 审核按钮） | P0 |
+| `DrawingCanvas` | 图纸 SVG 渲染 + 缩放 + 点击定位 | P1 |
+| `BatchQueue` | 批量审查队列 + SSE 进度 | P1 |
+| `Skeleton` | 骨架屏占位 | P0（P86 已有，迁入组件库） |
+| `Modal` | 弹窗（误报原因输入等） | P0 |
+| `Toast` | 统一提示（P86 已有 `showToast`） | P0 |
+| `FilterBar` | 状态/严重度/规范筛选 | P1（配合 P119 审核） |
+
+**Phase 3：路由 + 状态管理（1周）**
+- 前端路由：用 `hash` 路由（`#/review` / `#/batch` / `#/settings`），替代 DOM 显示/隐藏
+- 状态管理：轻量方案 — 用 React Context（如用 React）或简单的 `store.ts` + `EventEmitter`，不用 Redux
+- 全局状态：`{user, team, project, currentReview, auditState}`
+
+**验收标准：**
+- Vite 构建产物 < 原 CDN 加载总大小
+- 全局 `var` = 0，内联 `onclick` = 0
+- 组件化覆盖率 ≥ 80%（≥8 个组件已迁移）
+- 每个组件有独立单元测试（Vitest 或 Jest）
+- E2E 测试全部通过
+- 所有 P119/P120 新功能必须在前端重构后的架构上实现（不在旧架构上加功能）
 
 ---
 
@@ -986,6 +1107,7 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊最小宽度（复用 P104）
 
 ### P116 — 报告产品化与导出升级
 **价值**：审查结果需要可直接给甲方/审图机构使用。当前报告已经存在，但需要更像正式产品输出。
+**P119 衔接**：整改通知单生成（P119 第4步）复用本 P 项的报告模板管线，P119 完成后解锁。
 
 **具体动作**：
 1. **报告模板统一**
