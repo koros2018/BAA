@@ -1,0 +1,2405 @@
+{
+  "stats": {
+    "total": 265,
+    "ok": 258,
+    "timeout": 0,
+    "error": 0,
+    "empty": 7,
+    "exception": 0,
+    "ok_rate": "97.4%",
+    "unavailable_rate": "2.6%",
+    "error_types": {},
+    "structure_files": 1,
+    "structure_ok": 0,
+    "elec_files": 2,
+    "elec_ok": 0,
+    "scan_time_s": 5237.8
+  },
+  "files": [
+    {
+      "filename": "2.1电气170825-报审.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "4.通风BS170826.dxf",
+      "size_mb": 0.04,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 9,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "6.火灾自动报警_（报审）_t3.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "9.气体灭火（唯美图框）_t3.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "A1IDC及通信机楼结构平面图20161227z.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "A1云计算中心_水消防2017.03.31_t3.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "A1云计算中心平面图0405_t3.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "test_floorplan.pdf2dxf.dxf",
+      "size_mb": 0.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 9,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "东莞通-建筑-外部参照（不打印）.dxf",
+      "size_mb": 5.81,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 34748,
+      "elapsed_s": 1.14
+    },
+    {
+      "filename": "东莞通-设备-外部参照（不打印）.dxf",
+      "size_mb": 0.01,
+      "ext": ".dxf",
+      "status": "empty",
+      "error": null,
+      "entity_count": 0,
+      "elapsed_s": 0.03
+    },
+    {
+      "filename": "baa-file-03f44a7e67f1.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 5.6
+    },
+    {
+      "filename": "baa-file-0452627f1df8.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 6.54
+    },
+    {
+      "filename": "baa-file-05f5853faa62.dxf",
+      "size_mb": 27.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28483,
+      "elapsed_s": 7.16
+    },
+    {
+      "filename": "baa-file-067f0201b08f.dxf",
+      "size_mb": 25.21,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28401,
+      "elapsed_s": 7.25
+    },
+    {
+      "filename": "baa-file-074c9274af1a.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 12.02
+    },
+    {
+      "filename": "baa-file-074d4e310757.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 4.9
+    },
+    {
+      "filename": "baa-file-08f1d49b7342.dxf",
+      "size_mb": 26.36,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 22834,
+      "elapsed_s": 7.66
+    },
+    {
+      "filename": "baa-file-0d8ce13639fa.dxf",
+      "size_mb": 42.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 61385,
+      "elapsed_s": 10.67
+    },
+    {
+      "filename": "baa-file-101f28c758e7.dxf",
+      "size_mb": 24.33,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 19523,
+      "elapsed_s": 7.14
+    },
+    {
+      "filename": "baa-file-119e356aa9c3.dxf",
+      "size_mb": 26.36,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 22834,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-1303edf6ef1d.dxf",
+      "size_mb": 45.79,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 55380,
+      "elapsed_s": 11.99
+    },
+    {
+      "filename": "baa-file-15709af317e9.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 9.86
+    },
+    {
+      "filename": "baa-file-19bc68134a2c.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 10.28
+    },
+    {
+      "filename": "baa-file-1a6e8fe97057.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 6.33
+    },
+    {
+      "filename": "baa-file-1a8a260e0d08.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 10.46
+    },
+    {
+      "filename": "baa-file-1ac7a12ac9c4.dxf",
+      "size_mb": 26.36,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 22834,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-2104475283ef.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 4.33
+    },
+    {
+      "filename": "baa-file-2319613b52cb.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 17.22
+    },
+    {
+      "filename": "baa-file-235b3394ab90.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 11.66
+    },
+    {
+      "filename": "baa-file-23646ad63fc3.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 9.39
+    },
+    {
+      "filename": "baa-file-24fa4f2567e0.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 15.47
+    },
+    {
+      "filename": "baa-file-25986b237d83.dxf",
+      "size_mb": 45.79,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 55380,
+      "elapsed_s": 0.6
+    },
+    {
+      "filename": "baa-file-2627812bffd3.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 9.77
+    },
+    {
+      "filename": "baa-file-26a0132bd56a.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.3
+    },
+    {
+      "filename": "baa-file-2752912cd9c7.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-29f99de015b4.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-2b5f0ef30ea0.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 5.92
+    },
+    {
+      "filename": "baa-file-2c10607efdac.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-2c8745d41d87.dxf",
+      "size_mb": 39.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 54112,
+      "elapsed_s": 11.56
+    },
+    {
+      "filename": "baa-file-2cfc5239a740.dxf",
+      "size_mb": 25.21,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28401,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-315cbec3fd80.dxf",
+      "size_mb": 24.33,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 19523,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-321ac3df2eb4.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-3326533bda53.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 10.82
+    },
+    {
+      "filename": "baa-file-360cba9eecb2.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-37982614f302.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-3881ce92de71.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-38976c44c437.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-38b65845e69b.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-3b8f061f5c5c.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-3b8fec83f707.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.45
+    },
+    {
+      "filename": "baa-file-3cc303080c10.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.4
+    },
+    {
+      "filename": "baa-file-3d3bc466da89.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.34
+    },
+    {
+      "filename": "baa-file-3f1ed2b63c12.dxf",
+      "size_mb": 42.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 61385,
+      "elapsed_s": 0.41
+    },
+    {
+      "filename": "baa-file-3f942d572992.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-4011923a1553.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-4175f45e2c14.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-41b17723294b.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 4922.53
+    },
+    {
+      "filename": "baa-file-41de489b139a.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-439d13ddfdef.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-43d21f7ccd8f.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 6.79
+    },
+    {
+      "filename": "baa-file-447f9143dace.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-44db8cabf790.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-4511fef95fc1.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-4528e5d0efa1.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-45f69f0a70a0.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-463abed6cb17.dxf",
+      "size_mb": 26.36,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 22834,
+      "elapsed_s": 0.18
+    },
+    {
+      "filename": "baa-file-472961d193d8.dxf",
+      "size_mb": 27.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28483,
+      "elapsed_s": 0.18
+    },
+    {
+      "filename": "baa-file-47d167320178.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 10.02
+    },
+    {
+      "filename": "baa-file-47e6f273c953.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-49b6fc2f4001.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.41
+    },
+    {
+      "filename": "baa-file-4a0841093157.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 10.25
+    },
+    {
+      "filename": "baa-file-4aaf9ad2e4f6.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-4b2d91d9c40b.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-4b95d1d05536.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-4cedd6682a0f.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-4d5c91663c07.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-4d9278f218ad.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-507e10f903a7.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-520ccdcd0b10.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-522908490231.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-52a70942f900.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.35
+    },
+    {
+      "filename": "baa-file-5488c71b3f91.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-5669744d89be.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-570118c31c32.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.34
+    },
+    {
+      "filename": "baa-file-570c7f1b8f3f.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-57444e52a3d2.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-57fd8791410a.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-5a39aa509759.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-5abddc730cbb.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-5c8deb352b53.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-5ccecf9025d5.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-5ce9498e2202.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-6020ec489435.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-6020f740c684.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-6067cca470ad.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-6075ca78f6a7.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-60dc9faa33d5.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.42
+    },
+    {
+      "filename": "baa-file-619005cffce8.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-6392f88b3bfe.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-64435d81ffd9.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-64cb30796adf.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-6551c7f086c2.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-65d1d9fec875.dxf",
+      "size_mb": 39.81,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 12.14
+    },
+    {
+      "filename": "baa-file-679fcdf8a594.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-67ee9d15d364.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-681ab1188ab1.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-691030f1eba3.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-6b84f7267b98.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.35
+    },
+    {
+      "filename": "baa-file-6c428bb775ae.dxf",
+      "size_mb": 25.21,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28401,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-6c80a1b760ee.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-6d6d1d621d49.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-6f352fb3b624.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-6fe3f52f5a6d.dxf",
+      "size_mb": 25.21,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28401,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-7121fefc9a9d.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-7179b86f1963.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-72c0dd0329c5.dxf",
+      "size_mb": 39.81,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.35
+    },
+    {
+      "filename": "baa-file-731f260b30b8.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-73948805d049.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.14
+    },
+    {
+      "filename": "baa-file-74fd26a687bc.dxf",
+      "size_mb": 24.33,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 19523,
+      "elapsed_s": 0.18
+    },
+    {
+      "filename": "baa-file-7540e9b3caca.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-7589d4d5dc79.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-75cac772771b.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-75d9292bddbc.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-78a3829cff59.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.39
+    },
+    {
+      "filename": "baa-file-791e9e955aac.dxf",
+      "size_mb": 24.33,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 19523,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-797ef1585db3.dxf",
+      "size_mb": 39.81,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.3
+    },
+    {
+      "filename": "baa-file-79d396a1b5c2.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.39
+    },
+    {
+      "filename": "baa-file-7a9696473056.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-7bcdfea35a45.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-7c76649418dd.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-7d9593211ca2.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-7ded05f1964e.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-7fb82c6d7db2.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-82b0b83cafef.dxf",
+      "size_mb": 39.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 54112,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-8527ef9516fd.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-8586c546695a.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-85f2cf7ba3d6.dxf",
+      "size_mb": 39.81,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-86ea58c6e432.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-879b0b6a2038.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-87c4f460ff20.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-89582d69cf14.dxf",
+      "size_mb": 27.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28483,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-89d8af824c11.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-8b52a0c5edec.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-90ed80fbce23.dxf",
+      "size_mb": 25.21,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 28401,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-937e40bf6be4.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-950efeeb5e09.dxf",
+      "size_mb": 26.36,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 22834,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-97b2b81d7025.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-9864cb287eda.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-9af601fd845f.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-9b29edfc9d6d.dxf",
+      "size_mb": 45.79,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 55380,
+      "elapsed_s": 0.47
+    },
+    {
+      "filename": "baa-file-9c5fdd8a2615.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-9c78b4a5637b.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-9caedd940076.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-9d3c662b93bd.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-9dcd98c9cbf5.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-9dfcd494f942.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-9e44651217fc.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-9f50e83993c5.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.46
+    },
+    {
+      "filename": "baa-file-9fa109920c70.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-9faf26b343d3.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-a1a1d4d367fa.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-a1d536dae4f3.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.42
+    },
+    {
+      "filename": "baa-file-a2a8191168d6.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-a2d3dc1a99d7.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-a39074ec52a1.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-a6abf152080c.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-a6b67d171251.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-a7acb5fe630c.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-a8cc8e5a6ee0.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-a8d8858e22d0.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-aa72cb22c985.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-aba84d69094a.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-ac4605165db3.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-ade17c99da92.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-ae23831025c2.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-af0d2d5d4d41.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-af184644650f.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-af8117491957.dxf",
+      "size_mb": 39.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 54112,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-b007065c9fe2.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-b0dd33f20353.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-b0f5afaa596b.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-b2713a032451.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-b63d092f789a.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-b66f5fc93fa4.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-b80445d218ef.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.39
+    },
+    {
+      "filename": "baa-file-b8cd2eadd3d0.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.4
+    },
+    {
+      "filename": "baa-file-b8f8057bd3b2.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-ba983bf89f6c.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.31
+    },
+    {
+      "filename": "baa-file-bb64cc2d05ef.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-bd1764a86908.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-be18ef1055ea.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-c0f2f7b2e8da.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-c1f4924022ea.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-c56a774728d2.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-c6687f34c84b.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-c66ab0786b0e.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-c6d317ecd51a.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.27
+    },
+    {
+      "filename": "baa-file-c76ecd5f8aef.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-c7b41b02a6d9.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-c7e6d7679871.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-c84a26b3c05d.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-c9e677e49572.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-ca7932f4978b.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-cac976f4f42e.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.34
+    },
+    {
+      "filename": "baa-file-cb415260f06b.dxf",
+      "size_mb": 42.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 61385,
+      "elapsed_s": 0.4
+    },
+    {
+      "filename": "baa-file-cbd0aae49fec.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-cf2ccf30336d.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-cf34db6e9447.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-cf57e556a897.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-d0ef54ce3d68.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-d1b7ed27f014.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.33
+    },
+    {
+      "filename": "baa-file-d279b3767326.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-d4f8f146c3ba.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-d52e0f40c41b.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-d5f33eb64d4d.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-d7b0a94885b0.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-d8f0905af6d0.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.47
+    },
+    {
+      "filename": "baa-file-d961a44014ee.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-da0a6dc087d5.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-daf3f0e98c09.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-db3894601135.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.46
+    },
+    {
+      "filename": "baa-file-dc5519beb3c3.dxf",
+      "size_mb": 34.53,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1511,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-de0752da65be.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.38
+    },
+    {
+      "filename": "baa-file-de454c22f6fd.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-e03302ba2469.dxf",
+      "size_mb": 21.37,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.14
+    },
+    {
+      "filename": "baa-file-e10f21179f5e.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-e2c69ccc7d2b.dxf",
+      "size_mb": 39.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 54112,
+      "elapsed_s": 0.35
+    },
+    {
+      "filename": "baa-file-e5c9800e3fc4.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-e5caea69862c.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-e5e39d2c1514.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.15
+    },
+    {
+      "filename": "baa-file-e73f36dd790f.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-e782a44eb32d.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.34
+    },
+    {
+      "filename": "baa-file-e834ceabe376.dxf",
+      "size_mb": 45.79,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 55380,
+      "elapsed_s": 0.39
+    },
+    {
+      "filename": "baa-file-e8eb6321956d.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.21
+    },
+    {
+      "filename": "baa-file-e9c4e5e43dcc.dxf",
+      "size_mb": 31.13,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 29931,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-ea946c8d0589.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-eb13b5f4c522.dxf",
+      "size_mb": 22.29,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 12334,
+      "elapsed_s": 0.18
+    },
+    {
+      "filename": "baa-file-ec017d467631.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.17
+    },
+    {
+      "filename": "baa-file-ec24471b4291.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.32
+    },
+    {
+      "filename": "baa-file-eef6f52d74d7.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.36
+    },
+    {
+      "filename": "baa-file-ef7c1a2311f0.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.37
+    },
+    {
+      "filename": "baa-file-f0ac45542904.dxf",
+      "size_mb": 42.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 61385,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-f0ac81871be3.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-f122c06ad01e.dxf",
+      "size_mb": 42.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 61385,
+      "elapsed_s": 0.28
+    },
+    {
+      "filename": "baa-file-f1f400575178.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-f2f81335912e.dxf",
+      "size_mb": 31.15,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37520,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-f32fddc0662f.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42629,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-f3a50a3719ef.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.24
+    },
+    {
+      "filename": "baa-file-f3dd470ecaa9.dxf",
+      "size_mb": 39.85,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 54112,
+      "elapsed_s": 0.26
+    },
+    {
+      "filename": "baa-file-f52f678570ac.dxf",
+      "size_mb": 24.33,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 19523,
+      "elapsed_s": 0.2
+    },
+    {
+      "filename": "baa-file-f585061bcea0.dxf",
+      "size_mb": 20.5,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 23651,
+      "elapsed_s": 0.16
+    },
+    {
+      "filename": "baa-file-f66feaa439c2.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.34
+    },
+    {
+      "filename": "baa-file-f6b04ef7ce5c.dxf",
+      "size_mb": 34.18,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 50120,
+      "elapsed_s": 0.19
+    },
+    {
+      "filename": "baa-file-f6ba1757326c.dxf",
+      "size_mb": 31.45,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 42627,
+      "elapsed_s": 0.18
+    },
+    {
+      "filename": "baa-file-f7afdb79f2fe.dxf",
+      "size_mb": 45.79,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 55380,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-f7b8ac99a2e4.dxf",
+      "size_mb": 35.82,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 53749,
+      "elapsed_s": 0.22
+    },
+    {
+      "filename": "baa-file-f91770013f9b.dxf",
+      "size_mb": 32.06,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37448,
+      "elapsed_s": 0.3
+    },
+    {
+      "filename": "baa-file-f98e4bdb534c.dxf",
+      "size_mb": 44.11,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 7041,
+      "elapsed_s": 0.44
+    },
+    {
+      "filename": "baa-file-fab7b07e2d84.dxf",
+      "size_mb": 48.87,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 48844,
+      "elapsed_s": 0.4
+    },
+    {
+      "filename": "baa-file-fe4108e309a3.dxf",
+      "size_mb": 31.12,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 37444,
+      "elapsed_s": 0.25
+    },
+    {
+      "filename": "baa-file-fe49e69733bf.dxf",
+      "size_mb": 30.46,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 33952,
+      "elapsed_s": 0.23
+    },
+    {
+      "filename": "baa-file-feb39acf9443.dxf",
+      "size_mb": 40.02,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 47198,
+      "elapsed_s": 0.35
+    },
+    {
+      "filename": "baa-file-fec9d090c625.dxf",
+      "size_mb": 31.28,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 1552,
+      "elapsed_s": 0.29
+    },
+    {
+      "filename": "baa-file-ff3b48aae410.dxf",
+      "size_mb": 42.62,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 45726,
+      "elapsed_s": 0.4
+    },
+    {
+      "filename": "baa-file-ff8f8abc0053.dxf",
+      "size_mb": 22.44,
+      "ext": ".dxf",
+      "status": "ok",
+      "error": null,
+      "entity_count": 5217,
+      "elapsed_s": 0.2
+    }
+  ]
+}
