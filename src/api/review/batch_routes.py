@@ -4,6 +4,10 @@
 
 from fastapi import Depends, HTTPException, Query, File, UploadFile
 from fastapi.responses import StreamingResponse
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Optional, List, Dict, AsyncGenerator
 import json
 import psutil
@@ -550,12 +554,12 @@ async def batch_review_stream(
             try:
                 await asyncio.wait_for(waiter, timeout=60)
             except asyncio.TimeoutError:
-                pass
+                logger.warning("[P120] SSE 事件队列超时 60s，强制收尾")
         # 收尾
         try:
             await event_queue.put({"event": "SIGNAL_DONE"})
         except asyncio.QueueFull:
-            pass
+            logger.debug("[P120] SSE 事件队列已满，跳过 SIGNAL_DONE 信号")
 
     return StreamingResponse(
         event_generator(),

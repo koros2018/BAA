@@ -3,6 +3,9 @@
 """
 
 from fastapi import Depends, HTTPException, Query, File, UploadFile, Request, Response
+import logging
+
+_logger = logging.getLogger(__name__)
 from enum import Enum
 
 from . import (
@@ -558,11 +561,11 @@ async def review(  # code
         # P112: 从请求头读取 team_id/project_id，打通协作系统与审查历史
         team_id = request.headers.get("X-Team-Id", "") if request else ""
         project_id = request.headers.get("X-Project-Id", "") if request else ""
-        logger.info(f"[P112] Saving review: id={review_id} team={team_id} proj={project_id} file={filename}")
+        _logger.info(f"[P112] Saving review: id={review_id} team={team_id} proj={project_id} file={filename}")
         ok = save_review_result(review_id, filename, response_data, team_id=team_id, project_id=project_id)
-        logger.info(f"[P112] Save result: ok={ok}")
+        _logger.info(f"[P112] Save result: ok={ok}")
     except Exception as e:
-        logger.error(f"[P112] Save failed: {e}")
+        _logger.error(f"[P112] Save failed: {e}")
 
     return response_data  # return
 
@@ -1010,8 +1013,12 @@ async def review_from_data(  # code
         team_id = request.headers.get("X-Team-Id", "") if request else ""
         project_id = request.headers.get("X-Project-Id", "") if request else ""
         save_review_result(review_id, drawing_name, response_data, team_id=team_id, project_id=project_id)
-    except Exception:
-        pass
+    except Exception as e:
+        # P120 异常处理全量修复：审查历史入库失败静默吞掉会让用户以为已保存
+        _logger.error(
+            "[P120] 审查历史入库失败 review_id=%s: %s: %s",
+            task_id or review_id, type(e).__name__, e,
+        )
 
     return response_data  # return
 
@@ -1566,8 +1573,11 @@ async def review_multi_sheet(
     finally:
         try:
             os.unlink(str(file_path))
-        except Exception:
-            pass
+        except Exception as e:
+            # P120 异常处理全量修复：文件清理失败不应遮蔽主异常，仅 warning
+            _logger.warning(
+                "[P120] 临时文件清理失败: %s: %s", type(e).__name__, e,
+            )
 
 
 # ── 图纸渲染 ──────────────────────────────────────────────

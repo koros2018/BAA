@@ -32,6 +32,10 @@ BAA Python SDK — 轻量 HTTP 客户端
     # Webhook
     client.register_webhook({"url": "https://hook.example.com/notify", "events": ["review.done"]})
 """
+import logging
+
+_sdk_logger = logging.getLogger(__name__)
+
 
 from __future__ import annotations
 
@@ -198,8 +202,8 @@ class BAAClient:
             for f in file_handles:
                 try:
                     f.close()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    _sdk_logger.warning("[P120] 文件句柄关闭失败: %s: %s", type(_e).__name__, _e)
 
     # ── 核心 API ──────────────────────────────────────────
 

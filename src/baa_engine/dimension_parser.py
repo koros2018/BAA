@@ -17,6 +17,10 @@ BAA 尺寸标注解析器
     enriched = parser.inject_into_entities(dims, entities)
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict
 from pathlib import Path
 
@@ -111,9 +115,9 @@ class DimensionParser:
                     except Exception:
                         # 单个实体解析失败不影响其他标注，跳过继续
                         continue
-            except Exception:
-                # DWG 文件损坏或 ezdwg 未安装时静默降级，不抛异常阻塞整体流程
-                pass
+            except Exception as _e:
+                # P120 异常处理全量修复：DWG 文件损坏或 ezdwg 未安装时静默降级，不抛异常阻塞整体流程，但记录日志
+                logger.warning("[P120] DWG 尺寸标注提取失败（降级跳过）: %s: %s", type(_e).__name__, _e)
         else:
             # DXF 分支：使用 ezdxf 库读取开放的 DXF 格式
             # DXF 是 AutoCAD 公开格式，ezdxf 社区支持优于 ezdwg
@@ -196,8 +200,8 @@ class DimensionParser:
                         )
                     except Exception:
                         continue
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.warning("[P120] DXF 尺寸标注提取失败（降级跳过）: %s: %s", type(_e).__name__, _e)
 
         return dimensions
 

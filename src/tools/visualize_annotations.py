@@ -81,7 +81,7 @@ def draw_annotations(img_path, label_path, output_path, scale=1.0):
             cls_name = YOLO_CLASSES[cls_idx]
             try:
                 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-            except:
+            except Exception:
                 font = ImageFont.load_default()
             text = cls_name
             bbox = draw.textbbox((x1, y1), text, font=font)

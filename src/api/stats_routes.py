@@ -8,6 +8,10 @@ P72: 审查统计仪表盘 API
 import asyncio
 import time
 from datetime import datetime, timedelta, timezone
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, Query
@@ -84,8 +88,8 @@ async def get_stats(
                 dt = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
                 if dt >= cutoff:
                     recent_items.append(item)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.warning("[P120] 审查日期解析失败，跳过该条目: %s: %s", type(_e).__name__, _e)
 
     # ── 总览 ──
     total_reviews = len(recent_items)
@@ -109,8 +113,8 @@ async def get_stats(
                     trend[date_key] = {"date": date_key, "reviews": 0, "violations": 0}
                 trend[date_key]["reviews"] += 1
                 trend[date_key]["violations"] += r.get("violationCount", 0)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.warning("[P120] 审查日期解析失败，跳过该条目: %s: %s", type(_e).__name__, _e)
     trend_list = sorted(trend.values(), key=lambda x: x["date"])
 
     # ── 违规分布 + 置信度 + 实体类型 + 建筑类型（需读取 detail） ──

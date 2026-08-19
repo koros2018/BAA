@@ -22,7 +22,13 @@ import json  # JSON 序列化/反序列化
 import hmac  # HMAC 签名
 import hashlib  # 哈希函数
 import base64  # Base64 编码
+import logging  # 日志
 from datetime import datetime  # 日期时间处理
+
+# ── P120 异常处理全量修复 ──────────────────────────────────
+# 审查链内 YOLO/DIMENSION 等辅助模块可选，失败不应阻塞主流程，
+# 但必须记录日志供排查。
+logger = logging.getLogger(__name__)
 
 # ── FastAPI 及依赖 ──────────────────────────────────────────
 from fastapi import (
@@ -72,7 +78,7 @@ def _sanitize_for_json(obj):
         if isinstance(obj, _np.ndarray):
             return obj.tolist()
     except ImportError:
-        pass
+        logger.debug("[P120] numpy 未安装，JSON 序列化回退至原生类型")
     if isinstance(obj, (int, float, str, bool, type(None))):
         return obj
     if hasattr(obj, "__dict__"):
@@ -613,9 +619,11 @@ async def deconstruct(  # code
                 for ye in yolo_entities:  # 循环
                     if ye["type"] not in existing_types:  # check: membership test
                         entities.append(ye)  # append to list
-        except Exception:  # 捕获异常
-            # YOLO 失败不影响主流程
-            pass  # 占位
+        except Exception as e:  # 捕获异常
+            logger.warning(
+                "[P120] YOLO 图元检测增强失败（不影响主流程）: %s: %s",
+                type(e).__name__, e,
+            )
 
     # Step 2.75: DIMENSION 尺寸标注注入（自动反推实体属性）
     try:  # 尝试
@@ -625,8 +633,11 @@ async def deconstruct(  # code
         dims = dp.extract_dimensions(str(file_path))  # function call
         if dims:  # condition: dims:
             entities = dp.inject_into_entities(dims, entities)  # function call
-    except Exception:  # 捕获异常
-        pass  # 占位
+    except Exception as e:  # 捕获异常
+        logger.warning(
+            "[P120] DIMENSION 尺寸标注注入失败（不影响主流程）: %s: %s",
+            type(e).__name__, e,
+        )
 
     # Step 3: 规范判定（CPU 密集型，移到线程池避免阻塞事件循环）
     # 250 原子函数 × N 实体的双循环在主事件循环跑会超过 gunicorn 120s timeout

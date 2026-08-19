@@ -7,6 +7,10 @@ P93: 模型参数导出器
 
 import json
 from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Any, Dict, List, Optional
 
 from ..atomic_functions import AtomicFunction, FuncRegistry
@@ -136,8 +140,8 @@ def get_review_samples(
             if review_id and task.get("task_id", task.get("id")) != review_id:
                 continue
             samples.append(_extract_sample(task))
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.warning("[P120] 审查历史读取失败，返回空样本集: %s: %s", type(_e).__name__, _e)
     return samples
 
 

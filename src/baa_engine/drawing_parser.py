@@ -19,6 +19,10 @@ BAA 图纸解析引擎 - ezdxf 集成
 import ezdxf  # import
 from ezdxf.math import Vec2  # import: ezdxf library
 from pathlib import Path  # import: path utils
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Optional  # typing: type hints
 import subprocess  # stdlib: subprocess
 import sys  # stdlib: system
@@ -38,7 +42,7 @@ except ImportError:  # catch exception
         _sys.path.insert(0, "/home/kezhigang/.local/lib/python3.12/site-packages")  # sys path
         from ezdwg import raw as _ezdwg_raw  # import: ezdwg library
     except ImportError:  # catch exception
-        pass  # code
+        logger.warning("[P120] ezdwg raw 导入失败，DWG 原生解析将不可用")
 
 # ── 数据结构 ──────────────────────────────────────────────
 
@@ -197,8 +201,8 @@ class DrawingParser:
                             if header.startswith(b"AC10"):  # condition: header.startswith(b"AC10"):
                                 ver = header[:6].decode("ascii", errors="ignore")  # function call
                                 version_hint = f" (AutoCAD {ver})"  # function call
-                        except Exception:  # catch exception
-                            pass  # code
+                        except Exception as _e:  # catch exception
+                            logger.debug("[P120] DWG 版本头读取失败，跳过版本探测: %s: %s", type(_e).__name__, _e)
 
                     # 构建诊断信息
                     diag_parts = ["DWG 解析失败"]  # assignment
@@ -298,7 +302,7 @@ class DrawingParser:
                     result.sheets = sheets
                     result.warning = (result.warning or "") + f"检测到 {len(sheets)} 个分区(Layout)"
             except Exception as e:
-                pass  # 多Sheet 检测失败不阻断主流程
+                logger.warning("[P120] 多Sheet 检测失败，回退为单Sheet 解析: %s: %s", type(e).__name__, e)
 
         # ── P18 分页警告 ────────────────────────────────
         if page_warning:  # condition: page_warning:
@@ -373,8 +377,8 @@ class DrawingParser:
                         warning = f"大图纸解析已截断（RSS {rss_mb:.0f}MB 超限），已处理 {page_idx + 1}/{pages} 页"  # assignment
                         truncated = True  # assignment
                         break  # code
-                except Exception:  # catch exception
-                    pass  # code
+                except Exception as _e:  # catch exception
+                    logger.debug("[P120] 分页内存监控失败，继续下一页: %s: %s", type(_e).__name__, _e)
 
                 # ── 进度提示 ──────────────────────────────
                 if page_idx > 0 and page_idx % 5 == 0:  # check: numeric comparison
