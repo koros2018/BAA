@@ -87,6 +87,8 @@ class DrawingResult:  # class definition
         error: Optional[str] = None,  # assignment
         warning: Optional[str] = None,
         sheets: List[Dict] = None,  # P73: 多Sheet 分区解析
+        drawing_type: Optional[Dict] = None,  # P121: 图纸类型分类
+        corrupt: Optional[Dict] = None,  # P121: 损坏检测
     ):  # 操作
         self.file_path = file_path  # assignment
         self.file_id = file_id  # assignment
@@ -96,6 +98,8 @@ class DrawingResult:  # class definition
         self.success = error is None  # assignment
         self.warning = warning  # assignment
         self.sheets = sheets or []  # P73: 每个 sheet 为 {name, primitives, dimensions}
+        self.drawing_type = drawing_type or {}  # P121: {type, confidence, reason, suggested_action}
+        self.corrupt = corrupt or {}  # P121: {corrupt, reason, recoverable}
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -262,11 +266,52 @@ class DrawingParser:
             use_paging if ext == ".dxf" else False
         )  # function call
 
-        result = DrawingResult(  # assignment
-            file_path=file_path,  # assignment
-            file_id=file_id or f"baa-file-{path.stem}",  # assignment
-            primitives=primitives,  # assignment
-            dimensions=dimensions,  # assignment
+        # ── P121: 图纸类型分类 + 损坏检测 ─────────────────
+        drawing_type = {}
+        corrupt = {}
+        try:
+            from src.baa_engine.drawing_classifier import (
+                classify_drawing,
+                is_likely_corrupt,
+            )  # import: P121 图纸类型分类
+
+            # 损坏检测（即使解析成功也要检查，小文件可能只有 HEADER 无实体）
+            corrupt = is_likely_corrupt(file_path)
+            if corrupt.get("corrupt") and (primitives is None or len(primitives) == 0):
+                result = DrawingResult(
+                    file_path=file_path,
+                    file_id=file_id or f"baa-file-{path.stem}",
+                    error=f"图纸疑似损坏: {corrupt.get('reason')}",
+                    corrupt=corrupt,
+                )
+                # 缓存并返回
+                if file_hash:
+                    self._parse_cache[file_hash] = result
+                return result
+
+            # 提取图层名用于分类
+            layer_names = []
+            if self._doc is not None:
+                try:
+                    layer_names = [l.name for l in self._doc.layers]
+                except Exception:
+                    pass  # 忽略图层读取错误
+
+            drawing_type = classify_drawing(
+                filename=path.name,
+                layer_names=layer_names,
+                file_size_mb=path.stat().st_size / (1024 * 1024),
+            )
+        except Exception:
+            pass  # 分类失败不影响解析结果
+
+        result = DrawingResult(
+            file_path=file_path,
+            file_id=file_id or f"baa-file-{path.stem}",
+            primitives=primitives,
+            dimensions=dimensions,
+            drawing_type=drawing_type,
+            corrupt=corrupt,
         )  # code
 
         # ── P73: 多Sheet 分区检测 ────────────────────────
