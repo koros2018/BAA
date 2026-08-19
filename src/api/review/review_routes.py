@@ -263,6 +263,42 @@ async def review(  # code
                 "queue_info": {"task_id": task_id},
             }  # code
 
+        # ── P121: 图纸类型分类 + 非建筑图降级 ─────────────────
+        drawing_type = getattr(result, "drawing_type", {})
+        corrupt = getattr(result, "corrupt", {})
+        is_non_arch = drawing_type.get("type") in ("结构", "电气", "暖通")
+        is_corrupt = corrupt.get("corrupt", False)
+
+        if is_corrupt:
+            _get_rq().fail(task_id, corrupt.get("reason", "图纸疑似损坏"))
+            return {
+                "status": "error",
+                "error_code": "CORRUPT_FILE",
+                "message": corrupt.get("reason", "图纸文件疑似损坏或格式无效"),
+                "drawing_type": drawing_type,
+                "corrupt": corrupt,
+                "file_id": file_id,
+                "queue_info": {"task_id": task_id},
+            }
+
+        if is_non_arch:
+            entity_count = len(result.primitives or [])
+            _get_rq().complete(task_id, "跳过审查（非建筑图）")
+            return {
+                "status": "skipped",
+                "error_code": "NON_ARCHITECTURAL",
+                "message": f"{drawing_type.get('type', '未知')}图暂不支持AI审查，已解析 {entity_count} 个图元",
+                "drawing_type": drawing_type,
+                "suggested_action": drawing_type.get("suggested_action", ""),
+                "parse_result": {
+                    "file_id": file_id,
+                    "entity_count": entity_count,
+                    "file_size_mb": round(file_path.stat().st_size / 1024 / 1024, 2),
+                },
+                "file_id": file_id,
+                "queue_info": {"task_id": task_id},
+            }
+
         # Step 2: 语义分析（CPU密集型 → 线程池）
         _get_rq().update_progress(task_id, 50.0)
         semantic = await loop.run_in_executor(  # assignment
@@ -484,6 +520,8 @@ async def review(  # code
         "building_type": building_type,  # 字段
         "standard": standard,  # code
         "processing_time_ms": elapsed,  # 字段
+        # P121: 图纸类型分类信息
+        "drawing_type": drawing_type,  # {type, confidence, reason, suggested_action}
     }  # code
 
     # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────
