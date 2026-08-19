@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 P111 数据清洗脚本：生成干净训练集
 
@@ -102,7 +106,7 @@ def prepare_dataset():
                         cls = int(parts[0])
                         class_counter[cls] += 1
                     except ValueError:
-                        pass
+                        logger.debug("[P120] 标签类别行解析失败，跳过")
 
     print(f"\nClean class distribution:")
     YOLO_CLASSES = [

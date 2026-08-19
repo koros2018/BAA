@@ -29,8 +29,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             x1, x2 = sorted([s.x, en.x])
             y1, y2 = sorted([s.y, en.y])
             return {"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1}
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[P120] LINE bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # ── 2. CIRCLE: 圆心 ± 半径 ──
     if dxf_type == "CIRCLE":
@@ -38,8 +38,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             c = Vec2(entity.dxf.center)
             r = float(entity.dxf.radius)
             return {"x": c.x - r, "y": c.y - r, "width": 2 * r, "height": 2 * r}
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[P120] CIRCLE bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # ── 3. ARC: 圆心 ± 半径（近似包围盒，比实际略大但安全） ──
     if dxf_type == "ARC":
@@ -47,8 +47,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             c = Vec2(entity.dxf.center)
             r = float(entity.dxf.radius)
             return {"x": c.x - r, "y": c.y - r, "width": 2 * r, "height": 2 * r}
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[P120] ARC bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # ── 4. TEXT: 插入点 ± 文字高度 ──
     if dxf_type == "TEXT":
@@ -56,8 +56,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             p = Vec2(entity.dxf.insert)
             h = float(entity.dxf.height)
             return {"x": p.x, "y": p.y, "width": h * 1.5, "height": h}
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[P120] TEXT bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # ── 5. LWPOLYLINE / POLYLINE / SPLINE: 从 vertices() 聚合 ──
     if dxf_type in ("LWPOLYLINE", "POLYLINE", "SPLINE"):
@@ -76,14 +76,14 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
                         elif isinstance(p, (tuple, list)) and len(p) >= 2:
                             xs.append(float(p[0]))
                             ys.append(float(p[1]))
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[P120] 顶点坐标转换失败: %s: %s", type(_e).__name__, _e)
                 if xs and ys:
                     w = max(xs) - min(xs)
                     h = max(ys) - min(ys)
                     return {"x": min(xs), "y": min(ys), "width": w, "height": h}
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[P120] LWPOLYLINE bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # 6. ezdxf 原生 bbox 方法（INSERT / 3DSOLID 等支持 bbox() 的图元）
     try:
@@ -99,8 +99,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
                         "width": w,
                         "height": h,
                     }
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[P120] bbox() 方法失败: %s: %s", type(_e).__name__, _e)
 
     # 7. 从 insert 属性计算（INSERT 块引用）
     try:
@@ -113,8 +113,8 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
                     "width": 0,
                     "height": 0,
                 }
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[P120] insert 属性计算失败: %s: %s", type(_e).__name__, _e)
 
     # 兜底：返回 0 边界框
     return {"x": 0, "y": 0, "width": 0, "height": 0}
@@ -148,8 +148,8 @@ def extract_properties(entity) -> Dict[str, Any]:
             pts_list = []
             try:
                 pts_list = list(entity.vertices())
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[P120] vertices() 读取失败: %s: %s", type(_e).__name__, _e)
             geo_closed = bool(entity.closed) or (
                 len(pts_list) >= 3
                 and abs(pts_list[0][0] - pts_list[-1][0]) < 0.01
@@ -163,8 +163,8 @@ def extract_properties(entity) -> Dict[str, Any]:
                 try:
                     area = compute_polygon_area(entity)
                     props["area"] = area
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[P120] 面积计算失败: %s: %s", type(_e).__name__, _e)
             if pts_list:
                 # P84 fix: 同时存储 points，供 room.py 的 LINE 链合并使用
                 props["points"] = [(float(p[0]), float(p[1])) for p in pts_list]
@@ -189,8 +189,8 @@ def extract_properties(entity) -> Dict[str, Any]:
                 if ins:
                     props["insert_x"] = ins[0] if hasattr(ins, "__getitem__") else ins.x
                     props["insert_y"] = ins[1] if hasattr(ins, "__getitem__") else ins.y
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[P120] INSERT 属性提取失败: %s: %s", type(_e).__name__, _e)
 
         # DIMENSION
         elif entity.dxftype() == "DIMENSION":
@@ -198,15 +198,15 @@ def extract_properties(entity) -> Dict[str, Any]:
                 props["measured_length"] = (
                     float(entity.measure) if hasattr(entity, "measure") else None
                 )
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[P120] ATTRIB 提取失败: %s: %s", type(_e).__name__, _e)
 
         # DIM 实体
         elif entity.dxftype() == "DIMENSION" or (hasattr(entity, "measure")):
             pass
 
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[P120] DIMENSION 提取失败: %s: %s", type(_e).__name__, _e)
 
     return props
 
@@ -235,8 +235,8 @@ def compute_polygon_area(entity) -> float:
                     elif isinstance(p, (tuple, list)) and len(p) >= 2:
                         xs.append(float(p[0]))
                         ys.append(float(p[1]))
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[P120] 顶点坐标转换失败: %s: %s", type(_e).__name__, _e)
             return xs, ys
         except Exception:
             return [], []
@@ -258,8 +258,8 @@ def compute_polygon_area(entity) -> float:
             r = entity.dxf.radius
             return math.pi * r * r
 
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[P120] 面积计算失败: %s: %s", type(_e).__name__, _e)
 
     return 0.0
 

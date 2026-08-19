@@ -8,6 +8,10 @@ import sys
 import asyncio
 import time
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Any, Optional
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -406,8 +410,8 @@ class BAAMCPServer:
                     func.threshold = tv
                     func.unit = u
                     func.operator = op
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.warning("[P120] 原子函数阈值查询失败，使用默认值: func=%s %s: %s", func.clause_id, type(_e).__name__, _e)
                 r = func.execute(e)
                 if r is None or r.result == "PASS":
                     continue

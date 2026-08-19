@@ -10,6 +10,10 @@ BAA 多语言支持模块 (i18n)
 4. 兼容扩展：新语言只需添加一个字典
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Dict
 
 # ── 支持的语言代码 ─────────────────────────────────────
@@ -313,7 +317,7 @@ def t(key: str, lang: str = DEFAULT_LANGUAGE, **kwargs) -> str:
         try:
             text = text.format(**kwargs)
         except KeyError:
-            pass
+            logger.warning("[P120] 本地化占位符缺失，使用原始字符串: key=%s", key)
 
     return text
 

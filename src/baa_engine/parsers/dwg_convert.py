@@ -29,7 +29,7 @@ except ImportError:
         _sys.path.insert(0, "/home/kezhigang/.local/lib/python3.12/site-packages")
         from ezdwg import raw as _ezdwg_raw
     except ImportError:
-        pass
+        logger.warning("[P120] ezdwg raw 二次导入失败，DWG 原生解析不可用")
 
 
 def _detect_dwg_format(
@@ -83,8 +83,8 @@ def _try_same_dir_dxf(
             count = len(list(msp))  # get length
             if count > 10:  # check: numeric comparison
                 return dxf_doc  # return
-        except Exception:  # catch exception
-            pass  # code
+        except Exception as _e:  # catch exception
+            logger.warning("[P120] 同目录 DXF 兜底读取失败: %s: %s", type(_e).__name__, _e)
 
     # 2. 搜索父目录及以下所有子目录，找同名或近名 DXF
     parent_dir = path.parent.parent  # assignment
@@ -100,8 +100,8 @@ def _try_same_dir_dxf(
                     count = len(list(msp))  # get length
                     if count > 10:  # check: numeric comparison
                         return dxf_doc  # return
-                except Exception:  # catch exception
-                    pass  # code
+                except Exception as _e:  # catch exception
+                    logger.warning("[P120] 近名 DXF 兜底读取失败: %s: %s", type(_e).__name__, _e)
 
     return None  # return: None
 
@@ -197,10 +197,10 @@ sys.exit(2)
                     count = len(list(msp))
                     if count > 10:
                         return dxf_doc
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                except Exception as _e:
+                    logger.warning("[P120] ezdwg export_dxf 读取失败: %s: %s", type(_e).__name__, _e)
+    except Exception as e:
+        logger.warning("[P120] ezdwg export_dxf 流程异常: %s: %s", type(e).__name__, e)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
     return None
@@ -250,8 +250,8 @@ def _resolve_xref_external(
     search_dirs = [parent_dir]
     try:
         search_dirs.extend(parent_dir.rglob("*"))
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[P120] rglob 搜索目录异常: %s: %s", type(_e).__name__, _e)
     # 扁平化：目录在前
     dirs = [d for d in search_dirs if d.is_dir()]
     dirs.sort(key=lambda p: len(str(p)))  # 短路径优先
@@ -408,8 +408,8 @@ def _resolve_xref_external(
                                     "layer": layer,
                                 },
                             )
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.warning("[P120] xref 实体展开失败: %s: %s", type(_e).__name__, _e)
 
             xref_doc.close()
         except Exception:
@@ -453,8 +453,8 @@ def _try_manual_convert(
 
             xref_doc.close()  # function call
             os.unlink(tmp_xref.name)  # function call
-        except Exception:  # catch exception
-            pass  # code
+        except Exception as _e:  # catch exception
+            logger.warning("[P120] xref 外部参照解析失败: %s: %s", type(_e).__name__, _e)
 
         # ── 遍历 modelspace 实体 ──
         msp_src = dwg_doc.modelspace()  # function call
@@ -593,8 +593,8 @@ def _try_manual_convert(
                                         },  # assignment
                                     )  # code
                                     total += 1  # accumulate
-                        except Exception:  # catch exception
-                            pass  # code
+                        except Exception as _e:  # catch exception
+                            logger.warning("[P120] xref 实体写入失败: %s: %s", type(_e).__name__, _e)
                     elif dxf_type == "SOLID":  # elif condition
                         pts_2d = [
                             (d.get(f"{ax}{i}", 0), d.get(f"{ay}{i}", 0))  # function call
@@ -616,13 +616,13 @@ def _try_manual_convert(
                             (pt[0], pt[1]), dxfattribs={"color": color, "layer": layer}
                         )  # int conversion
                         total += 1  # accumulate
-                except Exception:  # catch exception
-                    pass  # code
+                except Exception as _e:  # catch exception
+                    logger.warning("[P120] xref 模型空间实体写入失败: %s: %s", type(_e).__name__, _e)
 
         if total > 10:  # check: numeric comparison
             return dxf_doc  # return
-    except Exception:  # catch exception
-        pass  # code
+    except Exception as _e:  # catch exception
+        logger.warning("[P120] xref 流程外层异常: %s: %s", type(e).__name__, e)
     return None  # return: None
 
 
@@ -759,15 +759,15 @@ def _try_raw_decode(
                                 dxfattribs={"color": color, "layer": layer},  # assignment
                             )  # code
                             total += 1  # accumulate
-                    except Exception:  # catch exception
-                        pass  # code
+                    except Exception as _e:  # catch exception
+                        logger.warning("[P120] xref row 写入失败: %s: %s", type(_e).__name__, _e)
             except Exception:  # catch exception
                 continue  # code
 
         if total > 10:  # check: numeric comparison
             return dxf_doc  # return
-    except Exception:  # catch exception
-        pass  # code
+    except Exception as _e:  # catch exception
+        logger.warning("[P120] xref 流程外层异常: %s: %s", type(e).__name__, e)
     return None  # return: None
 
 
@@ -996,7 +996,7 @@ def _insert_block_expand(
                             control_points=new_cps,
                             dxfattribs={"color": ent_color, "layer": ent_layer},
                         )
-            except Exception:  # catch exception
-                pass  # 单个实体展开失败不影响其他实体
-    except Exception:  # catch exception
-        pass  # code
+            except Exception as _e:  # catch exception
+                logger.warning("[P120] 单个 SPLINE 实体展开失败: %s: %s", type(_e).__name__, _e)
+    except Exception as _e:  # catch exception
+        logger.warning("[P120] 块展开流程外层异常: %s: %s", type(e).__name__, e)

@@ -13,6 +13,9 @@ BAA API密钥管理器
 """
 
 import secrets  # import
+import logging  # 日志
+
+logger = logging.getLogger(__name__)
 import hashlib  # stdlib: hashing
 import hmac  # import
 import json  # stdlib: JSON
@@ -61,7 +64,7 @@ def _get_encryption_key() -> bytes:  # function: def _get_encryption_key() -> by
                     return _ENCRYPTION_MASTER_KEY  # return
             # 异常处理
             except ValueError:  # 捕获异常
-                pass  # 占位
+                logger.warning("[P120] BAA_KEY_ENCRYPTION_KEY 环境变量格式非法，回退文件密钥")
 
         # 2. 持久化密钥文件
         storage_dir = Path(__file__).resolve().parent.parent.parent / "data"  # function call
@@ -239,8 +242,11 @@ class ApiKeyManager:  # class definition
                     self._keys = data.get("keys", {})  # function call
                     self._usage = data.get("usage", {})  # function call
             # 异常处理
-            except (json.JSONDecodeError, IOError):  # 捕获异常
-                pass  # 占位
+            except (json.JSONDecodeError, IOError) as e:  # 捕获异常
+                logger.error(
+                    "[P120] API 密钥存储文件损坏，使用内存缓存: %s: %s",
+                    type(e).__name__, e,
+                )
         self._loaded = True  # assignment
 
     def save(self):  # function: def save(self):

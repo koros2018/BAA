@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 P111 数据质量诊断脚本
 
@@ -113,7 +117,7 @@ def diagnose():
                         cls = int(parts[0])
                         class_counter[cls] += 1
                     except ValueError:
-                        pass
+                        logger.debug("[P120] 标签类别行解析失败，跳过")
 
     # 4. 有效数据集（平面图且有标签）
     valid_stems = img_stems & lbl_names - non_floor

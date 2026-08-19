@@ -338,8 +338,8 @@ class SemanticAnalyzer:
                     label = (
                         f"F{int(elevation) + 1}" if elevation >= 0 else f"B{abs(int(elevation))}"
                     )  # assign
-                except ValueError:  # catch: exception handler
-                    pass  # code
+                except ValueError as _e:  # catch: exception handler
+                    logger.debug("[P120] 标高数值解析失败，跳过: %s", text)
 
             # "F1", "F2", "1F", "2F", "B1", "B2"
             if level is None:  # check: value is None
@@ -388,8 +388,8 @@ class SemanticAnalyzer:
                         label = (
                             f"F{int(level) + 1}" if level >= 0 else f"B{abs(int(level))}"
                         )  # assign
-                    except ValueError:  # catch: exception handler
-                        pass  # code
+                    except ValueError as _e:  # catch: exception handler
+                        logger.debug("[P120] 标高层数解析失败，跳过: %s", text)
 
             if level is not None:  # check: value is not None
                 elevation_texts.append(

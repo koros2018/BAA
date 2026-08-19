@@ -12,6 +12,10 @@ BAA 自动图纸修正引擎
 - AREA类（面积不足）：建议扩大面积
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from typing import Dict, List
 from dataclasses import dataclass, field
 from enum import Enum
@@ -799,8 +803,8 @@ class CorrectionEngine:  # 类定义: CorrectionEngine
                     suggestion = template(entity, result)  # 赋值: suggestion
                     suggestions.append(suggestion)  # 追加元素
                 # 异常处理
-                except Exception:  # 异常处理
-                    pass  # 空实现
+                except Exception as _e:  # 异常处理
+                    logger.debug("[P120] 修正建议模板执行失败 func_id=%s: %s: %s", func_id, type(_e).__name__, _e)
 
         return suggestions  # 返回结果
 

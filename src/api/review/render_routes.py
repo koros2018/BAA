@@ -3,6 +3,9 @@
 """
 
 from fastapi import Depends, HTTPException, Query, File, UploadFile, Request, Response
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 def _confidence_tier(confidence: float) -> str:
@@ -566,8 +569,9 @@ async def review_pdf(  # code
             ]  # code
         }  # code
         corrections = correction_engine.generate_for_result(review_result)  # function call
-    except Exception:  # catch exception
-        pass  # code
+    except Exception as e:  # catch exception
+        # P120 异常处理全量修复：修正建议生成失败不应阻塞 PDF 导出，但必须记录日志
+        _logger.warning("[P120] 修正建议生成失败，将导出无建议的 PDF: %s: %s", type(e).__name__, e)
 
     # ── 生成 PDF ──────────────────────────────────────────
     structured_summary = _build_structured_summary(details)
