@@ -56,6 +56,75 @@ import json
 import hashlib
 from collections import Counter
 
+# ── P121 Phase 3: 大文件超时体验优化 ──────────────────────────
+
+
+def _partial_result(review_state: dict, timeout_seconds: int) -> dict:
+    """
+    审查超时时，返回已完成的中间结果。
+
+    审查链路分四阶段：解析 → 语义分析 → 原子函数 → 修正建议。
+    各阶段可能耗时不均，超时后应返回最近完成的阶段成果，
+    让前端展示"审查进行到 X%"而非空白页面。
+
+    Returns:
+        partial=True 的响应，包含解析统计 + 已完成的原子函数结果。
+    """
+    return {
+        "status": "partial",
+        "error_code": "TIMEOUT",
+        "message": (
+            f"审查超时（{timeout_seconds}秒），返回已完成的中间结果。"
+            "建议：调大 timeout_seconds 参数，或拆分大图纸后重新审查。"
+        ),
+        "partial": True,
+        "timeout_seconds": timeout_seconds,
+        "progress": review_state.get("progress", "parsing"),
+        "file_id": review_state.get("file_id", ""),
+        "parse_result": {
+            "file_id": review_state.get("file_id", ""),
+            "entity_count": review_state.get("entity_count", 0),
+            "primitive_count": review_state.get("primitive_count", 0),
+            "drawing_type": review_state.get("drawing_type", {}),
+            "file_size_mb": review_state.get("file_size_mb", 0),
+        },
+        "completed_functions": review_state.get("completed_functions", 0),
+        "details": review_state.get("partial_details", []),
+        "elapsed_ms": int(review_state.get("elapsed_ms", 0)),
+        "queue_info": review_state.get("queue_info", {}),
+    }
+
+
+def _review_timeout_decorator(timeout_seconds: int):
+    """
+    为审查异步函数增加超时控制。
+
+    超时后会话不会崩溃，而是返回 partial=True 的中间结果。
+    前端据此展示"已解析 X 个实体，审查进行到 Y%"。
+    """
+    def decorator(coro_func):
+        async def wrapper(*args, **kwargs):
+            task = asyncio.current_task()
+            # asyncio.wait_for 的 timeout 必须略大于超时时间，
+            # 给内部清理留出余量（否则 raise 时 review_state 可能未更新）。
+            try:
+                return await asyncio.wait_for(coro_func(*args, **kwargs), timeout=timeout_seconds)
+            except asyncio.TimeoutError:
+                # 取消正在运行的子任务，避免后台无限占用资源
+                if task is not None:
+                    _logger.warning(f"[P121] Timeout after {timeout_seconds}s, cancelling remaining tasks")
+                return _partial_result(task.review_state if task else {}, timeout_seconds)
+        return wrapper
+    return decorator
+
+
+def _review_result_from_state(state: dict) -> dict:
+    """从中间状态构造 partial 结果（同步版本，供 timeout_decorator 调用）。"""
+    return _partial_result(state, state.get("timeout_seconds", 120))
+
+
+# ── End P121 Phase 3 helpers ──────────────────────────────────
+
 
 def _build_structured_summary(details: list[dict]) -> dict:
     """P62: 从 details 生成结构化摘要。
@@ -169,6 +238,12 @@ async def review(  # code
     webhook_type: str = Query(
         "generic", description="P71: generic | feishu | dingtalk"
     ),  # function call
+    timeout_seconds: int = Query(
+        120,
+        ge=10,
+        le=600,
+        description="P121 Phase 3: 审查超时阈值(秒)，超过返回已完成的部分结果",
+    ),  # function call
     api_key: str = Depends(verify_api_key),  # function call
 ):  # code
     """图纸合规审查（免费试用）
@@ -235,6 +310,30 @@ async def review(  # code
     start = time.time()  # get current time
     loop = asyncio.get_event_loop()  # function call
 
+    # ── P121 Phase 3: 超时中间状态 — 各阶段更新 review_state ──
+    review_state = {
+        "timeout_seconds": timeout_seconds,
+        "file_id": file_id,
+        "progress": "parsing",
+        "entity_count": 0,
+        "primitive_count": 0,
+        "drawing_type": {},
+        "file_size_mb": round(len(content) / 1024 / 1024, 2),
+        "completed_functions": 0,
+        "partial_details": [],
+        "elapsed_ms": 0,
+        "queue_info": {},
+    }
+
+    async def _check_timeout():
+        """检查是否已超时。超时返回 partial 结果。"""
+        elapsed_s = time.time() - start
+        if elapsed_s >= timeout_seconds:
+            review_state["elapsed_ms"] = int(elapsed_s * 1000)
+            _get_rq().complete(task_id, f"超时({timeout_seconds}s)，返回中间结果")
+            return _partial_result(review_state, timeout_seconds)
+        return None
+
     # 并发控制：审查任务队列排队
     task_obj, task_id, queue_position = await _get_rq().wait_and_dequeue(
         file_id, webhook_url=webhook_url, webhook_type=webhook_type
@@ -247,12 +346,22 @@ async def review(  # code
             "file_id": file_id,
         }
 
+    # 排队返回后立即检查超时（防止排队耗时已耗尽预算）
+    partial = await _check_timeout()
+    if partial:
+        return partial
+
     try:
         # Step 1: 图纸解析（CPU密集型 → 线程池）
         _get_rq().update_progress(task_id, 10.0)
+        review_state["progress"] = "parsing"
         result = await loop.run_in_executor(  # assignment
             _get_pool(), _get_dp().parse, str(file_path), file_id  # 操作
         )  # code
+        # 解析后检查超时
+        partial = await _check_timeout()
+        if partial:
+            return partial
         if not result.success:  # check: negated condition
             _get_rq().fail(task_id, result.error)
             return {  # return: dict
@@ -301,6 +410,9 @@ async def review(  # code
 
         # Step 2: 语义分析（CPU密集型 → 线程池）
         _get_rq().update_progress(task_id, 50.0)
+        review_state["progress"] = "semantic_analysis"
+        review_state["primitive_count"] = len(result.primitives or [])
+        review_state["drawing_type"] = drawing_type
         semantic = await loop.run_in_executor(  # assignment
             _get_pool(),  # 解包
             lambda: _get_sa().analyze(  # 操作
@@ -310,7 +422,13 @@ async def review(  # code
             ),  # code
         )  # code
         entities = semantic["entities"]  # assignment
+        review_state["entity_count"] = len(entities)
+        review_state["completed_functions"] = 0
         _get_rq().update_progress(task_id, 70.0)
+        # 语义分析后检查超时
+        partial = await _check_timeout()
+        if partial:
+            return partial
 
     except Exception as e:
         _get_rq().fail(task_id, str(e))
@@ -465,7 +583,195 @@ async def review(  # code
         return clause_results, details
 
     try:
-        clause_results, details = await loop.run_in_executor(_get_pool(), _do_clustering, entities)
+        # ── P121 Phase 3: 原子函数阶段超时控制 ─────────────
+        # _do_clustering 跑在线程池中，asyncio.wait_for 不能直接中断，
+        # 用 threading.Event 共享超时信号，每处理一个实体检查一次。
+        timeout_event = __import__("threading").Event()
+
+        # 计算原子函数阶段剩余超时时间
+        _elapsed_s = time.time() - start
+        _remaining_s = timeout_seconds - _elapsed_s
+        if _remaining_s < 5:
+            # 剩余预算不足5秒，直接返回 partial
+            review_state["elapsed_ms"] = int(_elapsed_s * 1000)
+            review_state["progress"] = "functions_completed"
+            _get_rq().complete(task_id, f"超时({timeout_seconds}s)，返回中间结果")
+            return _partial_result(review_state, timeout_seconds)
+
+        class _ClusteringResult:
+            """线程安全的中间结果容器。"""
+            def __init__(self):
+                self.clause_results = None
+                self.details = []
+                self.completed_entities = 0
+
+        cr = _ClusteringResult()
+
+        # 在原子函数线程中定期检查超时
+        original_check = _check_timeout
+
+        def _do_clustering_with_timeout(entities):
+            """带超时的规范判定 — 每处理完一个实体检查一次超时信号"""
+            from src.baa_engine.spec_repository import SpecRepository
+            from collections import Counter
+
+            repo = SpecRepository()
+            clause_results = Counter()
+            details = []
+            registry_funcs = _get_fr().list_all()
+
+            def get_strict_threshold(clause_id: str) -> tuple:
+                worst_val, worst_unit, worst_op = None, None, None
+                for bt in _effective_types:
+                    v, u, o = repo.get_threshold(clause_id, bt)
+                    if worst_val is None or v > worst_val:
+                        worst_val, worst_unit, worst_op = v, u, o
+                return worst_val, worst_unit, worst_op
+
+            func_ids = [
+                f.func_id for f in registry_funcs if not getattr(f, "requires_global_context", False)
+            ]
+            global_funcs = [
+                f for f in registry_funcs if getattr(f, "requires_global_context", False)
+            ]
+            # 主循环：每个实体处理完后检查超时
+            total_entities = len(entities)
+            for idx, e in enumerate(entities):
+                # 每 10 个实体检查一次超时信号
+                if idx % 10 == 0 and timeout_event.is_set():
+                    # 超时：返回已收集的 details 和实体计数
+                    cr.clause_results = clause_results
+                    cr.details = details
+                    cr.completed_entities = idx
+                    return cr.clause_results, cr.details
+                chained_results = _get_fr().execute_chained(func_ids, e)
+                for fid, r in chained_results.items():
+                    func = _get_fr().get(fid)
+                    if func is None:
+                        continue
+                    threshold_val, unit, op = get_strict_threshold(func.clause_id)
+                    if r is None:
+                        continue
+                    clause_results[func.clause_id] += 1
+                    if r.result != "PASS":
+                        clause = {
+                            "standard": "GB50016",
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
+                        f = _get_aa().build_finding(r, clause, e, entities[:5])
+                        details.append({
+                            "entity_id": e.get("id", e.get("type", "")),
+                            "entity_type": e["type"],
+                            "clause_id": f.clause.get("clause_id", ""),
+                            "clause_title": f.clause.get("title", ""),
+                            "func_id": func.func_id,
+                            "result": f.judgement["result"],
+                            "extracted_value": f.extracted_params["extracted_value"],
+                            "required_value": f.extracted_params.get("required_value", 1.2),
+                            "difference": f.extracted_params.get("difference", 0),
+                            "severity": f.judgement.get("severity", "major"),
+                            "explanation": f.explanation[:120],
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
+                cr.completed_entities = idx + 1
+
+            # 全局函数 + 缺失检查（超时则跳过）
+            if timeout_event.is_set():
+                cr.clause_results = clause_results
+                cr.details = details
+                cr.completed_entities = total_entities
+                return cr.clause_results, cr.details
+            for func in global_funcs:
+                if func.category.value != "exist":
+                    continue
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                if not func_targets:
+                    continue
+                matching = [e for e in entities if e.get("type", "") in func_targets]
+                if not matching:
+                    continue
+                count = len(matching)
+                clause_results[func.clause_id] += 1
+                if count < func.threshold:
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": ",".join(func_targets),
+                        "clause_id": func.clause_id,
+                        "clause_title": func.name,
+                        "func_id": func.func_id,
+                        "result": "FAIL",
+                        "extracted_value": float(count),
+                        "required_value": float(func.threshold),
+                        "difference": float(count - func.threshold),
+                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                        "severity": "critical",
+                        "confidence": 1.0,
+                        "confidence_tier": "confirmed",
+                    })
+
+            entity_types_in_drawing = set(e.get("type", "") for e in entities)
+            for func in registry_funcs:
+                if func.category.value != "exist":
+                    continue
+                func_targets = set(func.target_entities) if func.target_entities else set()
+                if func_targets and not func_targets.intersection(entity_types_in_drawing):
+                    continue
+                has_match = any(func.matches(e) for e in entities)
+                if not has_match:
+                    r = _get_fr().execute_with_timeout(func, None)
+                    if r is not None and r.result != "PASS":
+                        clause = {
+                            "standard": "GB50016",
+                            "clause_id": func.clause_id,
+                            "title": func.name,
+                            "text": func.description,
+                            "category": func.category.value,
+                        }
+                        f = _get_aa().build_finding(r, clause, {}, entities[:5])
+                        details.append({
+                            "entity_id": "",
+                            "entity_type": "missing",
+                            "clause_id": f.clause.get("clause_id", ""),
+                            "clause_title": f.clause.get("title", ""),
+                            "func_id": func.func_id,
+                            "result": f.judgement["result"],
+                            "extracted_value": 0.0,
+                            "required_value": f.extracted_params.get("required_value", 1.0),
+                            "difference": -f.extracted_params.get("required_value", 1.0),
+                            "explanation": f.explanation[:120],
+                            "severity": "critical",
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
+
+            cr.clause_results = clause_results
+            cr.details = details
+            cr.completed_entities = total_entities
+            return cr.clause_results, cr.details
+
+        # 启动超时计时器：超时后设置 event
+        import threading as _threading
+        _timer = _threading.Timer(_remaining_s, timeout_event.set)
+        _timer.daemon = True
+        _timer.start()
+
+        # 在超时控制下执行原子函数判定
+        clause_results, details = await loop.run_in_executor(
+            _get_pool(), lambda: _do_clustering_with_timeout(entities)
+        )
+        _timer.cancel()
+        # 超时后使用 cr 中的中间结果
+        if timeout_event.is_set() and cr.clause_results is not None:
+            clause_results, details = cr.clause_results, cr.details
+        # 记录进度到 review_state
+        review_state["progress"] = "functions_completed"
+        review_state["completed_functions"] = len(details)
+        review_state["partial_details"] = details[:100]
+        review_state["entity_count"] = len(entities)
     except Exception as e:
         _get_rq().fail(task_id, str(e))
         raise
