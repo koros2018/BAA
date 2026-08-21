@@ -1,3 +1,13 @@
+// P122 XSS 防护工具函数
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // ── 结果分析 ──────────────────────────────────────────────
 function renderAnalysisTable() {
   const tbody = document.getElementById('analysis-table');
@@ -14,9 +24,10 @@ function renderAnalysisTable() {
     const checks = h.entityCount || 1;
     const passRate = checks > 0 ? Math.round((1 - viols / checks) * 100) : 0;
     const btLabel = h.buildingType === 'civil' ? '民用' : h.buildingType === 'industrial' ? '工业' : '--';
+    const safeDrawingName = escHtml(h.drawingName || '');
     tbody.innerHTML += '<tr class="border-b border-gray-50 text-sm">' +
       '<td class="py-2 px-2">' + (i + 1) + '</td>' +
-      '<td class="py-2 px-2 truncate max-w-32" title="' + h.drawingName + '">' + h.drawingName + '</td>' +
+      '<td class="py-2 px-2 truncate max-w-32" title="' + safeDrawingName + '">' + safeDrawingName + '</td>' +
       '<td class="py-2 px-2 text-xs">' + btLabel + '</td>' +
       '<td class="py-2 px-2 text-red-600">' + viols + '</td>' +
       '<td class="py-2 px-2"><div class="flex items-center gap-2"><div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-' + (passRate > 80 ? 'green' : passRate > 50 ? 'yellow' : 'red') + '-500 h-2 rounded-full" style="width:' + Math.max(0, passRate) + '%"></div></div><span class="text-xs">' + Math.max(0, passRate) + '%</span></div></td>' +

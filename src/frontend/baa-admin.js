@@ -1,3 +1,13 @@
+// P122 XSS 防护工具函数
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // ── 规范库 ──────────────────────────────────────────────
 // SPEC_DATA 定义在 baa-core.js 中（先加载，所有文件均可访问）
 
@@ -75,14 +85,18 @@ function renderSpecList() {
     const level = s.level || 'L1';
     const std = s.standard || s.std || '';
     const stdShort = stdAbbrev[std] || (std ? std.replace(/-/g, '').slice(0, 5) : '--');
+    const safeTitle = escHtml(title);
+    const safeDesc = escHtml(desc);
+    const safeStdShort = escHtml(stdShort);
+    const safeTarget = escHtml(Array.isArray(target) ? target.join(', ') : target);
     tbody.innerHTML += '<tr class="border-b border-gray-50">' +
       '<td class="py-2 px-2 text-xs">' + (i + 1) + '</td>' +
       '<td class="py-2 px-2 font-mono text-xs">' + (s.clause_id || '') + '</td>' +
-      '<td class="py-2 px-2 text-sm">' + title + '<br/><span class="text-xs text-gray-400">' + desc + '</span></td>' +
-      '<td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + stdShort + '</span>' : '') + '</td>' +
+      '<td class="py-2 px-2 text-sm">' + safeTitle + '<br/><span class="text-xs text-gray-400">' + safeDesc + '</span></td>' +
+      '<td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + safeStdShort + '</span>' : '') + '</td>' +
       '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[level]||'gray') + '-100 text-' + (levelColors[level]||'gray') + '-700 rounded text-xs">' + level + '</span></td>' +
       '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
-      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + (Array.isArray(target) ? target.join(', ') : target) + '</td></tr>';
+      '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + safeTarget + '</td></tr>';
   });
 }
 
@@ -460,13 +474,13 @@ function _populateHistoryFilters() {
   if (teamSelect && Object.keys(teams).length > 0) {
     var curTeam = teamSelect.value || '';
     teamSelect.innerHTML = '<option value="">📌 全部团队</option>';
-    Object.keys(teams).forEach(function(id) { teamSelect.innerHTML += '<option value="' + id + '">' + id.substring(0, 12) + '</option>'; });
+    Object.keys(teams).forEach(function(id) { teamSelect.innerHTML += '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>'; });
     teamSelect.value = curTeam;
   }
   if (projSelect && Object.keys(projects).length > 0) {
     var curProj = projSelect.value || '';
     projSelect.innerHTML = '<option value="">📌 全部项目</option>';
-    Object.keys(projects).forEach(function(id) { projSelect.innerHTML += '<option value="' + id + '">' + id.substring(0, 12) + '</option>'; });
+    Object.keys(projects).forEach(function(id) { projSelect.innerHTML += '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>'; });
     projSelect.value = curProj;
   }
 }
