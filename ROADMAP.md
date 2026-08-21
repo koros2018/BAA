@@ -113,7 +113,7 @@
 | P119 | 违规审核工作流（确认/误报/待核实） | 🔴 未启动 |
 | P120 | 异常处理全量修复（pass空吞/裸except） | ✅ 2026-08-19 完成（`89f44ca`） |
 | P121 | 大文件解析（结构图SKIP44%+大图SKIP18%） | 🔴 未启动 |
-| P122 | 前端安全修复（XSS/innerHTML/测试框架） | 🔴 未启动 |
+| P122 | 前端安全修复（XSS/innerHTML/测试框架） | 🟡 进行中（XSS+alert完成，E2E待续） |
 | P123 | 前端架构重构（Vite+TS+组件化） | 🔴 未启动 |
 | P112 | 用户认证、团队空间与协作前端 | 🟡 进行中（401修复完成，工作流待续） |
 | P113 | 真实用户试用与黄金标准扩库 | 🟡 可启动（依赖P119） |
@@ -935,6 +935,20 @@ class BAAValidationError(Exception): # 数据校验失败
 ### P122 — 前端安全修复 + 测试框架 🔴
 
 **复盘结论：** `baa-review.js` 72处`innerHTML+=`、`baa-ext.js` 25处，XSS防护为零，0个前端测试，`alert()`残留。每次改前端都在赌不会炸。
+
+**Phase 1 完成 ✅（2026-08-20，`6521547`）：**
+- alert() 全量清理：13处 → 0处，全部替换为 showToast()
+- baa-review.js 15处 innerHTML +=：高危全部 escHtml 转义
+- baa-sse-batch.js 1处、baa-admin.js 3处 高危 escHtml
+- 测试: 2006/2020 ✅
+
+**Phase 2 完成 ✅（2026-08-21，`20c17d3`）：**
+- baa-review.js 批量审查结果卡片 filename/title 转义
+- baa-admin.js 团队/项目/角色选择器、用户列表详情 全部 escHtml
+- baa-analysis.js 历史记录表格 drawingName 转义
+- 修正 Phase 1 语法错误（const 误入字符串拼接）
+- 语法检查: 5个JS文件 node --check 全通过 ✅
+- 剩余 innerHTML += 均为安全硬编码拼接，不再处理用户输入
 
 **具体动作：**
 1. **XSS防护**
