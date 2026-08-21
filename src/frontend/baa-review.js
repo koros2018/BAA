@@ -1,3 +1,15 @@
+// P122: escHtml 在 baa-review.js 加载时 baa-ext.js 尚未加载，本地定义兜底
+if (typeof escHtml !== 'function') {
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+}
+
 // ── 概览页 ──────────────────────────────────────────────
 async function loadDashboard() {
   try {
@@ -117,22 +129,27 @@ async function runReview() {
         '<div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + tc.needs_review + '</div><div class="text-xs text-gray-400">🔴 建议复核</div></div>' +
         '</div>';
 
-      if (result.summary?.entity_types) {
-        summary.innerHTML += '<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">';
-        for (const [type, count] of Object.entries(result.summary.entity_types)) {
-          summary.innerHTML += '<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + type + ': ' + count + '</span>';
+      if (result.summary?.entity_types || result.queue_info?.task_id || result.task_id) {
+        const summaryExtras = [];
+        if (result.summary?.entity_types) {
+          const entityParts = [];
+          for (const [type, count] of Object.entries(result.summary.entity_types)) {
+            entityParts.push('<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + escHtml(type) + ': ' + count + '</span>');
+          }
+          summaryExtras.push('<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">' + entityParts.join('') + '</div>');
         }
-        summary.innerHTML += '</div>';
-      }
-
-      // PDF 下载按钮（P69: 用审查 task_id 作为 review_id）
-      const reviewId = result.queue_info?.task_id || result.task_id || '';
-      if (reviewId) {
-        summary.innerHTML += '<div class="mt-3 flex gap-2">' +
-          '<button onclick="downloadReviewPdf(\'' + reviewId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
-          '<button onclick="downloadReviewExport(\'' + reviewId + '\', \'' + 'json' + '\')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
-          '<button onclick="downloadReviewExport(\'' + reviewId + '\', \'' + 'csv' + '\')" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">📊 导出CSV</button>' +
-          '</div>';
+        const reviewId = result.queue_info?.task_id || result.task_id || '';
+        if (reviewId) {
+          const safeReviewId = escHtml(reviewId);
+          summaryExtras.push(
+            '<div class="mt-3 flex gap-2">' +
+            '<button onclick="downloadReviewPdf(\'' + safeReviewId + '\')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button>' +
+            '<button onclick="downloadReviewExport(\'' + safeReviewId + '\', \'' + 'json' + '\')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button>' +
+            '<button onclick="downloadReviewExport(\'' + safeReviewId + '\', \'' + 'csv' + '\')" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">📊 导出CSV</button>' +
+            '</div>'
+          );
+        }
+        summary.innerHTML += summaryExtras.join('');
       }
 
       const details = document.getElementById('review-details');
@@ -152,18 +169,16 @@ async function runReview() {
         const sevColors = {critical: 'bg-red-500', major: 'bg-orange-500', minor: 'bg-yellow-400'};
         const sevLabels = {critical: '严重', major: '主要', minor: '轻微'};
         const sevTextColors = {critical: 'text-red-700', major: 'text-orange-700', minor: 'text-yellow-700'};
-        details.innerHTML += '<div class="grid grid-cols-3 gap-2 mb-3">';
-        ['critical', 'major', 'minor'].forEach(sev => {
+        const sevGrid = ['critical', 'major', 'minor'].map(sev => {
           const count = severityCounts[sev] || 0;
           const pct = totalViols > 0 ? (count / totalViols * 100).toFixed(0) : 0;
-          details.innerHTML +=
-            '<div class="card p-2 text-center">' +
+          return '<div class="card p-2 text-center">' +
             '<div class="text-lg font-bold ' + (sevTextColors[sev] || 'text-gray-600') + '">' + count + '</div>' +
             '<div class="text-xs text-gray-400">' + (sevLabels[sev] || sev) + '</div>' +
             '<div class="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div class="' + (sevColors[sev] || 'bg-gray-400') + ' h-1.5 rounded-full" style="width:' + pct + '%"></div></div>' +
             '</div>';
         });
-        details.innerHTML += '</div>';
+        details.innerHTML += '<div class="grid grid-cols-3 gap-2 mb-3">' + sevGrid.join('') + '</div>';
       }
 
       // findings可能是数组或旧的ID列表
@@ -974,13 +989,15 @@ async function runBatchReview() {
     resp.results.forEach(r => {
       if (r.status === 'error') {
         fileHtml += '<div class="card p-2 text-xs border-l-2 border-red-500 bg-red-50">' +
-          '<p class="font-medium text-red-600">❌ ' + r.filename + '</p>' +
-          '<p class="text-gray-500">' + r.message + '</p></div>';
+          '<p class="font-medium text-red-600">❌ ' + escHtml(r.filename || '') + '</p>' +
+          '<p class="text-gray-500">' + escHtml(r.message || '') + '</p></div>';
         return;
       }
       const s = r.summary;
       const isClean = s.violations === 0;
       const sevColor = isClean ? 'green' : (s.violations >= 20 ? 'red' : 'orange');
+      // P122 XSS: filename 来自后端，escHtml 转义
+      const safeFilename = escHtml(r.filename || '');
       const total = s.total_checks || 0;
       const passRate = total > 0 ? Math.round((1 - s.violations / total) * 100) : 100;
 
@@ -1006,7 +1023,7 @@ async function runBatchReview() {
 
       fileHtml += '<div class="card p-2 text-xs border-l-2 border-' + sevColor + '-500">' +
         '<div class="flex items-center justify-between mb-1">' +
-        '<p class="font-medium truncate" title="' + r.filename + '">' + (r.filename.length > 24 ? r.filename.slice(0, 21) + '...' : r.filename) + '</p>' +
+        '<p class="font-medium truncate" title="' + safeFilename + '">' + safeFilename + '</p>' +
         '<span class="text-' + sevColor + '-600 font-medium text-sm">' + (isClean ? '✓' : s.violations) + '</span>' +
         '</div>' +
         '<p class="text-gray-500 text-[10px]">' + s.total_entities + ' 实体 · ' + (r.buildingType === 'civil' ? '民用' : '工业') + '</p>' +
@@ -1740,20 +1757,29 @@ function onCompareSelect() {
     const severityOrder = {'critical': 0, 'major': 1, 'minor': 2};
     const sorted = [...viols].sort((a, b) => (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2));
     
+    // P122 XSS 防护：违规数据全部 escHtml 转义，innerHTML += → 拼接后统一赋值
+    const parts = [];
     sorted.forEach(f => {
       const sevColor = f.severity === 'critical' ? 'red' : f.severity === 'major' ? 'orange' : 'yellow';
       const sevLabel = f.severity === 'critical' ? '严重' : f.severity === 'major' ? '主要' : '轻微';
-      violationsDiv.innerHTML +=
+      const clauseTitle = escHtml(f.clause_title || '');
+      const clauseId = escHtml(f.clause_id || '');
+      const entityType = escHtml(f.entity_type || '');
+      const explanation = escHtml(f.explanation || '');
+      const result = escHtml(f.result || '');
+      parts.push(
         '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5">' +
         '<div class="flex justify-between items-start">' +
-        '<div><span class="font-medium">' + (f.clause_title || '') + '</span> <span class="text-gray-400">(' + (f.clause_id || '') + ')</span></div>' +
+        '<div><span class="font-medium">' + clauseTitle + '</span> <span class="text-gray-400">(' + clauseId + ')</span></div>' +
         '<div class="flex gap-1">' +
         '<span class="px-1 py-0.5 rounded text-xs bg-' + sevColor + '-100 text-' + sevColor + '-700">' + sevLabel + '</span>' +
-        '<span class="text-' + sevColor + '-600 font-medium">' + f.result + '</span></div></div>' +
-        '<span class="text-gray-500">' + (f.entity_type || '') + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
-        '<span class="text-gray-400">' + (f.explanation || '') + '</span>' +
-        '</div>';
+        '<span class="text-' + sevColor + '-600 font-medium">' + result + '</span></div></div>' +
+        '<span class="text-gray-500">' + entityType + ' · 实测: ' + (f.extracted_value || 0).toFixed(2) + ' · 要求: ' + (f.required_value || 0) + '</span><br/>' +
+        '<span class="text-gray-400">' + explanation + '</span>' +
+        '</div>'
+      );
     });
+    violationsDiv.innerHTML = violationsDiv.innerHTML + parts.join('');
   }
   
   // 可视化叠加
@@ -1765,6 +1791,8 @@ function onCompareSelect() {
   if (corrs.length === 0) {
     corrDiv.innerHTML = '<div class="text-xs text-gray-400">无修正建议</div>';
   } else {
+    // P122 XSS: 修正建议字段全部 escHtml 转义
+    const parts = [];
     corrs.slice(0, 10).forEach((c, ci) => {
       const pColor = c.priority === 'high' ? 'red' : c.priority === 'medium' ? 'yellow' : 'gray';
       const pLabel = c.priority === 'high' ? '高优先级' : c.priority === 'medium' ? '中优先级' : '低优先级';
@@ -1773,18 +1801,24 @@ function onCompareSelect() {
       const accepted = savedStatus === 'accepted';
       const rejected = savedStatus === 'rejected';
       const statusBadge = accepted ? '<span class="text-green-600 text-xs">✅ 已确认</span>' : rejected ? '<span class="text-red-400 text-xs">❌ 已拒绝</span>' : '';
-      corrDiv.innerHTML +=
+      const safeClauseTitle = escHtml(c.clause_title || '');
+      const safeAction = escHtml(c.action || '');
+      const safeRecommendation = escHtml(c.recommendation || '');
+      const safeReviewId = escHtml(r.id || '');
+      parts.push(
         '<div class="p-2 bg-green-50 rounded text-xs mb-1.5 ' + (rejected ? 'opacity-50' : '') + '">' +
         '<div class="flex justify-between items-start">' +
-        '<div><span class="font-medium">' + (c.clause_title || '') + '</span> ' + statusBadge + '</div>' +
+        '<div><span class="font-medium">' + safeClauseTitle + '</span> ' + statusBadge + '</div>' +
         '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + pColor + '-100 text-' + pColor + '-800">' + pLabel + '</span></div>' +
-        '<div class="text-gray-500">操作: ' + (c.action || '') + '</div>' +
-        '<div class="text-gray-700 mt-1">' + (c.recommendation || '') + '</div>' +
+        '<div class="text-gray-500">操作: ' + safeAction + '</div>' +
+        '<div class="text-gray-700 mt-1">' + safeRecommendation + '</div>' +
         '<div class="flex gap-1 mt-1.5">' +
-        '<button onclick="confirmCorrection(\'' + r.id + '\',' + ci + ',true)" class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 ' + (accepted ? 'opacity-50' : '') + '" ' + (accepted ? 'disabled' : '') + '>✅ 确认</button>' +
-        '<button onclick="confirmCorrection(\'' + r.id + '\',' + ci + ',false)" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 ' + (rejected ? 'opacity-50' : '') + '" ' + (rejected ? 'disabled' : '') + '>❌ 拒绝</button>' +
-        '</div></div>';
+        '<button onclick="confirmCorrection(\'' + safeReviewId + '\',' + ci + ',true)" class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 ' + (accepted ? 'opacity-50' : '') + '" ' + (accepted ? 'disabled' : '') + '>✅ 确认</button>' +
+        '<button onclick="confirmCorrection(\'' + safeReviewId + '\',' + ci + ',false)" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 ' + (rejected ? 'opacity-50' : '') + '" ' + (rejected ? 'disabled' : '') + '>❌ 拒绝</button>' +
+        '</div></div>'
+      );
     });
+    corrDiv.innerHTML = corrDiv.innerHTML + parts.join('');
   }
 
   // 修正后预览
