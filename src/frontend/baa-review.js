@@ -155,8 +155,11 @@ async function runReview() {
       const details = document.getElementById('review-details');
       details.innerHTML = '';
 
-      // ── P62: 结构化摘要卡片（违规 TOP-5 + 整改优先级 + 合规路径） ──
+// ── P62: 结构化摘要卡片（违规 TOP-5 + 整改优先级 + 合规路径） ──
       renderStructuredSummary(result.structured_summary || {}, result.summary || {});
+
+      // ── P119: 违规审核工作流 — 审查完成后自动初始化后端审计条目 ──
+      _initAuditItems(result);
 
       // 统计面板：违规严重度分布
       const severityCounts = {};
@@ -318,9 +321,26 @@ async function runReview() {
               html += '<div class="mt-0.5 p-1 bg-' + pColor + '-50 rounded border-l-2 border-' + pColor + '-400">';
               html += '<p class="text-xs"><span class="text-' + pColor + '-600">' + pLabel + '</span> ' + top.recommendation + '</p>';
               if (Object.keys(top.parameters || {}).length > 0) {
-                html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(top.parameters) + '</p>';
+              html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(top.parameters) + '</p>';
               }
               html += '</div></details>';
+            }
+
+            // ── P119: 违规审核按钮 ──
+            if (window._reviewAuditMapping) {
+              const detailList = window._reviewAuditDetailList || [];
+              const reviewId = window._reviewAuditMapping.reviewId;
+              const fid = f.func_id || f.clause_id || '';
+              const eid = f.entity_id || '';
+              let auditItemId = null;
+              for (let i = 0; i < detailList.length; i++) {
+                const d = detailList[i];
+                const dfid = d.func_id || d.clause_id || '';
+                const deid = d.entity_id || '';
+                if (dfid === fid && deid === eid) { auditItemId = reviewId + ':' + i; break; }
+              }
+              const auditState = (window._reviewAuditStates && window._reviewAuditStates[auditItemId]) || 'unreviewed';
+              html += renderAuditButtons(auditItemId, auditState, fid);
             }
             html += '</div>';
           });
@@ -1899,6 +1919,142 @@ function confirmCorrection(reviewId, corrIdx, accepted) {
   // 刷新对比页面的修正建议
   const select = document.getElementById('compare-drawing-select');
   if (select && select.value) onCompareSelect();
+}
+
+// ── P119: 违规审核工作流 ──────────────────────────────────
+
+/**
+ * 审查完成后，从 findings/details 批量初始化后端审计条目
+ * 后端返回 item_id 格式为 "{review_id}:{index}"，前端据此映射
+ * 结果存入 window._reviewAuditMapping 供确认/驳回按钮使用
+ */
+async function _initAuditItems(result) {
+  const reviewId = result.queue_info?.task_id || result.task_id || '';
+  if (!reviewId) {
+    return;  // 无 review_id 则不初始化审计
+  }
+
+  const details = (result.findings || []).filter(f => f.result === 'FAIL' && !f.is_duplicate);
+  if (details.length === 0) {
+    window._reviewAuditMapping = {};
+    return;
+  }
+
+  try {
+    const url = API_BASE() + '/api/v1/audit/items';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { ...HEADERS(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id: reviewId, details: details }),
+    });
+    if (r.ok) {
+      const resp = await r.json();
+      // 后端 item_id = "{review_id}:{idx}"，按 FAIL 详情顺序映射
+      const mapping = {};
+      details.forEach((d, i) => {
+        const fid = d.func_id || d.clause_id || '';
+        const eid = d.entity_id || '';
+        mapping[fid + ':' + eid + ':' + i] = reviewId + ':' + i;
+      });
+      window._reviewAuditMapping = { mapping, reviewId };
+      window._reviewAuditDetailList = details;
+
+      // 加载后端审计条目状态（供按钮正确显示已确认/已驳回等状态）
+      _loadAuditItemStates(reviewId);
+    }
+  } catch (err) {
+    console.warn('[P119] 审计条目初始化失败:', err.message);
+  }
+}
+
+/**
+ * 从后端加载审计条目状态，缓存到 window._reviewAuditStates
+ */
+async function _loadAuditItemStates(reviewId) {
+  try {
+    const url = API_BASE() + '/api/v1/audit/items?review_id=' + encodeURIComponent(reviewId);
+    const r = await fetch(url, { headers: HEADERS() });
+    if (r.ok) {
+      const resp = await r.json();
+      const states = {};
+      (resp.items || []).forEach(item => { states[item.id] = item.status; });
+      window._reviewAuditStates = states;
+    }
+  } catch (err) {
+    console.warn('[P119] 审计状态加载失败:', err.message);
+  }
+}
+
+/**
+ * 渲染 P119 审核操作按钮（确认/驳回/待核实）
+ * 根据后端 item 状态显示对应操作按钮
+ *
+ * @param {string} itemId  - 后端审计条目 ID
+ * @param {string} itemStatus - 后端返回的 status
+ * @param {string} clauseId - 条款 ID（用于 UI 展示）
+ * @returns {string} HTML 按钮字符串
+ */
+function renderAuditButtons(itemId, itemStatus, clauseId) {
+  if (!itemId) return '';
+
+  const safeClause = escHtml(clauseId || '');
+  let html = '<div class="flex gap-1 mt-1"><span class="text-[10px] text-gray-400">审核:</span>';
+
+  switch (itemStatus) {
+    case 'confirmed':
+      html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ 已确认</span>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'dismiss\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700">↩ 驳回</button>';
+      break;
+    case 'dismissed':
+      html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">❌ 已驳回</span>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'confirm\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700">↩ 确认</button>';
+      break;
+    case 'pending':
+      html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ 待核实</span>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'confirm\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'dismiss\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>';
+      break;
+    default: // unreviewed
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'confirm\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'dismiss\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>';
+      html += '<button onclick="auditAction(\'' + itemId + '\',\'pending\',\'' + safeClause + '\')" class="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">⏳ 待核实</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/**
+ * 发起 P119 审计操作（确认/驳回/待核实），调用后端 API 后刷新违规列表
+ *
+ * @param {string} itemId  - 后端审计条目 ID
+ * @param {string} action  - 'confirm' | 'dismiss' | 'pending'
+ * @param {string} clauseId - 条款 ID（仅用于日志/展示）
+ */
+async function auditAction(itemId, action, clauseId) {
+  const safeAction = escHtml(action || '');
+  try {
+    let body = {};
+    let method = 'POST';
+    if (action === 'dismiss') {
+      body = { reason: '人工驳回' };
+    }
+    const url = API_BASE() + '/api/v1/audit/items/' + encodeURIComponent(itemId) + '/' + safeAction;
+    const r = await fetch(url, {
+      method: method,
+      headers: { ...HEADERS(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      showToast('操作失败: ' + (err.detail || r.statusText), 'error');
+      return;
+    }
+    showToast((action === 'confirm' ? '✅ 已确认违规' : action === 'dismiss' ? '❌ 已驳回（误报）' : '⏳ 已标记待核实') + ' ' + escHtml(clauseId || ''), 'info');
+    // 刷新违规列表以反映状态变化
+    renderViolationPage && renderViolationPage();
+  } catch (err) {
+    showToast('网络错误: ' + err.message, 'error');
+  }
 }
 
 // ── P45 热工性能计算 ────────────────────────────────────────
