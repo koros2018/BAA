@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: resolve(__dirname, '../static'),
+    outDir: resolve(__dirname, 'static'),
     emptyOutDir: true,
     lib: {
       entry: resolve(__dirname, 'ts/main.ts'),
