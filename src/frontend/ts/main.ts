@@ -1,7 +1,6 @@
 // ── P123 Phase 1: Vite 入口 ──────────────────────────────
 // 渐进式迁移第1步：将 baa-core.js 拆为模块化 TypeScript
 // 此入口将所有模块函数挂载到 window，保持与旧 .js 文件兼容
-// index.html 加载此 bundle 替代 baa-core.js
 
 import {
   formatDate,
@@ -34,40 +33,57 @@ import {
   adminPost,
   adminDelete,
 } from './core/api-client';
+import { appState } from './core/state';
+import { initNavigation, testConnection as testConn } from './core/page-nav';
+import {
+  loadKeys,
+  getActiveKeyValue,
+  getKeys,
+  setActiveKey,
+  populateTokenSelect,
+  switchApiKey,
+  deleteCurrentApiKey,
+  addApiKey,
+  deleteApiKey,
+  copyApiKey,
+} from './core/key-manager';
+import {
+  initAdminToken,
+  loadAdminKeys,
+  openCreateKeyModal,
+  closeCreateKeyModal,
+  createAdminKey,
+  copyCreatedKey,
+  closeKeyCreatedModal,
+  showKeyDetail,
+  showDetailRawKey,
+  copyDetailRawKey,
+  copyKeyFromDetail,
+  closeKeyDetailModal,
+  confirmRevokeKey,
+  confirmDeleteKey,
+  revokeAdminKey,
+} from './core/admin-keys';
+import {
+  showDrawingReviewPanel,
+  switchDrawingTab,
+  loadReviewContext,
+  onReviewTeamSelect,
+  onReviewProjectSelect,
+} from './core/review-panel';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 initApiClient({
   apiBase: () => getApiBase(),
-  getActiveKeyValue: () => {
-    try {
-      const stored = localStorage.getItem('baa_api_keys');
-      const keys: Array<{ id: string; key: string }> = stored ? JSON.parse(stored) : [];
-      const activeKey = localStorage.getItem('baa_active_key') || '';
-      const k = keys.find((x) => x.id === activeKey);
-      return k ? k.key : '';
-    } catch {
-      return '';
-    }
-  },
-  currentTeamId: () => localStorage.getItem('baa_team_id') || '',
-  currentProjectId: () => localStorage.getItem('baa_project_id') || '',
+  getActiveKeyValue,
+  currentTeamId: () => appState.teamId,
+  currentProjectId: () => appState.projectId,
 });
 
-// 初始化 admin token
-(async () => {
-  try {
-    const r = await fetch(getApiBase() + '/admin/bootstrap-key');
-    if (r.ok) {
-      const d = await r.json();
-      if (d.status === 'success' && d.admin_key) setAdminToken(d.admin_key);
-    }
-  } catch {
-    /* dev mode: no admin token needed */
-  }
-})();
+// ── 初始化 admin token ────────────────────────────────────
+initAdminToken();
 
 // ── 向后兼容：所有旧全局函数挂载到 window ──────────────────
-// Vite 模块构建后，函数不再自动暴露到全局，需手动挂载。
 const w = window as unknown as Record<string, unknown>;
 
 w.formatDate = formatDate;
@@ -77,7 +93,6 @@ w.permissionBadge = permissionBadge;
 w.enabledBadge = enabledBadge;
 w.uid = uid;
 w.mergeDeep = mergeDeep;
-
 w.showToast = showToast;
 
 w.showSkeleton = showSkeleton;
@@ -96,7 +111,51 @@ w.apiFetch = apiFetch;
 w.adminGet = adminGet;
 w.adminPost = adminPost;
 w.adminDelete = adminDelete;
-
 w.apiPost = async (path: string, body: unknown) => apiPostJSON(path, body);
+
+w.getCurrentTeamId = () => appState.teamId;
+w.getCurrentProjectId = () => appState.projectId;
+w.setCurrentTeamId = (id?: string) => appState.setTeamId(id || '');
+w.setCurrentProjectId = (id?: string) => appState.setProjectId(id || '');
+w.loadApiBase = () => appState.loadApiBase();
+w.saveApiBase = () => appState.saveApiBase();
+
+w.getApiKey = () => getActiveKeyValue();
+w.getActiveKeyValue = getActiveKeyValue;
+w.loadApiKeys = loadKeys;
+w.saveApiKeys = () => {};
+w.switchApiKey = switchApiKey;
+w.deleteCurrentApiKey = deleteCurrentApiKey;
+w.addApiKey = addApiKey;
+w.deleteApiKey = deleteApiKey;
+w.copyApiKey = copyApiKey;
+w.populateTokenSelect = populateTokenSelect;
+
+w.initAdminToken = initAdminToken;
+w.loadAdminKeys = loadAdminKeys;
+w.openCreateKeyModal = openCreateKeyModal;
+w.closeCreateKeyModal = closeCreateKeyModal;
+w.createAdminKey = createAdminKey;
+w.copyCreatedKey = copyCreatedKey;
+w.closeKeyCreatedModal = closeKeyCreatedModal;
+w.showKeyDetail = showKeyDetail;
+w.showDetailRawKey = showDetailRawKey;
+w.copyDetailRawKey = copyDetailRawKey;
+w.copyKeyFromDetail = copyKeyFromDetail;
+w.closeKeyDetailModal = closeKeyDetailModal;
+w.confirmRevokeKey = confirmRevokeKey;
+w.confirmDeleteKey = confirmDeleteKey;
+w.revokeAdminKey = revokeAdminKey;
+
+w.showDrawingReviewPanel = showDrawingReviewPanel;
+w.switchDrawingTab = switchDrawingTab;
+w.loadReviewContext = loadReviewContext;
+w.onReviewTeamSelect = onReviewTeamSelect;
+w.onReviewProjectSelect = onReviewProjectSelect;
+
+w.testConnection = testConn;
+
+// 页面加载完成时初始化导航
+document.addEventListener('DOMContentLoaded', initNavigation);
 
 console.log('[P123] Vite TS core modules loaded');
