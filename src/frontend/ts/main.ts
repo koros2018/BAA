@@ -71,6 +71,12 @@ import {
   onReviewTeamSelect,
   onReviewProjectSelect,
 } from './core/review-panel';
+import { getSpecData, setSpecData } from './core/spec-data';
+import {
+  importServerKey,
+  importSelectedKey,
+  closeImportKeyModal,
+} from './core/import-key';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 initApiClient({
@@ -154,6 +160,18 @@ w.onReviewTeamSelect = onReviewTeamSelect;
 w.onReviewProjectSelect = onReviewProjectSelect;
 
 w.testConnection = testConn;
+
+// SPEC_DATA 挂载到 window（baa-admin.js / baa-review.js 直接引用）
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'SPEC_DATA', {
+    get: () => getSpecData(),
+    set: (v: unknown) => setSpecData(v as Array<Record<string, unknown>>),
+  });
+}
+
+w.importServerKey = importServerKey;
+w.importSelectedKey = importSelectedKey;
+w.closeImportKeyModal = closeImportKeyModal;
 
 // 页面加载完成时初始化导航
 document.addEventListener('DOMContentLoaded', initNavigation);
