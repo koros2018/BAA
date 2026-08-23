@@ -2,6 +2,7 @@
 // 从 baa-core.js 拆出本地 apiKeys 管理和 import 逻辑
 // 旧 .js 文件通过 window 全局访问，此处兼容挂载
 
+import { apiGet } from './api-client';
 import { showToast } from './toast';
 import { maskKey, escHtml } from './utils';
 
@@ -114,6 +115,30 @@ export function copyApiKey(id: string): void {
     () => showToast('令牌已复制到剪贴板', 'info'),
     () => showToast('复制失败，请手动复制', 'error'),
   );
+}
+
+/**
+ * 从服务端刷新密钥列表（更新本地提示文字，不修改已选令牌）
+ * index.html 通过 onclick="refreshTokenSelect()" 调用
+ */
+export async function refreshTokenSelect(): Promise<void> {
+  const btn = document.querySelector('#active-key-select + button') as HTMLButtonElement | null;
+  const hint = document.getElementById('token-hint') as HTMLElement | null;
+  if (btn) btn.textContent = '⏳';
+  if (hint) hint.textContent = '正在从服务端刷新密钥列表...';
+  try {
+    const data = (await apiGet('/admin/keys')) as Record<string, unknown>;
+    const keys = data?.data as Array<Record<string, unknown>> | undefined;
+    if (keys && keys.length > 0) {
+      if (hint) hint.textContent = `✅ 服务端有 ${keys.length} 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。`;
+    } else {
+      if (hint) hint.textContent = '服务端暂无可用密钥，请先在「密钥管理」页面创建。';
+    }
+  } catch (e) {
+    if (hint) hint.textContent = '❌ 刷新失败: ' + (e as Error).message + '（请确认当前令牌有admin权限）';
+  } finally {
+    if (btn) btn.textContent = '🔄';
+  }
 }
 
 // ── 向后兼容 ──────────────────────────────────────────────

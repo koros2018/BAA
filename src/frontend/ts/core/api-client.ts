@@ -154,4 +154,6 @@ if (typeof window !== 'undefined') {
   window.adminPost = adminPost;
   window.adminDelete = adminDelete;
   window.adminHeaders = (m?: string) => getAdminHeaders(m);
+  // 兼容旧 baa-core.js 的 apiPost（与 apiPostJSON 功能相同）
+  window.apiPost = (path: string, body: unknown) => apiPostJSON(path, body);
 }
