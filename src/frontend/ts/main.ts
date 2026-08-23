@@ -82,6 +82,8 @@ import { openModal } from './components/modal';
 import { renderFilterBar } from './components/filter-bar';
 import { renderReviewItem } from './components/review-item';
 import { renderReviewTable } from './components/review-table';
+import { renderViolationOverlay } from './components/drawing-canvas';
+import { runBatchReview as runBatchReviewComponent } from './components/batch-queue';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 initApiClient({
@@ -183,6 +185,8 @@ w.openModal = openModal;
 w.renderFilterBar = renderFilterBar;
 w.renderReviewItem = renderReviewItem;
 w.renderReviewTable = renderReviewTable;
+w.renderViolationOverlay = renderViolationOverlay;
+w.runBatchReviewComponent = runBatchReviewComponent;
 
 // 页面加载完成时初始化导航
 document.addEventListener('DOMContentLoaded', initNavigation);
