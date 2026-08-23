@@ -1,2 +1,4 @@
 node_modules/
 ts-dist/
+# Vite build output — rebuild on demand
+baa-core-bundle.iife.js
