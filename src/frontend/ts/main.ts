@@ -91,6 +91,8 @@ import { runBatchReview as runBatchReviewComponent } from './components/batch-qu
 import { loadDashboard, renderRecentReviews, renderSpecFreqBars, renderViolationTypeBars } from './components/dashboard';
 import { loadReviewResults, fallbackLoadReviewResults, refreshCompareDrawingSelect } from './components/review-storage';
 import { downloadReviewPdf, downloadReviewExport, downloadReviewJSON } from './components/export';
+import { loadFeedbackStats, loadFeedbacks, submitFeedback } from './components/feedback';
+import { _onDiffFileSelect, runDiffComparison, renderDiffResults, renderDiffItemPanel, switchDiffTab, loadDiffVisualization, clearDiffResults } from './components/diff-compare';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 // 注意：apiBase 不能调用 getApiBase()（会无限递归），直接读 DOM
@@ -188,6 +190,16 @@ w.refreshCompareDrawingSelect = refreshCompareDrawingSelect;
 w.downloadReviewPdf = downloadReviewPdf;
 w.downloadReviewExport = downloadReviewExport;
 w.downloadReviewJSON = downloadReviewJSON;
+w.loadFeedbackStats = loadFeedbackStats;
+w.loadFeedbacks = loadFeedbacks;
+w.submitFeedback = submitFeedback;
+w._onDiffFileSelect = _onDiffFileSelect;
+w.runDiffComparison = runDiffComparison;
+w.renderDiffResults = renderDiffResults;
+w.renderDiffItemPanel = renderDiffItemPanel;
+w.switchDiffTab = switchDiffTab;
+w.loadDiffVisualization = loadDiffVisualization;
+w.clearDiffResults = clearDiffResults;
 
 w.testConnection = testConn;
 w.router = router;
