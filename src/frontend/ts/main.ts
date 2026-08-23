@@ -86,8 +86,11 @@ import { renderViolationOverlay } from './components/drawing-canvas';
 import { runBatchReview as runBatchReviewComponent } from './components/batch-queue';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
+// 注意：apiBase 不能调用 getApiBase()（会无限递归），直接读 DOM
 initApiClient({
-  apiBase: () => getApiBase(),
+  apiBase: () =>
+    (document.getElementById('api-base') as HTMLInputElement | null)?.value ||
+    'http://localhost:8000',
   getActiveKeyValue,
   currentTeamId: () => appState.teamId,
   currentProjectId: () => appState.projectId,
@@ -168,13 +171,7 @@ w.onReviewProjectSelect = onReviewProjectSelect;
 
 w.testConnection = testConn;
 
-// SPEC_DATA 挂载到 window（baa-admin.js / baa-review.js 直接引用）
-if (typeof window !== 'undefined') {
-  Object.defineProperty(window, 'SPEC_DATA', {
-    get: () => getSpecData(),
-    set: (v: unknown) => setSpecData(v as Array<Record<string, unknown>>),
-  });
-}
+// SPEC_DATA 已在 spec-data.ts 中挂载到 window，此处不重复定义
 
 w.importServerKey = importServerKey;
 w.importSelectedKey = importSelectedKey;
