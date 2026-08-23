@@ -1,5 +1,5 @@
 // ── P123 Phase 1 Step 2: 全局状态模块 ────────────────────
-// 从 baa-core.js 拆出 currentTeamId/currentProjectId 状态
+// P123 Phase 3: 扩展为轻量状态管理（替代全局 var/let 泛滥）
 // 兼容旧 var currentTeamId/currentProjectId 全局变量
 
 export class AppState {
@@ -7,6 +7,10 @@ export class AppState {
   private _projectId = localStorage.getItem('baa_project_id') || '';
   private _historyTeamFilter = '';
   private _historyProjectFilter = '';
+  // P123 Phase 3: 审查状态
+  private _currentReviewId = '';
+  private _reviewAuditMapping: Record<string, unknown> | null = null;
+  private _reviewAuditStates: Record<string, string> = {};
 
   get teamId(): string {
     return this._teamId;
@@ -20,6 +24,15 @@ export class AppState {
   get historyProjectFilter(): string {
     return this._historyProjectFilter;
   }
+  get currentReviewId(): string {
+    return this._currentReviewId;
+  }
+  get reviewAuditMapping(): Record<string, unknown> | null {
+    return this._reviewAuditMapping;
+  }
+  get reviewAuditStates(): Record<string, string> {
+    return this._reviewAuditStates;
+  }
 
   setTeamId(id: string): void {
     this._teamId = id || '';
@@ -28,6 +41,15 @@ export class AppState {
   setProjectId(id: string): void {
     this._projectId = id || '';
     localStorage.setItem('baa_project_id', this._projectId);
+  }
+  setCurrentReviewId(id: string): void {
+    this._currentReviewId = id || '';
+  }
+  setReviewAuditMapping(v: Record<string, unknown> | null): void {
+    this._reviewAuditMapping = v;
+  }
+  setReviewAuditStates(v: Record<string, string>): void {
+    this._reviewAuditStates = v;
   }
 
   setHistoryTeamFilter(v: string): void {

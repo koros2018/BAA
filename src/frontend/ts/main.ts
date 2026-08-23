@@ -34,7 +34,9 @@ import {
   adminDelete,
 } from './core/api-client';
 import { appState } from './core/state';
-import { initNavigation, testConnection as testConn } from './core/page-nav';
+import { testConnection as testConn } from './core/page-nav';
+// P123 Phase 3: Hash 路由 + 状态管理
+import { router } from './core/router';
 import {
   loadKeys,
   getActiveKeyValue,
@@ -170,6 +172,7 @@ w.onReviewTeamSelect = onReviewTeamSelect;
 w.onReviewProjectSelect = onReviewProjectSelect;
 
 w.testConnection = testConn;
+w.router = router;
 
 // SPEC_DATA 已在 spec-data.ts 中挂载到 window，此处不重复定义
 
@@ -185,7 +188,7 @@ w.renderReviewTable = renderReviewTable;
 w.renderViolationOverlay = renderViolationOverlay;
 w.runBatchReviewComponent = runBatchReviewComponent;
 
-// 页面加载完成时初始化导航
-document.addEventListener('DOMContentLoaded', initNavigation);
+// P123 Phase 3: router 已在构造函数中初始化 hash 路由 + popstate/hashchange 监听
+// 不再需要旧的 sidebar onclick 监听（page-nav.ts 的 initNavigation 已由 router 替代）
 
 console.log('[P123] Vite TS core modules loaded');
