@@ -18,21 +18,25 @@ export async function loadDashboard(): Promise<void> {
     await loadReviewResults();
     const results = getReviewResults();
 
-    const stats = document.getElementById('home-stats') as HTMLElement | null;
+const stats = document.getElementById('home-stats') as HTMLElement | null;
     if (stats) {
       const cards = stats.querySelectorAll('.stat-card');
-      if (cards[0]) (cards[0].querySelector('.text-2xl') as HTMLElement).textContent = String(results.length);
+      const el0 = cards[0] && (cards[0].querySelector('.text-2xl') as HTMLElement | null);
+      if (el0) el0.textContent = String(results.length);
       const specData = getSpecData() as Array<Record<string, unknown>>;
-      if (cards[1]) (cards[1].querySelector('.text-2xl') as HTMLElement).textContent = String(specData.length);
+      const el1 = cards[1] && (cards[1].querySelector('.text-2xl') as HTMLElement | null);
+      if (el1) el1.textContent = String(specData.length);
       if (results.length > 0) {
         const totalV = results.reduce((s, r) => s + (Array.isArray(r.details) ? r.details.length : 0), 0);
-        const totalC = results.reduce(
-          (s, r) => s + ((typeof r.summary === 'object' && r.summary !== null ? Number((r.summary as Record<string, unknown>).total_checks || 0) : 0)),
-          0,
-        );
+        const totalC = results.reduce((s, r) => {
+          const sm = r.summary as Record<string, unknown> | undefined;
+          return s + ((sm && typeof sm === 'object' ? Number(sm.total_checks || 0) : 0));
+        }, 0);
         const passRate = totalC > 0 ? Math.round((1 - totalV / totalC) * 100) + '%' : '--';
-        (cards[2].querySelector('.text-2xl') as HTMLElement).textContent = passRate;
-        (cards[3].querySelector('.text-2xl') as HTMLElement).textContent = String((results[0] as Record<string, unknown>).drawingName || '');
+        const el2 = cards[2] && (cards[2].querySelector('.text-2xl') as HTMLElement | null);
+        if (el2) el2.textContent = passRate;
+        const el3 = cards[3] && (cards[3].querySelector('.text-2xl') as HTMLElement | null);
+        if (el3) el3.textContent = String((results[0] as Record<string, unknown>).drawingName || '');
       }
     }
 
