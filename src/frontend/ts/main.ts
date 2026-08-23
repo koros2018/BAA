@@ -93,6 +93,9 @@ import { loadReviewResults, fallbackLoadReviewResults, refreshCompareDrawingSele
 import { downloadReviewPdf, downloadReviewExport, downloadReviewJSON } from './components/export';
 import { loadFeedbackStats, loadFeedbacks, submitFeedback } from './components/feedback';
 import { _onDiffFileSelect, runDiffComparison, renderDiffResults, renderDiffItemPanel, switchDiffTab, loadDiffVisualization, clearDiffResults } from './components/diff-compare';
+import { onThermalCompTypeChange, renderThermalThresholds, computeThermalK, renderThermalViolations } from './components/thermal';
+import { generateCorrectionSuggestions, confirmCorrection } from './components/correction';
+import { renderStructuralThresholds, onStructuralCompTypeChange, computeStructuralCheck, renderStructuralViolations } from './components/structural';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 // 注意：apiBase 不能调用 getApiBase()（会无限递归），直接读 DOM
@@ -200,6 +203,16 @@ w.renderDiffItemPanel = renderDiffItemPanel;
 w.switchDiffTab = switchDiffTab;
 w.loadDiffVisualization = loadDiffVisualization;
 w.clearDiffResults = clearDiffResults;
+w.onThermalCompTypeChange = onThermalCompTypeChange;
+w.renderThermalThresholds = renderThermalThresholds;
+w.computeThermalK = computeThermalK;
+w.renderThermalViolations = renderThermalViolations;
+w.generateCorrectionSuggestions = generateCorrectionSuggestions;
+w.confirmCorrection = confirmCorrection;
+w.renderStructuralThresholds = renderStructuralThresholds;
+w.onStructuralCompTypeChange = onStructuralCompTypeChange;
+w.computeStructuralCheck = computeStructuralCheck;
+w.renderStructuralViolations = renderStructuralViolations;
 
 w.testConnection = testConn;
 w.router = router;
