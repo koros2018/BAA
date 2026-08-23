@@ -77,6 +77,11 @@ import {
   importSelectedKey,
   closeImportKeyModal,
 } from './core/import-key';
+// P123 Phase 2: 组件化 — Modal / FilterBar / ReviewItem / ReviewTable
+import { openModal } from './components/modal';
+import { renderFilterBar } from './components/filter-bar';
+import { renderReviewItem } from './components/review-item';
+import { renderReviewTable } from './components/review-table';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 initApiClient({
@@ -172,6 +177,12 @@ if (typeof window !== 'undefined') {
 w.importServerKey = importServerKey;
 w.importSelectedKey = importSelectedKey;
 w.closeImportKeyModal = closeImportKeyModal;
+
+// P123 Phase 2: 组件挂载
+w.openModal = openModal;
+w.renderFilterBar = renderFilterBar;
+w.renderReviewItem = renderReviewItem;
+w.renderReviewTable = renderReviewTable;
 
 // 页面加载完成时初始化导航
 document.addEventListener('DOMContentLoaded', initNavigation);
