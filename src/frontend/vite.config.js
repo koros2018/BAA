@@ -12,8 +12,10 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: resolve(__dirname, 'static'),
-    emptyOutDir: true,
+    // 注意：FastAPI 把 src/frontend/ 挂到 /static/ 路径，
+    // bundle 必须输出到 src/frontend/ 才能被 /static/baa-core-bundle.iife.js 命中
+    outDir: resolve(__dirname),
+    emptyOutDir: false,
     lib: {
       entry: resolve(__dirname, 'ts/main.ts'),
       formats: ['iife'],
