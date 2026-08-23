@@ -48,6 +48,7 @@ import {
   addApiKey,
   deleteApiKey,
   copyApiKey,
+  refreshTokenSelect,
 } from './core/key-manager';
 import {
   initAdminToken,
@@ -148,6 +149,7 @@ w.addApiKey = addApiKey;
 w.deleteApiKey = deleteApiKey;
 w.copyApiKey = copyApiKey;
 w.populateTokenSelect = populateTokenSelect;
+w.refreshTokenSelect = refreshTokenSelect;
 
 w.initAdminToken = initAdminToken;
 w.loadAdminKeys = loadAdminKeys;
