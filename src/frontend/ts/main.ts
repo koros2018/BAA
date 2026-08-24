@@ -96,6 +96,40 @@ import { _onDiffFileSelect, runDiffComparison, renderDiffResults, renderDiffItem
 import { onThermalCompTypeChange, renderThermalThresholds, computeThermalK, renderThermalViolations } from './components/thermal';
 import { generateCorrectionSuggestions, confirmCorrection } from './components/correction';
 import { renderStructuralThresholds, onStructuralCompTypeChange, computeStructuralCheck, renderStructuralViolations } from './components/structural';
+import { loadSpecs, renderSpecList } from './components/specs';
+// P123 Step 3: baa-admin.js Zoom + Collab 组件迁入 TS
+import {
+  zoomImage,
+  zoomSet,
+  zoomReset,
+  zoomFit,
+  zoomClose,
+} from './components/zoom';
+import {
+  collabErrMsg,
+  collabApi,
+  closeCollabModal,
+  setModalBody,
+  showCollabLogin,
+  showCollabRegister,
+  collabLogin,
+  collabRegister,
+  collabLogout,
+  collabEnterMain,
+  updateUserStatus,
+  collabRefresh,
+  loadCollabStats,
+  loadCollabTeams,
+  showCreateTeamModal,
+  createTeam,
+  showTeamDetail,
+  showProjectDetail,
+  showCreateProjectModal,
+  createProject,
+  showCreateReviewSessionModal,
+  createReviewSession,
+  showReviewSessionDetail,
+} from './components/collab';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 // 注意：apiBase 不能调用 getApiBase()（会无限递归），直接读 DOM
@@ -213,6 +247,40 @@ w.renderStructuralThresholds = renderStructuralThresholds;
 w.onStructuralCompTypeChange = onStructuralCompTypeChange;
 w.computeStructuralCheck = computeStructuralCheck;
 w.renderStructuralViolations = renderStructuralViolations;
+
+// P123 Step 3: baa-admin.js specs / zoom / collab 组件
+w.loadSpecs = loadSpecs;
+w.renderSpecList = renderSpecList;
+
+w.zoomImage = zoomImage;
+w.zoomSet = zoomSet;
+w.zoomReset = zoomReset;
+w.zoomFit = zoomFit;
+w.zoomClose = zoomClose;
+
+w.collabErrMsg = collabErrMsg;
+w.collabApi = collabApi;
+w.closeCollabModal = closeCollabModal;
+w.setModalBody = setModalBody;
+w.showCollabLogin = showCollabLogin;
+w.showCollabRegister = showCollabRegister;
+w.collabLogin = collabLogin;
+w.collabRegister = collabRegister;
+w.collabLogout = collabLogout;
+w.collabEnterMain = collabEnterMain;
+w.updateUserStatus = updateUserStatus;
+w.collabRefresh = collabRefresh;
+w.loadCollabStats = loadCollabStats;
+w.loadCollabTeams = loadCollabTeams;
+w.showCreateTeamModal = showCreateTeamModal;
+w.createTeam = createTeam;
+w.showTeamDetail = showTeamDetail;
+w.showProjectDetail = showProjectDetail;
+w.showCreateProjectModal = showCreateProjectModal;
+w.createProject = createProject;
+w.showCreateReviewSessionModal = showCreateReviewSessionModal;
+w.createReviewSession = createReviewSession;
+w.showReviewSessionDetail = showReviewSessionDetail;
 
 w.testConnection = testConn;
 w.router = router;
