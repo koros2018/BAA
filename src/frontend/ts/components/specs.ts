@@ -32,9 +32,9 @@ export function renderSpecList(_showAll = false): void {
 
   const specs = getSpecData() || [];
   const total = specs.length;
-  const l1 = specs.filter((s) => (s.level || 'L1') === 'L1').length;
-  const l2 = specs.filter((s) => (s.level || 'L1') === 'L2').length;
-  const l3 = specs.filter((s) => (s.level || 'L1') === 'L3').length;
+  const l1 = specs.filter((s) => String(s.level || 'L1') === 'L1').length;
+  const l2 = specs.filter((s) => String(s.level || 'L1') === 'L2').length;
+  const l3 = specs.filter((s) => String(s.level || 'L1') === 'L3').length;
   const tc = document.getElementById('spec-total-count') as HTMLElement | null;
   if (tc) tc.textContent = String(total);
   const l1c = document.getElementById('spec-l1-count') as HTMLElement | null;
@@ -45,7 +45,7 @@ export function renderSpecList(_showAll = false): void {
   if (l3c) l3c.textContent = String(l3);
 
   let filtered = specs;
-  if (levelFilter !== 'all') filtered = filtered.filter((s) => (s.level || 'L1') === levelFilter);
+  if (levelFilter !== 'all') filtered = filtered.filter((s) => String(s.level || 'L1') === levelFilter);
   if (catFilter !== 'all') filtered = filtered.filter((s) => (s.category || '') === catFilter);
   if (stdFilter !== 'all') {
     filtered = filtered.filter((s) => {
@@ -82,10 +82,10 @@ export function renderSpecList(_showAll = false): void {
     .map((s, i) => {
       const title = s.title || s.name || '';
       const desc = s.text || s.description || '';
-      const cat = s.category || '--';
+      const cat = String(s.category || '--');
       const target = s.func_id || '--';
-      const level = s.level || 'L1';
-      const std = s.standard || s.std || '';
+      const level = String(s.level || 'L1');
+      const std = String(s.standard || s.std || '');
       const stdShort = stdAbbrev[std] || (std ? std.replace(/-/g, '').slice(0, 5) : '--');
       const targetStr = Array.isArray(target) ? target.join(', ') : String(target);
       return (
@@ -94,7 +94,7 @@ export function renderSpecList(_showAll = false): void {
         '<td class="py-2 px-2 font-mono text-xs">' + escHtml(String(s.clause_id || '')) + '</td>' +
         '<td class="py-2 px-2 text-sm">' + escHtml(String(title)) + '<br/><span class="text-xs text-gray-400">' + escHtml(String(desc)) + '</span></td>' +
         '<td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + escHtml(stdShort) + '</span>' : '') + '</td>' +
-        '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[level] || 'gray') + '-100 text-' + (levelColors[level] || 'gray') + '-700 rounded text-xs">' + level + '</span></td>' +
+        '<td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[String(level)] || 'gray') + '-100 text-' + (levelColors[String(level)] || 'gray') + '-700 rounded text-xs">' + level + '</span></td>' +
         '<td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td>' +
         '<td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + escHtml(targetStr) + '</td></tr>'
       );
