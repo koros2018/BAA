@@ -97,6 +97,24 @@ import { onThermalCompTypeChange, renderThermalThresholds, computeThermalK, rend
 import { generateCorrectionSuggestions, confirmCorrection } from './components/correction';
 import { renderStructuralThresholds, onStructuralCompTypeChange, computeStructuralCheck, renderStructuralViolations } from './components/structural';
 import { loadSpecs, renderSpecList } from './components/specs';
+// P123 Step 4: baa-admin.js 图纸管理组件迁入 TS
+import {
+  saveParsedDrawings,
+  loadParsedDrawings,
+  renderDrawingList,
+  toggleDrawingSelect,
+  selectAllDrawings,
+  deselectAllDrawings,
+  updateBatchButton,
+  uploadDrawing as uploadDrawingFn,
+  uploadAndReview,
+  batchReview as batchReviewFn,
+  deleteDrawing,
+  sendToReview,
+  refreshReviewDrawingSelect,
+  onReviewDrawingSelect,
+} from './components/drawing';
+
 // P123 Step 3: baa-admin.js Zoom + Collab 组件迁入 TS
 import {
   zoomImage,
@@ -215,6 +233,23 @@ w.switchDrawingTab = switchDrawingTab;
 w.loadReviewContext = loadReviewContext;
 w.onReviewTeamSelect = onReviewTeamSelect;
 w.onReviewProjectSelect = onReviewProjectSelect;
+
+// P123 Step 4: 图纸管理组件挂载（baa-admin.js → TS）
+w.saveParsedDrawings = saveParsedDrawings;
+w.loadParsedDrawings = loadParsedDrawings;
+w.renderDrawingList = renderDrawingList;
+w.toggleDrawingSelect = toggleDrawingSelect;
+w.selectAllDrawings = selectAllDrawings;
+w.deselectAllDrawings = deselectAllDrawings;
+w.updateBatchButton = updateBatchButton;
+w.uploadDrawing = uploadDrawingFn;
+w.uploadAndReview = uploadAndReview;
+w.batchReview = batchReviewFn;
+w.deleteDrawing = deleteDrawing;
+w.sendToReview = sendToReview;
+w.refreshReviewDrawingSelect = refreshReviewDrawingSelect;
+w.onReviewDrawingSelect = onReviewDrawingSelect;
+// parsedDrawings 状态由 drawing-state.ts 管理，通过 setParsedDrawings 同步
 
 // P123 Step 2: 组件挂载（baa-review.js → TS）
 w.loadDashboard = loadDashboard;
