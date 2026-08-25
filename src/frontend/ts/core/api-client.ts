@@ -78,6 +78,11 @@ export async function apiGet(path: string): Promise<unknown> {
   }));
 }
 
+/** POST JSON 请求的便捷别名（兼容 drawing.ts 等模块的 apiPost 调用） */
+export async function apiPost(path: string, body: unknown): Promise<unknown> {
+  return apiPostJSON(path, body);
+}
+
 /** POST JSON 请求 */
 export async function apiPostJSON(path: string, body: unknown): Promise<unknown> {
   return _check(await fetch(getApiBase() + path, {
@@ -100,11 +105,13 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 export async function apiPostFile(
   path: string,
   file: File,
-  extraParams: Record<string, string> = {},
+  extraParams: Record<string, string | boolean> = {},
 ): Promise<unknown> {
   const form = new FormData();
   form.append('file', file);
-  const params = new URLSearchParams(extraParams);
+  const params = new URLSearchParams(
+    Object.fromEntries(Object.entries(extraParams).map(([k, v]) => [k, String(v)])) as Record<string, string>,
+  );
   const url =
     getApiBase() + path + (params.toString() ? '?' + params.toString() : '');
   const r = await fetch(url, {
