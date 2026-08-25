@@ -30,22 +30,22 @@
       </div>
     </div>
     <nav class="flex-1 p-3 space-y-1" id="sidebar">
-      <div class="sidebar-item active" data-page="home"><i class="fa fa-home w-5"></i>系统概览</div>
-      <div class="sidebar-item" data-page="drawings">📐图纸管理</div>
-      <div class="sidebar-item" data-page="specs">📖规范库</div>
-      <div class="sidebar-item" data-page="review" style="display:none">🔎AI审图</div>
-      <div class="sidebar-item" data-page="compare"><i class="fa fa-columns w-5"></i>对比演示</div>
-      <div class="sidebar-item" data-page="history">📋审查记录</div>
-      <div class="sidebar-item" data-page="analysis">📊统计仪表盘</div>
-      <div class="sidebar-item" data-page="apikeys">🔑密钥管理</div>
-      <div class="sidebar-item" data-page="settings">🔌连接配置</div>
-      <div class="sidebar-item" data-page="collab">👥协作</div>
-      <div class="sidebar-item" data-page="reverse">🔄反向重构</div>
-      <div class="sidebar-item" data-page="funcs">⚙️原子函数库</div>
-      <div class="sidebar-item" data-page="cases">📚案例库</div>
+      <div class="sidebar-item active" data-page="home" onclick="router.go('home')"><i class="fa fa-home w-5"></i>系统概览</div>
+      <div class="sidebar-item" data-page="drawings" onclick="router.go('drawings')">📐图纸管理</div>
+      <div class="sidebar-item" data-page="specs" onclick="router.go('specs')">📖规范库</div>
+      <div class="sidebar-item" data-page="review" style="display:none" onclick="router.go('review')">🔎AI审图</div>
+      <div class="sidebar-item" data-page="compare" onclick="router.go('compare')"><i class="fa fa-columns w-5"></i>对比演示</div>
+      <div class="sidebar-item" data-page="history" onclick="router.go('history')">📋审查记录</div>
+      <div class="sidebar-item" data-page="analysis" onclick="router.go('analysis')">📊统计仪表盘</div>
+      <div class="sidebar-item" data-page="apikeys" onclick="router.go('apikeys')">🔑密钥管理</div>
+      <div class="sidebar-item" data-page="settings" onclick="router.go('settings')">🔌连接配置</div>
+      <div class="sidebar-item" data-page="collab" onclick="router.go('collab')">👥协作</div>
+      <div class="sidebar-item" data-page="reverse" onclick="router.go('reverse')">🔄反向重构</div>
+      <div class="sidebar-item" data-page="funcs" onclick="router.go('funcs')">⚙️原子函数库</div>
+      <div class="sidebar-item" data-page="cases" onclick="router.go('cases')">📚案例库</div>
       <a class="sidebar-item text-gray-400 hover:bg-gray-800" href="/docs" target="_blank" rel="noopener" title="OpenAPI 文档 (新窗口)" data-page="docs">📄API文档</a>
-      <div class="sidebar-item" data-page="cd">🏗️施工图审查</div>
-      <div class="sidebar-item" data-page="model-params">🤖模型参数导出</div>
+      <div class="sidebar-item" data-page="cd" onclick="router.go('cd')">🏗️施工图审查</div>
+      <div class="sidebar-item" data-page="model-params" onclick="router.go('model-params')">🤖模型参数导出</div>
     </nav>
     <div class="p-3 border-t border-gray-100 text-xs text-gray-400" id="version-info">
       连接中...
