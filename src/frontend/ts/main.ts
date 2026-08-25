@@ -97,6 +97,13 @@ import { onThermalCompTypeChange, renderThermalThresholds, computeThermalK, rend
 import { generateCorrectionSuggestions, confirmCorrection } from './components/correction';
 import { renderStructuralThresholds, onStructuralCompTypeChange, computeStructuralCheck, renderStructuralViolations } from './components/structural';
 import { loadSpecs, renderSpecList } from './components/specs';
+import {
+  renderHistoryList as renderHistoryListFn,
+  deleteReviewRecord as deleteReviewRecordFn,
+  viewHistoryDetail as viewHistoryDetailFn,
+  closeHistoryModal as closeHistoryModalFn,
+  clearReviewHistory as clearReviewHistoryFn,
+} from './components/history';
 // P123 Step 4: baa-admin.js 图纸管理组件迁入 TS
 import {
   saveParsedDrawings,
@@ -282,6 +289,21 @@ w.renderStructuralThresholds = renderStructuralThresholds;
 w.onStructuralCompTypeChange = onStructuralCompTypeChange;
 w.computeStructuralCheck = computeStructuralCheck;
 w.renderStructuralViolations = renderStructuralViolations;
+
+// P123 Step 5: baa-admin.js 历史记录组件迁入 TS
+w.renderHistoryList = renderHistoryListFn;
+w.deleteReviewRecord = deleteReviewRecordFn;
+w.viewHistoryDetail = viewHistoryDetailFn;
+w.closeHistoryModal = closeHistoryModalFn;
+w.clearReviewHistory = clearReviewHistoryFn;
+// historyPage 通过 getter/setter 暴露，允许 onclick 内联脚本修改
+const _hp = { value: 0 };
+Object.defineProperty(w, 'historyPage', {
+  get: () => _hp.value,
+  set: (v: number) => { _hp.value = v; },
+  enumerable: true,
+  configurable: true,
+});
 
 // P123 Step 3: baa-admin.js specs / zoom / collab 组件
 w.loadSpecs = loadSpecs;

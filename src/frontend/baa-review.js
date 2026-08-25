@@ -887,7 +887,7 @@ let _diffResult = null;
 // ── P91: 结构化导出 (JSON/CSV) ────────────────────────────
 // ── JSON 导出 ──────────────────────────────────────────────
 // ── 审查结果存储（localStorage + 后端持久化） ──────────
-let reviewResults = [];
+// reviewResults 全局变量由 baa-admin.js 定义（var reviewResults = []）
 // 违规可视化渲染（SVG/Canvas叠加）
 function renderViolationOverlay(r) {
   const canvas = document.getElementById('compare-overlay-canvas');
