@@ -144,6 +144,8 @@ import {
   zoomFit,
   zoomClose,
 } from './components/zoom';
+import { runMultiSheetReview, switchMultiSheetTab, renderMultiSheetTab } from './components/multi-sheet';
+import { formatTimeAgo, copyReverseDXF } from './components/tools';
 import {
   collabErrMsg,
   collabApi,
@@ -328,6 +330,12 @@ w.zoomSet = zoomSet;
 w.zoomReset = zoomReset;
 w.zoomFit = zoomFit;
 w.zoomClose = zoomClose;
+w.runMultiSheetReview = runMultiSheetReview;
+w.switchMultiSheetTab = switchMultiSheetTab;
+w.renderMultiSheetTab = renderMultiSheetTab;
+w.formatTimeAgo = formatTimeAgo;
+w.copyReverseDXF = copyReverseDXF;
+// expandReverseSVG / downloadReverseSVG 依赖 reverse-engine.ts（尚未迁入），保留 baa-ext.js 旧实现
 
 // P123 Step 6: stats / analysis / cd / model-params / sse-batch
 w.loadAnalysis = loadStatsAnalysis;
