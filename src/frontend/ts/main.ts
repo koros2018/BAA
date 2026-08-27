@@ -82,6 +82,7 @@ import {
 } from './core/import-key';
 // P123 Phase 2: 组件化 — Modal / FilterBar / ReviewItem / ReviewTable
 import { openModal } from './components/modal';
+import { initApp } from './components/init';
 import { renderFilterBar } from './components/filter-bar';
 import { renderReviewItem } from './components/review-item';
 import { renderReviewTable } from './components/review-table';
@@ -386,3 +387,6 @@ w.runBatchReviewComponent = runBatchReviewComponent;
 // 不再需要旧的 sidebar onclick 监听（page-nav.ts 的 initNavigation 已由 router 替代）
 
 console.log('[P123] Vite TS core modules loaded');
+
+// P123 Step 7: DOMContentLoaded 初始化（从 baa-admin.js 迁入）
+document.addEventListener('DOMContentLoaded', initApp);
