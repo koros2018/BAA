@@ -124,6 +124,19 @@ import {
 
 // P123 Step 3: baa-admin.js Zoom + Collab 组件迁入 TS
 import {
+  loadAnalysis as loadStatsAnalysis,
+  renderOverviewCards,
+} from './components/stats';
+import {
+  renderAnalysisTable,
+  renderCategoryAnalysis,
+  renderTrendBars,
+  renderViolationDistBars,
+} from './components/analysis';
+import { loadCDItems } from './components/cd-items';
+import { MODEL_PARAMS_TABS, switchModelParamTab, downloadModelExport } from './components/model-params';
+import { runBatchReviewSSE } from './components/sse-batch';
+import {
   zoomImage,
   zoomSet,
   zoomReset,
@@ -314,6 +327,19 @@ w.zoomSet = zoomSet;
 w.zoomReset = zoomReset;
 w.zoomFit = zoomFit;
 w.zoomClose = zoomClose;
+
+// P123 Step 6: stats / analysis / cd / model-params / sse-batch
+w.loadAnalysis = loadStatsAnalysis;
+w.renderOverviewCards = renderOverviewCards;
+w.renderAnalysisTable = renderAnalysisTable;
+w.renderCategoryAnalysis = renderCategoryAnalysis;
+w.renderTrendBars = renderTrendBars;
+w.renderViolationDistBars = renderViolationDistBars;
+w.loadCDItems = loadCDItems;
+w.MODEL_PARAMS_TABS = MODEL_PARAMS_TABS;
+w.switchModelParamTab = switchModelParamTab;
+w.downloadModelExport = downloadModelExport;
+// sse-batch 已在模块末尾覆盖 window.runBatchReview，此处不重复
 
 w.collabErrMsg = collabErrMsg;
 w.collabApi = collabApi;
