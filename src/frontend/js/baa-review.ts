@@ -20,6 +20,7 @@ declare const parsedDrawings: unknown[];
 declare const reviewResults: unknown[];
 declare const API_BASE: () => string;
 declare const HEADERS: () => Record<string, string>;
+declare const getHeaders: () => Record<string, string>;
 declare const showToast: (msg: string, kind?: string) => void;
 declare const renderProgress: (el: HTMLElement | null, text: string, pct: number) => void;
 declare const renderThermalViolations: (v: unknown[]) => void;
