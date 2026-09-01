@@ -147,6 +147,26 @@ import {
 import { runMultiSheetReview, switchMultiSheetTab, renderMultiSheetTab } from './components/multi-sheet';
 import { formatTimeAgo, copyReverseDXF } from './components/tools';
 import {
+  generateReverse,
+  loadFunctions,
+  filterFunctions,
+  toggleFuncDetail,
+  updateFunction,
+  switchRevTab,
+  initMultiRooms,
+  addMultiRoom,
+  generateMultiReverse,
+  renderLayoutSVG,
+  expandReverseSVG,
+  downloadReverseSVG,
+  loadCaseStats,
+  loadCases,
+  renderCaseList,
+  renderCasePagination,
+  openCaseDetail,
+  closeCaseDetail,
+} from './components/reverse';
+import {
   collabErrMsg,
   collabApi,
   closeCollabModal,
@@ -335,7 +355,26 @@ w.switchMultiSheetTab = switchMultiSheetTab;
 w.renderMultiSheetTab = renderMultiSheetTab;
 w.formatTimeAgo = formatTimeAgo;
 w.copyReverseDXF = copyReverseDXF;
-// expandReverseSVG / downloadReverseSVG 依赖 reverse-engine.ts（尚未迁入），保留 baa-ext.js 旧实现
+
+// P123 Step 11: 反向重构 + 原子函数库 + 案例库（baa-ext.js → TS）
+w.generateReverse = generateReverse;
+w.loadFunctions = loadFunctions;
+w.filterFunctions = filterFunctions;
+w.toggleFuncDetail = toggleFuncDetail;
+w.updateFunction = updateFunction;
+w.switchRevTab = switchRevTab;
+w.initMultiRooms = initMultiRooms;
+w.addMultiRoom = addMultiRoom;
+w.generateMultiReverse = generateMultiReverse;
+w.renderLayoutSVG = renderLayoutSVG;
+w.expandReverseSVG = expandReverseSVG;
+w.downloadReverseSVG = downloadReverseSVG;
+w.loadCaseStats = loadCaseStats;
+w.loadCases = loadCases;
+w.renderCaseList = renderCaseList;
+w.renderCasePagination = renderCasePagination;
+w.openCaseDetail = openCaseDetail;
+w.closeCaseDetail = closeCaseDetail;
 
 // P123 Step 6: stats / analysis / cd / model-params / sse-batch
 w.loadAnalysis = loadStatsAnalysis;
