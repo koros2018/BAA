@@ -135,6 +135,12 @@ import {
   renderViolationDistBars,
 } from './components/analysis';
 import { loadCDItems } from './components/cd-items';
+import {
+  _initAuditItems,
+  _loadAuditItemStates,
+  renderAuditButtons,
+  auditAction,
+} from './components/audit';
 import { MODEL_PARAMS_TABS, switchModelParamTab, downloadModelExport } from './components/model-params';
 import { runBatchReviewSSE } from './components/sse-batch';
 import {
@@ -384,6 +390,10 @@ w.renderCategoryAnalysis = renderCategoryAnalysis;
 w.renderTrendBars = renderTrendBars;
 w.renderViolationDistBars = renderViolationDistBars;
 w.loadCDItems = loadCDItems;
+w._initAuditItems = _initAuditItems;
+w._loadAuditItemStates = _loadAuditItemStates;
+w.renderAuditButtons = renderAuditButtons;
+w.auditAction = auditAction;
 w.MODEL_PARAMS_TABS = MODEL_PARAMS_TABS;
 w.switchModelParamTab = switchModelParamTab;
 w.downloadModelExport = downloadModelExport;
