@@ -7,7 +7,7 @@ const _msSheetData: Array<Record<string, unknown>> = [];
 async function runMultiSheetReview(): Promise<void> {
   const fileInput = document.getElementById('ms-file-input') as HTMLInputElement | null;
   const file = fileInput?.files?.[0];
-  if (!file) { (window as Record<string, unknown>).showToast('请先选择 DXF/DWG 文件', 'info'); return; }
+  if (!file) { (window as any).showToast('请先选择 DXF/DWG 文件', 'info'); return; }
 
   const btn = document.getElementById('ms-review-start-btn') as HTMLButtonElement | null;
   const loading = document.getElementById('ms-review-loading') as HTMLElement | null;
@@ -41,7 +41,7 @@ async function runMultiSheetReview(): Promise<void> {
     loading.classList.add('hidden');
     btn.textContent = '📑 开始多Sheet审查';
     btn.disabled = false;
-    (window as Record<string, unknown>).showToast(`❌ 审查失败: ${(e as Error).message}`, 'error');
+    (window as any).showToast(`❌ 审查失败: ${(e as Error).message}`, 'error');
   }
 }
 

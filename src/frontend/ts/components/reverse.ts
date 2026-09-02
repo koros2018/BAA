@@ -25,10 +25,10 @@ export async function generateReverse(): Promise<void> {
   err?.classList.add('hidden');
 
   const body = {
-    room_type: document.getElementById('reverse-room-type')?.value || 'office',
-    width_mm: parseInt(document.getElementById('reverse-width')?.value) || 5000,
-    height_mm: parseInt(document.getElementById('reverse-height')?.value) || 4000,
-    door_width_mm: parseInt(document.getElementById('reverse-door-width')?.value) || null,
+    room_type: (document.getElementById('reverse-room-type') as HTMLInputElement | null)?.value || 'office',
+    width_mm: parseInt((document.getElementById('reverse-width') as HTMLInputElement | null)?.value || '0') || 5000,
+    height_mm: parseInt((document.getElementById('reverse-height') as HTMLInputElement | null)?.value || '0') || 4000,
+    door_width_mm: parseInt((document.getElementById('reverse-door-width') as HTMLInputElement | null)?.value || '0') || null,
   };
 
   try {
@@ -92,8 +92,8 @@ export async function loadFunctions(): Promise<void> {
     if (filter) {
       categories.forEach(cat => {
         const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
+        (opt as HTMLOptionElement).value = String(cat);
+        opt.textContent = String(cat);
         filter.appendChild(opt);
       });
     }
@@ -106,8 +106,8 @@ export async function loadFunctions(): Promise<void> {
 }
 
 export function filterFunctions(): void {
-  const search = document.getElementById('func-search')?.value.toLowerCase() || '';
-  const category = document.getElementById('func-category-filter')?.value || '';
+  const search = (document.getElementById('func-search') as HTMLInputElement | null)?.value.toLowerCase() || '';
+  const category = (document.getElementById('func-category-filter') as HTMLSelectElement | null)?.value || '';
   const funcs = (window as any)._allFuncs || [];
   const list = document.getElementById('func-list');
   if (!list) return;
@@ -219,10 +219,10 @@ export async function generateMultiReverse(): Promise<void> {
   const rooms: any[] = [];
   document.querySelectorAll('.multi-room-row').forEach(row => {
     rooms.push({
-      room_type: row.querySelector('.multi-room-type')?.value || 'office',
-      width_mm: parseInt(row.querySelector('.multi-room-width')?.value) || 5000,
-      height_mm: parseInt(row.querySelector('.multi-room-height')?.value) || 4000,
-      door_width_mm: parseInt(row.querySelector('.multi-room-door-width')?.value) || null,
+      room_type: (row.querySelector('.multi-room-type') as HTMLSelectElement | null)?.value || 'office',
+      width_mm: parseInt((row.querySelector('.multi-room-width') as HTMLInputElement | null)?.value || '0') || 5000,
+      height_mm: parseInt((row.querySelector('.multi-room-height') as HTMLInputElement | null)?.value || '0') || 4000,
+      door_width_mm: parseInt((row.querySelector('.multi-room-door-width') as HTMLInputElement | null)?.value || '0') || null,
     });
   });
   if (rooms.length === 0) {
@@ -338,7 +338,7 @@ export function renderLayoutSVG(layout: Layout, validation: Validation | null): 
       svg += `<text x="${exitX - 15}" y="${corrCY - 8}" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="700">出口</text>`;
     }
   }
-  if (validation && validation.fail_count > 0) {
+  if (validation && (validation.fail_count ?? 0) > 0) {
     svg += `<text x="${svgW/2}" y="${svgH - 10}" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="700">${validation.fail_count} 项违规</text>`;
   } else if (validation && validation.all_pass) {
     svg += `<text x="${svgW/2}" y="${svgH - 10}" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="700">闭环验证通过</text>`;
@@ -399,9 +399,9 @@ export async function loadCaseStats(): Promise<void> {
 
 export async function loadCases(page = 0): Promise<void> {
   _casePage = page;
-  const q = document.getElementById('case-search')?.value || '';
-  const bt = document.getElementById('case-filter-type')?.value || '';
-  const tag = document.getElementById('case-filter-tag')?.value || '';
+  const q = (document.getElementById('case-search') as HTMLInputElement | null)?.value || '';
+  const bt = (document.getElementById('case-filter-type') as HTMLSelectElement | null)?.value || '';
+  const tag = (document.getElementById('case-filter-tag') as HTMLSelectElement | null)?.value || '';
   const listEl = document.getElementById('case-list');
   if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载中...</div>';
   try {
