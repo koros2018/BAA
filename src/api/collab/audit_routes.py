@@ -16,6 +16,7 @@ import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from src.api.api_globals import verify_api_key
 from src.baa_engine.collab.audit import (
@@ -161,3 +162,39 @@ def get_confirmed(
     """获取已确认违规条目（整改通知单用）"""
     items = get_confirmed_items(review_id)
     return {"review_id": review_id, "count": len(items), "items": items}
+
+
+@router.get("/export/pdf")
+def export_correction_notice(
+    review_id: str = Query(..., description="审查记录 ID"),
+    drawing_name: str = Query("", description="图纸名称"),
+    project_name: str = Query("", description="项目名称"),
+    reviewer: str = Query("", description="审查人"),
+    api_key: str = Depends(verify_api_key),
+):
+    """生成整改通知单 PDF（仅含 confirmed 条目）"""
+    from src.baa_engine.report_generator.correction_notice import build_correction_notice
+
+    items = get_confirmed_items(review_id)
+    if not items:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "该审查无已确认违规条目，请先完成审核",
+                "review_id": review_id,
+            },
+        )
+    meta = {
+        "review_id": review_id,
+        "drawing_name": drawing_name,
+        "project_name": project_name,
+        "reviewer": reviewer,
+    }
+    pdf_bytes = build_correction_notice(items, meta)
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=correction-notice-{review_id}.pdf"
+        },
+    )
