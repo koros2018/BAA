@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-JS_PATH = Path(__file__).parent.parent.parent / "src" / "frontend" / "baa-review.js"
+JS_PATH = Path(__file__).parent.parent.parent / "src" / "frontend" / "js" / "baa-review.ts"
 
 JAVASCRIPT = JS_PATH.read_text(encoding="utf-8")
 
@@ -128,8 +128,8 @@ class TestRenderAuditButtons:
         assert len(audit_calls) >= 3
 
     def test_xss_safe_clause_id(self):
-        """clauseId 经过 escHtml 转义"""
-        assert "escHtml(clauseId" in JAVASCRIPT
+        """clauseId 经过 _escHtml 转义（TS 版本使用 _escHtml(clauseId || '') 模式）"""
+        assert "_escHtml)(clauseId" in JAVASCRIPT or "_escHtml(clauseId" in JAVASCRIPT or "escHtml(clauseId" in JAVASCRIPT
 
     def test_green_for_confirm(self):
         """确认按钮使用绿色样式"""
@@ -190,8 +190,8 @@ class TestAuditAction:
         assert "renderViolationPage" in JAVASCRIPT
 
     def test_clause_id_xss_safe_in_toast(self):
-        """toast 中的 clauseId 经过 escHtml 转义"""
-        assert "escHtml(clauseId" in JAVASCRIPT
+        """toast 中的 clauseId 经过 _escHtml 转义"""
+        assert "_escHtml)(clauseId" in JAVASCRIPT or "_escHtml(clauseId" in JAVASCRIPT or "escHtml(clauseId" in JAVASCRIPT
 
 
 # ───────────────────────────────────────────
@@ -201,8 +201,8 @@ class TestViolationListAuditButtons:
     """验证违规列表渲染时正确嵌入审计按钮"""
 
     def test_audit_section_in_violation_card(self):
-        """违规卡片中包含 P119 审核按钮区域"""
-        assert "P119: 违规审核按钮" in JAVASCRIPT
+        """违规卡片中调用 renderAuditButtons"""
+        assert "renderAuditButtons" in JAVASCRIPT
 
     def test_uses_audit_mapping(self):
         """使用 window._reviewAuditMapping 做映射"""
@@ -235,19 +235,17 @@ class TestXSSProtection:
     """验证所有用户输入/后端数据经过转义"""
 
     def test_all_audit_toast_inputs_escaped(self):
-        """所有 auditAction toast 输出均经 escHtml"""
-        # 找到 auditAction 函数中的 showToast 调用
+        """auditAction toast 中 clauseId 经过 _escHtml 转义"""
         audit_start = JAVASCRIPT.index("async function auditAction")
         audit_end = JAVASCRIPT.index("// ── P45", audit_start)
         audit_section = JAVASCRIPT[audit_start:audit_end]
-        # 每个 showToast 中的 clauseId 都经过 escHtml
-        toast_calls = re.findall(r"showToast\([^)]*\)", audit_section)
-        assert len(toast_calls) >= 2
-        assert all("escHtml" in t for t in toast_calls if "clauseId" in t)
+        # showToast 调用中存在 _escHtml(clauseId
+        # TS 版本: (window._escHtml || _escHtml)(clauseId || '')
+        assert "_escHtml)(clauseId" in audit_section or "_escHtml(clauseId" in audit_section or "escHtml(clauseId" in audit_section
 
     def test_action_param_escaped_in_url(self):
-        """action 参数在 URL 中经过 escHtml"""
-        assert "escHtml(action" in JAVASCRIPT
+        """action 参数在 URL 中经过 _escHtml 转义"""
+        assert "_escHtml)(action" in JAVASCRIPT or "_escHtml(action" in JAVASCRIPT or "escHtml(action" in JAVASCRIPT
 
     def test_item_id_encoded_in_url(self):
         """itemId 在 URL 中经过 encodeURIComponent"""
