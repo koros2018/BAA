@@ -72,7 +72,8 @@ class TestCorrectionNoticeAPI:
     @pytest.fixture
     def client(self):
         from src.api.baa_api import app, API_KEYS
-        API_KEYS.add("test-p119-notice-key")
+        # verify_api_key 逻辑：API_KEYS 为空时允许匿名访问
+        API_KEYS.clear()
         from fastapi.testclient import TestClient
         return TestClient(app)
 
