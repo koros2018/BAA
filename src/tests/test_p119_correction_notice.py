@@ -72,10 +72,14 @@ class TestCorrectionNoticeAPI:
     @pytest.fixture
     def client(self):
         from src.api.baa_api import app, API_KEYS
-        # verify_api_key 逻辑：API_KEYS 为空时允许匿名访问
+        # 保存并清空 API_KEYS 以启用匿名模式，测试后恢复
+        saved = set(API_KEYS)
         API_KEYS.clear()
         from fastapi.testclient import TestClient
-        return TestClient(app)
+        client = TestClient(app)
+        yield client
+        API_KEYS.clear()
+        API_KEYS.update(saved)
 
     def test_export_pdf_returns_404_when_no_confirmed(self, client):
         resp = client.get(
