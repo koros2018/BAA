@@ -86,6 +86,7 @@ import { initApp } from './components/init';
 import { renderFilterBar } from './components/filter-bar';
 import { renderReviewItem } from './components/review-item';
 import { renderReviewTable } from './components/review-table';
+import { runReview } from './components/review';
 import { renderViolationOverlay } from './components/drawing-canvas';
 import { runBatchReview as runBatchReviewComponent } from './components/batch-queue';
 // P123 Step 2: 组件迁移（baa-review.js → TS）
@@ -447,6 +448,7 @@ w.openModal = openModal;
 w.renderFilterBar = renderFilterBar;
 w.renderReviewItem = renderReviewItem;
 w.renderReviewTable = renderReviewTable;
+w.runReview = runReview;
 w.renderViolationOverlay = renderViolationOverlay;
 w.runBatchReviewComponent = runBatchReviewComponent;
 
