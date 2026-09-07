@@ -140,6 +140,11 @@ import {
   _loadAuditItemStates,
   renderAuditButtons,
   auditAction,
+  renderAuditStatsBar,
+  _loadAuditStats,
+  _refreshAuditPanel,
+  _onAuditFilterChange,
+  downloadCorrectionNotice,
 } from './components/audit';
 import { MODEL_PARAMS_TABS, switchModelParamTab, downloadModelExport } from './components/model-params';
 import { runBatchReviewSSE } from './components/sse-batch';
@@ -394,6 +399,11 @@ w._initAuditItems = _initAuditItems;
 w._loadAuditItemStates = _loadAuditItemStates;
 w.renderAuditButtons = renderAuditButtons;
 w.auditAction = auditAction;
+w.renderAuditStatsBar = renderAuditStatsBar;
+w._loadAuditStats = _loadAuditStats;
+w._refreshAuditPanel = _refreshAuditPanel;
+w._onAuditFilterChange = _onAuditFilterChange;
+w.downloadCorrectionNotice = downloadCorrectionNotice;
 w.MODEL_PARAMS_TABS = MODEL_PARAMS_TABS;
 w.switchModelParamTab = switchModelParamTab;
 w.downloadModelExport = downloadModelExport;
