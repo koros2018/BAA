@@ -8,6 +8,7 @@ P119 违规审核工作流 — 前端测试
     4. auditAction 调用正确 API 端点
     5. XSS 防护（用户输入全部 escHtml 转义）
 """
+
 import re
 from pathlib import Path
 
@@ -123,13 +124,21 @@ class TestRenderAuditButtons:
     def test_unreviewed_state_show_three_buttons(self):
         """unreviewed 状态显示确认/驳回/待核实三个操作按钮"""
         # default 分支包含 confirm/dismiss/pending 三个 auditAction 调用
-        default_section = JAVASCRIPT[JAVASCRIPT.index("default:"):JAVASCRIPT.index("html += '</div>'", JAVASCRIPT.index("default:"))]
+        default_section = JAVASCRIPT[
+            JAVASCRIPT.index("default:") : JAVASCRIPT.index(
+                "html += '</div>'", JAVASCRIPT.index("default:")
+            )
+        ]
         audit_calls = re.findall(r"auditAction\([^)]+\)", default_section)
         assert len(audit_calls) >= 3
 
     def test_xss_safe_clause_id(self):
         """clauseId 经过 _escHtml 转义（TS 版本使用 _escHtml(clauseId || '') 模式）"""
-        assert "_escHtml)(clauseId" in JAVASCRIPT or "_escHtml(clauseId" in JAVASCRIPT or "escHtml(clauseId" in JAVASCRIPT
+        assert (
+            "_escHtml)(clauseId" in JAVASCRIPT
+            or "_escHtml(clauseId" in JAVASCRIPT
+            or "escHtml(clauseId" in JAVASCRIPT
+        )
 
     def test_green_for_confirm(self):
         """确认按钮使用绿色样式"""
@@ -191,7 +200,11 @@ class TestAuditAction:
 
     def test_clause_id_xss_safe_in_toast(self):
         """toast 中的 clauseId 经过 _escHtml 转义"""
-        assert "_escHtml)(clauseId" in JAVASCRIPT or "_escHtml(clauseId" in JAVASCRIPT or "escHtml(clauseId" in JAVASCRIPT
+        assert (
+            "_escHtml)(clauseId" in JAVASCRIPT
+            or "_escHtml(clauseId" in JAVASCRIPT
+            or "escHtml(clauseId" in JAVASCRIPT
+        )
 
 
 # ───────────────────────────────────────────
@@ -241,11 +254,19 @@ class TestXSSProtection:
         audit_section = JAVASCRIPT[audit_start:audit_end]
         # showToast 调用中存在 _escHtml(clauseId
         # TS 版本: (window._escHtml || _escHtml)(clauseId || '')
-        assert "_escHtml)(clauseId" in audit_section or "_escHtml(clauseId" in audit_section or "escHtml(clauseId" in audit_section
+        assert (
+            "_escHtml)(clauseId" in audit_section
+            or "_escHtml(clauseId" in audit_section
+            or "escHtml(clauseId" in audit_section
+        )
 
     def test_action_param_escaped_in_url(self):
         """action 参数在 URL 中经过 _escHtml 转义"""
-        assert "_escHtml)(action" in JAVASCRIPT or "_escHtml(action" in JAVASCRIPT or "escHtml(action" in JAVASCRIPT
+        assert (
+            "_escHtml)(action" in JAVASCRIPT
+            or "_escHtml(action" in JAVASCRIPT
+            or "escHtml(action" in JAVASCRIPT
+        )
 
     def test_item_id_encoded_in_url(self):
         """itemId 在 URL 中经过 encodeURIComponent"""

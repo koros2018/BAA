@@ -32,6 +32,7 @@ BAA Python SDK — 轻量 HTTP 客户端
     # Webhook
     client.register_webhook({"url": "https://hook.example.com/notify", "events": ["review.done"]})
 """
+
 from __future__ import annotations
 
 import logging

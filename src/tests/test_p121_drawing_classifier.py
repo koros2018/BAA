@@ -2,6 +2,7 @@
 P121: 图纸类型分类器 + 损坏文件检测
 覆盖 classify_drawing 和 is_likely_corrupt
 """
+
 import sys
 import os
 import tempfile
@@ -125,6 +126,7 @@ class TestIntegration:
     def test_full_parse_with_classification(self):
         """端到端：解析已知建筑图，检查 drawing_type 字段"""
         import sys
+
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from src.baa_engine.drawing_parser import DrawingParser
 
@@ -139,6 +141,7 @@ class TestIntegration:
     def test_corrupt_file_returns_error(self):
         """损坏文件应返回错误而非空结果"""
         import sys
+
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from src.baa_engine.drawing_parser import DrawingParser
 

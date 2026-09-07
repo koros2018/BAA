@@ -19,6 +19,7 @@ from src.baa_engine.semantic_analyzer.evacuation import (
 
 class _StubAnalyzer:
     """Minimal stub for _build_relations (needs self.ADJACENT_THRESHOLD)."""
+
     ADJACENT_THRESHOLD = 500.0
 
 
@@ -106,9 +107,7 @@ class TestDoorwayInRelations:
         connect_pairs = {(r.source_id, r.target_id) for r in connect_rels}
         # doorway 应连接到 corridor 或 room 中的至少一个
         doorway_connects = [p for p in connect_pairs if "d1" in p]
-        assert len(doorway_connects) >= 1, (
-            f"doorway 未建立 connects_to 关系: {connect_pairs}"
-        )
+        assert len(doorway_connects) >= 1, f"doorway 未建立 connects_to 关系: {connect_pairs}"
 
     def test_doorway_host_wall_matching(self, analyzer):
         """doorway 应参与墙体-门窗拓扑，匹配 host_wall"""
@@ -124,13 +123,8 @@ class TestDoorwayInRelations:
         relations = _build_relations(analyzer, entities)
 
         # doorway 应匹配到 host_wall
-        has_host_wall = any(
-            r.type == "contains" and r.target_id == "d1"
-            for r in relations
-        )
-        assert has_host_wall, (
-            f"doorway 未匹配 host_wall: {[r.to_dict() for r in relations]}"
-        )
+        has_host_wall = any(r.type == "contains" and r.target_id == "d1" for r in relations)
+        assert has_host_wall, f"doorway 未匹配 host_wall: {[r.to_dict() for r in relations]}"
 
 
 class TestDoorwayInEvacuation:
@@ -161,16 +155,12 @@ class TestDoorwayInEvacuation:
             _rel("c1", "x1", "adjacent", 2000.0),  # corridor→exit
         ]
 
-        routes = _analyze_evacuation_routes_impl(
-            analyzer, entities, relations
-        )
+        routes = _analyze_evacuation_routes_impl(analyzer, entities, relations)
         assert len(routes) >= 1
         # 所有 room 应有路径（通过 doorway→corridor→exit）
         for route in routes:
             if route["room_id"] == "r1":
-                assert route["has_route"] is True, (
-                    f"room→doorway→corridor→exit 路径应可达: {route}"
-                )
+                assert route["has_route"] is True, f"room→doorway→corridor→exit 路径应可达: {route}"
                 break
         else:
             pytest.fail("room r1 未出现在 routes 中")
@@ -235,15 +225,11 @@ class TestDoorwayInEvacuation:
                 break
         assert route_info is not None
 
-        results = _verify_evacuation_connectivity_impl(
-            analyzer, entities, relations, routes
-        )
+        results = _verify_evacuation_connectivity_impl(analyzer, entities, relations, routes)
         for res in results:
             if res["room_id"] == "r1":
                 assert res["connected"] is True
-                assert res["bottleneck"] is True, (
-                    f"narrow doorway (500mm) 应标记 bottleneck: {res}"
-                )
+                assert res["bottleneck"] is True, f"narrow doorway (500mm) 应标记 bottleneck: {res}"
                 assert res["bottleneck_details"]["type"] == "doorway_too_narrow"
                 break
         else:
@@ -274,16 +260,14 @@ class TestDoorwayInEvacuation:
         ]
 
         routes = _analyze_evacuation_routes_impl(analyzer, entities, relations)
-        results = _verify_evacuation_connectivity_impl(
-            analyzer, entities, relations, routes
-        )
+        results = _verify_evacuation_connectivity_impl(analyzer, entities, relations, routes)
 
         for res in results:
             if res["room_id"] == "r1":
                 assert res["connected"] is True
-                assert res["bottleneck"] is False, (
-                    f"wide doorway (1000mm) 不应标记 bottleneck: {res}"
-                )
+                assert (
+                    res["bottleneck"] is False
+                ), f"wide doorway (1000mm) 不应标记 bottleneck: {res}"
                 break
         else:
             pytest.fail("r1 未在 connectivity results 中")

@@ -60,14 +60,19 @@ def _patched_review_ctx(parse_success=True, primitives=None, dimensions=None, en
     parse_result = _make_mock_parse_result(
         success=parse_success, primitives=primitives, dimensions=dimensions
     )
-    sa_mock = MagicMock(analyze=MagicMock(
-        return_value={"entities": entities or [], "relations": []}
-    ))
+    sa_mock = MagicMock(
+        analyze=MagicMock(return_value={"entities": entities or [], "relations": []})
+    )
 
-    return contextlib.ExitStack().__enter__().enter_context(
-        patch.object(rr, "_get_dp", return_value=MagicMock(parse=MagicMock(return_value=parse_result)))
-    ).enter_context(
-        patch.object(rr, "_get_sa", return_value=sa_mock)
+    return (
+        contextlib.ExitStack()
+        .__enter__()
+        .enter_context(
+            patch.object(
+                rr, "_get_dp", return_value=MagicMock(parse=MagicMock(return_value=parse_result))
+            )
+        )
+        .enter_context(patch.object(rr, "_get_sa", return_value=sa_mock))
     )
 
 
@@ -105,7 +110,9 @@ def test_timeout_seconds_validation():
             headers=AUTH_HEADERS,
             params={"timeout_seconds": bad_val},
         )
-        assert response.status_code == 422, f"expected 422 for {bad_val}, got {response.status_code}"
+        assert (
+            response.status_code == 422
+        ), f"expected 422 for {bad_val}, got {response.status_code}"
 
 
 # ── 测试 3: 快速审查在 timeout=10s 下正常完成 ──────────────
@@ -248,9 +255,16 @@ def test_timeout_seconds_in_response():
 def test_timeout_seconds_with_nonempty_entities():
     """非空实体 + timeout_seconds 正常执行审查"""
     entities = [
-        {"id": f"d{i}", "type": "door", "layer": "E-DOOR",
-         "bbox": {"x": 0, "y": 0, "width": 0.9, "height": 2.1},
-         "width": 0.9, "height": 2.1, "center": [0.45, 1.05], "attributes": {}}
+        {
+            "id": f"d{i}",
+            "type": "door",
+            "layer": "E-DOOR",
+            "bbox": {"x": 0, "y": 0, "width": 0.9, "height": 2.1},
+            "width": 0.9,
+            "height": 2.1,
+            "center": [0.45, 1.05],
+            "attributes": {},
+        }
         for i in range(5)
     ]
     with _patched_review_ctx(entities=entities) as ctx:

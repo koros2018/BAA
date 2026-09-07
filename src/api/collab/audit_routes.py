@@ -194,7 +194,5 @@ def export_correction_notice(
     return StreamingResponse(
         iter([pdf_bytes]),
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename=correction-notice-{review_id}.pdf"
-        },
+        headers={"Content-Disposition": f"attachment; filename=correction-notice-{review_id}.pdf"},
     )
