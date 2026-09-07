@@ -1,4 +1,5 @@
 """P100: PDF 解析器接入 DrawingParser 主流程测试"""
+
 import sys
 import os
 from collections import Counter
@@ -105,6 +106,7 @@ def test_pdf_p101_filters():
     assert len(entities) > 50, f"实体过少: {len(entities)}"
     # P101: 预过滤后 wall 检测提升（原 49→~35-45，room 出现）
     from collections import Counter
+
     dist = Counter(e["type"] for e in entities)
     assert dist.get("wall", 0) >= 30, f"wall 过少: {dist.get('wall',0)}"
     # P101: LINE 链闭合检测应产生 room
@@ -173,6 +175,7 @@ def test_pdf_parser_scale_extraction():
         expected = 50 * 25.4 / 72 * 200
         # 取一条线的 bbox 验证
         import ezdxf
+
         dxf_doc = ezdxf.readfile(result["dxf_path"])
         msp = dxf_doc.modelspace()
         for e in msp:
@@ -191,6 +194,7 @@ def test_pdf_parser_scale_extraction():
 def test_pdf_parser_no_scale():
     """无比例尺 PDF 默认 1:1"""
     import fitz
+
     doc = fitz.open()
     page = doc.new_page(width=100, height=100)
     page.draw_line(fitz.Point(10, 10), fitz.Point(90, 10))
@@ -204,6 +208,7 @@ def test_pdf_parser_no_scale():
         print(f"PASS 无比例尺默认 1:1")
     finally:
         os.remove(tmp)
+
 
 @LOCAL_PDF_MARK
 def test_pdf_p103_axis_merge_rooms():
@@ -243,11 +248,11 @@ def test_axis_align_merge_unit():
     # 三条共线水平段（y=1000，x 方向 2000~5000）
     # 应合并为一条 2000~5000 的水平线
     segs = [
-        (2000, 990, 3000, 1010, "test", 1000),   # 近水平
-        (3100, 1005, 4000, 995, "test", 900),    # 近水平
-        (4000, 998, 5000, 1002, "test", 1000),   # 近水平
-        (0, 0, 5000, 5000, "test", 7071),        # 对角噪声
-        (0, 100, 100, 0, "test", 141),            # 短对角
+        (2000, 990, 3000, 1010, "test", 1000),  # 近水平
+        (3100, 1005, 4000, 995, "test", 900),  # 近水平
+        (4000, 998, 5000, 1002, "test", 1000),  # 近水平
+        (0, 0, 5000, 5000, "test", 7071),  # 对角噪声
+        (0, 100, 100, 0, "test", 141),  # 短对角
     ]
 
     merged = _axis_align_merge(segs)
@@ -295,10 +300,7 @@ def test_pdf_full_primitives_sweep():
     rooms = [e for e in entities if e.get("type") == "room"]
     assert len(rooms) >= 1, f"analyze() rooms 不足: {len(rooms)}"
 
-    print(
-        f"PASS full_primitives: direct={len(direct_rooms)} rooms, "
-        f"analyze={len(rooms)} rooms"
-    )
+    print(f"PASS full_primitives: direct={len(direct_rooms)} rooms, " f"analyze={len(rooms)} rooms")
 
 
 def test_classify_face_corridor():
@@ -371,7 +373,6 @@ def test_pdf_p105_corridor_detection():
     print(f"PASS P105 analyze: {dict(ent_types.most_common(10))}")
 
 
-
 def test_detect_doorway_gaps():
     """P105: 门洞间隙检测——原始墙段上找共线间隙"""
     from src.baa_engine.semantic_analyzer.room import _detect_doorway_gaps, _Seg
@@ -439,4 +440,3 @@ def test_sweep_line_includes_doorways():
     assert "doorway" in types, f"扫线法未产生 doorway: {dict(types)}"
     assert types["doorway"] >= 5, f"门洞数量不足: {types['doorway']}"
     print(f"PASS sweep doorways: {types['doorway']} doorways")
-

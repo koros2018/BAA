@@ -46,8 +46,10 @@ def build_correction_notice(
     """
     styles = build_styles()
     from reportlab.lib.pagesizes import A4 as _A4
+
     page_w, page_h = _A4  # 595 × 842 points
     from reportlab.lib.units import mm
+
     margin = 20 * mm  # 20mm in points
 
     buf: List[Any] = []
@@ -76,10 +78,14 @@ def _build_cover_page(
     buf.append(Spacer(1, 60))
     buf.append(Paragraph("整改通知单", s["cover-title"]))
     buf.append(Spacer(1, 4))
-    buf.append(Paragraph(
-        "CORRECTION NOTICE",
-        ParagraphStyle("notice-sub", fontName="Helvetica", fontSize=12, textColor=C_TEXT_LIGHT, alignment=1),
-    ))
+    buf.append(
+        Paragraph(
+            "CORRECTION NOTICE",
+            ParagraphStyle(
+                "notice-sub", fontName="Helvetica", fontSize=12, textColor=C_TEXT_LIGHT, alignment=1
+            ),
+        )
+    )
     buf.append(Spacer(1, 24))
 
     notice_id = review_meta.get("notice_id", f"CN-{uuid.uuid4().hex[:8].upper()}")
@@ -106,10 +112,14 @@ def _build_cover_page(
     buf.extend(cards)
     buf.append(Spacer(1, 30))
 
-    buf.append(Paragraph(
-        "<b>说明：</b>本通知单列出了经审查确认后需要整改的违规条目。请项目负责人按照规范要求完成整改，并在复查栏签署意见。",
-        ParagraphStyle("notice-desc", parent=s["body"], fontSize=9, textColor=C_TEXT_LIGHT, leading=14),
-    ))
+    buf.append(
+        Paragraph(
+            "<b>说明：</b>本通知单列出了经审查确认后需要整改的违规条目。请项目负责人按照规范要求完成整改，并在复查栏签署意见。",
+            ParagraphStyle(
+                "notice-desc", parent=s["body"], fontSize=9, textColor=C_TEXT_LIGHT, leading=14
+            ),
+        )
+    )
 
 
 def _group_by_func(items: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
@@ -139,10 +149,14 @@ def _build_grouped_notices(
         seq += 1
 
         buf.append(Spacer(1, 14))
-        buf.append(Paragraph(
-            f"第 {seq} 项：{fid} ({len(entries)} 处)",
-            ParagraphStyle("notice-section", fontName="Helvetica-Bold", fontSize=11, textColor=C_PRIMARY),
-        ))
+        buf.append(
+            Paragraph(
+                f"第 {seq} 项：{fid} ({len(entries)} 处)",
+                ParagraphStyle(
+                    "notice-section", fontName="Helvetica-Bold", fontSize=11, textColor=C_PRIMARY
+                ),
+            )
+        )
         buf.append(Spacer(1, 4))
 
         # 整改表格
@@ -168,7 +182,12 @@ def _build_grouped_notices(
         buf.append(Spacer(1, 12))
         buf.append(HRFlowable(width="100%", color=C_TEXT_LIGHT, thickness=0.3))
         buf.append(Spacer(1, 4))
-        buf.append(Paragraph("签字：___________    日期：___________", ParagraphStyle("sign", parent=s["body"], fontSize=9, textColor=C_TEXT_LIGHT)))
+        buf.append(
+            Paragraph(
+                "签字：___________    日期：___________",
+                ParagraphStyle("sign", parent=s["body"], fontSize=9, textColor=C_TEXT_LIGHT),
+            )
+        )
         buf.append(Spacer(1, 16))
 
     if seq > 0:
@@ -197,4 +216,11 @@ def _build_sign_page(
 
     buf.append(HRFlowable(width="100%", color=C_TEXT_LIGHT, thickness=0.3))
     buf.append(Spacer(1, 8))
-    buf.append(Paragraph("BAA 合规审查系统自动生成 · 请打印后签署", ParagraphStyle("footer-note", parent=s["body"], fontSize=8, textColor=C_TEXT_LIGHT, alignment=1)))
+    buf.append(
+        Paragraph(
+            "BAA 合规审查系统自动生成 · 请打印后签署",
+            ParagraphStyle(
+                "footer-note", parent=s["body"], fontSize=8, textColor=C_TEXT_LIGHT, alignment=1
+            ),
+        )
+    )

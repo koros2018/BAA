@@ -86,7 +86,6 @@ ENTITY_BASELINE = {  # assignment
         "fire_elevator": 14,
         "stair": 4,
     },  # code
-
     # ── 建筑/结构图纸 (data/files/) ──
     "baa-file-00582518a28e.dxf": {  # code
         "room": 343,
@@ -255,7 +254,9 @@ def test_all_files_dir_parseable(
     # data/files/ 下有很多 0B/mock 垃圾文件，过滤掉 < 50KB 的
     min_size = 50 * 1024  # 50KB
     paths_above_min = [p for p in paths if p.stat().st_size >= min_size]  # assignment
-    assert len(paths_above_min) >= 10, f"data/files/ 中 >=50KB 的 DXF 至少需要 10 个, 找到 {len(paths_above_min)}"  # get length
+    assert (
+        len(paths_above_min) >= 10
+    ), f"data/files/ 中 >=50KB 的 DXF 至少需要 10 个, 找到 {len(paths_above_min)}"  # get length
 
     # 取前 20 个按大小排序的有效 DXF
     sample = sorted(paths_above_min, key=lambda f: f.stat().st_size)[:20]  # 按大小排序取最小的

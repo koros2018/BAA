@@ -102,6 +102,7 @@ def _review_timeout_decorator(timeout_seconds: int):
     超时后会话不会崩溃，而是返回 partial=True 的中间结果。
     前端据此展示"已解析 X 个实体，审查进行到 Y%"。
     """
+
     def decorator(coro_func):
         async def wrapper(*args, **kwargs):
             task = asyncio.current_task()
@@ -112,9 +113,13 @@ def _review_timeout_decorator(timeout_seconds: int):
             except asyncio.TimeoutError:
                 # 取消正在运行的子任务，避免后台无限占用资源
                 if task is not None:
-                    _logger.warning(f"[P121] Timeout after {timeout_seconds}s, cancelling remaining tasks")
+                    _logger.warning(
+                        f"[P121] Timeout after {timeout_seconds}s, cancelling remaining tasks"
+                    )
                 return _partial_result(task.review_state if task else {}, timeout_seconds)
+
         return wrapper
+
     return decorator
 
 
@@ -600,6 +605,7 @@ async def review(  # code
 
         class _ClusteringResult:
             """线程安全的中间结果容器。"""
+
             def __init__(self):
                 self.clause_results = None
                 self.details = []
@@ -629,7 +635,9 @@ async def review(  # code
                 return worst_val, worst_unit, worst_op
 
             func_ids = [
-                f.func_id for f in registry_funcs if not getattr(f, "requires_global_context", False)
+                f.func_id
+                for f in registry_funcs
+                if not getattr(f, "requires_global_context", False)
             ]
             global_funcs = [
                 f for f in registry_funcs if getattr(f, "requires_global_context", False)
@@ -662,21 +670,23 @@ async def review(  # code
                             "category": func.category.value,
                         }
                         f = _get_aa().build_finding(r, clause, e, entities[:5])
-                        details.append({
-                            "entity_id": e.get("id", e.get("type", "")),
-                            "entity_type": e["type"],
-                            "clause_id": f.clause.get("clause_id", ""),
-                            "clause_title": f.clause.get("title", ""),
-                            "func_id": func.func_id,
-                            "result": f.judgement["result"],
-                            "extracted_value": f.extracted_params["extracted_value"],
-                            "required_value": f.extracted_params.get("required_value", 1.2),
-                            "difference": f.extracted_params.get("difference", 0),
-                            "severity": f.judgement.get("severity", "major"),
-                            "explanation": f.explanation[:120],
-                            "confidence": r.confidence,
-                            "confidence_tier": _confidence_tier(r.confidence),
-                        })
+                        details.append(
+                            {
+                                "entity_id": e.get("id", e.get("type", "")),
+                                "entity_type": e["type"],
+                                "clause_id": f.clause.get("clause_id", ""),
+                                "clause_title": f.clause.get("title", ""),
+                                "func_id": func.func_id,
+                                "result": f.judgement["result"],
+                                "extracted_value": f.extracted_params["extracted_value"],
+                                "required_value": f.extracted_params.get("required_value", 1.2),
+                                "difference": f.extracted_params.get("difference", 0),
+                                "severity": f.judgement.get("severity", "major"),
+                                "explanation": f.explanation[:120],
+                                "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
+                            }
+                        )
                 cr.completed_entities = idx + 1
 
             # 全局函数 + 缺失检查（超时则跳过）
@@ -697,21 +707,23 @@ async def review(  # code
                 count = len(matching)
                 clause_results[func.clause_id] += 1
                 if count < func.threshold:
-                    details.append({
-                        "entity_id": "",
-                        "entity_type": ",".join(func_targets),
-                        "clause_id": func.clause_id,
-                        "clause_title": func.name,
-                        "func_id": func.func_id,
-                        "result": "FAIL",
-                        "extracted_value": float(count),
-                        "required_value": float(func.threshold),
-                        "difference": float(count - func.threshold),
-                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                        "severity": "critical",
-                        "confidence": 1.0,
-                        "confidence_tier": "confirmed",
-                    })
+                    details.append(
+                        {
+                            "entity_id": "",
+                            "entity_type": ",".join(func_targets),
+                            "clause_id": func.clause_id,
+                            "clause_title": func.name,
+                            "func_id": func.func_id,
+                            "result": "FAIL",
+                            "extracted_value": float(count),
+                            "required_value": float(func.threshold),
+                            "difference": float(count - func.threshold),
+                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                            "severity": "critical",
+                            "confidence": 1.0,
+                            "confidence_tier": "confirmed",
+                        }
+                    )
 
             entity_types_in_drawing = set(e.get("type", "") for e in entities)
             for func in registry_funcs:
@@ -732,21 +744,23 @@ async def review(  # code
                             "category": func.category.value,
                         }
                         f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                        details.append({
-                            "entity_id": "",
-                            "entity_type": "missing",
-                            "clause_id": f.clause.get("clause_id", ""),
-                            "clause_title": f.clause.get("title", ""),
-                            "func_id": func.func_id,
-                            "result": f.judgement["result"],
-                            "extracted_value": 0.0,
-                            "required_value": f.extracted_params.get("required_value", 1.0),
-                            "difference": -f.extracted_params.get("required_value", 1.0),
-                            "explanation": f.explanation[:120],
-                            "severity": "critical",
-                            "confidence": r.confidence,
-                            "confidence_tier": _confidence_tier(r.confidence),
-                        })
+                        details.append(
+                            {
+                                "entity_id": "",
+                                "entity_type": "missing",
+                                "clause_id": f.clause.get("clause_id", ""),
+                                "clause_title": f.clause.get("title", ""),
+                                "func_id": func.func_id,
+                                "result": f.judgement["result"],
+                                "extracted_value": 0.0,
+                                "required_value": f.extracted_params.get("required_value", 1.0),
+                                "difference": -f.extracted_params.get("required_value", 1.0),
+                                "explanation": f.explanation[:120],
+                                "severity": "critical",
+                                "confidence": r.confidence,
+                                "confidence_tier": _confidence_tier(r.confidence),
+                            }
+                        )
 
             cr.clause_results = clause_results
             cr.details = details
@@ -755,6 +769,7 @@ async def review(  # code
 
         # 启动超时计时器：超时后设置 event
         import threading as _threading
+
         _timer = _threading.Timer(_remaining_s, timeout_event.set)
         _timer.daemon = True
         _timer.start()

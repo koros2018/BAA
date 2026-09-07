@@ -1317,6 +1317,7 @@ class TestExecuteWithTimeout:  # class definition
 
         def _slow_execute(entity):  # function: def _slow_execute(entity):
             import time  # stdlib: timing
+
             time.sleep(0.1)  # 模拟慢函数
             return original_execute(entity)  # return
 
@@ -1339,6 +1340,7 @@ class TestExecuteWithTimeout:  # class definition
 
         def _slow_execute(entity):  # function: def _slow_execute(entity):
             import time  # stdlib: timing
+
             time.sleep(0.1)
             return original_execute(entity)  # return
 
@@ -1354,14 +1356,18 @@ class TestExecuteWithTimeout:  # class definition
         assert result_b is not None  # code
         assert result_b.func_id == "DIM-002"  # equality check
 
-    def test_none_entity_returns_none(self,):  # function: def test_none_entity_returns_none(self,):
+    def test_none_entity_returns_none(
+        self,
+    ):  # function: def test_none_entity_returns_none(self,):
         """entity=None 时 execute() 返回 None（target 不适用）"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
         result = registry.execute_with_timeout(func, None, timeout=10)  # function call
         assert result is None  # DIM-001 在 entity=None 时不执行
 
-    def test_exception_returns_error(self,):  # function: def test_exception_returns_error(self,):
+    def test_exception_returns_error(
+        self,
+    ):  # function: def test_exception_returns_error(self,):
         """原子函数抛出异常应返回 ERROR 结果"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
@@ -1377,7 +1383,9 @@ class TestExecuteWithTimeout:  # class definition
         assert result.result == "ERROR"  # equality check
         assert result.severity.value == "error"  # equality check
 
-    def test_default_timeout_is_noop(self):  # function: def test_default_timeout_is_noop(self):  # P94
+    def test_default_timeout_is_noop(
+        self,
+    ):  # function: def test_default_timeout_is_noop(self):  # P94
         """P94: DEFAULT_TIMEOUT 为兼容占位，不影响行为"""
         registry = FuncRegistry()  # function call
         func = registry.get("DIM-001")  # function call
@@ -1387,6 +1395,7 @@ class TestExecuteWithTimeout:  # class definition
 
         def _slow_execute(entity):  # function: def _slow_execute(entity):
             import time  # stdlib: timing
+
             time.sleep(0.05)
             return original_execute(entity)  # return
 

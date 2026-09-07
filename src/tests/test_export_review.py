@@ -1,4 +1,5 @@
 """P91: 审查结果结构化导出测试"""
+
 import csv
 import io
 import time
@@ -14,21 +15,46 @@ _AUTH = {"Authorization": "Bearer test-api-key"}
 
 def _make_review():
     rid = "test_p91_" + str(time.time()).replace(".", "")
-    save_review_result(rid, "test.dxf", {
-        "review_id": rid, "status": "success",
-        "summary": {"total": 2, "fail_count": 1, "score": 50},
-        "details": [
-            {"clause_id": "DIM-001", "title": "疏散楼梯净宽", "severity": "critical",
-             "status": "FAIL", "entity_id": "s1", "entity_type": "stair",
-             "category": "evacuation", "current_value": "0.9", "required_value": "1.2",
-             "delta": "-0.3", "confidence": "0.9", "description": "实测不足"},
-            {"clause_id": "DIM-002", "title": "疏散门净宽", "severity": "major",
-             "status": "PASS", "entity_id": "d1", "entity_type": "door",
-             "category": "evacuation", "current_value": "1.0", "required_value": "0.9",
-             "delta": "0.1", "confidence": "0.95", "description": "满足"},
-        ],
-        "corrections": [],
-    })
+    save_review_result(
+        rid,
+        "test.dxf",
+        {
+            "review_id": rid,
+            "status": "success",
+            "summary": {"total": 2, "fail_count": 1, "score": 50},
+            "details": [
+                {
+                    "clause_id": "DIM-001",
+                    "title": "疏散楼梯净宽",
+                    "severity": "critical",
+                    "status": "FAIL",
+                    "entity_id": "s1",
+                    "entity_type": "stair",
+                    "category": "evacuation",
+                    "current_value": "0.9",
+                    "required_value": "1.2",
+                    "delta": "-0.3",
+                    "confidence": "0.9",
+                    "description": "实测不足",
+                },
+                {
+                    "clause_id": "DIM-002",
+                    "title": "疏散门净宽",
+                    "severity": "major",
+                    "status": "PASS",
+                    "entity_id": "d1",
+                    "entity_type": "door",
+                    "category": "evacuation",
+                    "current_value": "1.0",
+                    "required_value": "0.9",
+                    "delta": "0.1",
+                    "confidence": "0.95",
+                    "description": "满足",
+                },
+            ],
+            "corrections": [],
+        },
+    )
     return rid
 
 

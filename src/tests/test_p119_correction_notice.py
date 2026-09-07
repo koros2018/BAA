@@ -40,6 +40,7 @@ class TestCorrectionNoticePDF:
 
     def test_empty_items_raises(self):
         from src.baa_engine.report_generator.correction_notice import build_correction_notice
+
         # 空 items 也应生成封面 + 签字页（无人确认为空清单）
         pdf = build_correction_notice([], {"drawing_name": "test.dxf"})
         assert pdf.startswith(b"%PDF")
@@ -72,10 +73,12 @@ class TestCorrectionNoticeAPI:
     @pytest.fixture
     def client(self):
         from src.api.baa_api import app, API_KEYS
+
         # 保存并清空 API_KEYS 以启用匿名模式，测试后恢复
         saved = set(API_KEYS)
         API_KEYS.clear()
         from fastapi.testclient import TestClient
+
         client = TestClient(app)
         yield client
         API_KEYS.clear()

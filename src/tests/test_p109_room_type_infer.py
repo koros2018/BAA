@@ -19,6 +19,7 @@ def _rule_name(rule):
 
 # ── 规则完整性 ──────────────────────────────────────────────
 
+
 def test_rules_have_all_required_fields():
     required = {"name", "area", "aspect", "min_corridor_adj", "text_keywords", "override_type"}
     for rule in ROOM_TYPE_RULES:
@@ -27,11 +28,20 @@ def test_rules_have_all_required_fields():
 
 def test_rules_cover_expected_types():
     names = {_rule_name(r) for r in ROOM_TYPE_RULES}
-    expected = {"staircase", "elevator", "elevator_lobby", "pump_room", "lobby", "toilet", "bedroom"}
+    expected = {
+        "staircase",
+        "elevator",
+        "elevator_lobby",
+        "pump_room",
+        "lobby",
+        "toilet",
+        "bedroom",
+    }
     assert expected.issubset(names), f"缺失规则: {expected - names}"
 
 
 # ── 置信度评分 ──────────────────────────────────────────────
+
 
 def test_infer_staircase_with_keywords():
     rtype, conf, override = infer_room_type(
@@ -77,6 +87,7 @@ def test_infer_bedroom():
 
 # ── 几何特征推理（无文本关键词） ────────────────────────────
 
+
 def test_infer_elevator_small_square():
     # 小面积、接近方形 → 可能是电梯井
     rtype, conf, override = infer_room_type(
@@ -97,6 +108,7 @@ def test_infer_empty_when_too_small():
 
 
 # ── 置信度边界 ──────────────────────────────────────────────
+
 
 def test_confidence_between_0_and_1():
     rtype, conf, override = infer_room_type(
@@ -123,6 +135,7 @@ def test_low_confidence_no_signal():
 
 
 # ── 边缘情况 ────────────────────────────────────────────────
+
 
 def test_zero_area():
     rtype, conf, override = infer_room_type(
