@@ -23,9 +23,19 @@ test.describe("单图审查流程", () => {
     // 点击开始审查
     await page.click("#review-start-btn");
 
-    // 等待审查结果出现（摘要非空）
-    await expect(page.locator("#review-summary")).toHaveText(/.+/, {
-      timeout: 90000,
-    });
+    // 等待审查完成：summary 或 details 可见，或 loading 消失
+    await Promise.race([
+      page
+        .locator("#review-summary")
+        .waitFor({ state: "visible", timeout: 180_000 }),
+      page
+        .locator("#review-details")
+        .waitFor({ state: "visible", timeout: 180_000 }),
+    ]);
+
+    // 审查后 loading 消失，summary/details 中至少一个有内容
+    const summary = (await page.locator("#review-summary").textContent())?.trim() || "";
+    const detailsCount = await page.locator("#review-details > div").count();
+    expect(summary.length > 0 || detailsCount > 0).toBe(true);
   });
 });

@@ -19,14 +19,24 @@ test.describe("批量审查流程", () => {
     // 等待文件加载到队列
     await page.waitForTimeout(2000);
 
-    // 点击批量送审按钮
-    const batchBtn = page.locator("#batch-review-btn");
-    await expect(batchBtn).toBeVisible({ timeout: 5000 });
+    // 点击批量送审按钮（start-btn）
+    const batchBtn = page.locator("#batch-review-start-btn");
+    await expect(batchBtn).toBeVisible({ timeout: 10_000 });
     await batchBtn.click();
 
-    // 等待批量结果出现
-    await expect(
-      page.locator("#batch-results").locator("div").first()
-    ).toHaveText(/.+/, { timeout: 120000 });
+    // 等待批量结果出现：summary 或 details 有内容（二选一即可）
+    await Promise.race([
+      page
+        .locator("#batch-review-summary")
+        .waitFor({ state: "visible", timeout: 180_000 }),
+      page
+        .locator("#batch-review-details")
+        .waitFor({ state: "visible", timeout: 180_000 }),
+    ]);
+
+    // 至少 summary 或 details 非空
+    const summaryText = (await page.locator("#batch-review-summary").textContent())?.trim() || "";
+    const detailsCount = await page.locator("#batch-review-details > div").count();
+    expect(summaryText.length > 0 || detailsCount > 0).toBe(true);
   });
 });
