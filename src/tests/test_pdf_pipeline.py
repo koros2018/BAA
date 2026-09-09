@@ -21,6 +21,11 @@ LOCAL_PDF_MARK = pytest.mark.skipif(
     reason="本地 PDF 测试文件不存在，CI 环境跳过",
 )
 
+BOILER_PDF_MARK = pytest.mark.skipif(
+    not os.path.exists(BOILER_PDF),
+    reason="锅炉 PDF 测试文件不存在，CI 环境跳过",
+)
+
 
 @LOCAL_PDF_MARK
 def test_pdf_parser_direct():
@@ -81,7 +86,7 @@ def test_pdf_atomic_functions():
     print(f"PASS PDF AF: {len(all_findings)} findings, {func_ids.most_common(5)}")
 
 
-@LOCAL_PDF_MARK
+@BOILER_PDF_MARK
 def test_multi_page_pdf():
     """多页 PDF 指定页面解析"""
     dp = DrawingParser()

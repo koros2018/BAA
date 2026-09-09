@@ -5,7 +5,7 @@ BAA 原子函数库 - 规范判定核心
 
 from typing import Dict, Any, Optional, List, Tuple, Set  # typing: type hints
 from enum import Enum  # import
-from dataclasses import dataclass, field  # dataclass support
+from dataclasses import dataclass, field, replace as _dc_replace  # dataclass support
 
 import concurrent.futures  # import
 import logging  # stdlib: logging
@@ -766,6 +766,15 @@ class AtomicFunction:  # class definition
 # ── 函数注册表 ────────────────────────────────────────────
 
 
+def _clone_atomic_function(func: AtomicFunction) -> AtomicFunction:
+    """浅拷贝原子函数，list 字段独立，避免原地改写泄漏到模块级共享对象。"""
+    return _dc_replace(
+        func,
+        target_entities=list(func.target_entities),
+        depends_on=list(func.depends_on),
+    )  # function call
+
+
 class FuncRegistry:  # class definition
     """原子函数注册表 - 从 atomic/ 子包加载 422 条原子函数"""
 
@@ -786,7 +795,10 @@ class FuncRegistry:  # class definition
         from .atomic import ATOMIC_FUNCTIONS  # import from atomic subpackage
 
         for func in ATOMIC_FUNCTIONS:  # 循环
-            self.register(func)  # function call
+            # 注册时拷贝，避免 registry 与模块级 ATOMIC_FUNCTIONS 共享同一对象。
+            # API 层按 building_type/standard 原地改写 func.threshold/operator/unit，
+            # 共享引用会污染全局，导致后续新 registry 拿到被篡改的阈值。
+            self.register(_clone_atomic_function(func))  # function call
         # 预计算拓扑排序（非全局函数列表）
         self._ordered_func_ids = self.resolve_dependencies(
             [
