@@ -116,6 +116,8 @@
 | ~~P122~~ | ~~前端安全修复（XSS/innerHTML/测试框架）~~ | ✅ **2026-08-21 完成**（Phase 1+2 XSS+alert 清零，Playwright 框架已接入 4 spec） |
 | ~~P123~~ | ~~前端架构重构（Vite+TS+组件化）~~ | ✅ **2026-08-24 完成**（30+ TS 组件 + 13 core 模块，104 var / 72 onclick 归零） |
 | ~~P124~~ | ~~前端遗留清理 + E2E 补全~~ | ✅ **2026-09-09 完成**（`b77c69b`，onclick 87→0 / innerHTML+= 6→0 / var 2→0 / E2E 4→8 spec 全量回归通过） |
+| ~~P125~~ | ~~前端 Vite 构建产物收敛 + 单入口清理~~ | ✅ **2026-09-09 完成**（`be3052d`，Vite build:check 脚本 + 删 1589 行死代码 + TS strict + bundle 可读化） |
+| P126 | 前端组件单测 + Vitest 接入 | 🆕 待启动（已有 vitest 依赖未使用，为关键组件补测试） |
 | P112 | 用户认证、团队空间与协作前端 | 🟡 进行中（401 修复完成，工作流待续，依赖 P119 audit 已解锁） |
 | P113 | 真实用户试用与黄金标准扩库 | 🟡 可启动（P119 已解锁 dismissed → feedback_engine 通道） |
 | P116 | 报告产品化（封面/签字/整改通知单） | 🟡 部分完成（P119 已交付整改通知单 PDF，封面/签字待做） |
@@ -139,6 +141,17 @@
 - **E2E**：Playwright 4→8 spec（新增 audit/report/drawing_upload/regression），全量回归通过
 - **提交栈**：`9c1b8d6` Phase4 → `cc79d67`+`ae0460f` flaky 修复 → `b77c69b` bundle 重建
 - **P125 预告**：前端 Vite 构建产物收敛 + 单入口清理
+
+### v2.5.78-stable 发布记录
+- **发布日**：2026-09-09
+- **HEAD**：`be3052d`
+- **P 项完成**：P125（前端 Vite 构建产物收敛 + 单入口清理）
+- **Phase 1**：`src/frontend/package.json` 补 build/dev/build:check/preview 脚本
+- **Phase 2**：删除 `js/baa-review.ts` (1269L) + `js/baa-audit.ts` (320L)，共 1589 行死代码
+- **Phase 3**：TS strict 模式开启（noUnusedLocals 放宽避 22 处未使用变量）+ init.ts/review.ts strict 修复
+- **Phase 4**：bundle 50 → 5237 行（可读），sourcemap 478KB 生成
+- **提交栈**：`c4cf876` Phase1 → `f068fe6` Phase2 → `e55286b` Phase3 → `be3052d` Phase4
+- **build:check 验证**：43 modules / 263 kB / gzip 60 kB / 933ms
 
 ### P7: 真实图纸验证
 - 收集更多真实图纸（消防/电气/建筑各10+张）
