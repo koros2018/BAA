@@ -14,6 +14,9 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname),
     emptyOutDir: false,
+    minify: false, // P125: 开发期可读，方便定位问题
+    sourcemap: true, // P125: 保留 source map，前端报错可直接跳到 TS 源码
+    target: 'es2020',
     lib: {
       entry: resolve(__dirname, 'ts/main.ts'),
       formats: ['iife'],
