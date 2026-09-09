@@ -1,50 +1,5237 @@
-(function(){"use strict";function X(e){if(!e)return"-";const t=new Date(typeof e=="number"?e*1e3:e);return isNaN(t.getTime())?"-":t.toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}function gt(e){return!e||e.length<=8?e||"":e.slice(0,4)+"..."+e.slice(-4)}function f(e){const t=String(e??""),n={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};return t.replace(/[&<>"']/g,o=>n[o]||o)}function He(e){return`<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${{admin:"bg-red-100 text-red-800",write:"bg-blue-100 text-blue-800",read:"bg-green-100 text-green-800",limited:"bg-gray-100 text-gray-800"}[e]||"bg-gray-100"}">${f(e)}</span>`}function Oe(e){return e?'<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✓ 启用</span>':'<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">✗ 已禁用</span>'}function An(){return`id_${Date.now()}_${Math.random().toString(36).slice(2,8)}`}function yt(e,t){const n={...e};for(const o in t)t[o]&&typeof t[o]=="object"&&!Array.isArray(t[o])?n[o]=yt(n[o]||{},t[o]):n[o]=t[o];return n}const Rn={info:"ℹ️",success:"✅",error:"❌",warn:"⚠️"};function w(e,t="info",n=4e3){var a;if(typeof e!="string"||!e)return;const o=(()=>{let i=document.getElementById("toast-container");return i||(i=document.createElement("div"),i.id="toast-container",i.className="toast-container",document.body.appendChild(i)),i})(),s=document.createElement("div");s.className=`toast toast-${t}`,s.innerHTML=`<span>${Rn[t]||"ℹ️"}</span><span>${e}</span>`,o.appendChild(s),o.children.length>5&&((a=o.firstChild)==null||a.remove()),setTimeout(()=>{s.style.opacity="0",s.style.transform="translateX(20px)"},n),setTimeout(()=>{s.parentNode&&s.parentNode.removeChild(s)},n+300)}typeof window<"u"&&(window.showToast=w);function Dn(e,t){const n=document.getElementById(e);if(n&&(n.classList.remove("hidden"),t)){const o=document.getElementById(t);o&&o.classList.add("hidden")}}function Hn(e,t){const n=document.getElementById(e);if(n&&(n.classList.add("hidden"),t)){const o=document.getElementById(t);o&&o.classList.remove("hidden")}}function On(e,t=3,n="skeleton-overlay"){if(!e)return;const o=Array(t).fill(0).map(()=>'<div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>').join("");e.innerHTML=o,e.className=n,e.classList.remove("hidden")}function xt(e,t="处理中",n=0){e&&(e.className="review-progress",e.innerHTML=`<div class="review-progress-text"><span>${t}</span><span>${n}%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:${n}%"></div></div>`)}let ee=null,Pe="";function Pn(e){ee=e}function Nn(e){Pe=e}function k(){return ee?ee.apiBase():"http://localhost:8000"}function ae(){if(!ee)return{};const e={},t=ee.getActiveKeyValue();t&&(e.Authorization="Bearer "+t);const n=ee.currentTeamId(),o=ee.currentProjectId();return n&&(e["X-Team-Id"]=n),o&&(e["X-Project-Id"]=o),e}function N(){return ae()}function me(e="GET"){const t={};return Pe&&(t.Authorization="Bearer "+Pe),e&&e!=="GET"&&(t["Content-Type"]="application/json"),t}function Fn(e,t){if(typeof t=="object"&&t!==null){const n=t;if(n.detail)return String(n.detail);if(n.message)return String(n.message)}return JSON.stringify(t||`HTTP ${e.status}`)}async function Ne(e){const t=await e.json().catch(()=>({}));if(!e.ok)throw new Error("API错误 ("+e.status+"): "+Fn(e,t));return t}async function R(e){return Ne(await fetch(k()+e,{method:"GET",headers:N()}))}async function Kn(e,t){return re(e,t)}async function re(e,t){return Ne(await fetch(k()+e,{method:"POST",headers:{"Content-Type":"application/json",...N()},body:JSON.stringify(t)}))}async function W(e,t={}){return(await fetch(k()+e,{headers:{"Content-Type":"application/json",...N(),...t.headers},...t})).json()}async function he(e,t,n={}){const o=new FormData;o.append("file",t);const s=new URLSearchParams(Object.fromEntries(Object.entries(n).map(([l,r])=>[l,String(r)]))),a=k()+e+(s.toString()?"?"+s.toString():""),i=await fetch(a,{method:"POST",headers:ae(),body:o});return Ne(i)}async function le(e){return fetch(k()+e,{method:"GET",headers:me("GET")}).then(t=>t.json())}async function be(e,t){return fetch(k()+e,{method:"POST",headers:me("POST"),body:JSON.stringify(t)}).then(n=>n.json())}async function Fe(e){return fetch(k()+e,{method:"DELETE",headers:me("DELETE")}).then(t=>t.json())}typeof window<"u"&&(window.HEADERS=()=>ae(),window.getHeaders=()=>N(),window.API_BASE=()=>k(),window.apiGet=R,window.apiPostJSON=re,window.apiPostFile=he,window.apiFetch=W,window.adminGet=le,window.adminPost=be,window.adminDelete=Fe,window.adminHeaders=e=>me(e),window.apiPost=(e,t)=>re(e,t));class qn{constructor(){this._teamId=localStorage.getItem("baa_team_id")||"",this._projectId=localStorage.getItem("baa_project_id")||"",this._historyTeamFilter="",this._historyProjectFilter="",this._currentReviewId="",this._reviewAuditMapping=null,this._reviewAuditStates={}}get teamId(){return this._teamId}get projectId(){return this._projectId}get historyTeamFilter(){return this._historyTeamFilter}get historyProjectFilter(){return this._historyProjectFilter}get currentReviewId(){return this._currentReviewId}get reviewAuditMapping(){return this._reviewAuditMapping}get reviewAuditStates(){return this._reviewAuditStates}setTeamId(t){this._teamId=t||"",localStorage.setItem("baa_team_id",this._teamId)}setProjectId(t){this._projectId=t||"",localStorage.setItem("baa_project_id",this._projectId)}setCurrentReviewId(t){this._currentReviewId=t||""}setReviewAuditMapping(t){this._reviewAuditMapping=t}setReviewAuditStates(t){this._reviewAuditStates=t}setHistoryTeamFilter(t){this._historyTeamFilter=t}setHistoryProjectFilter(t){this._historyProjectFilter=t}loadApiBase(){const t=localStorage.getItem("baa_api_base"),n=document.getElementById("api-base");t&&n&&(n.value=t)}saveApiBase(){const t=document.getElementById("api-base");t&&localStorage.setItem("baa_api_base",t.value)}}const C=new qn;typeof window<"u"&&(Object.defineProperty(window,"currentTeamId",{get:()=>C.teamId,set:e=>C.setTeamId(e)}),Object.defineProperty(window,"currentProjectId",{get:()=>C.projectId,set:e=>C.setProjectId(e)}),window.setCurrentTeamId=e=>C.setTeamId(e||""),window.setCurrentProjectId=e=>C.setProjectId(e||""),window.getCurrentTeamId=()=>C.teamId,window.getCurrentProjectId=()=>C.projectId,window.loadApiBase=()=>C.loadApiBase(),window.saveApiBase=()=>C.saveApiBase());async function Vn(e){document.querySelectorAll(".sidebar-item").forEach(o=>o.classList.remove("active")),document.querySelectorAll(".page").forEach(o=>o.classList.remove("active"));const t=document.querySelector(`.sidebar-item[data-page="${e}"]`),n=document.getElementById(`page-${e}`);if(!n){console.warn("Page not found:",e);return}t==null||t.classList.add("active"),n.classList.add("active");try{e==="home"?await V("loadDashboard"):e==="specs"?V("loadSpecs"):e==="analysis"?await V("loadAnalysis"):e==="history"?V("renderHistoryList"):e==="apikeys"?await V("loadAdminKeys"):e==="cases"?(V("loadCaseStats"),V("loadCases",0)):e==="cd"?V("loadCDItems"):e==="model-params"?V("switchModelParamTab","functions"):e==="collab"&&window.collabToken&&(V("updateUserStatus",!0),setTimeout(()=>V("collabEnterMain"),100))}catch(o){console.error("页面加载错误:",o)}}function V(e,...t){const n=window[e];if(typeof n=="function")return n(...t);console.warn(`Function not found: ${e}`)}async function vt(){const e=document.getElementById("conn-status");if(e){e.className="text-xs text-yellow-600",e.textContent="连接中...";try{const t=await R("/health");e.className="text-xs text-green-600",e.textContent=`✅ 连接成功 | ${t.version} | 引擎: ${t.engine_status}`}catch(t){e.className="text-xs text-red-600",e.textContent=`❌ 连接失败: ${t.message}`}}}typeof window<"u"&&(window.navigateTo=Vn,window.testConnection=vt);const Ke=[{page:"home",load:()=>window.loadDashboard&&window.loadDashboard()},{page:"specs",load:()=>window.loadSpecs&&window.loadSpecs()},{page:"analysis",load:()=>window.loadAnalysis&&window.loadAnalysis()},{page:"history",load:()=>window.renderHistoryList&&window.renderHistoryList()},{page:"apikeys",load:()=>window.loadAdminKeys&&window.loadAdminKeys()},{page:"cases",load:()=>{const e=window;typeof e.loadCaseStats=="function"&&e.loadCaseStats(),typeof e.loadCases=="function"&&e.loadCases(0)}},{page:"cd",load:()=>window.loadCDItems&&window.loadCDItems()},{page:"model-params",load:()=>window.switchModelParamTab&&window.switchModelParamTab("functions")},{page:"collab",load:()=>{const e=window;e.collabToken&&(typeof e.updateUserStatus=="function"&&e.updateUserStatus(!0),setTimeout(()=>{typeof e.collabEnterMain=="function"&&e.collabEnterMain()},100))}},{page:"drawings",title:"图纸管理"},{page:"review",title:"审查"},{page:"compare",title:"对比"},{page:"reverse",title:"反向重构"},{page:"funcs",title:"原子函数"},{page:"settings",title:"设置"},{page:"docs",title:"文档"}];class zn{constructor(){this._current="home",this._listeners=[],this._popstateBound=null,this._popstateBound=()=>this._onHashChange(),window.addEventListener("popstate",this._popstateBound),window.addEventListener("hashchange",()=>this._onHashChange());const t=this._readHash();this._current=t,this._activate(t,!0)}get current(){return this._current}go(t){if(t===this._current)return;if(!Ke.find(o=>o.page===t)){console.warn("No route for:",t);return}window.location.hash="#"+t}on(t){return this._listeners.push(t),()=>{this._listeners=this._listeners.filter(n=>n!==t)}}_readHash(){const t=window.location.hash.replace("#","").replace("/","");return Ke.find(o=>o.page===t)?t:"home"}_onHashChange(){const t=this._readHash();this._activate(t)}_activate(t,n=!1){this._current=t,document.querySelectorAll(".page").forEach(s=>{s.classList.toggle("active",s.id==="page-"+t)}),document.querySelectorAll(".sidebar-item").forEach(s=>{s.classList.toggle("active",s.dataset.page===t)});const o=Ke.find(s=>s.page===t);if(o!=null&&o.load)try{const s=o.load();s&&typeof s.then=="function"&&s.catch(a=>{console.error("页面加载错误:",t,a)})}catch(s){console.error("页面加载错误:",t,s)}n||this._listeners.forEach(s=>s(t))}}const ht=new zn;typeof window<"u"&&(window.router=ht);let M=[],F="";function qe(){try{const e=localStorage.getItem("baa_api_keys");M=e?JSON.parse(e):[],F=localStorage.getItem("baa_active_key")||""}catch{M=[],F=""}te()}function Ve(){localStorage.setItem("baa_api_keys",JSON.stringify(M))}function J(){const e=M.find(t=>t.id===F);return e?e.key:""}function Un(e){F=e,localStorage.setItem("baa_active_key",F),te()}function te(){const e=document.getElementById("active-key-select");if(!e)return;e.innerHTML='<option value="">无令牌（开发模式）</option>',M.forEach(n=>{const o=document.createElement("option");o.value=n.id,o.textContent=`${n.name} (${gt(n.key)})`,n.id===F&&(o.selected=!0),e.appendChild(o)});const t=document.getElementById("token-hint");t&&(t.textContent=M.length>0?`共 ${M.length} 个本地令牌。外部项目的token可手动添加。`:"暂无令牌。可在「密钥管理」页面创建后在此添加，或点击下方手动输入。")}function bt(e){Un(e)}function wt(){if(!F){w("当前没有选中任何令牌","info");return}confirm("确认删除当前令牌？")&&ze(F)}function _t(){const e=prompt("令牌名称（如：EMA2对接）");if(!e)return;const t=prompt("请输入令牌内容（从密钥管理页面复制）");t&&(M.push({id:`key_${Date.now()}`,name:e,key:t,created:Date.now()}),Ve(),F=M[M.length-1].id,localStorage.setItem("baa_active_key",F),te())}function ze(e){confirm("确认删除此本地令牌？")&&(M=M.filter(t=>t.id!==e),F===e&&(F=M.length>0?M[M.length-1].id:"",localStorage.setItem("baa_active_key",F)),Ve(),te())}function St(e){const t=M.find(n=>n.id===e);t&&navigator.clipboard.writeText(t.key).then(()=>w("令牌已复制到剪贴板","info"),()=>w("复制失败，请手动复制","error"))}async function Jn(){const e=document.querySelector("#active-key-select + button"),t=document.getElementById("token-hint");e&&(e.textContent="⏳"),t&&(t.textContent="正在从服务端刷新密钥列表...");try{const n=await R("/admin/keys"),o=n==null?void 0:n.data;o&&o.length>0?t&&(t.textContent=`✅ 服务端有 ${o.length} 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。`):t&&(t.textContent="服务端暂无可用密钥，请先在「密钥管理」页面创建。")}catch(n){t&&(t.textContent="❌ 刷新失败: "+n.message+"（请确认当前令牌有admin权限）")}finally{e&&(e.textContent="🔄")}}typeof window<"u"&&(window.getApiKey=()=>J(),window.getActiveKeyValue=J,window.loadApiKeys=qe,window.saveApiKeys=Ve,window.switchApiKey=bt,window.deleteCurrentApiKey=wt,window.addApiKey=_t,window.deleteApiKey=ze,window.copyApiKey=St,window.populateTokenSelect=te);let Ue="",ne="";async function we(){try{const e=await fetch(k()+"/admin/bootstrap-key");if(e.ok){const t=await e.json();t.status==="success"&&Nn(t.admin_key||"")}}catch{}}async function fe(){var t;const e=document.getElementById("admin-keys-table");if(e){e.innerHTML='<div class="text-center py-8 text-gray-400 text-sm">加载中...</div>';try{const n=(t=document.getElementById("show-disabled"))==null?void 0:t.checked,o=await le(`/admin/keys?include_disabled=${n?"true":"false"}`),s=await le("/admin/keys/stats");if(s!=null&&s.data&&typeof s.data=="object"&&!Array.isArray(s.data)){const l=s.data.summary||{};["stat-total","stat-active","stat-disabled","stat-calls"].forEach(r=>{const c=document.getElementById(r);c&&(c.textContent=String(l[r]??0))})}const a=Array.isArray(o==null?void 0:o.data)?o.data:[];if(a.length===0){e.innerHTML='<div class="text-center py-8 text-gray-400 text-sm">暂无密钥，点击「+ 创建密钥」开始</div>';return}let i='<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b"><th class="pb-2 pr-3">标签</th><th class="pb-2 pr-3">权限</th><th class="pb-2 pr-3">状态</th><th class="pb-2 pr-3">创建</th><th class="pb-2 pr-3">过期</th><th class="pb-2 pr-3">调用</th><th class="pb-2">操作</th></tr></thead><tbody>';for(const l of a){const r=l.usage||{};i+=`<tr class="border-b hover:bg-gray-50"><td class="py-2 pr-3 font-medium">${f(l.label||"-")}</td><td class="py-2 pr-3">${He(String(l.permission))}</td><td class="py-2 pr-3">${Oe(!!l.enabled)}</td><td class="py-2 pr-3 text-gray-500">${X(l.created_at)}</td><td class="py-2 pr-3 text-gray-500">${X(l.expires_at)}</td><td class="py-2 pr-3 text-gray-500">${r.total_calls||0}</td><td class="py-2"><button onclick="showKeyDetail('${f(l.key_id||"")}')" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300 mr-1">详情</button>`+(l.has_raw_key?`<button onclick="copyKeyFromDetail('${f(l.key_id||"")}')" class="px-2 py-1 bg-blue-100 rounded text-xs hover:bg-blue-200 mr-1">📋复制</button>`:"")+(l.enabled?`<button onclick="confirmRevokeKey('${f(l.key_id||"")}')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200 mr-1">撤销</button>`:"")+`<button onclick="confirmDeleteKey('${f(l.key_id||"")}')" class="px-2 py-1 bg-red-200 rounded text-xs hover:bg-red-300">🗑️</button></td></tr>`}e.innerHTML=i+"</tbody></table>"}catch(n){e.innerHTML=`<div class="text-center py-8 text-red-500 text-sm">❌ 加载失败: ${f(n.message)}</div>`}}}function Et(){var o;(o=document.getElementById("create-key-modal"))==null||o.classList.remove("hidden");const e=document.getElementById("new-key-label");e&&(e.value="");const t=document.getElementById("new-key-permission");t&&(t.value="write");const n=document.getElementById("new-key-ttl");n&&(n.value="90")}function Je(){var e;(e=document.getElementById("create-key-modal"))==null||e.classList.add("hidden")}async function It(){var s,a,i,l;const e=((s=(document.getElementById("new-key-label")||{}).value)==null?void 0:s.trim())||"unnamed",t=(document.getElementById("new-key-permission")||{}).value||"write",n=parseInt((document.getElementById("new-key-ttl")||{}).value||"90"),o=document.querySelector("#create-key-modal .bg-green-600");o&&(o.textContent="创建中...",o.disabled=!0);try{const r=await be("/admin/keys",{label:e,permission:t,ttl_days:n});if((r==null?void 0:r.status)==="success"&&r.data&&typeof r.data=="object"){Je();const c=document.getElementById("created-raw-key");c&&(c.textContent=String(r.data.raw_key||""));const d=document.getElementById("created-key-key-info"),g=r.data;d&&(d.innerHTML=`密钥ID: ${f(g.key_id||"-")}<br>权限: ${f(((a=g.info)==null?void 0:a.permission)||"-")}<br>过期: ${X((i=g.info)==null?void 0:i.expires_at)}`),(l=document.getElementById("key-created-modal"))==null||l.classList.remove("hidden"),await fe()}else w(`创建失败: ${JSON.stringify(r==null?void 0:r.detail)}`,"error")}catch(r){w(`请求失败: ${r.message}`,"error")}finally{o&&(o.textContent="创建",o.disabled=!1)}}function Lt(){var t;const e=((t=document.getElementById("created-raw-key"))==null?void 0:t.textContent)||"";navigator.clipboard.writeText(e).then(()=>w("已复制到剪贴板","info"))}function Bt(){var e;(e=document.getElementById("key-created-modal"))==null||e.classList.add("hidden")}async function kt(e){var o,s,a,i,l,r;Ue=e,ne="";const t=document.getElementById("detail-key-title");t&&(t.textContent=`密钥详情: ${f(e)}`),(o=document.getElementById("btn-revoke-key"))==null||o.classList.add("hidden"),(s=document.getElementById("btn-show-raw-key"))==null||s.classList.add("hidden"),(a=document.getElementById("detail-raw-key-section"))==null||a.classList.add("hidden");const n=document.getElementById("key-detail-content");n&&(n.innerHTML='<div class="text-gray-400">加载中...</div>'),(i=document.getElementById("key-detail-modal"))==null||i.classList.remove("hidden");try{const c=await le(`/admin/keys/${e}`);if(c!=null&&c.data&&typeof c.data=="object"){const d=c.data,g=d.usage||{};n&&(n.innerHTML=`<div class="grid grid-cols-2 gap-3"><div><span class="text-gray-500">标签:</span> ${f(d.label||"-")}</div><div><span class="text-gray-500">权限:</span> ${He(String(d.permission))}</div><div><span class="text-gray-500">状态:</span> ${Oe(!!d.enabled)}</div><div><span class="text-gray-500">创建者:</span> ${f(d.created_by||"-")}</div><div><span class="text-gray-500">创建:</span> ${X(d.created_at)}</div><div><span class="text-gray-500">过期:</span> ${X(d.expires_at)}</div><div><span class="text-gray-500">总调用:</span> ${g.total_calls||0}</div><div><span class="text-gray-500">最后使用:</span> ${X(g.last_used)}</div></div>`),d.raw_key&&(ne=String(d.raw_key),(l=document.getElementById("btn-show-raw-key"))==null||l.classList.remove("hidden")),d.enabled&&((r=document.getElementById("btn-revoke-key"))==null||r.classList.remove("hidden"))}}catch(c){n&&(n.innerHTML=`<div class="text-red-500">加载失败: ${f(c.message)}</div>`)}}function Tt(){var n;if(!ne){w("密钥原文不可用（旧版创建的密钥仅初创时可见）","error");return}const e=document.getElementById("detail-raw-key-section"),t=document.getElementById("detail-raw-key-value");t&&(t.textContent=ne),e==null||e.classList.remove("hidden"),(n=document.getElementById("btn-show-raw-key"))==null||n.classList.add("hidden")}function Ct(){ne&&navigator.clipboard.writeText(ne).then(()=>w("✅ 密钥已复制到剪贴板","success"),()=>w("自动复制失败，请手动 Ctrl+C","error"))}async function $t(e){var t;try{const n=await le(`/admin/keys/${e}`),o=(t=n==null?void 0:n.data)==null?void 0:t.raw_key;o?(await navigator.clipboard.writeText(String(o)),w("✅ 密钥已复制到剪贴板","success")):w("❌ 密钥原文不可用","error")}catch(n){w(`❌ 获取密钥失败: ${n.message}`,"error")}}function Ge(){var e,t;(e=document.getElementById("key-detail-modal"))==null||e.classList.add("hidden"),(t=document.getElementById("detail-raw-key-section"))==null||t.classList.add("hidden"),ne=""}async function Ye(e){if(confirm(`确认撤销密钥 ${e}？`))try{const t=await be(`/admin/keys/${e}/revoke`,{});t.status==="success"?(await fe(),w("密钥已撤销","info")):w(`撤销失败: ${JSON.stringify(t.detail)}`,"error")}catch(t){w(`请求失败: ${t.message}`,"error")}}async function jt(e){if(confirm(`⚠️ 确认永久删除密钥 ${e}？`)&&confirm("再次确认：该密钥将被永久删除，无法找回。"))try{const t=await Fe(`/admin/keys/${e}`);t.status==="success"?(await fe(),w("密钥已永久删除","info")):w(`删除失败: ${JSON.stringify(t.detail)}`,"error")}catch(t){w(`请求失败: ${t.message}`,"error")}}async function Mt(){Ue&&(await Ye(Ue),Ge())}typeof window<"u"&&(window.initAdminToken=we,window.loadAdminKeys=fe,window.openCreateKeyModal=Et,window.closeCreateKeyModal=Je,window.createAdminKey=It,window.copyCreatedKey=Lt,window.closeKeyCreatedModal=Bt,window.showKeyDetail=kt,window.showDetailRawKey=Tt,window.copyDetailRawKey=Ct,window.copyKeyFromDetail=$t,window.closeKeyDetailModal=Ge,window.confirmRevokeKey=Ye,window.confirmDeleteKey=jt,window.revokeAdminKey=Mt);function At(e){const t=document.getElementById("drawing-review-panel");if(t&&(t.classList.toggle("hidden",!e),e)){Xe();const n=document.getElementById("review-drawing-select"),o=window.parsedDrawings;if(n&&o&&o.length>0&&n.options.length<=1){const s=window.refreshDrawingSelect;typeof s=="function"&&s()}}}function Rt(e){const t={single:"dr-tab-single",batch:"dr-tab-batch",multisheet:"dr-tab-multisheet",feedback:"dr-tab-feedback",thermal:"dr-tab-thermal",structural:"dr-tab-structural"},n={single:"dr-panel-single",batch:"dr-panel-batch",multisheet:"dr-panel-multisheet",feedback:"dr-panel-feedback",thermal:"dr-panel-thermal",structural:"dr-panel-structural"},o="px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700",s="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600";for(const i in t){const l=document.getElementById(t[i]);l&&(l.className=i===e?o:s)}for(const i in n){const l=document.getElementById(n[i]);l&&l.classList.toggle("hidden",i!==e)}const a=window;e==="feedback"&&typeof a.loadFeedbackStats=="function"&&(a.loadFeedbackStats(),a.loadFeedbacks()),e==="structural"&&typeof a.renderStructuralThresholds=="function"&&(a.renderStructuralThresholds(),a.renderStructuralViolations(window._reviewStructuralViolations||[])),e==="thermal"&&typeof a.renderThermalThresholds=="function"&&(a.renderThermalThresholds(),a.renderThermalViolations(window._reviewThermalViolations||[]))}async function Xe(){const e=document.getElementById("dr-team-select"),t=document.getElementById("dr-project-select");if(!e||!t)return;const n=C.teamId,o=C.projectId;try{const s=await R("/collab/teams"),a=await R("/collab/projects"),i=Array.isArray(s)?s:s.teams||[],l=Array.isArray(a)?a:a.projects||[];e.innerHTML='<option value="">👥 全部团队</option>',i.forEach(r=>{const c=document.createElement("option");c.value=String(r.id),c.textContent=String(r.name),c.value===n&&(c.selected=!0),e.appendChild(c)}),t.innerHTML='<option value="">📋 全部项目</option>',l.forEach(r=>{const c=document.createElement("option");c.value=String(r.id),c.textContent=String(r.name),c.value===o&&(c.selected=!0),t.appendChild(c)})}catch{}}function Dt(){const e=document.getElementById("dr-team-select"),t=(e==null?void 0:e.value)||"";C.setTeamId(t),C.setProjectId("");const n=document.getElementById("dr-project-select");n&&(n.value="")}function Ht(){const e=document.getElementById("dr-project-select"),t=(e==null?void 0:e.value)||"";C.setProjectId(t)}typeof window<"u"&&(window.showDrawingReviewPanel=At,window.switchDrawingTab=Rt,window.loadReviewContext=Xe,window.onReviewTeamSelect=Dt,window.onReviewProjectSelect=Ht);function Gn(){const e=localStorage.getItem("baa_active_key")||"";if(!e)return"";try{const n=JSON.parse(localStorage.getItem("baa_api_keys")||"[]").find(o=>String(o.id)===e);return n?String(n.key||""):""}catch{return""}}async function Ot(){if(!Gn()&&!confirm(`当前未选择任何令牌，后端 /admin/keys 需要admin权限。
-是否仍要尝试？（建议先在「密钥管理」创建admin密钥后选择）`))return;const t=document.getElementById("import-key-list");if(!t){w("页面元素异常","info");return}t.innerHTML='<div class="text-center text-gray-400 text-sm py-4">⏳ 加载中...</div>';const n=document.getElementById("import-key-modal");n==null||n.classList.remove("hidden");try{const o=await R("/admin/keys"),s=o==null?void 0:o.data;if(!s||s.length===0){t.innerHTML='<div class="text-center text-gray-400 text-sm py-4">暂无可用密钥，请先在「密钥管理」页面创建。</div>';return}const a=o==null?void 0:o.detail;if(a&&a.error_code==="FORBIDDEN"){t.innerHTML=`<div class="text-center text-red-500 text-sm py-4">❌ 权限不足：当前令牌无admin权限。
-请先在「密钥管理」页面创建admin密钥，
-然后在连接配置页选择该令牌后再试。</div>`;return}t.innerHTML="";for(const i of s){if(!i.enabled)continue;const l=document.createElement("div"),r=f(String(i.label||i.key_id)),c=i.expires_at?"过期: "+X(String(i.expires_at)):"永不过期",d=f(String(i.key_id||""));l.className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer",l.innerHTML=`<div class="flex-1 min-w-0"><div class="font-medium text-sm">${r}</div><div class="text-xs text-gray-400">权限: ${f(String(i.permission))} | ${c}</div></div><button onclick="importSelectedKey('${d}')" class="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 shrink-0">选择并填入</button>`,t.appendChild(l)}}catch(o){t.innerHTML=`<div class="text-center text-red-500 text-sm py-4">❌ 加载失败: ${f(o.message)}</div>`}}async function Pt(e){const t=prompt("请输入此密钥的原始值（从密钥管理页创建时复制）：");if(!t)return;const n=(event==null?void 0:event.target)||document.querySelector("#import-key-modal button");n&&(n.textContent="验证中...",n.disabled=!0);try{const s=await re("/admin/keys/verify",{raw_key:t});if(s.status==="success"&&s.valid){const a=s.key_info||{},i=String(a.label||a.key_id||e)+" (imported)",l=`key_${Date.now()}`,r=localStorage.getItem("baa_api_keys"),c=r?JSON.parse(r):[];c.push({id:l,name:i,key:t,created:Date.now()}),localStorage.setItem("baa_api_keys",JSON.stringify(c)),localStorage.setItem("baa_active_key",l);const d=window.populateTokenSelect;typeof d=="function"&&d(),_e(),w("✅ 密钥验证通过，已添加到本地令牌列表","success")}else w("❌ 密钥验证失败："+String(s.message||"密钥无效或已过期"),"error")}catch(o){if(confirm("无法验证密钥有效性（"+o.message+"）。是否仍要保存到本地？")){const s=`key_${Date.now()}`,a=localStorage.getItem("baa_api_keys"),i=a?JSON.parse(a):[];i.push({id:s,name:e+" (imported)",key:t,created:Date.now()}),localStorage.setItem("baa_api_keys",JSON.stringify(i)),localStorage.setItem("baa_active_key",s);const l=window.populateTokenSelect;typeof l=="function"&&l(),_e()}}finally{n&&(n.textContent="选择并填入",n.disabled=!1)}}function _e(){var e;(e=document.getElementById("import-key-modal"))==null||e.classList.add("hidden")}if(typeof window<"u"){const e=window;e.importServerKey=Ot,e.importSelectedKey=Pt,e.closeImportKeyModal=_e}let Yn=0;const Xn={sm:"max-w-sm",md:"max-w-md",lg:"max-w-lg",xl:"max-w-2xl"};function Nt(e){const t=e.id||`modal-${++Yn}`,n=Xn[e.size||"md"];let o=document.getElementById(t);o||(o=document.createElement("div"),o.id=t,o.className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 transition-opacity duration-200",o.style.opacity="0",o.style.pointerEvents="none",document.body.appendChild(o));const s=e.title||"",a=e.footerButtons?e.footerButtons.map(l=>`<button class="px-3 py-1.5 rounded text-xs ${l.cls||"bg-gray-600 text-white hover:bg-gray-700"}" data-btn="${l.label}">${l.label}</button>`).join(" "):"";let i="";if(typeof e.content=="string")i=e.content;else if(e.content instanceof HTMLElement){const l=document.createElement("div");l.appendChild(e.content.cloneNode(!0)),i=l.innerHTML}return o.innerHTML=`<div class="bg-white rounded-lg shadow-xl w-full mx-4 ${n} max-h-[90vh] overflow-y-auto">`+(s?`<div class="flex items-center justify-between p-4 border-b"><h3 class="text-sm font-medium">${s}</h3><button class="text-gray-400 hover:text-gray-600 text-lg" data-close>&times;</button></div>`:"")+`<div class="p-4">${i}</div>`+(a?`<div class="flex justify-end gap-2 p-4 border-t bg-gray-50">${a}</div>`:"")+"</div>",o.querySelectorAll("[data-close]").forEach(l=>{l.addEventListener("click",()=>We(t,e))}),e.closeOnOverlay&&o.addEventListener("click",l=>{l.target===o&&We(t,e)}),e.footerButtons&&o.querySelectorAll("[data-btn]").forEach(l=>{var d;const r=l.dataset.btn||"",c=(d=e.footerButtons)==null?void 0:d.find(g=>g.label===r);c&&l.addEventListener("click",()=>{c.onClick()})}),requestAnimationFrame(()=>{o.style.opacity="1",o.style.pointerEvents="auto"}),()=>We(t,e)}function We(e,t){var o;const n=document.getElementById(e);n&&(n.style.opacity="0",n.style.pointerEvents="none",setTimeout(()=>n.remove(),200),(o=t.onClose)==null||o.call(t))}typeof window<"u"&&(window.openModal=Nt);let Ft=[];const Kt={};function O(){return Ft}function pe(e){Ft=e,typeof window<"u"&&(window.parsedDrawings=e)}function qt(e,t){Kt[e]=t,typeof window<"u"&&(window.fileCache=Kt)}let Se=[];function Ze(){return Se}function Wn(e){Se=e}typeof window<"u"&&Object.defineProperty(window,"SPEC_DATA",{get:()=>Se,set:e=>{Se=e}});let ce=[];function de(){return ce}async function Ee(){var s,a;const e=k(),t=((s=document.getElementById("history-team-filter"))==null?void 0:s.value)||"",n=((a=document.getElementById("history-project-filter"))==null?void 0:a.value)||"";let o="limit=200";t&&(o+="&team_id="+encodeURIComponent(t)),n&&(o+="&project_id="+encodeURIComponent(n));try{const l=await(await fetch(e+"/review/history?"+o,{method:"GET",headers:N()})).json();if(l&&l.items&&l.items.length>0){ce=l.items;try{localStorage.setItem("baa_review_results",JSON.stringify(ce))}catch{}return}Qe()}catch{Qe()}}function Qe(){try{const e=localStorage.getItem("baa_review_results");e&&(ce=JSON.parse(e))}catch{ce=[]}}function Zn(){const e=document.getElementById("compare-drawing-select");e&&(e.innerHTML='<option value="">— 选择已审查图纸 —</option>',ce.forEach(t=>{const n=document.createElement("option");n.value=t.id||"",n.textContent=(t.drawingName||"")+" ("+(t.buildingType==="civil"?"民用":"工业")+") - "+((t.details||[]).length||0)+"项违规",e.appendChild(n)}))}async function ge(){try{const e=await R("/health"),t=document.getElementById("version-info"),n=document.getElementById("health-status");t&&(t.textContent=String(e.version||"")+" · 引擎就绪"),n&&(n.textContent=JSON.stringify(e,null,2)),await Ee();const o=de(),s=document.getElementById("home-stats");if(s){const a=s.querySelectorAll(".stat-card"),i=a[0]&&a[0].querySelector(".text-2xl");i&&(i.textContent=String(o.length));const l=Ze(),r=a[1]&&a[1].querySelector(".text-2xl");if(r&&(r.textContent=String(l.length)),o.length>0){const c=o.reduce((x,p)=>x+(Array.isArray(p.details)?p.details.length:0),0),d=o.reduce((x,p)=>{const v=p.summary;return x+(v&&typeof v=="object"?Number(v.total_checks||0):0)},0),g=d>0?Math.round((1-c/d)*100)+"%":"--",m=a[2]&&a[2].querySelector(".text-2xl");m&&(m.textContent=g);const y=a[3]&&a[3].querySelector(".text-2xl");y&&(y.textContent=String(o[0].drawingName||""))}}Vt(),zt(),Ut()}catch(e){const t=document.getElementById("version-info"),n=document.getElementById("health-status");t&&(t.textContent="⚠️ 服务未连接"),n&&(n.textContent="连接失败: "+e.message)}}function Vt(){const e=document.getElementById("recent-reviews");if(!e)return;const t=de();if(t.length===0){e.innerHTML='<div class="text-xs text-gray-400">暂无审查记录</div>';return}const n=t.slice(0,5);e.innerHTML=n.map(o=>{var l;const s=o,a=((l=s.details)==null?void 0:l.length)||0,i=a===0?"green":"red";return'<div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"><span class="font-medium">'+f(String(s.drawingName||""))+'</span><span class="text-'+i+'-600">'+a+" 项违规</span></div>"}).join("")}function zt(){const e=document.getElementById("spec-freq-bars");if(!e||de().length===0)return;const t={};de().forEach(s=>{(s.details||[]).forEach(i=>{const l=String(i.clause_id||"未知");t[l]=(t[l]||0)+1})});const n=Object.entries(t).sort((s,a)=>a[1]-s[1]).slice(0,8),o=Math.max(...n.map(s=>s[1]),1);e.innerHTML=n.map(([s,a])=>'<div class="flex items-center gap-2"><span class="w-24 truncate">'+f(s)+'</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="bg-blue-500 h-3 rounded-full" style="width:'+a/o*100+'%"></div></div><span class="w-6 text-right">'+a+"</span></div>").join("")}function Ut(){const e=document.getElementById("violation-type-bars");if(!e||de().length===0)return;const t={},n={critical:"严重",major:"主要",minor:"轻微"};de().forEach(a=>{(a.details||[]).forEach(l=>{const r=n[String(l.severity||"major")]||"未知";t[r]=(t[r]||0)+1})});const o={严重:"#ef4444",主要:"#f97316",轻微:"#eab308"},s=Object.values(t).reduce((a,i)=>a+i,0)||1;e.innerHTML=Object.entries(t).map(([a,i])=>'<div class="flex items-center gap-2"><span class="w-10">'+f(a)+'</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="h-3 rounded-full" style="width:'+i/s*100+"%;background:"+(o[a]||"#6b7280")+'"></div></div><span class="w-6 text-right">'+i+"</span></div>").join("")}function Ie(){try{localStorage.setItem("baa_parsed_drawings",JSON.stringify(O()))}catch{}}function Jt(){try{const e=localStorage.getItem("baa_parsed_drawings");e&&pe(JSON.parse(e))}catch{pe([])}}function se(){const e=document.getElementById("drawing-list");if(!e)return;const t=O(),n=document.getElementById("drawing-count");if(n&&(n.textContent=String(t.length)),t.length===0){e.innerHTML='<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';return}e.innerHTML=t.map((o,s)=>{const a=o.use_yolo?'<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>':"",i=o._selected?"checked":"",l=o.elements;return'<tr class="border-b border-gray-50 text-sm"><td class="py-2 px-2"><input type="checkbox" class="drawing-select" data-idx="'+s+'" '+i+' onchange="toggleDrawingSelect('+s+',this.checked)" /></td><td class="py-2 px-2 truncate max-w-32">'+f(String(o.filename))+a+'</td><td class="py-2 px-2 text-xs">'+(o.building_type==="civil"?"民用":"工业")+'</td><td class="py-2 px-2">'+((l==null?void 0:l.length)||0)+'</td><td class="py-2 px-2 text-xs max-w-40 truncate">'+(l?l.map(r=>r.type).join(", "):"")+'</td><td class="py-2 px-2 text-xs">'+new Date(String(o.parsedAt)).toLocaleTimeString()+'</td><td class="py-2 px-2"><button onclick="sendToReview('+s+')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>'+(o.file_id?`<button onclick="downloadReviewPdf('`+f(String(o.file_id))+`')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 mr-1" title="下载PDF报告">📄</button>`:"")+'<button onclick="deleteDrawing('+s+')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td></tr>'}).join(""),et()}function Qn(e,t){const n=O();n[e]&&(n[e]._selected=t),et()}function es(){O().forEach(e=>e._selected=!0),se()}function ts(){O().forEach(e=>e._selected=!1),se()}function et(){const e=O().filter(o=>o._selected).length,t=document.getElementById("batch-review-btn"),n=document.getElementById("batch-count");t&&(t.className=e>0?"px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700":"px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden"),n&&(n.textContent=String(e))}async function ns(){var s,a,i,l,r,c;const e=(a=(s=document.getElementById("file-input"))==null?void 0:s.files)==null?void 0:a[0];if(!e){w("请先选择图纸文件","info");return}if((((i=e.name.split(".").pop())==null?void 0:i.toLowerCase())||"")!=="dxf"){w("仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。","warn");return}const n=((l=document.getElementById("drawing-bt"))==null?void 0:l.value)||"",o=document.getElementById("upload-progress");o&&(o.className="card mb-4",o.innerHTML='<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>');try{const d=((r=document.getElementById("use-yolo-checkbox"))==null?void 0:r.checked)||!1,g=((c=document.getElementById("yolo-device-select"))==null?void 0:c.value)||"cpu",m=await he("/deconstruct",e,{building_type:n,use_yolo:d,yolo_device:g});o&&(o.className="hidden");const y=String(m.file_id||"drawing_"+Date.now());qt(y,e);const x={id:y,filename:e.name,building_type:n,parsedAt:new Date().toISOString(),elements:m.elements||[],entities:m.entities||[],findings_count:m.findings||0,total_checks:m.total_checks||0,file_id:y,raw:m,use_yolo:d},p=O();p.unshift(x),pe(p),Ie(),se();const v=document.getElementById("drawing-preview");v&&(v.className="card");const h=document.getElementById("parse-result-json");h&&(h.textContent=JSON.stringify(m,null,2));const S=document.getElementById("drawing-render-img"),I=document.getElementById("drawing-render-placeholder");S&&(S.className="w-full",S.src=k()+"/render/"+y),I&&(I.className="hidden"),Le(),ge()}catch(d){o&&(o.innerHTML="❌ 解析失败: "+String(d),o.className="card mb-4 text-sm text-red-500")}}async function ss(){var s,a,i,l,r,c;const e=(a=(s=document.getElementById("file-input"))==null?void 0:s.files)==null?void 0:a[0];if(!e){w("请先选择图纸文件","info");return}const t=((i=e.name.split(".").pop())==null?void 0:i.toLowerCase())||"";if(t!=="dxf"&&t!=="dwg"){w("仅支持 .dxf 和 .dwg 格式","warn");return}const n=((l=document.getElementById("drawing-bt"))==null?void 0:l.value)||"",o=document.getElementById("upload-progress");o&&(o.className="card mb-4 text-sm text-gray-500",o.innerHTML='<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>');try{const d=((r=document.getElementById("use-yolo-checkbox"))==null?void 0:r.checked)||!1,g=((c=document.getElementById("yolo-device-select"))==null?void 0:c.value)||"cpu",m=await he("/deconstruct",e,{building_type:n,use_yolo:d,yolo_device:g});o&&(o.className="hidden");const y=String(m.file_id||"drawing_"+Date.now());qt(y,e);const x={id:y,filename:e.name,building_type:n,parsedAt:new Date().toISOString(),elements:m.elements||[],entities:m.entities||[],findings_count:m.findings||0,total_checks:m.total_checks||0,use_yolo:d,file_id:y,raw:m},p=O();p.unshift(x),pe(p),Ie(),se(),Le(),ge();const v=document.getElementById("drawing-preview");if(v){v.className="card";const h=document.getElementById("parse-result-json");h&&(h.textContent=JSON.stringify(m,null,2))}}catch(d){o&&(o.innerHTML="❌ 解析失败: "+String(d),o.className="card mb-4 text-sm text-red-500")}}async function os(){var s;const e=O().filter(a=>a._selected);if(e.length===0){w("请先勾选要送审的图纸","info");return}const t=document.getElementById("upload-progress");t&&(t.className="card mb-4",t.innerHTML='<div class="review-progress"><div class="review-progress-text"><span>批量审查</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>');let n=0;const o=[];for(const a of e)try{const i=await Kn("/review-from-data",{entities:a.elements||[],building_type:a.building_type});if(i.status==="completed"||i.status==="success"){const l=((s=i.details)==null?void 0:s.length)||0;n+=l,o.push({name:a.filename,violations:l,details:i.details})}}catch(i){o.push({name:a.filename,violations:-1,error:String(i)})}if(t){t.className="card mb-4 text-sm";let a="✅ 批量审查完成 ("+e.length+" 张, 共 "+n+" 项违规)<br/><br/>";for(const i of o)if(i.error)a+='<div class="text-red-500 text-xs">❌ '+f(String(i.name))+": "+f(String(i.error))+"</div>";else{const l=Number(i.violations)>0?"text-red-500":"text-green-600";a+='<div class="text-xs mb-1">'+f(String(i.name))+': <span class="'+l+'">'+i.violations+" 项违规</span></div>"}t.innerHTML=a}if(o.length>0){const a=window.switchPage;a==null||a("review")}}function is(e){const t=O(),n=t[e];n&&confirm("确定删除图纸「"+n.filename+"」的解析记录？")&&(t.splice(e,1),pe(t),Ie(),se())}function as(e){const t=O()[e];if(!t)return;document.querySelectorAll(".sidebar-item").forEach(a=>a.classList.remove("active"));const n=document.querySelector('[data-page="review"]');n&&n.classList.add("active"),document.querySelectorAll(".page").forEach(a=>a.classList.remove("active"));const o=document.getElementById("page-review");o&&o.classList.add("active");const s=document.getElementById("review-drawing-select");if(s){for(let a=0;a<s.options.length;a++)if(s.options[a].value===String(t.id)){s.selectedIndex=a;break}Gt()}}function Le(){const e=document.getElementById("review-drawing-select");e&&(e.innerHTML='<option value="">— 选择已解析图纸 —</option>',O().forEach(t=>{const n=document.createElement("option");n.value=String(t.id),n.textContent=t.filename+" ("+(t.building_type==="civil"?"民用":"工业")+")",e.appendChild(n)}))}function Gt(){var a;const e=document.getElementById("review-drawing-select"),t=document.getElementById("review-start-btn"),n=document.getElementById("review-drawing-info"),o=(e==null?void 0:e.value)||"";if(!o||!t||!n){t&&(t.disabled=!0),n&&(n.textContent="");return}const s=O().find(i=>i.id===o);if(!s){t.disabled=!0,n.textContent="";return}t.disabled=!1,n.textContent="实体: "+(((a=s.elements)==null?void 0:a.length)||0)+"个 · 已解析: "+new Date(String(s.parsedAt)).toLocaleString()}async function Yt(){var n;try{const s=await(await fetch(k()+"/api/v1/specs",{headers:N()})).json();s.status==="ok"&&Wn(s.specs)}catch(o){console.warn("规范库加载失败",o)}Xt();const e=document.getElementById("home-stats"),t=(n=e==null?void 0:e.querySelectorAll(".stat-card")[1])==null?void 0:n.querySelector(".text-2xl");t&&(t.textContent=String((Ze()||[]).length))}function Xt(e=!1){var L,b,B,E;const t=document.getElementById("spec-list");if(!t)return;const n=((L=document.getElementById("spec-search"))==null?void 0:L.value)||"",o=((b=document.getElementById("spec-filter-level"))==null?void 0:b.value)||"all",s=((B=document.getElementById("spec-filter-cat"))==null?void 0:B.value)||"all",a=((E=document.getElementById("spec-filter-std"))==null?void 0:E.value)||"all",i=Ze()||[],l=i.length,r=i.filter(_=>String(_.level||"L1")==="L1").length,c=i.filter(_=>String(_.level||"L1")==="L2").length,d=i.filter(_=>String(_.level||"L1")==="L3").length,g=document.getElementById("spec-total-count");g&&(g.textContent=String(l));const m=document.getElementById("spec-l1-count");m&&(m.textContent=String(r));const y=document.getElementById("spec-l2-count");y&&(y.textContent=String(c));const x=document.getElementById("spec-l3-count");x&&(x.textContent=String(d));let p=i;if(o!=="all"&&(p=p.filter(_=>String(_.level||"L1")===o)),s!=="all"&&(p=p.filter(_=>(_.category||"")===s)),a!=="all"&&(p=p.filter(_=>String(_.standard||_.std||"").toLowerCase().includes(a.toLowerCase()))),n){const _=n.toLowerCase();p=p.filter(T=>String(T.clause_id||"").toLowerCase().includes(_)||String(T.title||T.name||"").toLowerCase().includes(_)||String(T.text||T.description||"").toLowerCase().includes(_)||String(T.standard||T.std||"").toLowerCase().includes(_))}const v=document.getElementById("spec-filter-count");if(v&&(v.textContent=p.length+" 条"+(p.length<l?" / "+l:"")),p.length===0){t.innerHTML='<tr><td colspan="7" class="py-8 text-center text-gray-300">无匹配记录</td></tr>';return}const h={fire_safety:"防火安全",evacuation:"疏散",lighting:"照明",structure:"结构",hvac:"暖通"},S={L1:"red",L2:"orange",L3:"green"},I={"GB 50016-2014":"016","GB 50016-2018":"016","GB 50974-2014":"974","GB 50763-2012":"763","GB 50067-2014":"067","GB 50116-2013":"116","GB 50084-2017":"084","NFPA 101-2021":"NFPA101","NFPA 5000-2021":"NFPA5K"};t.innerHTML=p.map((_,T)=>{const K=_.title||_.name||"",$=_.text||_.description||"",H=String(_.category||"--"),U=_.func_id||"--",q=String(_.level||"L1"),P=String(_.standard||_.std||""),Q=I[P]||(P?P.replace(/-/g,"").slice(0,5):"--"),Y=Array.isArray(U)?U.join(", "):String(U);return'<tr class="border-b border-gray-50"><td class="py-2 px-2 text-xs">'+(T+1)+'</td><td class="py-2 px-2 font-mono text-xs">'+f(String(_.clause_id||""))+'</td><td class="py-2 px-2 text-sm">'+f(String(K))+'<br/><span class="text-xs text-gray-400">'+f(String($))+'</span></td><td class="py-2 px-2 text-xs">'+(P?'<span class="bg-blue-100 text-blue-700 px-1 rounded">'+f(Q)+"</span>":"")+'</td><td class="py-2 px-2"><span class="px-2 py-0.5 bg-'+(S[String(q)]||"gray")+"-100 text-"+(S[String(q)]||"gray")+'-700 rounded text-xs">'+q+'</span></td><td class="py-2 px-2 text-xs">'+(h[H]||H)+'</td><td class="py-2 px-2 font-mono text-xs max-w-32 truncate">'+f(Y)+"</td></tr>"}).join("")}window.reviewResults||(window.reviewResults=[]);function rs(){var t,n,o;const e=document.getElementById("engine-status");if(e)try{const s=((t=document.getElementById("health-status"))==null?void 0:t.textContent)||"{}",a=JSON.parse(s),i=((n=window.SPEC_DATA)==null?void 0:n.length)||0,[l="340",r="390"]=(((o=a.engine)==null?void 0:o.func_registry)||"340/390").split("/");e.innerHTML=`<div class="flex justify-between"><span>原子函数</span><span>${l}/${r} 已注册</span></div><div class="flex justify-between"><span>规范库</span><span>${i}条 (L1~L3)</span></div><div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div><div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配</span></div>`}catch{e.innerHTML='<div class="flex justify-between"><span>原子函数</span><span>340/390 已注册</span></div><div class="flex justify-between"><span>规范库</span><span>199条 (L1~L3)</span></div><div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div><div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>'}}function ls(e){const t=e.split(".");let n=window;for(const o of t){if(!n||typeof n!="object")return;n=n[o]}return typeof n=="function"?n:void 0}let Wt=!1;function cs(){Wt||(Wt=!0,document.addEventListener("click",e=>{const t=e.target.closest("[data-action]");if(!t)return;const n=t.getAttribute("data-action");if(!n)return;let o=[];try{const a=t.getAttribute("data-args")||"[]";o=JSON.parse(a),o=o.map(i=>i==="@this@"?e.target:i)}catch{o=[]}const s=ls(n);if(!s){console.warn("[delegation] 未挂载的 action:",n,"on",t);return}e.preventDefault();try{const a=s(...o);a&&typeof a.then=="function"&&a.catch(i=>console.error("[delegation] action error:",n,i))}catch(a){console.error("[delegation] action error:",n,a)}},!0))}function ds(){C.loadApiBase(),we(),qe(),te(),Jt(),se(),Le(),Ee(),ge(),Yt();const e=document.getElementById("api-base");e==null||e.addEventListener("change",()=>C.saveApiBase()),cs(),rs()}const us=[{value:"",label:"📋 全部"},{value:"unreviewed",label:"⚪ 未审核"},{value:"confirmed",label:"✅ 已确认"},{value:"dismissed",label:"❌ 已驳回"},{value:"pending",label:"⏳ 待核实"}],ms=[{value:"",label:"🚦 全部严重度"},{value:"critical",label:"🔴 严重"},{value:"major",label:"🟠 主要"},{value:"minor",label:"🟡 轻微"}];function Zt(e,t={}){const n=t.statusOptions||us,o=t.severityOptions||ms,s=t.clauseOptions||[],a=t.activeStatus||"",i=t.activeSeverity||"",l=t.activeClause||"",r="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 border border-blue-200",c="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";let d='<div class="flex flex-wrap items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg border"><span class="text-xs text-gray-500 font-medium">筛选:</span>';if(t.stats){const m=t.stats;d+=`<span class="text-xs text-gray-400 mr-2">|</span><span class="text-xs text-gray-500">已审核 <strong class="text-blue-600">${m.total-m.unreviewed}</strong>/${m.total} | 确认 <span class="text-green-600">${m.confirmed}</span> | 驳回 <span class="text-red-600">${m.dismissed}</span> | 待核实 <span class="text-yellow-600">${m.pending}</span></span>`}if(n.length>0){d+='<span class="text-xs text-gray-400 ml-2">状态:</span>';for(const m of n){const y=m.value===a?r:c;d+=`<button data-filter-status="${m.value}" class="${y}">${m.label}</button>`}}if(o.length>0){d+='<span class="text-xs text-gray-400 ml-2">严重度:</span>';for(const m of o){const y=m.value===i?r:c;d+=`<button data-filter-severity="${m.value}" class="${y}">${m.label}</button>`}}if(s.length>0){d+='<span class="text-xs text-gray-400 ml-2">规范:</span>';for(const m of s.slice(0,15)){const y=m.value===l?r:c;d+=`<button data-filter-clause="${m.value}" class="${y}">${m.label}</button>`}s.length>15&&(d+=`<span class="text-xs text-gray-400">+${s.length-15}</span>`)}(a||i||l)&&(d+='<button data-filter-clear class="px-2 py-1 rounded text-xs bg-red-100 text-red-600 hover:bg-red-200 ml-auto">✕ 清除</button>'),d+="</div>",e.innerHTML=d,e.querySelectorAll("[data-filter-status]").forEach(m=>{m.addEventListener("click",()=>{var y;(y=t.onChange)==null||y.call(t,m.dataset.filterStatus||"",i,l)})}),e.querySelectorAll("[data-filter-severity]").forEach(m=>{m.addEventListener("click",()=>{var y;(y=t.onChange)==null||y.call(t,a,m.dataset.filterSeverity||"",l)})}),e.querySelectorAll("[data-filter-clause]").forEach(m=>{m.addEventListener("click",()=>{var y;(y=t.onChange)==null||y.call(t,a,i,m.dataset.filterClause||"")})});const g=e.querySelector("[data-filter-clear]");g==null||g.addEventListener("click",()=>{var m;(m=t.onChange)==null||m.call(t,"","","")})}typeof window<"u"&&(window.renderFilterBar=Zt);const fs={critical:"red",major:"orange",minor:"yellow"},ps={critical:"严重",major:"主要",minor:"轻微"};function gs(e){return e>=.85?"green":e>=.6?"yellow":"red"}function ys(e){return e>=.85?"高":e>=.6?"中":"低"}function tt(e){const t=fs[e.severity]||"orange",n=ps[e.severity]||e.severity,o=Math.max(0,Math.min(1,e.confidence)),s=Math.round(o*100),a=gs(o),i=ys(o);let l='<div class="p-2 bg-'+t+'-50 rounded text-xs mb-1.5"><div class="flex justify-between items-start"><div><span class="font-medium">'+f(e.clauseTitle)+'</span> <span class="text-gray-400">('+f(e.funcId||e.clauseId)+')</span></div><div class="flex gap-1"><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-'+t+"-100 text-"+t+'-700">'+n+'</span><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-'+a+"-100 text-"+a+'-700" title="置信度 '+s+'%">'+i+'</span><span class="text-'+t+'-600 font-medium">'+f(e.result)+'</span></div></div><span class="text-gray-500">'+f(e.entityType)+" · 实测: "+(e.extractedValue!=null?e.extractedValue.toFixed(2):"-")+" · 要求: "+(e.requiredValue!=null?e.requiredValue.toFixed(2):"-")+'</span><br/><div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="'+a+'-500 h-1 rounded-full" style="width:'+s+'%"></div></div></div><span class="text-gray-400">'+f(e.explanation)+"</span>";if(e.corrections&&e.corrections.length>0){const r=e.corrections[0],c=r.priority==="high"?"red":r.priority==="medium"?"orange":"yellow",d=r.priority==="high"?"🔴 高":r.priority==="medium"?"🟠 中":"🟡 低";l+='<details class="mt-1"><summary class="cursor-pointer text-purple-600 font-medium">💡 修正建议 ('+e.corrections.length+'条)</summary><div class="mt-0.5 p-1 bg-'+c+"-50 rounded border-l-2 border-"+c+'-400"><p class="text-xs"><span class="text-'+c+'-600">'+d+"</span> "+f(r.recommendation)+"</p>"+(Object.keys(r.parameters||{}).length>0?'<p class="text-xs text-gray-400 mt-0.5">参数: '+JSON.stringify(r.parameters)+"</p>":"")+"</div></details>"}return e.auditItemId&&(l+=xs(e.auditItemId,e.auditState||"unreviewed",e.clauseId)),l+="</div>",l}function xs(e,t,n){const o=f(n||"");let s='<div class="flex gap-1 mt-1"><span class="text-[10px] text-gray-400">审核:</span>';switch(t){case"confirmed":s+=`<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ 已确认</span><button onclick="auditAction('`+f(e)+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700">↩ 驳回</button>`;break;case"dismissed":s+=`<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">❌ 已驳回</span><button onclick="auditAction('`+f(e)+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700">↩ 确认</button>`;break;case"pending":s+=`<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ 待核实</span><button onclick="auditAction('`+f(e)+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button><button onclick="auditAction('`+f(e)+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`;break;default:s+=`<button onclick="auditAction('`+f(e)+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button><button onclick="auditAction('`+f(e)+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button><button onclick="auditAction('`+f(e)+"','pending','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">⏳ 待核实</button>`}return s+="</div>",s}typeof window<"u"&&(window.renderReviewItem=tt);function nt(e,t){const{items:n,page:o=1,pageSize:s=20}=t,a=vs(n,t),i=a.length,l=Math.max(1,Math.ceil(i/s)),r=Math.max(1,Math.min(o,l)),c=(r-1)*s,d=Math.min(c+s,i),g=a.slice(c,d);if(i===0){e.innerHTML='<div class="text-center py-8 text-gray-400 text-sm">暂无违规数据</div>';return}let m="";for(const y of g)m+=tt(y);if(l>1){m+='<div class="flex items-center justify-center gap-2 mt-3 text-xs">',m+='<button data-page="prev" class="px-2 py-1 border rounded hover:bg-gray-100"'+(r<=1?" disabled":"")+">‹</button>";const y=Math.max(1,r-2),x=Math.min(l,r+2);for(let p=y;p<=x;p++)m+='<button data-page="'+p+'" class="px-2 py-1 border rounded '+(p===r?"bg-blue-100 text-blue-700":"hover:bg-gray-100")+'">'+p+"</button>";m+='<button data-page="next" class="px-2 py-1 border rounded hover:bg-gray-100"'+(r>=l?" disabled":"")+">›</button>",m+='<span class="text-gray-400">'+r+"/"+l+"</span>",m+="</div>"}m+=`<div class="text-xs text-gray-400 text-right mt-1">共 ${i} 条违规</div>`,e.innerHTML=m,e.querySelectorAll("[data-page]").forEach(y=>{y.addEventListener("click",()=>{const x=y.dataset.page;if(!(!x||x==="prev"||x==="next")&&typeof window<"u"){const p=window;typeof p.renderViolationPage=="function"&&(p._reviewPage=parseInt(x,10),p.renderViolationPage())}})})}function vs(e,t){let n=e;return t.filterStatus&&(n=n.filter(o=>o.auditState===t.filterStatus)),t.filterSeverity&&(n=n.filter(o=>o.severity===t.filterSeverity)),n}typeof window<"u"&&(window.renderReviewTable=nt);function ye(e){return e?String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"):""}async function Qt(e){var o,s,a;const t=((o=e.queue_info)==null?void 0:o.task_id)||e.task_id||"";if(!t)return;const n=(e.findings||[]).filter(i=>i.result==="FAIL"&&!i.is_duplicate);if(n.length===0){window._reviewAuditMapping={};return}try{const i=((s=window.API_BASE)==null?void 0:s.call(window))+"/api/v1/audit/items";if((await fetch(i,{method:"POST",headers:{...((a=window.HEADERS)==null?void 0:a.call(window))||{},"Content-Type":"application/json"},body:JSON.stringify({review_id:t,details:n})})).ok){const r={};n.forEach((c,d)=>{const g=c.func_id||c.clause_id||"",m=c.entity_id||"";r[g+":"+m+":"+d]=t+":"+d}),window._reviewAuditMapping={mapping:r,reviewId:t},window._reviewAuditDetailList=n,await st(t)}}catch(i){console.warn("[P119] 审计条目初始化失败:",i.message)}}async function st(e){var t,n;try{const o=((t=window.API_BASE)==null?void 0:t.call(window))+"/api/v1/audit/items?review_id="+encodeURIComponent(e),s=await fetch(o,{headers:((n=window.HEADERS)==null?void 0:n.call(window))||{}});if(s.ok){const a=await s.json(),i={};(a.items||[]).forEach(l=>{i[l.id]=l.status}),window._reviewAuditStates=i}}catch(o){console.warn("[P119] 审计状态加载失败:",o.message)}}function hs(e,t,n){if(!e)return"";const o=ye(n||"");let s='<div class="flex gap-1 mt-1"><span class="text-[10px] text-gray-400">审核:</span>';switch(t){case"confirmed":s+='<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ 已确认</span>',s+=`<button onclick="window.auditAction('`+e+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700">↩ 驳回</button>`;break;case"dismissed":s+='<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">❌ 已驳回</span>',s+=`<button onclick="window.auditAction('`+e+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700">↩ 确认</button>`;break;case"pending":s+='<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ 待核实</span>',s+=`<button onclick="window.auditAction('`+e+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>`,s+=`<button onclick="window.auditAction('`+e+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`;break;default:s+=`<button onclick="window.auditAction('`+e+"','confirm','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>`,s+=`<button onclick="window.auditAction('`+e+"','dismiss','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`,s+=`<button onclick="window.auditAction('`+e+"','pending','"+o+`')" class="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">⏳ 待核实</button>`}return s+="</div>",s}async function bs(e,t,n){var s,a;const o=ye(t||"");try{const i=t==="dismiss"?{reason:"人工驳回"}:{},l=((s=window.API_BASE)==null?void 0:s.call(window))+"/api/v1/audit/items/"+encodeURIComponent(e)+"/"+o,r=await fetch(l,{method:"POST",headers:{...((a=window.HEADERS)==null?void 0:a.call(window))||{},"Content-Type":"application/json"},body:JSON.stringify(i)});if(!r.ok){const c=await r.json();showToast==null||showToast("操作失败: "+(c.detail||r.statusText),"error");return}showToast==null||showToast((t==="confirm"?"✅ 已确认违规":t==="dismiss"?"❌ 已驳回（误报）":"⏳ 已标记待核实")+" "+ye(n||""),"info"),renderViolationPage==null||renderViolationPage()}catch(i){showToast==null||showToast("网络错误: "+i.message,"error")}}const ws={all:{label:"全部",color:"bg-gray-100 text-gray-700"},unreviewed:{label:"未审核",color:"bg-gray-200 text-gray-800"},confirmed:{label:"已确认",color:"bg-green-100 text-green-700"},dismissed:{label:"已驳回",color:"bg-red-100 text-red-700"},pending:{label:"待核实",color:"bg-yellow-100 text-yellow-700"}};function en(e,t){const n=ye(e),{total:o,confirmed:s,dismissed:a,pending:i,unreviewed:l}=t;let r='<div id="audit-stats-bar" class="mb-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-4 flex-wrap">';r+='<span class="text-xs font-semibold text-blue-800 mr-2">📋 审核进度</span>';const c=s+a+i;return r+='<span class="text-xs text-blue-600">已审核 <b>'+c+"</b> / <b>"+o+"</b></span>",l>0&&(r+=Be("⏳ "+l+" 未审核","bg-gray-200 text-gray-800")),s>0&&(r+=Be("✅ "+s+" 确认","bg-green-100 text-green-700")),a>0&&(r+=Be("❌ "+a+" 驳回","bg-red-100 text-red-700")),i>0&&(r+=Be("⏳ "+i+" 待核实","bg-yellow-100 text-yellow-700")),o===0&&(r+='<span class="text-xs text-gray-500">暂无审核条目</span>'),r+="</div>",r+='<div id="audit-filter-bar" class="mb-3 flex items-center gap-2">',r+=`<select id="audit-status-filter" onchange="window._onAuditFilterChange(this.value,'`+n+`')" class="text-xs border rounded px-2 py-1">`,["all","unreviewed","confirmed","dismissed","pending"].forEach(d=>{const g=ws[d];r+='<option value="'+d+'">'+g.label+"</option>"}),r+="</select>",s>0&&(r+=`<button onclick="window.downloadCorrectionNotice('`+n+`')" class="ml-auto px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">📄 生成整改通知单</button>`),r+="</div>",r}function Be(e,t){return'<span class="px-2 py-0.5 rounded text-xs font-medium '+t+'">'+e+"</span>"}async function tn(e){var t,n;try{const o=((t=window.API_BASE)==null?void 0:t.call(window))+"/api/v1/audit/stats?review_id="+encodeURIComponent(e),s=await fetch(o,{headers:((n=window.HEADERS)==null?void 0:n.call(window))||{}});if(s.ok){const a=await s.json();return window._auditStats=a.stats,a.stats}}catch(o){console.warn("[P119] 审核统计加载失败:",o.message)}return null}async function nn(e){const t=await tn(e);if(!t)return;const n=document.getElementById("audit-stats-bar");n&&(n.outerHTML=en(e,t)),await st(e),renderViolationPage==null||renderViolationPage()}async function _s(e,t){window._auditFilterStatus=e==="all"?"":e,renderViolationPage==null||renderViolationPage()}async function Ss(e){var t,n;try{const o=((t=window.API_BASE)==null?void 0:t.call(window))+"/api/v1/audit/export/pdf?review_id="+encodeURIComponent(e),s=await fetch(o,{headers:((n=window.HEADERS)==null?void 0:n.call(window))||{}});if(!s.ok){showToast==null||showToast("生成失败: "+s.statusText,"error");return}const a=await s.blob(),i=document.createElement("a");i.href=URL.createObjectURL(a),i.download="correction-notice-"+ye(e)+".pdf",i.click(),URL.revokeObjectURL(i.href),showToast==null||showToast("✅ 整改通知单已下载","info")}catch(o){showToast==null||showToast("网络错误: "+o.message,"error")}}async function Es(){var r,c,d,g,m,y;const e=document.getElementById("review-drawing-select"),t=(e==null?void 0:e.value)??"";if(!t){(r=window.showToast)==null||r.call(window,"请选择已解析的图纸","info");return}const o=O().find(x=>x.id===t);if(!o){(c=window.showToast)==null||c.call(window,"图纸数据不存在","info");return}const s=o.building_type||"",a=o.entities||((d=o.raw)==null?void 0:d.entities)||[];if(a.length===0){(g=window.showToast)==null||g.call(window,"该图纸没有解析出实体数据，请重新上传解析","info");return}const i=document.getElementById("review-loading");i&&(i.classList.remove("hidden"),i.textContent="⏳ 正在审查...");const l=document.getElementById("review-start-btn");l&&(l.disabled=!0,l.textContent="⏳ 审查中...");try{const x=((m=window.API_BASE)==null?void 0:m.call(window))+"/review-from-data",v=await(await fetch(x,{method:"POST",headers:{...((y=window.HEADERS)==null?void 0:y.call(window))||{},"Content-Type":"application/json"},body:JSON.stringify({entities:a,building_type:s})})).json();i&&i.classList.add("hidden"),l&&(l.disabled=!1,l.textContent="🔍 开始审查");const h=document.getElementById("review-summary"),S=document.getElementById("review-details");window._currentReviewResult=v,window._currentReviewEntities=a,v.status==="success"?(Is(h,v),Ls(S,v),Qt(v).then(()=>{var L;const I=((L=v.queue_info)==null?void 0:L.task_id)||v.task_id||"";I&&nn(I)})):h&&(h.innerHTML='<span class="text-red-500">❌ 审查失败: '+(v.message||"未知错误")+"</span>")}catch(x){i&&i.classList.add("hidden"),l&&(l.disabled=!1,l.textContent="🔍 开始审查");const p=x instanceof Error?x.message:String(x),v=document.getElementById("review-summary");v&&(v.innerHTML='<span class="text-red-500">❌ 审查失败: '+p+"</span>")}}function Is(e,t){var i,l,r,c;if(!e)return;const n=t.summary||{},o=n.confidence_tier_counts||{confirmed:0,suspected:0,needs_review:0};let s='<div class="grid grid-cols-4 gap-2 mb-3"><div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">'+(n.violations||0)+'</div><div class="text-xs text-gray-400">违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">'+(o.confirmed||0)+'</div><div class="text-xs text-gray-400">✅ 确认违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">'+(o.suspected||0)+'</div><div class="text-xs text-gray-400">🟡 疑似违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">'+(o.needs_review||0)+'</div><div class="text-xs text-gray-400">🔴 建议复核</div></div></div>';const a=((i=t.queue_info)==null?void 0:i.task_id)||t.task_id||"";if((l=t.summary)!=null&&l.entity_types||a){const d=[];if((r=t.summary)!=null&&r.entity_types){const g=[];for(const[m,y]of Object.entries(t.summary.entity_types))g.push('<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">'+m+": "+y+"</span>");d.push('<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">'+g.join("")+"</div>")}if(a){const g=((c=window._escHtml)==null?void 0:c.call(window,a))||a;d.push(`<div class="mt-3 flex gap-2 flex-wrap"><button onclick="window.downloadReviewPdf?.('`+g+`')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button><button onclick="window.downloadReviewExport?.('`+g+`','json')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button><button onclick="window.downloadReviewExport?.('`+g+`','csv')" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">📊 导出CSV</button></div>`)}s+=d.join("")}e.innerHTML=s}function Ls(e,t){if(!e)return;const o=(t.findings||[]).filter(r=>r.result==="FAIL"&&!r.is_duplicate);if(o.length===0){e.innerHTML='<div class="text-center py-8 text-green-400 text-sm">✅ 无违规，图纸合规</div>';return}const s={};o.forEach(r=>{const c=r.severity||"major";s[c]=(s[c]||0)+1});const a=Object.values(s).reduce((r,c)=>r+c,0);let i="";if(a>0){const r={critical:"bg-red-500",major:"bg-orange-500",minor:"bg-yellow-400"},c={critical:"严重",major:"主要",minor:"轻微"},d={critical:"text-red-700",major:"text-orange-700",minor:"text-yellow-700"},g=["critical","major","minor"].map(m=>{const y=s[m]||0,x=a>0?(y/a*100).toFixed(0):0;return'<div class="card p-2 text-center"><div class="text-lg font-bold '+(d[m]||"text-gray-600")+'">'+y+'</div><div class="text-xs text-gray-400">'+(c[m]||m)+'</div><div class="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div class="'+(r[m]||"bg-gray-400")+' h-1.5 rounded-full" style="width:'+x+'%"></div></div></div>'});i+='<div class="grid grid-cols-3 gap-2 mb-3">'+g.join("")+"</div>"}i+='<div id="audit-stats-bar-container"></div>',i+='<div id="review-table-container"></div>',e.innerHTML=i;const l=document.getElementById("review-table-container");if(l){const r=o.map(c=>Bs(c));nt(l,{items:r})}}function Bs(e){var l;const t=(e.clause_id||e.func_id||"").trim(),o=(((l=window._currentReviewResult)==null?void 0:l.corrections)||[]).filter(r=>r.clause_id===t);let s,a;const i=window._reviewAuditMapping;if(i!=null&&i.mapping){const r=e.func_id||e.clause_id||"",c=e.entity_id||"",d=r+":"+c;if(i.mapping[d]){s=i.mapping[d];const g=window._reviewAuditStates;a=(g==null?void 0:g[s])||"unreviewed"}}return{funcId:e.func_id||"",clauseId:e.clause_id||"",clauseTitle:e.clause_title||"",severity:e.severity||"major",confidence:e.confidence!=null?e.confidence:1,confidenceTier:e.confidence_tier||void 0,entityType:e.entity_type||"",extractedValue:e.extracted_value!=null?e.extracted_value:null,requiredValue:e.required_value!=null?e.required_value:null,explanation:e.explanation||"",result:e.result||"",entityId:e.entity_id||"",corrections:o.map(r=>({recommendation:r.recommendation||"",priority:r.priority||"medium",parameters:r.parameters||{}})),auditItemId:s,auditState:a||"unreviewed"}}const ks={staircase:"#ef4444",stair:"#ef4444",corridor:"#f97316",aisle:"#f97316",fire_door:"#ef4444",door:"#f59e0b",fire_lane:"#ef4444",road:"#ef4444",fire_zone:"#f97316",room:"#22c55e",exit:"#ef4444",exit_door:"#ef4444",fire_window:"#f97316",window:"#3b82f6",refuge_floor:"#ef4444",exit_sign:"#f59e0b",sign:"#f59e0b",sprinkler_system:"#f97316",fire_alarm:"#f97316",shaft:"#f59e0b",insulation:"#f97316",evacuation_lighting:"#f59e0b",wall:"#6b7280"};function sn(e,t,n){var L;const o=t.details||[],s=t.elements||((L=t.rawResult)==null?void 0:L.elements)||[];if(!(s.length>0||o.some(b=>b.entity_type))){if(n){const b=document.getElementById(n);b&&(b.className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm",b.textContent="无实体位置数据")}e.style.display="none";return}if(n){const b=document.getElementById(n);b&&(b.className="hidden")}e.style.display="block";const i=e.getContext("2d");if(!i)return;const l=e.width,r=e.height;i.clearRect(0,0,l,r),i.fillStyle="#f8f9fa",i.fillRect(0,0,l,r);const c={},d={};o.forEach(b=>{const B=b.entity_type||"unknown",E=b.severity||"major";(!c[B]||c[B]==="major")&&(c[B]=E),d[B]||(d[B]=[]),d[B].push(b.clause_id+": "+(b.clause_title||""))});const g=[...new Set([...o.map(b=>b.entity_type||"unknown"),...s.map(b=>b.type||b.entity_type||"")].filter(Boolean))];if(g.length===0){i.fillStyle="#999",i.font="14px sans-serif",i.textAlign="center",i.fillText("无实体位置数据",l/2,r/2);return}const m=Math.min(4,Math.ceil(Math.sqrt(g.length))),y=Math.ceil(g.length/m),x=(l-60)/m,p=(r-60)/y,v=[];g.forEach((b,B)=>{const E=B%m,_=Math.floor(B/m),T=30+E*x+x/2,K=30+_*p+p/2,$=Math.min(x,p)*.3,H=ks[b]||"#6b7280",U=c[b]||"none",q=c[b]!==void 0,P=d[b]||[];i.beginPath(),i.arc(T,K,$,0,2*Math.PI),i.fillStyle=q?U==="critical"?"#fecaca":"#fed7aa":"#dcfce7",i.fill(),i.strokeStyle=H,i.lineWidth=q?3:1.5,i.stroke(),i.fillStyle=H,i.font="bold 10px sans-serif",i.textAlign="center",i.textBaseline="middle";const Q=b.length>12?b.slice(0,10)+"..":b;i.fillText(Q,T,K),q&&(i.fillStyle=H,i.font="bold 8px sans-serif",i.fillText("✗",T+$+8,K-$)),P.length>0&&(i.fillStyle="#6b7280",i.font="7px sans-serif",i.textAlign="center",P.slice(0,2).forEach((Y,Wo)=>{i.fillText(Y.length>20?Y.slice(0,18)+"..":Y,T,K+12+Wo*10)})),v.push({x:T,y:K,r:$,type:b,color:H,severity:U,isViolated:q,hints:P})});let h=document.getElementById("compare-vis-tooltip");h||(h=document.createElement("div"),h.id="compare-vis-tooltip",h.className="fixed hidden bg-black bg-opacity-90 text-white text-xs rounded-lg p-2 pointer-events-none z-50 max-w-xs shadow-lg",document.body.appendChild(h)),e.__onMove&&e.removeEventListener("mousemove",e.__onMove),e.__onLeave&&e.removeEventListener("mouseleave",e.__onLeave),e.__circles=v,e.__tooltip=h;const S=b=>{const B=e.getBoundingClientRect(),E=e.width/B.width,_=e.height/B.height,T=(b.clientX-B.left)*E,K=(b.clientY-B.top)*_;let $=null,H=1/0;for(const Q of v){const Y=Math.hypot(T-Q.x,K-Q.y);Y<Q.r*1.3&&Y<H&&($=Q,H=Y)}if(!$){h.classList.add("hidden");return}const U=$.severity==="critical"?"严重":$.severity==="major"?"主要":"轻微",q=$.severity==="critical"?"red":$.severity==="major"?"orange":"yellow";let P='<div class="font-medium mb-1">'+$.type+($.isViolated?" ✗":" ✓")+"</div>";$.isViolated?(P+='<div class="mb-1"><span class="text-'+q+'-400">● '+U+"</span></div>",$.hints.length>0&&(P+='<div class="text-gray-300 text-[10px]">'+$.hints.slice(0,4).join("<br>")+"</div>",$.hints.length>4&&(P+='<div class="text-gray-500 text-[10px]">… 还有 '+($.hints.length-4)+" 条</div>"))):P+='<div class="text-gray-400 text-[10px]">无违规</div>',h.innerHTML=P,h.style.left=b.clientX+12+"px",h.style.top=b.clientY+12+"px",h.classList.remove("hidden")},I=()=>{h.classList.add("hidden")};e.__onMove=S,e.__onLeave=I,e.addEventListener("mousemove",S),e.addEventListener("mouseleave",I)}typeof window<"u"&&(window.renderViolationOverlay=sn);const Ts={summary:"batch-review-summary",details:"batch-review-details",loading:"batch-review-loading",btn:"batch-review-start-btn"};function ke(e){return document.getElementById(e)}async function on(e,t={}){var r;if(e.length===0){w("请先选择至少一个图纸文件","info");return}const n={...Ts,...t},o=ke(n.btn),s=ke(n.loading),a=ke(n.summary),i=ke(n.details);o==null||o.setAttribute("disabled","true"),s==null||s.classList.remove("hidden"),s.textContent="⏳ 正在批量审查...",a&&(a.innerHTML=""),i&&(i.innerHTML="");const l=new FormData;e.forEach(c=>l.append("files",c));try{const c=await fetch(k()+"/batch-review",{method:"POST",headers:N(),body:l}),d=await c.json();if(!c.ok)throw new Error(((r=d.detail)==null?void 0:r.message)||"审查请求失败");if(d.status!=="success")throw new Error(d.message||"审查失败");Cs(d.batch_summary,a),$s(d,i),s&&s.classList.add("hidden")}catch(c){s&&(s.textContent="❌ "+c.message,s.className="mt-3 text-sm text-red-500")}finally{o==null||o.removeAttribute("disabled")}}function Cs(e,t){if(!t)return;const n=(e.processing_time_ms/1e3).toFixed(1);t.innerHTML='<div class="grid grid-cols-2 gap-2 mb-2"><div class="card p-2 text-xs"><p class="font-medium">📁 文件统计</p><p>总数: '+e.total_files+" | ✅成功: "+e.success_files+" | ❌失败: "+e.failed_files+'</p></div><div class="card p-2 text-xs"><p class="font-medium">📊 审查统计</p><p>实体: '+e.total_entities+" | 检查: "+e.total_checks.toLocaleString()+" | 违规: "+e.total_violations+"</p><p>耗时: "+n+"s</p></div></div>"}function $s(e,t){if(!t)return;let n="";e.cross_analysis&&e.cross_analysis.length>0&&(n='<div class="card p-2 text-xs mb-2"><p class="font-medium text-sm mb-1">🔗 跨文件违规交叉分析</p><table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-1">规范条款</th><th class="pb-1 pr-1">违规数</th><th class="pb-1 pr-1">涉及图纸</th><th class="pb-1 pr-1">文件</th></tr></thead><tbody>',e.cross_analysis.slice(0,8).forEach(s=>{n+='<tr class="border-b border-gray-50"><td class="py-1 pr-1">'+f(s.clause_id)+'</td><td class="py-1 pr-1">'+s.violations+'</td><td class="py-1 pr-1">'+s.files+' 张</td><td class="py-1 text-gray-400 truncate max-w-20">'+f((s.file_names||[]).join(", "))+"</td></tr>"}),n+="</tbody></table></div>");let o='<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">';e.results.forEach(s=>{if(s.status==="error"){o+='<div class="card p-2 text-xs border-l-2 border-red-500 bg-red-50"><p class="font-medium text-red-600">❌ '+f(s.filename||"")+'</p><p class="text-gray-500">'+f(s.message||"")+"</p></div>";return}const a=s.summary||{},i=(a.violations||0)===0,l=i?"green":(a.violations||0)>=20?"red":"orange",r=a.total_checks||0,c=r>0?Math.round((1-(a.violations||0)/r)*100):100,d={critical:0,major:0,minor:0};(s.details||[]).forEach(v=>{const h=String(v.severity||"major");h in d&&d[h]++});const g='<div class="mt-1 bg-gray-200 rounded-full h-1.5 overflow-hidden"><div class="'+l+'-500 h-full rounded-full" style="width:'+c+'%"></div></div><div class="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>通过率 '+c+"%</span><span>检查 "+r.toLocaleString()+"</span></div>";let m="";d.critical>0&&(m+='<span class="px-1 rounded bg-red-100 text-red-700 text-[10px]">● '+d.critical+" 严重</span>"),d.major>0&&(m+='<span class="px-1 rounded bg-orange-100 text-orange-700 text-[10px]">● '+d.major+" 主要</span>"),d.minor>0&&(m+='<span class="px-1 rounded bg-yellow-100 text-yellow-700 text-[10px]">● '+d.minor+" 轻微</span>"),m||(m='<span class="px-1 rounded bg-green-100 text-green-700 text-[10px]">✓ 无违规</span>');const y=a.violation_by_clause||{},x=Object.entries(y).slice(0,3),p=x.length>0?'<p class="text-[10px] text-gray-400 mt-1">主要: '+x.map(([v,h])=>v+"("+h+")").join(", ")+"</p>":"";o+='<div class="card p-2 text-xs border-l-2 border-'+l+'-500"><div class="flex items-center justify-between mb-1"><p class="font-medium truncate" title="'+f(s.filename||"")+'">'+f(s.filename||"")+'</p><span class="text-'+l+'-600 font-medium text-sm">'+(i?"✓":a.violations||0)+'</span></div><p class="text-gray-500 text-[10px]">'+(a.total_entities||0)+" 实体 · "+(s.buildingType==="civil"?"民用":"工业")+"</p>"+g+'<div class="mt-1 flex flex-wrap gap-0.5">'+m+"</div>"+p+"</div>"}),o+="</div>",t.innerHTML=n+o}if(typeof window<"u"){const e=window;e.runBatchReviewComponent=on}function js(e){const t=k()+"/api/v1/review/pdf?review_id="+encodeURIComponent(e),n=J(),o={};n&&(o.Authorization="Bearer "+n),fetch(t,{headers:o}).then(s=>s.ok?s.blob():s.json().then(a=>{var i;throw new Error(((i=a.detail)==null?void 0:i.toString())||"下载失败 ("+s.status+")")})).then(s=>{const a=document.createElement("a");a.href=URL.createObjectURL(s),a.download="审查报告_"+(e||"report")+".pdf",a.click(),URL.revokeObjectURL(a.href)}).catch(s=>{w("❌ "+s.message,"error")})}function Ms(e,t){if(!e){w("没有可导出的审查结果","info");return}const n=k()+"/review/export?review_id="+encodeURIComponent(e)+"&format="+t;fetch(n,{method:"GET",headers:N()}).then(o=>o.ok?o.blob():o.json().then(s=>{var a;throw new Error(((a=s.detail)==null?void 0:a.toString())||o.statusText)})).then(o=>{const s=t==="csv"?"text/csv;charset=utf-8-sig":"application/json",a=t==="csv"?"csv":"json",i=document.createElement("a");i.href=URL.createObjectURL(new Blob([o],{type:s})),i.download="审查结果_"+e+"."+a,i.click(),URL.revokeObjectURL(i.href),w("✅ 已导出 "+t.toUpperCase()+" 文件","success")}).catch(o=>{w("❌ 导出失败: "+o.message,"error")})}function As(){const e=window._reviewViolations||[];if(e.length===0){w("没有可导出的审查结果","info");return}const t={exportTime:new Date().toISOString(),totalViolations:e.length,violations:e.map(s=>({entity_id:s.entity_id,entity_type:s.entity_type,clause_id:s.clause_id,clause_title:s.clause_title,severity:s.severity||"major",result:s.result,extracted_value:s.extracted_value,required_value:s.required_value,difference:s.difference,explanation:s.explanation})),violationByClause:{}};e.forEach(s=>{const a=String(s.clause_id||"unknown");t.violationByClause[a]=(t.violationByClause[a]||0)+1});const n=new Blob([JSON.stringify(t,null,2)],{type:"application/json"}),o=document.createElement("a");o.href=URL.createObjectURL(n),o.download="审查结果_"+new Date().toISOString().slice(0,10)+".json",o.click(),URL.revokeObjectURL(o.href)}async function an(){var t,n,o;const e=document.getElementById("fb-stats");if(e)try{const s=await R("/api/v1/feedbacks/stats");if(s.status!=="success")throw new Error("加载失败");const a=s.stats,i=a.by_clause||{},l=Object.entries(i).slice(0,5).map(([c,d])=>"<p>"+f(c)+": "+String(d)+"条</p>").join(""),r=a;e.innerHTML='<div class="grid grid-cols-2 gap-2"><div class="card p-2 text-xs"><p class="font-medium">📊 申诉统计</p><p>总数: '+r.total+"</p><p>待审核: "+(((t=r.by_status)==null?void 0:t.pending)||0)+"</p><p>已接受: "+(((n=r.by_status)==null?void 0:n.accepted)||0)+"</p><p>已拒绝: "+(((o=r.by_status)==null?void 0:o.rejected)||0)+"</p><p>接受率: "+((r.accepted_rate||0)*100).toFixed(1)+'%</p></div><div class="card p-2 text-xs"><p class="font-medium">📋 高频条款</p>'+l+"</div></div>"}catch(s){e.textContent="加载失败: "+s.message}}async function rn(){const e=document.getElementById("fb-list");if(e)try{const t=await R("/api/v1/feedbacks");if(t.status!=="success")throw new Error("加载失败");const n=t.feedbacks||[];if(n.length===0){e.innerHTML='<p class="text-gray-400 text-center py-4">暂无申诉记录</p>';return}e.innerHTML=n.map(o=>{const s=String(o.status||""),a=s==="accepted"?"bg-green-100 text-green-700":s==="rejected"?"bg-red-100 text-red-700":"bg-yellow-100 text-yellow-700",i=s==="accepted"?"✅ 已接受":s==="rejected"?"❌ 已拒绝":"⏳ 待审核",l=o.reviewed_by?'<p class="text-gray-400">审核: '+f(String(o.reviewed_by))+" - "+f(String(o.review_comment||""))+"</p>":"";return'<div class="card p-2 text-xs"><div class="flex items-center gap-2 mb-1"><span class="font-mono">'+f(String(o.feedback_id||""))+'</span><span class="px-1.5 py-0.5 rounded text-xs '+a+'">'+i+'</span></div><p class="font-medium">'+f(String(o.clause_id||""))+'</p><p class="text-gray-500">'+f(String(o.reason||"无理由"))+"</p>"+l+'<p class="text-gray-400 text-xs">'+String(o.created_at||"").slice(0,10)+"</p></div>"}).join("")}catch(t){e.innerHTML='<p class="text-red-400 text-center py-4">加载失败: '+t.message+"</p>"}}async function Rs(){const e=r=>{var c,d;return((d=(c=document.getElementById(r))==null?void 0:c.value)==null?void 0:d.trim())||""},t=e("fb-task-id"),n=e("fb-clause-id"),o=e("fb-entity-id"),s=e("fb-reason"),a=e("fb-description"),i=e("fb-original-value"),l=e("fb-severity");if(!t||!n||!s){w("请填写任务 ID、规范条款和申诉理由","info");return}try{const r=await W("/api/v1/feedbacks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task_id:t,clause_id:n,entity_id:o,entity_type:"",reason:s,description:a,original_value:i?parseFloat(i):null,severity:l})});if(!r.status)throw new Error("提交失败");const c=r.feedback;w("申诉提交成功！ID: "+((c==null?void 0:c.feedback_id)||""),"success"),["fb-task-id","fb-clause-id","fb-entity-id","fb-reason","fb-description","fb-original-value","fb-severity"].forEach(d=>{const g=document.getElementById(d);g&&(g.value="")}),an(),rn()}catch(r){w("提交失败: "+r.message,"error")}}let ln=null;function ot(e,t){const n=document.getElementById(e),o=document.getElementById(t);!n||!o||n.addEventListener("change",()=>{o.textContent=n.files&&n.files[0]?n.files[0].name:""})}ot("diff-file1","diff-file1-name"),ot("diff-file2","diff-file2-name");async function Ds(){var a,i,l,r,c,d;const e=(i=(a=document.getElementById("diff-file1"))==null?void 0:a.files)==null?void 0:i[0],t=(r=(l=document.getElementById("diff-file2"))==null?void 0:l.files)==null?void 0:r[0];if(!e||!t){w("请选择两个版本的图纸文件","info");return}const n=((c=document.getElementById("diff-building-type"))==null?void 0:c.value)||"",o=((d=document.getElementById("diff-standard"))==null?void 0:d.value)||"",s=document.getElementById("diff-loading");s&&(s.className="mt-3",xt(s,"审查并对比",20));try{const g=new FormData;g.append("file1",e),g.append("file2",t);const m=k()+"/review/compare?building_type="+encodeURIComponent(n)+"&standard="+encodeURIComponent(o),y=await fetch(m,{method:"POST",headers:ae(),body:g}),x=await y.json();if(s&&(s.className="hidden"),y.status!==200){w("对比失败: "+(x.detail||JSON.stringify(x)),"error");return}ln=x,cn(x)}catch(g){s&&(s.className="mt-3 text-sm text-red-500",s.innerHTML="❌ 请求失败: "+g.message)}}function cn(e){const t=e.summary||{},n=document.getElementById("diff-empty"),o=document.getElementById("diff-results");n&&(n.className="hidden"),o&&(o.className="");const s=document.getElementById("diff-summary"),a=t.new_violations||0,i=t.fixed_violations||0,l=t.changed_violations||0,r=t.total_v1||0,c=t.total_v2||0;s&&(s.innerHTML='<div class="card p-3 text-center"><div class="text-lg font-bold text-blue-600">'+r+" → "+c+'</div><div class="text-xs text-gray-400">违规数</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-green-600">'+a+'</div><div class="text-xs text-gray-400">🆕 新增违规</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-emerald-600">'+i+'</div><div class="text-xs text-gray-400">✅ 已修复</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-yellow-600">'+l+'</div><div class="text-xs text-gray-400">🔄 变化项</div></div><div class="card p-3 text-center"><div class="text-lg font-bold '+(a===0?"text-green-600":"text-red-600")+'">'+(a===0?"✓ 合格":a+"项")+'</div><div class="text-xs text-gray-400">综合评估</div></div>');const d=e.items||[],g={new:[],fixed:[],changed:[]};d.forEach(y=>{const x=String(y.diff_type||"new");g[x]&&g[x].push(y)}),["new","fixed","changed"].forEach(y=>dn(y,g[y]||[]));const m=document.getElementById("diff-raw-json");m&&(m.textContent=JSON.stringify(e,null,2)),mn(e),un("new")}function dn(e,t){const n=document.getElementById("diff-items-"+e);if(!n)return;if(t.length===0){const s={new:"🆕 无新增违规",fixed:"✅ 无已修复项",changed:"🔄 无变化项"};n.innerHTML='<div class="text-xs text-gray-400 py-4 text-center">'+(s[e]||"无差异项")+"</div>";return}let o='<div class="flex items-center gap-2 mb-2"><span class="text-xs text-gray-500">共 '+t.length+' 项</span><span class="text-xs text-gray-400">|</span><span class="text-xs text-gray-400">严重: '+t.filter(s=>s.severity==="critical").length+'</span><span class="text-xs text-gray-400">|</span><span class="text-xs text-gray-400">一般: '+t.filter(s=>s.severity==="normal"||!s.severity).length+"</span></div>";o+='<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-2">条款</th><th class="pb-1 pr-2">实体</th><th class="pb-1 pr-2">类型</th>',e==="new"?o+='<th class="pb-1 pr-2">实测值</th><th class="pb-1 pr-2">要求值</th>':e==="fixed"?o+='<th class="pb-1 pr-2">原实测值</th><th class="pb-1 pr-2">要求值</th>':o+='<th class="pb-1 pr-2">旧值</th><th class="pb-1 pr-2">新值</th>',o+='<th class="pb-1">严重度</th></tr></thead><tbody>',t.forEach(s=>{const a=String(s.severity||""),i=a==="critical"?"red":a==="normal"?"orange":"gray",l=a==="critical"?"严重":a==="normal"?"一般":"轻微",r=s.old_value!=null?Number(s.old_value).toFixed(2):"-",c=s.new_value!=null?Number(s.new_value).toFixed(2):"-",d=s.old_required!=null?s.old_required:s.new_required!=null?s.new_required:"-";o+='<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="py-1.5 pr-2"><span title="'+f(String(s.clause_title||""))+'" class="cursor-help">'+f(String(s.clause_id||""))+'</span></td><td class="py-1.5 pr-2 truncate max-w-20" title="'+f(String(s.entity_id||""))+'">'+f(String(s.entity_type||"-"))+'</td><td class="py-1.5 pr-2">'+(s.entity_id?f(String(s.entity_id).slice(0,16)):"-")+"</td>",e==="new"?o+='<td class="py-1.5 pr-2 text-red-600">'+c+'</td><td class="py-1.5 pr-2">'+d+"</td>":e==="fixed"?o+='<td class="py-1.5 pr-2 text-green-600 line-through">'+r+'</td><td class="py-1.5 pr-2">'+d+"</td>":o+='<td class="py-1.5 pr-2 text-gray-400">'+r+'</td><td class="py-1.5 pr-2 text-yellow-600">'+c+"</td>",o+='<td class="py-1.5"><span class="px-1.5 py-0.5 rounded text-xs bg-'+i+"-100 text-"+i+'-700">'+l+"</span></td></tr>",s.explanation&&(o+='<tr class="border-b border-gray-50"><td colspan="7" class="pb-1.5 pl-4 text-gray-400 text-xs">💡 '+f(String(s.explanation).slice(0,120))+"</td></tr>")}),o+="</tbody></table>",n.innerHTML=o}function un(e){["new","fixed","changed"].forEach(t=>{const n=document.getElementById("diff-items-"+t);n&&(n.className="diff-items-panel"+(t===e?"":" hidden"))}),document.querySelectorAll(".diff-tab-btn").forEach(t=>{const n=t.dataset.tab===e;t.className="diff-tab-btn px-3 py-1 rounded-lg font-medium "+(n?"bg-blue-100 text-blue-700":"bg-gray-100 text-gray-600")})}function mn(e){const t=e.v1_file_id,n=e.v2_file_id,o=e.items||[],s=document.getElementById("diff-vis-v1"),a=document.getElementById("diff-vis-v2"),i=(c,d=!1)=>{if(!c)return null;const g=o.filter(m=>d&&m.diff_type==="fixed"||!d&&m.diff_type==="new");return k()+"/render/"+encodeURIComponent(c)+"/overlay?violations="+encodeURIComponent(JSON.stringify(g.slice(0,50).map(m=>({entity_type:m.entity_type||"unknown",severity:m.severity||"major",clause_id:m.clause_id||"",x:0,y:0}))))},l=i(t,!0),r=i(n,!1);s&&l?s.innerHTML='<img src="'+l+`" class="w-full" alt="版本1图纸" style="max-height:400px" onerror="this.outerHTML='<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>'" />`:s&&(s.innerHTML='<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>'),a&&r?a.innerHTML='<img src="'+r+`" class="w-full" alt="版本2图纸" style="max-height:400px" onerror="this.outerHTML='<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>'" />`:a&&(a.innerHTML='<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>')}function Hs(){const e=document.getElementById("diff-file1"),t=document.getElementById("diff-file2");e&&(e.value=""),t&&(t.value="");const n=document.getElementById("diff-file1-name"),o=document.getElementById("diff-file2-name");n&&(n.textContent=""),o&&(o.textContent="");const s=document.getElementById("diff-results");s&&(s.className="hidden");const a=document.getElementById("diff-empty");a&&(a.className="card text-center py-8 text-gray-300",a.textContent="上传两个版本的图纸后开始对比"),ln=null}const fn={severe_cold:"严寒",cold:"寒冷",hot_cold:"夏热冬冷",hot_warm:"夏热冬暖"},Os={severe_cold:{exterior_wall:.45,roof:.35,ground_floor:.3,exterior_window:2},cold:{exterior_wall:.6,roof:.5,ground_floor:.45,exterior_window:2.4},hot_cold:{exterior_wall:1.5,roof:1.2,ground_floor:.6,exterior_window:3.2},hot_warm:{exterior_wall:2,roof:1.5,ground_floor:.8,exterior_window:4}},Ps={exterior_wall:50,roof:60,ground_floor:80,exterior_window:30};function Ns(){var n;const e=((n=document.getElementById("thermal-comp-type"))==null?void 0:n.value)||"",t=document.getElementById("thermal-thickness");t&&(t.value=String(Ps[e]||50))}function Fs(){const e=document.getElementById("thermal-thresholds");if(!e)return;let t='<table class="w-full"><thead><tr class="text-gray-400 border-b"><th class="text-left py-1">气候带</th><th>外墙</th><th>屋顶</th><th>地面</th><th>外窗</th></tr></thead><tbody>';for(const[n,o]of Object.entries(Os)){t+='<tr class="border-b"><td class="py-1">'+f(fn[n]||n)+"</td>";for(const s of["exterior_wall","roof","ground_floor","exterior_window"])t+='<td class="text-center">'+o[s].toFixed(2)+"</td>";t+="</tr>"}t+="</tbody></table>",e.innerHTML=t}async function Ks(){var a,i,l,r;const e=((a=document.getElementById("thermal-comp-type"))==null?void 0:a.value)||"",t=((i=document.getElementById("thermal-material"))==null?void 0:i.value)||"",n=parseFloat(((l=document.getElementById("thermal-thickness"))==null?void 0:l.value)||"0"),o=((r=document.getElementById("thermal-climate"))==null?void 0:r.value)||"",s=document.getElementById("thermal-result");if(isNaN(n)||n<=0){s&&(s.innerHTML='<span class="text-red-600">厚度无效</span>');return}s&&(s.innerHTML='<span class="text-gray-400">⏳ 计算中...</span>');try{const d=await(await fetch(k()+"/api/v1/review/thermal/k-value",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({compType:e,material:t,thicknessMm:n,climate:o})})).json();if(d.status!=="success"){s&&(s.innerHTML='<span class="text-red-600">后端返回异常</span>');return}const g=!!d.passed;let m='<div class="mt-2 p-2 '+(g?"bg-green-50 border-green-200":"bg-red-50 border-red-200")+' rounded">';if(m+='<p class="font-medium '+(g?"text-green-700":"text-red-700")+'">',m+="K = "+d.K+" W/(m²·K) "+(g?"✅ ≤ ":"❌ > ")+d.threshold,m+="</p>",m+="<p>材料: "+d.material+" (λ="+d.lambda+") · 厚度: "+d.thicknessMm+"mm · R="+d.R+" m²·K/W</p>",!g)m+='<p class="text-orange-600 mt-1">→ 改用当前材料需厚度 ≥ '+d.requiredThicknessMm+"mm（当前差 "+d.additionalThicknessMm+"mm）</p>";else{const y=fn[d.climate]||String(d.climate);m+='<p class="text-gray-500 mt-1">→ 满足 GB55015-3.2.2 '+y+" 要求</p>"}m+="</div>",s&&(s.innerHTML=m);try{localStorage.setItem("baa_last_thermal_result",JSON.stringify(d))}catch{}}catch(c){s&&(s.innerHTML='<span class="text-red-600">计算失败: '+c.message+"</span>")}}function qs(e){var s;const t=document.getElementById("thermal-review-list");if(!t)return;if(!e||e.length===0){t.innerHTML='<span class="text-gray-400">✅ 单图审查后自动展示热工违规项</span>';return}let n='<p class="font-medium text-sm mb-1 text-orange-600">🌡️ 热工违规 ('+e.length+"项)</p>";const o=((s=window._currentReviewResult)==null?void 0:s.corrections)||[];e.forEach(a=>{const i=String(a.func_id||"THERM-xxx"),l=String(a.clause_title||a.description||"未知条款"),r=String(a.clause_id||""),c=a.extracted_value??a.actual_value??"?",d=a.required_value??a.threshold??"?",g=String(a.severity||"major"),m=g==="critical"?"red":g==="major"?"orange":"yellow",y=g==="critical"?"严重":g==="major"?"主要":"轻微",x=typeof a.confidence=="number"?a.confidence:1,p=Math.round(x*100),v=x>=.85?"green":x>=.6?"yellow":"red",h=String(a.clause_id||a.func_id||"").trim(),S=o.filter(L=>L.clause_id===h),I=S.length>0;if(n+='<div class="p-1.5 rounded bg-'+m+"-50 border-l-2 border-"+m+'-400 mb-1">',n+='<div class="flex justify-between items-start"><p class="font-medium text-'+m+'-700">'+f(i)+'</p><div class="flex gap-1"><span class="px-1 rounded text-xs bg-'+m+"-100 text-"+m+'-700">'+y+'</span><span class="px-1 rounded text-xs bg-'+v+"-100 text-"+v+'-700" title="置信度 '+p+'%">'+(x>=.85?"高":x>=.6?"中":"低")+'</span></div></div><p class="text-xs text-gray-600">'+f(l)+'</p><p class="text-xs text-gray-500">实测: '+(typeof c=="number"?c.toFixed(3):f(String(c)))+" · 要求: "+(typeof d=="number"?d.toFixed(3):f(String(d)))+" · ["+f(r)+']</p><div class="mt-1 bg-gray-200 rounded-full h-1 overflow-hidden"><div class="'+v+'-500 h-full rounded-full" style="width:'+p+'%"></div></div>',I){const L=S[0],b=String(L.priority)==="high"?"red":String(L.priority)==="medium"?"orange":"yellow",B=String(L.priority)==="high"?"🔴 高":String(L.priority)==="medium"?"🟠 中":"🟡 低";n+='<details class="mt-0.5"><summary class="cursor-pointer text-purple-600 font-medium text-xs">💡 修正建议 ('+S.length+'条)</summary><div class="mt-0.5 p-1 bg-'+b+"-50 rounded border-l-2 border-"+b+'-400"><p class="text-xs"><span class="text-'+b+'-600">'+B+"</span> "+f(String(L.recommendation))+"</p></div></details>"}n+="</div>"}),t.innerHTML=n}async function Vs(){const e=window._currentReviewResult,t=window._currentReviewEntities;if(!e||!t){w("请先运行审查","info");return}const o=(e.findings||[]).filter(c=>c.result==="FAIL"&&!c.is_duplicate);if(o.length===0){const c=document.getElementById("correction-results");c&&(c.innerHTML='<div class="text-green-600">✅ 无违规，无需修正建议</div>');return}const s=document.getElementById("review-correction-panel"),a=document.getElementById("correction-loading"),i=document.getElementById("correction-results"),l=document.getElementById("correction-generate-btn"),r=document.getElementById("correction-mode-select");s&&(s.className=s.className.replace(/hidden/g,"").trim()),a&&(a.className=""),i&&(i.innerHTML=""),l&&(l.disabled=!0,l.textContent="...");try{const c=(r==null?void 0:r.value)||"auto",g=await(await fetch(k()+"/correction/suggestions",{method:"POST",headers:{...ae(),"Content-Type":"application/json"},body:JSON.stringify({findings:o,entities:t,mode:c})})).json();a&&(a.className="hidden");const m=g.suggestions;if(!m||m.length===0){i&&(i.innerHTML='<div class="text-gray-500">未生成修正建议（规则引擎无匹配）</div>');return}const y={high:0,medium:1,low:2},x=m.slice().sort((v,h)=>(y[String(v.priority)]??3)-(y[String(h.priority)]??3));let p='<p class="mb-1 text-gray-500">共 '+x.length+" 条建议（"+c+" 模式）</p>";for(const v of x){const h=String(v.priority)==="high"?"red":String(v.priority)==="medium"?"orange":"yellow",S=String(v.priority)==="high"?"🔴 高":String(v.priority)==="medium"?"🟠 中":"🟡 低";p+='<div class="p-1.5 bg-gray-50 rounded border-l-2 border-'+h+'-400">',p+='<p class="font-medium"><span class="text-'+h+'-600">'+S+"</span> ["+v.clause_id+"] "+v.description+"</p>",p+='<p class="text-gray-600 mt-0.5">💡 '+v.recommendation+"</p>",Object.keys(v.parameters||{}).length>0&&(p+='<p class="text-xs text-gray-400 mt-0.5">参数: '+JSON.stringify(v.parameters)+"</p>"),p+="</div>"}i&&(i.innerHTML=p)}catch(c){a&&(a.className="hidden"),i&&(i.innerHTML='<div class="text-red-600">生成失败: '+c.message+"</div>")}finally{l&&(l.disabled=!1,l.textContent="生成")}}function zs(e,t,n){const o="corr_"+e+"_"+t;localStorage.setItem(o,n?"accepted":"rejected");const s=document.getElementById("compare-drawing-select");if(s&&s.value){const a=window.onCompareSelect;typeof a=="function"&&a()}}const it={floor_live:{label:"楼面活荷载",clause:"GB50009-5.1.1",unit:"kN/㎡",threshold:{住宅:2,办公:2.5,商业:3.5,图书馆:4,档案:5,车库:2.5},op:">="},beam_reinforcement:{label:"梁最小配筋率",clause:"GB50010-9.2.1",unit:"%",threshold:{默认:.2},op:">="},column_reinforcement:{label:"柱纵向配筋率下限",clause:"GB50010-11.4.12",unit:"%",threshold:{抗震一级:.55,抗震二级:.5,抗震三级:.55,抗震四级:.5},op:">="},foundation_depth:{label:"基础最小埋深",clause:"GB50007-5.1.3",unit:"m",threshold:{默认:.5,冻土区:1},op:">="},slab_thickness:{label:"楼板最小厚度",clause:"GB50010-9.1.2",unit:"mm",threshold:{默认:80,屋面板:90},op:">="},beam_height:{label:"梁高跨比",clause:"GB50010-9.2.3",unit:"1/跨",threshold:{简支:.083,连续:.067},op:">="},concrete_strength:{label:"混凝土最低强度等级",clause:"GB50010-4.1.2",unit:"MPa",threshold:{默认:20,预应力:40},op:">="},seismic_grade:{label:"抗震等级标注",clause:"GB55008-3.2.1",unit:"有/无",threshold:{必须:1},op:"=="},seismic_intensity:{label:"抗震设防烈度",clause:"GB55008-3.1.1",unit:"度",threshold:{最小:6},op:">="},shear_wall_thickness:{label:"剪力墙最小厚度",clause:"GB55008-4.3.1",unit:"mm",threshold:{默认:160,框支层:200},op:">="},pile_count:{label:"柱下独立桩基数量",clause:"GB55008-4.1.1",unit:"根",threshold:{默认:2,条形桩基:3},op:">="}};function Us(){const e=document.getElementById("structural-thresholds");if(!e)return;let t='<table class="w-full"><thead><tr class="text-gray-400 border-b"><th class="text-left py-1">构件</th><th>要求</th><th>单位</th><th>规范</th></tr></thead><tbody>';for(const[n,o]of Object.entries(it)){const s=Object.entries(o.threshold).map(([a,i])=>a+":"+i).join(" / ");t+='<tr class="border-b"><td class="py-1">'+f(o.label)+'</td><td class="text-center">'+o.op+" "+s+'</td><td class="text-center">'+f(o.unit)+'</td><td class="text-gray-500">'+f(o.clause)+"</td></tr>"}t+="</tbody></table>",e.innerHTML=t}function Js(){var s;const e=((s=document.getElementById("structural-comp-type"))==null?void 0:s.value)||"",t=it[e];if(!t)return;const n=Object.keys(t.threshold)[0],o=document.getElementById("structural-value");o&&n&&(o.value=String(t.threshold[n]))}async function Gs(){var d,g,m;const e=((d=document.getElementById("structural-comp-type"))==null?void 0:d.value)||"",t=parseFloat(((g=document.getElementById("structural-value"))==null?void 0:g.value)||"0"),n=((m=document.getElementById("structural-note"))==null?void 0:m.value)||"",o=document.getElementById("structural-result");if(isNaN(t)){o&&(o.innerHTML='<span class="text-red-600">输入值无效</span>');return}const s=it[e];if(!s)return;let a=null,i="";for(const[y,x]of Object.entries(s.threshold))if(n&&n.includes(y)){a=x,i=y;break}if(a===null){const y=Object.keys(s.threshold);a=s.threshold[y[0]||""],i=y[0]||""}let l=!1;a!==null&&(s.op===">="?l=t>=a:s.op==="<="?l=t<=a:s.op==="=="?l=t===a:s.op===">"?l=t>a:s.op==="<"?l=t<a:l=t===a);const r=s.op===">="?"≥":s.op==="<="?"≤":s.op==="=="?"=":s.op;let c='<div class="mt-2 p-2 '+(l?"bg-green-50 border-green-200":"bg-red-50 border-red-200")+' rounded">';c+='<p class="font-medium '+(l?"text-green-700":"text-red-700")+'">',c+=f(s.label)+": "+t+" "+s.unit+" "+(l?"✅ ":"❌ ")+r+" "+a+" "+s.unit,c+="</p>",c+='<p class="text-xs text-gray-500">规范: '+s.clause+" · 适用条件: "+f(i)+"</p>",l||(c+='<p class="text-orange-600 text-xs mt-1">→ 当前值不满足规范要求，建议修正至 '+r+" "+a+" "+s.unit+"</p>"),c+="</div>",o&&(o.innerHTML=c)}function Ys(e){const t=document.getElementById("structural-review-list");if(!t)return;if(!e||e.length===0){t.innerHTML='<span class="text-gray-400">✅ 单图审查后自动展示结构违规项</span>';return}let n="";e.forEach(o=>{const s=String(o.func_id||"STR-xxx"),a=String(o.clause_title||o.description||"未知条款"),i=String(o.clause_id||""),l=o.extracted_value??o.actual_value??"?",r=o.required_value??o.threshold??"?",c=o.result==="FAIL";n+='<div class="p-1.5 rounded '+(c?"bg-red-50 border-l-2 border-red-400":"bg-green-50 border-l-2 border-green-400")+' mb-1">',n+='<p class="font-medium '+(c?"text-red-700":"text-green-700")+'">'+f(s)+"</p>",n+='<p class="text-gray-600">'+f(a)+"</p>",n+='<p class="text-xs text-gray-500">实测: '+(typeof l=="number"?l.toFixed(3):f(String(l)))+" · 要求: "+(typeof r=="number"?r.toFixed(3):f(String(r)))+" · ["+f(i)+"]</p>",n+="</div>"}),t.innerHTML=n}function D(e){return e?String(e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"):""}const at=20;function Z(){return window.historyPage||0}function pn(e){const t=window;t.historyPage=e}function xe(){return window.reviewResults||[]}function rt(e){const t=window;t.reviewResults=e}function Te(e=!1){var g,m,y,x;e&&pn(0);const t=document.getElementById("history-list");if(!t)return;Ee();const n=(((g=document.getElementById("history-search"))==null?void 0:g.value)||"").toLowerCase(),o=((m=document.getElementById("history-filter"))==null?void 0:m.value)||"all",s=((y=document.getElementById("history-team-filter"))==null?void 0:y.value)||"",a=((x=document.getElementById("history-project-filter"))==null?void 0:x.value)||"";let i=xe();o==="civil"?i=i.filter(p=>p.buildingType==="civil"):o==="industrial"?i=i.filter(p=>p.buildingType==="industrial"):o==="violations"?i=i.filter(p=>(p.violationCount||0)>0):o==="clean"&&(i=i.filter(p=>(p.violationCount||0)===0)),s&&(i=i.filter(p=>p.teamId===s)),a&&(i=i.filter(p=>p.projectId===a)),n&&(i=i.filter(p=>String(p.drawingName||"").toLowerCase().includes(n)||(p.details||[]).some(v=>String(v.clause_id||"").toLowerCase().includes(n)||String(v.clause_title||"").toLowerCase().includes(n))));const l=document.getElementById("history-context-info");if(l){const p=window,v=[];p.currentTeamId&&v.push("📌团队已选"),p.currentProjectId&&v.push("📋项目已选"),l.textContent=v.length?v.join(" · "):""}Xs();const r=Math.ceil(i.length/at)||1;Z()>=r&&pn(r-1);const c=i.slice(Z()*at,(Z()+1)*at),d=document.getElementById("history-total-count");if(d&&(d.textContent=String(i.length)),i.length===0){t.innerHTML='<div class="text-center text-gray-400 py-8">无匹配记录</div>';return}t.innerHTML=c.map(p=>{var _;const v=p.violationCount||((_=p.details)==null?void 0:_.length)||0,h=p.buildingType==="civil"?"民用":p.buildingType==="industrial"?"工业":"--",S=new Date(String(p.reviewedAt||p.createdAt||Date.now())).toLocaleString(),I=v===0?"green":"red",L=p.teamId?'<span class="px-1 bg-blue-100 text-blue-600 rounded" title="团队">👥</span>':"",b=p.projectId?'<span class="px-1 bg-purple-100 text-purple-600 rounded" title="项目">📋</span>':"",B=D(String(p.id||"")),E=D(String(p.drawingName||""));return`<div class="card p-3 hover:shadow-md transition-shadow"><div class="flex items-center justify-between"><div class="flex items-center gap-3 cursor-pointer flex-1" onclick="window.viewHistoryDetail('`+B+`')"><span class="text-`+I+'-500 text-lg">'+(v===0?"✅":"🔴")+'</span><div><div class="font-medium text-sm">'+E+" "+L+b+'</div><div class="text-xs text-gray-400">'+h+" · "+S+'</div></div></div><div class="text-right mr-3"><div class="text-sm font-bold text-'+I+'-600">'+v+' 项违规</div><div class="text-xs text-gray-400">💡 '+(p.correctionCount||0)+` 条建议</div></div><button onclick="event.stopPropagation();window.deleteReviewRecord('`+B+`')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button></div></div>`}).join("")+Ws(r)}function Xs(){const e=document.getElementById("history-team-filter"),t=document.getElementById("history-project-filter"),n=xe();if(!n||n.length===0)return;const o={},s={};if(n.forEach(a=>{a.teamId&&(o[String(a.teamId)]=String(a.teamId)),a.projectId&&(s[String(a.projectId)]=String(a.projectId))}),e&&Object.keys(o).length>0){const a=e.value||"";e.innerHTML='<option value="">📌 全部团队</option>',Object.keys(o).forEach(i=>{e.insertAdjacentHTML("beforeend",'<option value="'+D(i)+'">'+D(i.substring(0,12))+"</option>")}),e.value=a}if(t&&Object.keys(s).length>0){const a=t.value||"";t.innerHTML='<option value="">📌 全部项目</option>',Object.keys(s).forEach(i=>{t.insertAdjacentHTML("beforeend",'<option value="'+D(i)+'">'+D(i.substring(0,12))+"</option>")}),t.value=a}}function Ws(e){return e<=1?"":'<div class="flex items-center justify-center gap-3 mt-4 text-sm"><button onclick="window.historyPage=Math.max(0,window.historyPage-1);window.renderHistoryList()" class="px-3 py-1 border rounded '+(Z()===0?"opacity-50 cursor-not-allowed":"hover:bg-gray-100")+'" '+(Z()===0?"disabled":"")+'>上一页</button><span class="text-gray-500">第 '+(Z()+1)+" / "+e+' 页</span><button onclick="window.historyPage=Math.min('+(e-1)+',window.historyPage+1);window.renderHistoryList()" class="px-3 py-1 border rounded '+(Z()>=e-1?"opacity-50 cursor-not-allowed":"hover:bg-gray-100")+'" '+(Z()>=e-1?"disabled":"")+">下一页</button></div>"}async function Zs(e){if(confirm("确定删除此审查记录？"))try{await fetch(k()+"/review/history/"+e,{method:"DELETE",headers:N()});const t=xe().filter(n=>n.id!==e);rt(t),Te()}catch{const n=xe().filter(o=>o.id!==e);rt(n),Te(),w("已从本地移除（后端未找到该记录）","info")}}async function Qs(e){const t=xe().find(s=>String(s.id)===e);if(!t)return;let n=document.getElementById("history-detail-modal");n||(n=document.createElement("div"),n.id="history-detail-modal",n.className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center",n.onclick=function(s){s.target===n&&gn()},document.body.appendChild(n));const o=D(String(t.drawingName||""));n.innerHTML='<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="text-lg font-bold">审查详情: '+o+'</h3><button onclick="window.closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div><div class="p-4 text-center text-gray-400">加载中...</div></div>';try{const a=await(await fetch(k()+"/review/history/"+e,{headers:N()})).json();if(!a||a.status==="error"){n.innerHTML='<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4"><div class="p-4 text-center text-red-500">加载失败</div></div>';return}const i=a.details||[],l=D(String(a.drawingName||t.drawingName||"")),r=a.buildingType==="civil"?"民用":"工业",c=new Date(String(a.reviewedAt||t.reviewedAt)).toLocaleString(),d=i.filter(p=>p.severity==="critical").length||0,g=i.filter(p=>p.severity==="major").length||0,m=i.filter(p=>p.severity!=="critical"&&p.severity!=="major").length||0;let y='<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="text-lg font-bold">审查详情: '+l+'</h3><button onclick="window.closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div><div class="p-4 overflow-y-auto flex-1"><div class="grid grid-cols-4 gap-3 mb-4"><div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">'+i.length+'</div><div class="text-xs text-gray-400">违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">'+d+'</div><div class="text-xs text-gray-400">严重</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">'+g+'</div><div class="text-xs text-gray-400">主要</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">'+m+'</div><div class="text-xs text-gray-400">轻微</div></div></div><div class="text-xs text-gray-400 mb-2">建筑类型: '+r+" · 审查时间: "+c+'</div><div class="space-y-2">';i.slice().sort((p,v)=>{const h={critical:0,major:1};return(h[String(p.severity)]!==void 0?h[String(p.severity)]:2)-(h[String(v.severity)]!==void 0?h[String(v.severity)]:2)}).slice(0,50).forEach(p=>{const v=p.severity==="critical"?"red":p.severity==="major"?"orange":"yellow",h=p.severity==="critical"?"严重":p.severity==="major"?"主要":"轻微";y+='<div class="p-2 bg-'+v+'-50 rounded text-xs"><div class="flex justify-between"><span class="font-medium">'+D(String(p.clause_title||""))+'</span><span class="px-1.5 py-0.5 rounded bg-'+v+"-100 text-"+v+'-700">'+h+'</span></div><span class="text-gray-500">'+D(String(p.clause_id||""))+" · "+D(String(p.entity_type||""))+'</span><br/><span class="text-gray-400">'+D(String(p.explanation||""))+"</span></div>"}),y+=(i.length>50?'<div class="text-xs text-gray-400 text-center pt-2">... 仅显示前50项</div>':"")+"</div>";const x=a.corrections||[];x.length>0&&(y+='<div class="mt-4 border-t pt-3"><p class="font-medium text-sm mb-2">💡 修正建议</p><div class="space-y-2">',x.slice(0,20).forEach(p=>{const v=p.priority==="high"?"red":p.priority==="medium"?"orange":"green";y+='<div class="p-2 bg-green-50 rounded text-xs"><span class="font-medium">'+D(String(p.action||""))+'</span> <span class="px-1.5 py-0.5 rounded bg-'+v+"-100 text-"+v+'-700">'+(p.priority||"low")+'</span><div class="text-gray-600 mt-1">'+D(String(p.description||""))+"</div>"+(p.recommendation?'<div class="text-gray-500 mt-0.5">'+D(String(p.recommendation))+"</div>":"")+"</div>"}),y+=(x.length>20?'<div class="text-xs text-gray-400 text-center">... 仅显示前20条</div>':"")+"</div></div>"),y+="</div></div></div>",n.innerHTML=y}catch(s){n.innerHTML='<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4"><div class="p-4 text-center text-red-500">加载失败: '+String(s)+"</div></div>"}}function gn(){const e=document.getElementById("history-detail-modal");e&&e.remove()}function eo(){confirm("确定清空所有审查历史记录？此操作不可恢复。")&&(localStorage.removeItem("baa_review_results"),rt([]),fetch(k()+"/review/history",{method:"DELETE"}).catch(()=>{}),Te(),ge())}let j=null;function to(){return window.reviewResults||[]}async function no(e=30){try{const t=k()+`/api/v1/stats?days=${e}`,n=await fetch(t,{headers:N()});if(n.ok){const o=await n.json();if(o.status==="ok"){j=o;return}}}catch{}j=null}function yn(){const e=document.getElementById("overview-cards");if(!e)return;const t=(j==null?void 0:j.overview)||{},n=to();if(!t.total_reviews&&n.length){const s=n.reduce((a,i)=>a+(i.details.length||0),0);Object.assign(t,{total_reviews:n.length,total_violations:s,avg_compliance_rate:n.filter(a=>(a.details.length||0)===0).length/n.length,avg_compliance_score:0,avg_processing_time_ms:0})}if(t.total_reviews===0){e.innerHTML='<div class="text-center text-gray-400 py-8">暂无审查数据</div>';return}const o=(t.avg_compliance_rate||0)*100;e.innerHTML=`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"><div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">${t.total_reviews}</div><div class="text-xs text-gray-500 mt-1">审查次数</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">${t.total_violations}</div><div class="text-xs text-gray-500 mt-1">违规总数</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-green-600">${Math.round(o)}%</div><div class="text-xs text-gray-500 mt-1">平均合规率</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-yellow-600">${t.avg_compliance_score||"--"}</div><div class="text-xs text-gray-500 mt-1">平均得分</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-purple-600">${Math.round(t.avg_processing_time_ms||0)}ms</div><div class="text-xs text-gray-500 mt-1">平均耗时</div></div></div>`}function so(){const e=document.getElementById("trend-chart");if(!e)return;const t=(j==null?void 0:j.trend)||[];if(!t.length){e.innerHTML='<div class="text-gray-400 text-sm">暂无趋势数据</div>';return}const n=Math.max(...t.flatMap(s=>[s.violations,s.reviews]),1);let o='<div style="flex:1;display:flex;align-items:flex-end;gap:4px;height:120px;border-bottom:1px solid #e5e7eb;padding-bottom:2px;">';t.forEach(s=>{const a=Math.round(s.violations/n*115),i=Math.round(s.reviews/n*115),l=s.date.length>4?s.date.slice(5):s.date;o+=`<div style="flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;"><div style="display:flex;align-items:flex-end;gap:1px;"><div style="background:#ef4444;border-radius:2px 2px 0 0;width:10px;height:${a}px"></div><div style="background:#3b82f6;border-radius:2px 2px 0 0;width:10px;height:${i}px"></div></div><span style="font-size:9px;color:#9ca3af;margin-top:2px;">${l}</span></div>`}),o+="</div>",e.innerHTML=o+`<div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;margin-top:4px;"><div><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>违规<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6;margin-left:16px;margin-right:4px;"></span>审查</div><span style="color:#9ca3af;">峰值: ${n}</span></div>`}function oo(){const e=document.getElementById("violation-dist");if(!e)return;const t=(j==null?void 0:j.violation_distribution)||{},n=t.critical+t.major+t.minor||1,o=[{label:"严重",count:t.critical||0,color:"#ef4444"},{label:"主要",count:t.major||0,color:"#f97316"},{label:"轻微",count:t.minor||0,color:"#eab308"}];e.innerHTML=o.map(s=>`<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count/n*100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`).join("")}function io(){const e=document.getElementById("confidence-dist");if(!e)return;const t=(j==null?void 0:j.confidence_distribution)||{},n=t.confirmed+t.suspected+t.needs_review||1,o=[{label:"确认",count:t.confirmed||0,color:"#22c55e"},{label:"疑似",count:t.suspected||0,color:"#f59e0b"},{label:"待复核",count:t.needs_review||0,color:"#ef4444"}];e.innerHTML=o.map(s=>`<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count/n*100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`).join("")}function ao(){const e=document.getElementById("building-type-dist");if(!e)return;const t=(j==null?void 0:j.building_type_distribution)||{},n=Object.values(t).reduce((s,a)=>s+a,0)||1,o=[{label:"民用",count:t.civil||0,color:"#3b82f6"},{label:"工业",count:t.industrial||0,color:"#8b5cf6"}];e.innerHTML=o.map(s=>`<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count/n*100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`).join("")}function ro(){const e=document.getElementById("entity-dist");if(!e)return;const t=(j==null?void 0:j.entity_type_distribution)||{},n=Object.entries(t).slice(0,10);if(!n.length){e.innerHTML='<div class="text-gray-400 text-sm">暂无数据</div>';return}const o=n[0][1];e.innerHTML=n.map(([s,a])=>`<div class="flex items-center gap-2"><span class="w-20 text-xs font-mono truncate">${s}</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="h-3 rounded-full bg-blue-500" style="width:${Math.round(a/o*100)}%"></div></div><span class="text-xs">${a}</span></div>`).join("")}function lo(){const e=document.getElementById("top-violations");if(!e)return;const t=(j==null?void 0:j.top_violations)||[];if(!t.length){e.innerHTML='<div class="text-gray-400 text-sm">暂无数据</div>';return}e.innerHTML='<table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">条款标题</th><th class="pb-2 px-2 text-right">次数</th></tr></thead><tbody>'+t.map((n,o)=>`<tr class="border-b border-gray-50"><td class="py-1 px-2 text-xs">${o+1}</td><td class="py-1 px-2 font-mono text-xs">${n.clause_id}</td><td class="py-1 px-2 truncate max-w-64">${n.title||"--"}</td><td class="py-1 px-2 text-right text-sm font-medium text-red-600">${n.count}</td></tr>`).join("")+"</tbody></table>"}async function co(e=30){document.querySelectorAll('button[onclick^="loadAnalysis"]').forEach(t=>{var o;t.classList.remove("bg-blue-100","hover:bg-blue-200"),t.classList.add("hover:bg-gray-100");const n=(o=t.getAttribute("onclick"))==null?void 0:o.match(/loadAnalysis\((\d*)\)/);n&&((n[1]?parseInt(n[1]):0)===e||!n[1]&&e===30)&&(t.classList.remove("hover:bg-gray-100"),t.classList.add("bg-blue-100","hover:bg-blue-200"))}),await no(e),yn(),so(),oo(),io(),ao(),ro(),lo()}function Ce(){return window.reviewResults||[]}function uo(){const e=document.getElementById("analysis-table");if(!e)return;const t=Ce();if(t.length===0){e.innerHTML='<tr><td colspan="6" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';return}e.innerHTML=[...t].sort((n,o)=>(o.violationCount||0)-(n.violationCount||0)).slice(0,30).map((n,o)=>{const s=n.violationCount||0,a=n.entityCount||1,i=a>0?Math.round((1-s/a)*100):0,l=n.buildingType,r=l==="civil"?"民用":l==="industrial"?"工业":"--",c=f(n.drawingName);return`<tr class="border-b border-gray-50 text-sm">
-        <td class="py-2 px-2">${o+1}</td>
-        <td class="py-2 px-2 truncate max-w-32" title="${c}">${c}</td>
-        <td class="py-2 px-2 text-xs">${r}</td>
-        <td class="py-2 px-2 text-red-600">${s}</td>
+(function() {
+  "use strict";
+  function formatDate(iso) {
+    if (!iso) return "-";
+    const d = new Date(typeof iso === "number" ? iso * 1e3 : iso);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+  function maskKey(key) {
+    if (!key || key.length <= 8) return key || "";
+    return key.slice(0, 4) + "..." + key.slice(-4);
+  }
+  function escHtml$1(text) {
+    const s = String(text ?? "");
+    const map = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    };
+    return s.replace(/[&<>"']/g, (c) => map[c] || c);
+  }
+  function permissionBadge(perm) {
+    const colors = {
+      admin: "bg-red-100 text-red-800",
+      write: "bg-blue-100 text-blue-800",
+      read: "bg-green-100 text-green-800",
+      limited: "bg-gray-100 text-gray-800"
+    };
+    const c = colors[perm] || "bg-gray-100";
+    return `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${c}">${escHtml$1(perm)}</span>`;
+  }
+  function enabledBadge(enabled) {
+    if (enabled)
+      return '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✓ 启用</span>';
+    return '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">✗ 已禁用</span>';
+  }
+  function uid() {
+    return `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+  function mergeDeep(target, source) {
+    const out = { ...target };
+    for (const key in source) {
+      if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+        out[key] = mergeDeep(
+          out[key] || {},
+          source[key]
+        );
+      } else {
+        out[key] = source[key];
+      }
+    }
+    return out;
+  }
+  const ICONS = {
+    info: "ℹ️",
+    success: "✅",
+    error: "❌",
+    warn: "⚠️"
+  };
+  function showToast$1(message, type = "info", duration = 4e3) {
+    if (typeof message !== "string" || !message) return;
+    const container = (() => {
+      let c = document.getElementById("toast-container");
+      if (!c) {
+        c = document.createElement("div");
+        c.id = "toast-container";
+        c.className = "toast-container";
+        document.body.appendChild(c);
+      }
+      return c;
+    })();
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span>${ICONS[type] || "ℹ️"}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    if (container.children.length > 5) {
+      container.firstChild?.remove();
+    }
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateX(20px)";
+    }, duration);
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, duration + 300);
+  }
+  if (typeof window !== "undefined") {
+    window.showToast = showToast$1;
+  }
+  function showSkeleton(skeletonId, targetId) {
+    const skel = document.getElementById(skeletonId);
+    if (!skel) return;
+    skel.classList.remove("hidden");
+    if (targetId) {
+      const target = document.getElementById(targetId);
+      if (target) target.classList.add("hidden");
+    }
+  }
+  function hideSkeleton(skeletonId, targetId) {
+    const skel = document.getElementById(skeletonId);
+    if (!skel) return;
+    skel.classList.add("hidden");
+    if (targetId) {
+      const target = document.getElementById(targetId);
+      if (target) target.classList.remove("hidden");
+    }
+  }
+  function renderSkeletonContainer(container, rows = 3, className = "skeleton-overlay") {
+    if (!container) return;
+    const html = Array(rows).fill(0).map(
+      () => '<div class="skeleton skeleton-row mb-2"><span class="skeleton-text w-32"></span><span class="skeleton-text flex-1"></span></div>'
+    ).join("");
+    container.innerHTML = html;
+    container.className = className;
+    container.classList.remove("hidden");
+  }
+  function renderProgress(el, label = "处理中", pct = 0) {
+    if (!el) return;
+    el.className = "review-progress";
+    el.innerHTML = `<div class="review-progress-text"><span>${label}</span><span>${pct}%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:${pct}%"></div></div>`;
+  }
+  let _config = null;
+  let _adminToken = "";
+  function initApiClient(config) {
+    _config = config;
+  }
+  function setAdminToken(token) {
+    _adminToken = token;
+  }
+  function getApiBase() {
+    return _config ? _config.apiBase() : "http://localhost:8000";
+  }
+  function getReviewHeaders() {
+    if (!_config) return {};
+    const h = {};
+    const key = _config.getActiveKeyValue();
+    if (key) h["Authorization"] = "Bearer " + key;
+    const teamId = _config.currentTeamId();
+    const projectId = _config.currentProjectId();
+    if (teamId) h["X-Team-Id"] = teamId;
+    if (projectId) h["X-Project-Id"] = projectId;
+    return h;
+  }
+  function getHeaders() {
+    return getReviewHeaders();
+  }
+  function getAdminHeaders(method = "GET") {
+    const h = {};
+    if (_adminToken) h["Authorization"] = "Bearer " + _adminToken;
+    if (method && method !== "GET") h["Content-Type"] = "application/json";
+    return h;
+  }
+  function _errorInfo(r, data) {
+    if (typeof data === "object" && data !== null) {
+      const d = data;
+      if (d.detail) return String(d.detail);
+      if (d.message) return String(d.message);
+    }
+    return JSON.stringify(data || `HTTP ${r.status}`);
+  }
+  async function _check(r) {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error("API错误 (" + r.status + "): " + _errorInfo(r, data));
+    return data;
+  }
+  async function apiGet(path) {
+    return _check(await fetch(getApiBase() + path, {
+      method: "GET",
+      headers: getHeaders()
+    }));
+  }
+  async function apiPost(path, body) {
+    return apiPostJSON(path, body);
+  }
+  async function apiPostJSON(path, body) {
+    return _check(await fetch(getApiBase() + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getHeaders() },
+      body: JSON.stringify(body)
+    }));
+  }
+  async function apiFetch(path, options = {}) {
+    const r = await fetch(getApiBase() + path, {
+      headers: { "Content-Type": "application/json", ...getHeaders(), ...options.headers },
+      ...options
+    });
+    return r.json();
+  }
+  async function apiPostFile(path, file, extraParams = {}) {
+    const form = new FormData();
+    form.append("file", file);
+    const params = new URLSearchParams(
+      Object.fromEntries(Object.entries(extraParams).map(([k, v]) => [k, String(v)]))
+    );
+    const url = getApiBase() + path + (params.toString() ? "?" + params.toString() : "");
+    const r = await fetch(url, {
+      method: "POST",
+      headers: getReviewHeaders(),
+      body: form
+    });
+    return _check(r);
+  }
+  async function adminGet(path) {
+    return fetch(getApiBase() + path, {
+      method: "GET",
+      headers: getAdminHeaders("GET")
+    }).then((r) => r.json());
+  }
+  async function adminPost(path, body) {
+    return fetch(getApiBase() + path, {
+      method: "POST",
+      headers: getAdminHeaders("POST"),
+      body: JSON.stringify(body)
+    }).then((r) => r.json());
+  }
+  async function adminDelete(path) {
+    return fetch(getApiBase() + path, {
+      method: "DELETE",
+      headers: getAdminHeaders("DELETE")
+    }).then((r) => r.json());
+  }
+  if (typeof window !== "undefined") {
+    window.HEADERS = () => getReviewHeaders();
+    window.getHeaders = () => getHeaders();
+    window.API_BASE = () => getApiBase();
+    window.apiGet = apiGet;
+    window.apiPostJSON = apiPostJSON;
+    window.apiPostFile = apiPostFile;
+    window.apiFetch = apiFetch;
+    window.adminGet = adminGet;
+    window.adminPost = adminPost;
+    window.adminDelete = adminDelete;
+    window.adminHeaders = (m) => getAdminHeaders(m);
+    window.apiPost = (path, body) => apiPostJSON(path, body);
+  }
+  class AppState {
+    constructor() {
+      this._teamId = localStorage.getItem("baa_team_id") || "";
+      this._projectId = localStorage.getItem("baa_project_id") || "";
+      this._historyTeamFilter = "";
+      this._historyProjectFilter = "";
+      this._currentReviewId = "";
+      this._reviewAuditMapping = null;
+      this._reviewAuditStates = {};
+    }
+    get teamId() {
+      return this._teamId;
+    }
+    get projectId() {
+      return this._projectId;
+    }
+    get historyTeamFilter() {
+      return this._historyTeamFilter;
+    }
+    get historyProjectFilter() {
+      return this._historyProjectFilter;
+    }
+    get currentReviewId() {
+      return this._currentReviewId;
+    }
+    get reviewAuditMapping() {
+      return this._reviewAuditMapping;
+    }
+    get reviewAuditStates() {
+      return this._reviewAuditStates;
+    }
+    setTeamId(id) {
+      this._teamId = id || "";
+      localStorage.setItem("baa_team_id", this._teamId);
+    }
+    setProjectId(id) {
+      this._projectId = id || "";
+      localStorage.setItem("baa_project_id", this._projectId);
+    }
+    setCurrentReviewId(id) {
+      this._currentReviewId = id || "";
+    }
+    setReviewAuditMapping(v) {
+      this._reviewAuditMapping = v;
+    }
+    setReviewAuditStates(v) {
+      this._reviewAuditStates = v;
+    }
+    setHistoryTeamFilter(v) {
+      this._historyTeamFilter = v;
+    }
+    setHistoryProjectFilter(v) {
+      this._historyProjectFilter = v;
+    }
+    loadApiBase() {
+      const saved = localStorage.getItem("baa_api_base");
+      const input = document.getElementById("api-base");
+      if (saved && input) input.value = saved;
+    }
+    saveApiBase() {
+      const input = document.getElementById("api-base");
+      if (input) localStorage.setItem("baa_api_base", input.value);
+    }
+  }
+  const appState = new AppState();
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "currentTeamId", {
+      get: () => appState.teamId,
+      set: (v) => appState.setTeamId(v)
+    });
+    Object.defineProperty(window, "currentProjectId", {
+      get: () => appState.projectId,
+      set: (v) => appState.setProjectId(v)
+    });
+    window.setCurrentTeamId = (id) => appState.setTeamId(id || "");
+    window.setCurrentProjectId = (id) => appState.setProjectId(id || "");
+    window.getCurrentTeamId = () => appState.teamId;
+    window.getCurrentProjectId = () => appState.projectId;
+    window.loadApiBase = () => appState.loadApiBase();
+    window.saveApiBase = () => appState.saveApiBase();
+  }
+  async function navigateTo(page) {
+    document.querySelectorAll(".sidebar-item").forEach((i) => i.classList.remove("active"));
+    document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
+    const item = document.querySelector(`.sidebar-item[data-page="${page}"]`);
+    const target = document.getElementById(`page-${page}`);
+    if (!target) {
+      console.warn("Page not found:", page);
+      return;
+    }
+    item?.classList.add("active");
+    target.classList.add("active");
+    try {
+      if (page === "home") {
+        await call("loadDashboard");
+      } else if (page === "specs") {
+        call("loadSpecs");
+      } else if (page === "analysis") {
+        await call("loadAnalysis");
+      } else if (page === "history") {
+        call("renderHistoryList");
+      } else if (page === "apikeys") {
+        await call("loadAdminKeys");
+      } else if (page === "cases") {
+        call("loadCaseStats");
+        call("loadCases", 0);
+      } else if (page === "cd") {
+        call("loadCDItems");
+      } else if (page === "model-params") {
+        call("switchModelParamTab", "functions");
+      } else if (page === "collab") {
+        const token = window.collabToken;
+        if (token) {
+          call("updateUserStatus", true);
+          setTimeout(() => call("collabEnterMain"), 100);
+        }
+      }
+    } catch (e) {
+      console.error("页面加载错误:", e);
+    }
+  }
+  function call(fn, ...args) {
+    const f = window[fn];
+    if (typeof f === "function") return f(...args);
+    console.warn(`Function not found: ${fn}`);
+    return void 0;
+  }
+  async function testConnection() {
+    const el = document.getElementById("conn-status");
+    if (!el) return;
+    el.className = "text-xs text-yellow-600";
+    el.textContent = "连接中...";
+    try {
+      const data = await apiGet("/health");
+      el.className = "text-xs text-green-600";
+      el.textContent = `✅ 连接成功 | ${data.version} | 引擎: ${data.engine_status}`;
+    } catch (e) {
+      el.className = "text-xs text-red-600";
+      el.textContent = `❌ 连接失败: ${e.message}`;
+    }
+  }
+  if (typeof window !== "undefined") {
+    window.navigateTo = navigateTo;
+    window.testConnection = testConnection;
+  }
+  const ROUTES = [
+    { page: "home", load: () => window.loadDashboard && window.loadDashboard() },
+    { page: "specs", load: () => window.loadSpecs && window.loadSpecs() },
+    { page: "analysis", load: () => window.loadAnalysis && window.loadAnalysis() },
+    { page: "history", load: () => window.renderHistoryList && window.renderHistoryList() },
+    { page: "apikeys", load: () => window.loadAdminKeys && window.loadAdminKeys() },
+    { page: "cases", load: () => {
+      const w2 = window;
+      if (typeof w2.loadCaseStats === "function") w2.loadCaseStats();
+      if (typeof w2.loadCases === "function") w2.loadCases(0);
+    } },
+    { page: "cd", load: () => window.loadCDItems && window.loadCDItems() },
+    { page: "model-params", load: () => window.switchModelParamTab && window.switchModelParamTab("functions") },
+    { page: "collab", load: () => {
+      const w2 = window;
+      if (w2.collabToken) {
+        if (typeof w2.updateUserStatus === "function") w2.updateUserStatus(true);
+        setTimeout(() => {
+          if (typeof w2.collabEnterMain === "function") w2.collabEnterMain();
+        }, 100);
+      }
+    } },
+    { page: "drawings", title: "图纸管理" },
+    { page: "review", title: "审查" },
+    { page: "compare", title: "对比" },
+    { page: "reverse", title: "反向重构" },
+    { page: "funcs", title: "原子函数" },
+    { page: "settings", title: "设置" },
+    { page: "docs", title: "文档" }
+  ];
+  class Router {
+    constructor() {
+      this._current = "home";
+      this._listeners = [];
+      this._popstateBound = null;
+      this._popstateBound = () => this._onHashChange();
+      window.addEventListener("popstate", this._popstateBound);
+      window.addEventListener("hashchange", () => this._onHashChange());
+      const initial = this._readHash();
+      this._current = initial;
+      this._activate(initial, true);
+    }
+    get current() {
+      return this._current;
+    }
+    /** 编程式导航 */
+    go(page) {
+      if (page === this._current) return;
+      const route = ROUTES.find((r) => r.page === page);
+      if (!route) {
+        console.warn("No route for:", page);
+        return;
+      }
+      window.location.hash = "#" + page;
+    }
+    /** 注册页面切换监听 */
+    on(listener) {
+      this._listeners.push(listener);
+      return () => {
+        this._listeners = this._listeners.filter((l) => l !== listener);
+      };
+    }
+    _readHash() {
+      const hash = window.location.hash.replace("#", "").replace("/", "");
+      const route = ROUTES.find((r) => r.page === hash);
+      return route ? hash : "home";
+    }
+    _onHashChange() {
+      const page = this._readHash();
+      this._activate(page);
+    }
+    _activate(page, silent = false) {
+      this._current = page;
+      document.querySelectorAll(".page").forEach((el) => {
+        el.classList.toggle("active", el.id === "page-" + page);
+      });
+      document.querySelectorAll(".sidebar-item").forEach((el) => {
+        el.classList.toggle(
+          "active",
+          el.dataset.page === page
+        );
+      });
+      const route = ROUTES.find((r) => r.page === page);
+      if (route?.load) {
+        try {
+          const result = route.load();
+          if (result && typeof result.then === "function") {
+            result.catch((e) => {
+              console.error("页面加载错误:", page, e);
+            });
+          }
+        } catch (e) {
+          console.error("页面加载错误:", page, e);
+        }
+      }
+      if (!silent) {
+        this._listeners.forEach((l) => l(page));
+      }
+    }
+  }
+  const router = new Router();
+  if (typeof window !== "undefined") {
+    window.router = router;
+  }
+  let _keys = [];
+  let _activeKey = "";
+  function loadKeys() {
+    try {
+      const stored = localStorage.getItem("baa_api_keys");
+      _keys = stored ? JSON.parse(stored) : [];
+      _activeKey = localStorage.getItem("baa_active_key") || "";
+    } catch {
+      _keys = [];
+      _activeKey = "";
+    }
+    populateTokenSelect();
+  }
+  function saveKeys() {
+    localStorage.setItem("baa_api_keys", JSON.stringify(_keys));
+  }
+  function getActiveKeyValue$1() {
+    const k = _keys.find((k2) => k2.id === _activeKey);
+    return k ? k.key : "";
+  }
+  function setActiveKey(id) {
+    _activeKey = id;
+    localStorage.setItem("baa_active_key", _activeKey);
+    populateTokenSelect();
+  }
+  function populateTokenSelect() {
+    const select = document.getElementById("active-key-select");
+    if (!select) return;
+    select.innerHTML = '<option value="">无令牌（开发模式）</option>';
+    _keys.forEach((k) => {
+      const opt = document.createElement("option");
+      opt.value = k.id;
+      opt.textContent = `${k.name} (${maskKey(k.key)})`;
+      if (k.id === _activeKey) opt.selected = true;
+      select.appendChild(opt);
+    });
+    const hint = document.getElementById("token-hint");
+    if (hint) {
+      hint.textContent = _keys.length > 0 ? `共 ${_keys.length} 个本地令牌。外部项目的token可手动添加。` : "暂无令牌。可在「密钥管理」页面创建后在此添加，或点击下方手动输入。";
+    }
+  }
+  function switchApiKey(id) {
+    setActiveKey(id);
+  }
+  function deleteCurrentApiKey() {
+    if (!_activeKey) {
+      showToast$1("当前没有选中任何令牌", "info");
+      return;
+    }
+    if (!confirm("确认删除当前令牌？")) return;
+    deleteApiKey(_activeKey);
+  }
+  function addApiKey() {
+    const name = prompt("令牌名称（如：EMA2对接）");
+    if (!name) return;
+    const key = prompt("请输入令牌内容（从密钥管理页面复制）");
+    if (!key) return;
+    _keys.push({ id: `key_${Date.now()}`, name, key, created: Date.now() });
+    saveKeys();
+    _activeKey = _keys[_keys.length - 1].id;
+    localStorage.setItem("baa_active_key", _activeKey);
+    populateTokenSelect();
+  }
+  function deleteApiKey(id) {
+    if (!confirm("确认删除此本地令牌？")) return;
+    _keys = _keys.filter((k) => k.id !== id);
+    if (_activeKey === id) {
+      _activeKey = _keys.length > 0 ? _keys[_keys.length - 1].id : "";
+      localStorage.setItem("baa_active_key", _activeKey);
+    }
+    saveKeys();
+    populateTokenSelect();
+  }
+  function copyApiKey(id) {
+    const k = _keys.find((k2) => k2.id === id);
+    if (!k) return;
+    navigator.clipboard.writeText(k.key).then(
+      () => showToast$1("令牌已复制到剪贴板", "info"),
+      () => showToast$1("复制失败，请手动复制", "error")
+    );
+  }
+  async function refreshTokenSelect() {
+    const btn = document.querySelector("#active-key-select + button");
+    const hint = document.getElementById("token-hint");
+    if (btn) btn.textContent = "⏳";
+    if (hint) hint.textContent = "正在从服务端刷新密钥列表...";
+    try {
+      const data = await apiGet("/admin/keys");
+      const keys = data?.data;
+      if (keys && keys.length > 0) {
+        if (hint) hint.textContent = `✅ 服务端有 ${keys.length} 个已管理密钥。点击「📥 从密钥管理导入」选择并填入。`;
+      } else {
+        if (hint) hint.textContent = "服务端暂无可用密钥，请先在「密钥管理」页面创建。";
+      }
+    } catch (e) {
+      if (hint) hint.textContent = "❌ 刷新失败: " + e.message + "（请确认当前令牌有admin权限）";
+    } finally {
+      if (btn) btn.textContent = "🔄";
+    }
+  }
+  if (typeof window !== "undefined") {
+    window.getApiKey = () => getActiveKeyValue$1();
+    window.getActiveKeyValue = getActiveKeyValue$1;
+    window.loadApiKeys = loadKeys;
+    window.saveApiKeys = saveKeys;
+    window.switchApiKey = switchApiKey;
+    window.deleteCurrentApiKey = deleteCurrentApiKey;
+    window.addApiKey = addApiKey;
+    window.deleteApiKey = deleteApiKey;
+    window.copyApiKey = copyApiKey;
+    window.populateTokenSelect = populateTokenSelect;
+  }
+  let _selectedDetailKeyId = "";
+  let _detailRawKey = "";
+  async function initAdminToken() {
+    try {
+      const r = await fetch(getApiBase() + "/admin/bootstrap-key");
+      if (r.ok) {
+        const d = await r.json();
+        if (d.status === "success") setAdminToken(d.admin_key || "");
+      }
+    } catch {
+    }
+  }
+  async function loadAdminKeys() {
+    const table = document.getElementById("admin-keys-table");
+    if (!table) return;
+    table.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">加载中...</div>';
+    try {
+      const showDisabled = document.getElementById("show-disabled")?.checked;
+      const data = await adminGet(`/admin/keys?include_disabled=${showDisabled ? "true" : "false"}`);
+      const statsData = await adminGet("/admin/keys/stats");
+      if (statsData?.data && typeof statsData.data === "object" && !Array.isArray(statsData.data)) {
+        const s = statsData.data.summary || {};
+        ["stat-total", "stat-active", "stat-disabled", "stat-calls"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = String(s[id] ?? 0);
+        });
+      }
+      const items = Array.isArray(data?.data) ? data.data : [];
+      if (items.length === 0) {
+        table.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">暂无密钥，点击「+ 创建密钥」开始</div>';
+        return;
+      }
+      let html = '<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b"><th class="pb-2 pr-3">标签</th><th class="pb-2 pr-3">权限</th><th class="pb-2 pr-3">状态</th><th class="pb-2 pr-3">创建</th><th class="pb-2 pr-3">过期</th><th class="pb-2 pr-3">调用</th><th class="pb-2">操作</th></tr></thead><tbody>';
+      for (const k of items) {
+        const usage = k.usage || {};
+        html += `<tr class="border-b hover:bg-gray-50"><td class="py-2 pr-3 font-medium">${escHtml$1(k.label || "-")}</td><td class="py-2 pr-3">${permissionBadge(String(k.permission))}</td><td class="py-2 pr-3">${enabledBadge(Boolean(k.enabled))}</td><td class="py-2 pr-3 text-gray-500">${formatDate(k.created_at)}</td><td class="py-2 pr-3 text-gray-500">${formatDate(k.expires_at)}</td><td class="py-2 pr-3 text-gray-500">${usage.total_calls || 0}</td><td class="py-2"><button onclick="showKeyDetail('${escHtml$1(k.key_id || "")}')" class="px-2 py-1 bg-gray-200 rounded text-xs hover:bg-gray-300 mr-1">详情</button>` + (k.has_raw_key ? `<button onclick="copyKeyFromDetail('${escHtml$1(k.key_id || "")}')" class="px-2 py-1 bg-blue-100 rounded text-xs hover:bg-blue-200 mr-1">📋复制</button>` : "") + (k.enabled ? `<button onclick="confirmRevokeKey('${escHtml$1(k.key_id || "")}')" class="px-2 py-1 bg-red-100 rounded text-xs hover:bg-red-200 mr-1">撤销</button>` : "") + `<button onclick="confirmDeleteKey('${escHtml$1(k.key_id || "")}')" class="px-2 py-1 bg-red-200 rounded text-xs hover:bg-red-300">🗑️</button></td></tr>`;
+      }
+      table.innerHTML = html + "</tbody></table>";
+    } catch (e) {
+      table.innerHTML = `<div class="text-center py-8 text-red-500 text-sm">❌ 加载失败: ${escHtml$1(e.message)}</div>`;
+    }
+  }
+  function openCreateKeyModal() {
+    document.getElementById("create-key-modal")?.classList.remove("hidden");
+    const label = document.getElementById("new-key-label");
+    if (label) label.value = "";
+    const perm = document.getElementById("new-key-permission");
+    if (perm) perm.value = "write";
+    const ttl = document.getElementById("new-key-ttl");
+    if (ttl) ttl.value = "90";
+  }
+  function closeCreateKeyModal() {
+    document.getElementById("create-key-modal")?.classList.add("hidden");
+  }
+  async function createAdminKey() {
+    const label = (document.getElementById("new-key-label") || {}).value?.trim() || "unnamed";
+    const permission = (document.getElementById("new-key-permission") || {}).value || "write";
+    const ttl = parseInt((document.getElementById("new-key-ttl") || {}).value || "90");
+    const btn = document.querySelector("#create-key-modal .bg-green-600");
+    if (btn) {
+      btn.textContent = "创建中...";
+      btn.disabled = true;
+    }
+    try {
+      const data = await adminPost("/admin/keys", { label, permission, ttl_days: ttl });
+      if (data?.status === "success" && data.data && typeof data.data === "object") {
+        closeCreateKeyModal();
+        const raw = document.getElementById("created-raw-key");
+        if (raw) raw.textContent = String(data.data.raw_key || "");
+        const info = document.getElementById("created-key-key-info");
+        const d = data.data;
+        if (info) info.innerHTML = `密钥ID: ${escHtml$1(d.key_id || "-")}<br>权限: ${escHtml$1(d.info?.permission || "-")}<br>过期: ${formatDate(d.info?.expires_at)}`;
+        document.getElementById("key-created-modal")?.classList.remove("hidden");
+        await loadAdminKeys();
+      } else {
+        showToast$1(`创建失败: ${JSON.stringify(data?.detail)}`, "error");
+      }
+    } catch (e) {
+      showToast$1(`请求失败: ${e.message}`, "error");
+    } finally {
+      if (btn) {
+        btn.textContent = "创建";
+        btn.disabled = false;
+      }
+    }
+  }
+  function copyCreatedKey() {
+    const txt = document.getElementById("created-raw-key")?.textContent || "";
+    navigator.clipboard.writeText(txt).then(() => showToast$1("已复制到剪贴板", "info"));
+  }
+  function closeKeyCreatedModal() {
+    document.getElementById("key-created-modal")?.classList.add("hidden");
+  }
+  async function showKeyDetail(keyId) {
+    _selectedDetailKeyId = keyId;
+    _detailRawKey = "";
+    const title = document.getElementById("detail-key-title");
+    if (title) title.textContent = `密钥详情: ${escHtml$1(keyId)}`;
+    document.getElementById("btn-revoke-key")?.classList.add("hidden");
+    document.getElementById("btn-show-raw-key")?.classList.add("hidden");
+    document.getElementById("detail-raw-key-section")?.classList.add("hidden");
+    const content = document.getElementById("key-detail-content");
+    if (content) content.innerHTML = '<div class="text-gray-400">加载中...</div>';
+    document.getElementById("key-detail-modal")?.classList.remove("hidden");
+    try {
+      const data = await adminGet(`/admin/keys/${keyId}`);
+      if (data?.data && typeof data.data === "object") {
+        const k = data.data;
+        const usage = k.usage || {};
+        if (content)
+          content.innerHTML = `<div class="grid grid-cols-2 gap-3"><div><span class="text-gray-500">标签:</span> ${escHtml$1(k.label || "-")}</div><div><span class="text-gray-500">权限:</span> ${permissionBadge(String(k.permission))}</div><div><span class="text-gray-500">状态:</span> ${enabledBadge(Boolean(k.enabled))}</div><div><span class="text-gray-500">创建者:</span> ${escHtml$1(k.created_by || "-")}</div><div><span class="text-gray-500">创建:</span> ${formatDate(k.created_at)}</div><div><span class="text-gray-500">过期:</span> ${formatDate(k.expires_at)}</div><div><span class="text-gray-500">总调用:</span> ${usage.total_calls || 0}</div><div><span class="text-gray-500">最后使用:</span> ${formatDate(usage.last_used)}</div></div>`;
+        if (k.raw_key) {
+          _detailRawKey = String(k.raw_key);
+          document.getElementById("btn-show-raw-key")?.classList.remove("hidden");
+        }
+        if (k.enabled) document.getElementById("btn-revoke-key")?.classList.remove("hidden");
+      }
+    } catch (e) {
+      if (content) content.innerHTML = `<div class="text-red-500">加载失败: ${escHtml$1(e.message)}</div>`;
+    }
+  }
+  function showDetailRawKey() {
+    if (!_detailRawKey) {
+      showToast$1("密钥原文不可用（旧版创建的密钥仅初创时可见）", "error");
+      return;
+    }
+    const section = document.getElementById("detail-raw-key-section");
+    const val = document.getElementById("detail-raw-key-value");
+    if (val) val.textContent = _detailRawKey;
+    section?.classList.remove("hidden");
+    document.getElementById("btn-show-raw-key")?.classList.add("hidden");
+  }
+  function copyDetailRawKey() {
+    if (!_detailRawKey) return;
+    navigator.clipboard.writeText(_detailRawKey).then(
+      () => showToast$1("✅ 密钥已复制到剪贴板", "success"),
+      () => showToast$1("自动复制失败，请手动 Ctrl+C", "error")
+    );
+  }
+  async function copyKeyFromDetail(keyId) {
+    try {
+      const data = await adminGet(`/admin/keys/${keyId}`);
+      const raw = data?.data?.raw_key;
+      if (raw) {
+        await navigator.clipboard.writeText(String(raw));
+        showToast$1("✅ 密钥已复制到剪贴板", "success");
+      } else {
+        showToast$1("❌ 密钥原文不可用", "error");
+      }
+    } catch (e) {
+      showToast$1(`❌ 获取密钥失败: ${e.message}`, "error");
+    }
+  }
+  function closeKeyDetailModal() {
+    document.getElementById("key-detail-modal")?.classList.add("hidden");
+    document.getElementById("detail-raw-key-section")?.classList.add("hidden");
+    _detailRawKey = "";
+  }
+  async function confirmRevokeKey(keyId) {
+    if (!confirm(`确认撤销密钥 ${keyId}？`)) return;
+    try {
+      const data = await adminPost(`/admin/keys/${keyId}/revoke`, {});
+      if (data.status === "success") {
+        await loadAdminKeys();
+        showToast$1("密钥已撤销", "info");
+      } else {
+        showToast$1(`撤销失败: ${JSON.stringify(data.detail)}`, "error");
+      }
+    } catch (e) {
+      showToast$1(`请求失败: ${e.message}`, "error");
+    }
+  }
+  async function confirmDeleteKey(keyId) {
+    if (!confirm(`⚠️ 确认永久删除密钥 ${keyId}？`)) return;
+    if (!confirm("再次确认：该密钥将被永久删除，无法找回。")) return;
+    try {
+      const resp = await adminDelete(`/admin/keys/${keyId}`);
+      if (resp.status === "success") {
+        await loadAdminKeys();
+        showToast$1("密钥已永久删除", "info");
+      } else {
+        showToast$1(`删除失败: ${JSON.stringify(resp.detail)}`, "error");
+      }
+    } catch (e) {
+      showToast$1(`请求失败: ${e.message}`, "error");
+    }
+  }
+  async function revokeAdminKey() {
+    if (_selectedDetailKeyId) {
+      await confirmRevokeKey(_selectedDetailKeyId);
+      closeKeyDetailModal();
+    }
+  }
+  if (typeof window !== "undefined") {
+    window.initAdminToken = initAdminToken;
+    window.loadAdminKeys = loadAdminKeys;
+    window.openCreateKeyModal = openCreateKeyModal;
+    window.closeCreateKeyModal = closeCreateKeyModal;
+    window.createAdminKey = createAdminKey;
+    window.copyCreatedKey = copyCreatedKey;
+    window.closeKeyCreatedModal = closeKeyCreatedModal;
+    window.showKeyDetail = showKeyDetail;
+    window.showDetailRawKey = showDetailRawKey;
+    window.copyDetailRawKey = copyDetailRawKey;
+    window.copyKeyFromDetail = copyKeyFromDetail;
+    window.closeKeyDetailModal = closeKeyDetailModal;
+    window.confirmRevokeKey = confirmRevokeKey;
+    window.confirmDeleteKey = confirmDeleteKey;
+    window.revokeAdminKey = revokeAdminKey;
+  }
+  function showDrawingReviewPanel(show) {
+    const el = document.getElementById("drawing-review-panel");
+    if (!el) return;
+    el.classList.toggle("hidden", !show);
+    if (show) {
+      loadReviewContext();
+      const select = document.getElementById("review-drawing-select");
+      const parsed = window.parsedDrawings;
+      if (select && parsed && parsed.length > 0 && select.options.length <= 1) {
+        const refresh = window.refreshDrawingSelect;
+        if (typeof refresh === "function") refresh();
+      }
+    }
+  }
+  function switchDrawingTab(tab) {
+    const btnMap = {
+      single: "dr-tab-single",
+      batch: "dr-tab-batch",
+      multisheet: "dr-tab-multisheet",
+      feedback: "dr-tab-feedback",
+      thermal: "dr-tab-thermal",
+      structural: "dr-tab-structural"
+    };
+    const panelMap = {
+      single: "dr-panel-single",
+      batch: "dr-panel-batch",
+      multisheet: "dr-panel-multisheet",
+      feedback: "dr-panel-feedback",
+      thermal: "dr-panel-thermal",
+      structural: "dr-panel-structural"
+    };
+    const sel = "px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700";
+    const unsel = "px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-600";
+    for (const t in btnMap) {
+      const el = document.getElementById(btnMap[t]);
+      if (el) el.className = t === tab ? sel : unsel;
+    }
+    for (const t in panelMap) {
+      const el = document.getElementById(panelMap[t]);
+      if (el) el.classList.toggle("hidden", t !== tab);
+    }
+    const w2 = window;
+    if (tab === "feedback" && typeof w2.loadFeedbackStats === "function") {
+      w2.loadFeedbackStats();
+      w2.loadFeedbacks();
+    }
+    if (tab === "structural" && typeof w2.renderStructuralThresholds === "function") {
+      w2.renderStructuralThresholds();
+      w2.renderStructuralViolations(window._reviewStructuralViolations || []);
+    }
+    if (tab === "thermal" && typeof w2.renderThermalThresholds === "function") {
+      w2.renderThermalThresholds();
+      w2.renderThermalViolations(window._reviewThermalViolations || []);
+    }
+  }
+  async function loadReviewContext() {
+    const teamSel = document.getElementById("dr-team-select");
+    const projSel = document.getElementById("dr-project-select");
+    if (!teamSel || !projSel) return;
+    const curTeam = appState.teamId;
+    const curProj = appState.projectId;
+    try {
+      const teamsData = await apiGet("/collab/teams");
+      const projectsData = await apiGet("/collab/projects");
+      const teams = Array.isArray(teamsData) ? teamsData : teamsData.teams || [];
+      const projects = Array.isArray(projectsData) ? projectsData : projectsData.projects || [];
+      teamSel.innerHTML = '<option value="">👥 全部团队</option>';
+      teams.forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = String(t.id);
+        opt.textContent = String(t.name);
+        if (opt.value === curTeam) opt.selected = true;
+        teamSel.appendChild(opt);
+      });
+      projSel.innerHTML = '<option value="">📋 全部项目</option>';
+      projects.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = String(p.id);
+        opt.textContent = String(p.name);
+        if (opt.value === curProj) opt.selected = true;
+        projSel.appendChild(opt);
+      });
+    } catch {
+    }
+  }
+  function onReviewTeamSelect() {
+    const el = document.getElementById("dr-team-select");
+    const teamId = el?.value || "";
+    appState.setTeamId(teamId);
+    appState.setProjectId("");
+    const projSel = document.getElementById("dr-project-select");
+    if (projSel) projSel.value = "";
+  }
+  function onReviewProjectSelect() {
+    const el = document.getElementById("dr-project-select");
+    const projectId = el?.value || "";
+    appState.setProjectId(projectId);
+  }
+  if (typeof window !== "undefined") {
+    window.showDrawingReviewPanel = showDrawingReviewPanel;
+    window.switchDrawingTab = switchDrawingTab;
+    window.loadReviewContext = loadReviewContext;
+    window.onReviewTeamSelect = onReviewTeamSelect;
+    window.onReviewProjectSelect = onReviewProjectSelect;
+  }
+  function getActiveKeyValue() {
+    const activeId = localStorage.getItem("baa_active_key") || "";
+    if (!activeId) return "";
+    try {
+      const keys = JSON.parse(localStorage.getItem("baa_api_keys") || "[]");
+      const k = keys.find((k2) => String(k2.id) === activeId);
+      return k ? String(k.key || "") : "";
+    } catch {
+      return "";
+    }
+  }
+  async function importServerKey() {
+    const activeKeyVal = getActiveKeyValue();
+    if (!activeKeyVal) {
+      if (!confirm(
+        "当前未选择任何令牌，后端 /admin/keys 需要admin权限。\n是否仍要尝试？（建议先在「密钥管理」创建admin密钥后选择）"
+      )) {
+        return;
+      }
+    }
+    const list = document.getElementById("import-key-list");
+    if (!list) {
+      showToast$1("页面元素异常", "info");
+      return;
+    }
+    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">⏳ 加载中...</div>';
+    const modal = document.getElementById("import-key-modal");
+    modal?.classList.remove("hidden");
+    try {
+      const data = await apiGet("/admin/keys");
+      const keys = data?.data;
+      if (!keys || keys.length === 0) {
+        list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">暂无可用密钥，请先在「密钥管理」页面创建。</div>';
+        return;
+      }
+      const detail = data?.detail;
+      if (detail && detail.error_code === "FORBIDDEN") {
+        list.innerHTML = '<div class="text-center text-red-500 text-sm py-4">❌ 权限不足：当前令牌无admin权限。\n请先在「密钥管理」页面创建admin密钥，\n然后在连接配置页选择该令牌后再试。</div>';
+        return;
+      }
+      list.innerHTML = "";
+      for (const k of keys) {
+        if (!k.enabled) continue;
+        const div = document.createElement("div");
+        const label = escHtml$1(String(k.label || k.key_id));
+        const expires = k.expires_at ? "过期: " + formatDate(String(k.expires_at)) : "永不过期";
+        const keyId = escHtml$1(String(k.key_id || ""));
+        div.className = "flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer";
+        div.innerHTML = `<div class="flex-1 min-w-0"><div class="font-medium text-sm">${label}</div><div class="text-xs text-gray-400">权限: ${escHtml$1(String(k.permission))} | ${expires}</div></div><button onclick="importSelectedKey('${keyId}')" class="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 shrink-0">选择并填入</button>`;
+        list.appendChild(div);
+      }
+    } catch (e) {
+      list.innerHTML = `<div class="text-center text-red-500 text-sm py-4">❌ 加载失败: ${escHtml$1(e.message)}</div>`;
+    }
+  }
+  async function importSelectedKey(keyId) {
+    const keyValue = prompt(`请输入此密钥的原始值（从密钥管理页创建时复制）：`);
+    if (!keyValue) return;
+    const btn = event?.target || document.querySelector("#import-key-modal button");
+    if (btn) {
+      btn.textContent = "验证中...";
+      btn.disabled = true;
+    }
+    try {
+      const verifyResult = await apiPostJSON("/admin/keys/verify", { raw_key: keyValue });
+      const vr = verifyResult;
+      if (vr.status === "success" && vr.valid) {
+        const keyInfo = vr.key_info || {};
+        const label = String(keyInfo.label || keyInfo.key_id || keyId) + " (imported)";
+        const id = `key_${Date.now()}`;
+        const stored = localStorage.getItem("baa_api_keys");
+        const keys = stored ? JSON.parse(stored) : [];
+        keys.push({ id, name: label, key: keyValue, created: Date.now() });
+        localStorage.setItem("baa_api_keys", JSON.stringify(keys));
+        localStorage.setItem("baa_active_key", id);
+        const populate = window.populateTokenSelect;
+        if (typeof populate === "function") populate();
+        closeImportKeyModal();
+        showToast$1("✅ 密钥验证通过，已添加到本地令牌列表", "success");
+      } else {
+        showToast$1(
+          "❌ 密钥验证失败：" + String(vr.message || "密钥无效或已过期"),
+          "error"
+        );
+      }
+    } catch (e) {
+      if (confirm("无法验证密钥有效性（" + e.message + "）。是否仍要保存到本地？")) {
+        const id = `key_${Date.now()}`;
+        const stored = localStorage.getItem("baa_api_keys");
+        const keys = stored ? JSON.parse(stored) : [];
+        keys.push({ id, name: keyId + " (imported)", key: keyValue, created: Date.now() });
+        localStorage.setItem("baa_api_keys", JSON.stringify(keys));
+        localStorage.setItem("baa_active_key", id);
+        const populate = window.populateTokenSelect;
+        if (typeof populate === "function") populate();
+        closeImportKeyModal();
+      }
+    } finally {
+      if (btn) {
+        btn.textContent = "选择并填入";
+        btn.disabled = false;
+      }
+    }
+  }
+  function closeImportKeyModal() {
+    document.getElementById("import-key-modal")?.classList.add("hidden");
+  }
+  if (typeof window !== "undefined") {
+    const w2 = window;
+    w2.importServerKey = importServerKey;
+    w2.importSelectedKey = importSelectedKey;
+    w2.closeImportKeyModal = closeImportKeyModal;
+  }
+  let _activeModalId = 0;
+  const _sizeCls = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-2xl"
+  };
+  function openModal(options) {
+    const id = options.id || `modal-${++_activeModalId}`;
+    const size = _sizeCls[options.size || "md"];
+    let overlay = document.getElementById(id);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = id;
+      overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50 transition-opacity duration-200";
+      overlay.style.opacity = "0";
+      overlay.style.pointerEvents = "none";
+      document.body.appendChild(overlay);
+    }
+    const title = options.title || "";
+    const footerHtml = options.footerButtons ? options.footerButtons.map(
+      (b) => `<button class="px-3 py-1.5 rounded text-xs ${b.cls || "bg-gray-600 text-white hover:bg-gray-700"}" data-btn="${b.label}">${b.label}</button>`
+    ).join(" ") : "";
+    let contentHtml = "";
+    if (typeof options.content === "string") {
+      contentHtml = options.content;
+    } else if (options.content instanceof HTMLElement) {
+      const wrapper = document.createElement("div");
+      wrapper.appendChild(options.content.cloneNode(true));
+      contentHtml = wrapper.innerHTML;
+    }
+    overlay.innerHTML = `<div class="bg-white rounded-lg shadow-xl w-full mx-4 ${size} max-h-[90vh] overflow-y-auto">` + (title ? `<div class="flex items-center justify-between p-4 border-b"><h3 class="text-sm font-medium">${title}</h3><button class="text-gray-400 hover:text-gray-600 text-lg" data-close>&times;</button></div>` : "") + `<div class="p-4">${contentHtml}</div>` + (footerHtml ? `<div class="flex justify-end gap-2 p-4 border-t bg-gray-50">${footerHtml}</div>` : "") + `</div>`;
+    overlay.querySelectorAll("[data-close]").forEach((btn) => {
+      btn.addEventListener("click", () => closeModal(id, options));
+    });
+    if (options.closeOnOverlay) {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeModal(id, options);
+      });
+    }
+    if (options.footerButtons) {
+      overlay.querySelectorAll("[data-btn]").forEach((btn) => {
+        const label = btn.dataset.btn || "";
+        const match = options.footerButtons?.find((b) => b.label === label);
+        if (match) {
+          btn.addEventListener("click", () => {
+            match.onClick();
+          });
+        }
+      });
+    }
+    requestAnimationFrame(() => {
+      overlay.style.opacity = "1";
+      overlay.style.pointerEvents = "auto";
+    });
+    return () => closeModal(id, options);
+  }
+  function closeModal(id, options) {
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    overlay.style.opacity = "0";
+    overlay.style.pointerEvents = "none";
+    setTimeout(() => overlay.remove(), 200);
+    options.onClose?.();
+  }
+  if (typeof window !== "undefined") {
+    window.openModal = openModal;
+  }
+  let _parsedDrawings = [];
+  const _fileCache = {};
+  function getParsedDrawings() {
+    return _parsedDrawings;
+  }
+  function setParsedDrawings(v) {
+    _parsedDrawings = v;
+    if (typeof window !== "undefined") window.parsedDrawings = v;
+  }
+  function setFileCache(id, file) {
+    _fileCache[id] = file;
+    if (typeof window !== "undefined") window.fileCache = _fileCache;
+  }
+  let _specData = [];
+  function getSpecData() {
+    return _specData;
+  }
+  function setSpecData(specs) {
+    _specData = specs;
+  }
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "SPEC_DATA", {
+      get: () => _specData,
+      set: (v) => {
+        _specData = v;
+      }
+    });
+  }
+  let _reviewResults = [];
+  function getReviewResults$1() {
+    return _reviewResults;
+  }
+  async function loadReviewResults() {
+    const apiBase = getApiBase();
+    const teamFilter = document.getElementById("history-team-filter")?.value || "";
+    const projFilter = document.getElementById("history-project-filter")?.value || "";
+    let params = "limit=200";
+    if (teamFilter) params += "&team_id=" + encodeURIComponent(teamFilter);
+    if (projFilter) params += "&project_id=" + encodeURIComponent(projFilter);
+    try {
+      const r = await fetch(apiBase + "/review/history?" + params, {
+        method: "GET",
+        headers: getHeaders()
+      });
+      const data = await r.json();
+      if (data && data.items && data.items.length > 0) {
+        _reviewResults = data.items;
+        try {
+          localStorage.setItem("baa_review_results", JSON.stringify(_reviewResults));
+        } catch (_e) {
+        }
+        return;
+      }
+      fallbackLoadReviewResults();
+    } catch (_e) {
+      fallbackLoadReviewResults();
+    }
+  }
+  function fallbackLoadReviewResults() {
+    try {
+      const stored = localStorage.getItem("baa_review_results");
+      if (stored) _reviewResults = JSON.parse(stored);
+    } catch (_e) {
+      _reviewResults = [];
+    }
+  }
+  function refreshCompareDrawingSelect() {
+    const select = document.getElementById("compare-drawing-select");
+    if (!select) return;
+    select.innerHTML = '<option value="">— 选择已审查图纸 —</option>';
+    _reviewResults.forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r.id || "";
+      opt.textContent = (r.drawingName || "") + " (" + (r.buildingType === "civil" ? "民用" : "工业") + ") - " + ((r.details || []).length || 0) + "项违规";
+      select.appendChild(opt);
+    });
+  }
+  async function loadDashboard() {
+    try {
+      const health = await apiGet("/health");
+      const verEl = document.getElementById("version-info");
+      const hsEl = document.getElementById("health-status");
+      if (verEl) verEl.textContent = String(health.version || "") + " · 引擎就绪";
+      if (hsEl) hsEl.textContent = JSON.stringify(health, null, 2);
+      await loadReviewResults();
+      const results = getReviewResults$1();
+      const stats = document.getElementById("home-stats");
+      if (stats) {
+        const cards = stats.querySelectorAll(".stat-card");
+        const el0 = cards[0] && cards[0].querySelector(".text-2xl");
+        if (el0) el0.textContent = String(results.length);
+        const specData = getSpecData();
+        const el1 = cards[1] && cards[1].querySelector(".text-2xl");
+        if (el1) el1.textContent = String(specData.length);
+        if (results.length > 0) {
+          const totalV = results.reduce((s, r) => s + (Array.isArray(r.details) ? r.details.length : 0), 0);
+          const totalC = results.reduce((s, r) => {
+            const sm = r.summary;
+            return s + (sm && typeof sm === "object" ? Number(sm.total_checks || 0) : 0);
+          }, 0);
+          const passRate = totalC > 0 ? Math.round((1 - totalV / totalC) * 100) + "%" : "--";
+          const el2 = cards[2] && cards[2].querySelector(".text-2xl");
+          if (el2) el2.textContent = passRate;
+          const el3 = cards[3] && cards[3].querySelector(".text-2xl");
+          if (el3) el3.textContent = String(results[0].drawingName || "");
+        }
+      }
+      renderRecentReviews();
+      renderSpecFreqBars();
+      renderViolationTypeBars();
+    } catch (e) {
+      const verEl = document.getElementById("version-info");
+      const hsEl = document.getElementById("health-status");
+      if (verEl) verEl.textContent = "⚠️ 服务未连接";
+      if (hsEl) hsEl.textContent = "连接失败: " + e.message;
+    }
+  }
+  function renderRecentReviews() {
+    const el = document.getElementById("recent-reviews");
+    if (!el) return;
+    const results = getReviewResults$1();
+    if (results.length === 0) {
+      el.innerHTML = '<div class="text-xs text-gray-400">暂无审查记录</div>';
+      return;
+    }
+    const recent = results.slice(0, 5);
+    el.innerHTML = recent.map((r) => {
+      const rr = r;
+      const v = rr.details?.length || 0;
+      const color = v === 0 ? "green" : "red";
+      return '<div class="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"><span class="font-medium">' + escHtml$1(String(rr.drawingName || "")) + '</span><span class="text-' + color + '-600">' + v + " 项违规</span></div>";
+    }).join("");
+  }
+  function renderSpecFreqBars() {
+    const el = document.getElementById("spec-freq-bars");
+    if (!el || getReviewResults$1().length === 0) return;
+    const freq = {};
+    getReviewResults$1().forEach((r) => {
+      const rr = r;
+      (rr.details || []).forEach((v) => {
+        const key = String(v.clause_id || "未知");
+        freq[key] = (freq[key] || 0) + 1;
+      });
+    });
+    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const maxVal = Math.max(...sorted.map((s) => s[1]), 1);
+    el.innerHTML = sorted.map(
+      ([k, v]) => '<div class="flex items-center gap-2"><span class="w-24 truncate">' + escHtml$1(k) + '</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="bg-blue-500 h-3 rounded-full" style="width:' + v / maxVal * 100 + '%"></div></div><span class="w-6 text-right">' + v + "</span></div>"
+    ).join("");
+  }
+  function renderViolationTypeBars() {
+    const el = document.getElementById("violation-type-bars");
+    if (!el || getReviewResults$1().length === 0) return;
+    const freq = {};
+    const labels = { critical: "严重", major: "主要", minor: "轻微" };
+    getReviewResults$1().forEach((r) => {
+      const rr = r;
+      (rr.details || []).forEach((v) => {
+        const key = labels[String(v.severity || "major")] || "未知";
+        freq[key] = (freq[key] || 0) + 1;
+      });
+    });
+    const colors = { "严重": "#ef4444", "主要": "#f97316", "轻微": "#eab308" };
+    const total = Object.values(freq).reduce((a, b) => a + b, 0) || 1;
+    el.innerHTML = Object.entries(freq).map(
+      ([k, v]) => '<div class="flex items-center gap-2"><span class="w-10">' + escHtml$1(k) + '</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="h-3 rounded-full" style="width:' + v / total * 100 + "%;background:" + (colors[k] || "#6b7280") + '"></div></div><span class="w-6 text-right">' + v + "</span></div>"
+    ).join("");
+  }
+  function saveParsedDrawings() {
+    try {
+      localStorage.setItem("baa_parsed_drawings", JSON.stringify(getParsedDrawings()));
+    } catch (_e) {
+    }
+  }
+  function loadParsedDrawings() {
+    try {
+      const stored = localStorage.getItem("baa_parsed_drawings");
+      if (stored) setParsedDrawings(JSON.parse(stored));
+    } catch (_e) {
+      setParsedDrawings([]);
+    }
+  }
+  function renderDrawingList() {
+    const tbody = document.getElementById("drawing-list");
+    if (!tbody) return;
+    const list = getParsedDrawings();
+    const countEl = document.getElementById("drawing-count");
+    if (countEl) countEl.textContent = String(list.length);
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">暂无记录，请上传图纸</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map((d, i) => {
+      const yoloBadge = d.use_yolo ? '<span class="ml-1 px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">YOLO</span>' : "";
+      const checked = d._selected ? "checked" : "";
+      const elements = d.elements;
+      return '<tr class="border-b border-gray-50 text-sm"><td class="py-2 px-2"><input type="checkbox" class="drawing-select" data-idx="' + i + '" ' + checked + ' onchange="toggleDrawingSelect(' + i + ',this.checked)" /></td><td class="py-2 px-2 truncate max-w-32">' + escHtml$1(String(d.filename)) + yoloBadge + '</td><td class="py-2 px-2 text-xs">' + (d.building_type === "civil" ? "民用" : "工业") + '</td><td class="py-2 px-2">' + (elements?.length || 0) + '</td><td class="py-2 px-2 text-xs max-w-40 truncate">' + (elements ? elements.map((e) => e.type).join(", ") : "") + '</td><td class="py-2 px-2 text-xs">' + new Date(String(d.parsedAt)).toLocaleTimeString() + '</td><td class="py-2 px-2"><button onclick="sendToReview(' + i + ')" class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 mr-1">送审</button>' + (d.file_id ? `<button onclick="downloadReviewPdf('` + escHtml$1(String(d.file_id)) + `')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 mr-1" title="下载PDF报告">📄</button>` : "") + '<button onclick="deleteDrawing(' + i + ')" class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200">🗑️</button></td></tr>';
+    }).join("");
+    updateBatchButton();
+  }
+  function toggleDrawingSelect(idx, checked) {
+    const list = getParsedDrawings();
+    if (list[idx]) list[idx]._selected = checked;
+    updateBatchButton();
+  }
+  function selectAllDrawings() {
+    getParsedDrawings().forEach((d) => d._selected = true);
+    renderDrawingList();
+  }
+  function deselectAllDrawings() {
+    getParsedDrawings().forEach((d) => d._selected = false);
+    renderDrawingList();
+  }
+  function updateBatchButton() {
+    const count = getParsedDrawings().filter((d) => d._selected).length;
+    const btn = document.getElementById("batch-review-btn");
+    const badge = document.getElementById("batch-count");
+    if (btn) {
+      btn.className = count > 0 ? "px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700" : "px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 hidden";
+    }
+    if (badge) badge.textContent = String(count);
+  }
+  async function uploadDrawing() {
+    const file = document.getElementById("file-input")?.files?.[0];
+    if (!file) {
+      showToast$1("请先选择图纸文件", "info");
+      return;
+    }
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (ext !== "dxf") {
+      showToast$1("仅支持 .dxf 格式。DWG 格式兼容性有限，请先用CAD转存为DXF。", "warn");
+      return;
+    }
+    const bt = document.getElementById("drawing-bt")?.value || "";
+    const progress = document.getElementById("upload-progress");
+    if (progress) {
+      progress.className = "card mb-4";
+      progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
+    }
+    try {
+      const useYolo = document.getElementById("use-yolo-checkbox")?.checked || false;
+      const yoloDevice = document.getElementById("yolo-device-select")?.value || "cpu";
+      const result = await apiPostFile("/deconstruct", file, { building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice });
+      if (progress) progress.className = "hidden";
+      const fileId = String(result.file_id || "drawing_" + Date.now());
+      setFileCache(fileId, file);
+      const entry = {
+        id: fileId,
+        filename: file.name,
+        building_type: bt,
+        parsedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        elements: result.elements || [],
+        entities: result.entities || [],
+        findings_count: result.findings || 0,
+        total_checks: result.total_checks || 0,
+        file_id: fileId,
+        raw: result,
+        use_yolo: useYolo
+      };
+      const list = getParsedDrawings();
+      list.unshift(entry);
+      setParsedDrawings(list);
+      saveParsedDrawings();
+      renderDrawingList();
+      const preview = document.getElementById("drawing-preview");
+      if (preview) preview.className = "card";
+      const jsonEl = document.getElementById("parse-result-json");
+      if (jsonEl) jsonEl.textContent = JSON.stringify(result, null, 2);
+      const renderImg = document.getElementById("drawing-render-img");
+      const placeholder = document.getElementById("drawing-render-placeholder");
+      if (renderImg) {
+        renderImg.className = "w-full";
+        renderImg.src = getApiBase() + "/render/" + fileId;
+      }
+      if (placeholder) placeholder.className = "hidden";
+      refreshReviewDrawingSelect();
+      loadDashboard();
+    } catch (e) {
+      if (progress) {
+        progress.innerHTML = "❌ 解析失败: " + String(e);
+        progress.className = "card mb-4 text-sm text-red-500";
+      }
+    }
+  }
+  async function uploadAndReview() {
+    const file = document.getElementById("file-input")?.files?.[0];
+    if (!file) {
+      showToast$1("请先选择图纸文件", "info");
+      return;
+    }
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (ext !== "dxf" && ext !== "dwg") {
+      showToast$1("仅支持 .dxf 和 .dwg 格式", "warn");
+      return;
+    }
+    const bt = document.getElementById("drawing-bt")?.value || "";
+    const progress = document.getElementById("upload-progress");
+    if (progress) {
+      progress.className = "card mb-4 text-sm text-gray-500";
+      progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>解析</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
+    }
+    try {
+      const useYolo = document.getElementById("use-yolo-checkbox")?.checked || false;
+      const yoloDevice = document.getElementById("yolo-device-select")?.value || "cpu";
+      const result = await apiPostFile("/deconstruct", file, { building_type: bt, use_yolo: useYolo, yolo_device: yoloDevice });
+      if (progress) progress.className = "hidden";
+      const fileId = String(result.file_id || "drawing_" + Date.now());
+      setFileCache(fileId, file);
+      const entry = {
+        id: fileId,
+        filename: file.name,
+        building_type: bt,
+        parsedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        elements: result.elements || [],
+        entities: result.entities || [],
+        findings_count: result.findings || 0,
+        total_checks: result.total_checks || 0,
+        use_yolo: useYolo,
+        file_id: fileId,
+        raw: result
+      };
+      const list = getParsedDrawings();
+      list.unshift(entry);
+      setParsedDrawings(list);
+      saveParsedDrawings();
+      renderDrawingList();
+      refreshReviewDrawingSelect();
+      loadDashboard();
+      const preview = document.getElementById("drawing-preview");
+      if (preview) {
+        preview.className = "card";
+        const jsonEl = document.getElementById("parse-result-json");
+        if (jsonEl) jsonEl.textContent = JSON.stringify(result, null, 2);
+      }
+    } catch (e) {
+      if (progress) {
+        progress.innerHTML = "❌ 解析失败: " + String(e);
+        progress.className = "card mb-4 text-sm text-red-500";
+      }
+    }
+  }
+  async function batchReview() {
+    const selected = getParsedDrawings().filter((d) => d._selected);
+    if (selected.length === 0) {
+      showToast$1("请先勾选要送审的图纸", "info");
+      return;
+    }
+    const progress = document.getElementById("upload-progress");
+    if (progress) {
+      progress.className = "card mb-4";
+      progress.innerHTML = '<div class="review-progress"><div class="review-progress-text"><span>批量审查</span><span>0%</span></div><div class="review-progress-bar"><div class="review-progress-fill" style="width:0%"></div></div></div>';
+    }
+    let totalViolations = 0;
+    const results = [];
+    for (const d of selected) {
+      try {
+        const r = await apiPost("/review-from-data", {
+          entities: d.elements || [],
+          building_type: d.building_type
+        });
+        if (r.status === "completed" || r.status === "success") {
+          const v = r.details?.length || 0;
+          totalViolations += v;
+          results.push({ name: d.filename, violations: v, details: r.details });
+        }
+      } catch (e) {
+        results.push({ name: d.filename, violations: -1, error: String(e) });
+      }
+    }
+    if (progress) {
+      progress.className = "card mb-4 text-sm";
+      let html = "✅ 批量审查完成 (" + selected.length + " 张, 共 " + totalViolations + " 项违规)<br/><br/>";
+      for (const r of results) {
+        if (r.error) {
+          html += '<div class="text-red-500 text-xs">❌ ' + escHtml$1(String(r.name)) + ": " + escHtml$1(String(r.error)) + "</div>";
+        } else {
+          const c = Number(r.violations) > 0 ? "text-red-500" : "text-green-600";
+          html += '<div class="text-xs mb-1">' + escHtml$1(String(r.name)) + ': <span class="' + c + '">' + r.violations + " 项违规</span></div>";
+        }
+      }
+      progress.innerHTML = html;
+    }
+    if (results.length > 0) {
+      const fn = window.switchPage;
+      fn?.("review");
+    }
+  }
+  function deleteDrawing(idx) {
+    const list = getParsedDrawings();
+    const d = list[idx];
+    if (!d) return;
+    if (!confirm("确定删除图纸「" + d.filename + "」的解析记录？")) return;
+    list.splice(idx, 1);
+    setParsedDrawings(list);
+    saveParsedDrawings();
+    renderDrawingList();
+  }
+  function sendToReview(idx) {
+    const d = getParsedDrawings()[idx];
+    if (!d) return;
+    document.querySelectorAll(".sidebar-item").forEach((el) => el.classList.remove("active"));
+    const target = document.querySelector('[data-page="review"]');
+    if (target) target.classList.add("active");
+    document.querySelectorAll(".page").forEach((el) => el.classList.remove("active"));
+    const page = document.getElementById("page-review");
+    if (page) page.classList.add("active");
+    const select = document.getElementById("review-drawing-select");
+    if (!select) return;
+    for (let i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === String(d.id)) {
+        select.selectedIndex = i;
+        break;
+      }
+    }
+    onReviewDrawingSelect();
+  }
+  function refreshReviewDrawingSelect() {
+    const select = document.getElementById("review-drawing-select");
+    if (!select) return;
+    select.innerHTML = '<option value="">— 选择已解析图纸 —</option>';
+    getParsedDrawings().forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = String(d.id);
+      opt.textContent = d.filename + " (" + (d.building_type === "civil" ? "民用" : "工业") + ")";
+      select.appendChild(opt);
+    });
+  }
+  function onReviewDrawingSelect() {
+    const select = document.getElementById("review-drawing-select");
+    const btn = document.getElementById("review-start-btn");
+    const info = document.getElementById("review-drawing-info");
+    const id = select?.value || "";
+    if (!id || !btn || !info) {
+      btn && (btn.disabled = true);
+      info && (info.textContent = "");
+      return;
+    }
+    const d = getParsedDrawings().find((p) => p.id === id);
+    if (!d) {
+      btn.disabled = true;
+      info.textContent = "";
+      return;
+    }
+    btn.disabled = false;
+    info.textContent = "实体: " + (d.elements?.length || 0) + "个 · 已解析: " + new Date(String(d.parsedAt)).toLocaleString();
+  }
+  async function loadSpecs() {
+    try {
+      const r = await fetch(getApiBase() + "/api/v1/specs", { headers: getHeaders() });
+      const data = await r.json();
+      if (data.status === "ok") {
+        setSpecData(data.specs);
+      }
+    } catch (e) {
+      console.warn("规范库加载失败", e);
+    }
+    renderSpecList();
+    const statsEl = document.getElementById("home-stats");
+    const specCount = statsEl?.querySelectorAll(".stat-card")[1]?.querySelector(".text-2xl");
+    if (specCount) specCount.textContent = String((getSpecData() || []).length);
+  }
+  function renderSpecList(_showAll = false) {
+    const tbody = document.getElementById("spec-list");
+    if (!tbody) return;
+    const search = document.getElementById("spec-search")?.value || "";
+    const levelFilter = document.getElementById("spec-filter-level")?.value || "all";
+    const catFilter = document.getElementById("spec-filter-cat")?.value || "all";
+    const stdFilter = document.getElementById("spec-filter-std")?.value || "all";
+    const specs = getSpecData() || [];
+    const total = specs.length;
+    const l1 = specs.filter((s) => String(s.level || "L1") === "L1").length;
+    const l2 = specs.filter((s) => String(s.level || "L1") === "L2").length;
+    const l3 = specs.filter((s) => String(s.level || "L1") === "L3").length;
+    const tc = document.getElementById("spec-total-count");
+    if (tc) tc.textContent = String(total);
+    const l1c = document.getElementById("spec-l1-count");
+    if (l1c) l1c.textContent = String(l1);
+    const l2c = document.getElementById("spec-l2-count");
+    if (l2c) l2c.textContent = String(l2);
+    const l3c = document.getElementById("spec-l3-count");
+    if (l3c) l3c.textContent = String(l3);
+    let filtered = specs;
+    if (levelFilter !== "all") filtered = filtered.filter((s) => String(s.level || "L1") === levelFilter);
+    if (catFilter !== "all") filtered = filtered.filter((s) => (s.category || "") === catFilter);
+    if (stdFilter !== "all") {
+      filtered = filtered.filter((s) => {
+        const std = String(s.standard || s.std || "");
+        return std.toLowerCase().includes(stdFilter.toLowerCase());
+      });
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(
+        (s) => String(s.clause_id || "").toLowerCase().includes(q) || String(s.title || s.name || "").toLowerCase().includes(q) || String(s.text || s.description || "").toLowerCase().includes(q) || String(s.standard || s.std || "").toLowerCase().includes(q)
+      );
+    }
+    const fcount = document.getElementById("spec-filter-count");
+    if (fcount) fcount.textContent = filtered.length + " 条" + (filtered.length < total ? " / " + total : "");
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-300">无匹配记录</td></tr>';
+      return;
+    }
+    const catLabels = { fire_safety: "防火安全", evacuation: "疏散", lighting: "照明", structure: "结构", hvac: "暖通" };
+    const levelColors = { L1: "red", L2: "orange", L3: "green" };
+    const stdAbbrev = {
+      "GB 50016-2014": "016",
+      "GB 50016-2018": "016",
+      "GB 50974-2014": "974",
+      "GB 50763-2012": "763",
+      "GB 50067-2014": "067",
+      "GB 50116-2013": "116",
+      "GB 50084-2017": "084",
+      "NFPA 101-2021": "NFPA101",
+      "NFPA 5000-2021": "NFPA5K"
+    };
+    tbody.innerHTML = filtered.map((s, i) => {
+      const title = s.title || s.name || "";
+      const desc = s.text || s.description || "";
+      const cat = String(s.category || "--");
+      const target = s.func_id || "--";
+      const level = String(s.level || "L1");
+      const std = String(s.standard || s.std || "");
+      const stdShort = stdAbbrev[std] || (std ? std.replace(/-/g, "").slice(0, 5) : "--");
+      const targetStr = Array.isArray(target) ? target.join(", ") : String(target);
+      return '<tr class="border-b border-gray-50"><td class="py-2 px-2 text-xs">' + (i + 1) + '</td><td class="py-2 px-2 font-mono text-xs">' + escHtml$1(String(s.clause_id || "")) + '</td><td class="py-2 px-2 text-sm">' + escHtml$1(String(title)) + '<br/><span class="text-xs text-gray-400">' + escHtml$1(String(desc)) + '</span></td><td class="py-2 px-2 text-xs">' + (std ? '<span class="bg-blue-100 text-blue-700 px-1 rounded">' + escHtml$1(stdShort) + "</span>" : "") + '</td><td class="py-2 px-2"><span class="px-2 py-0.5 bg-' + (levelColors[String(level)] || "gray") + "-100 text-" + (levelColors[String(level)] || "gray") + '-700 rounded text-xs">' + level + '</span></td><td class="py-2 px-2 text-xs">' + (catLabels[cat] || cat) + '</td><td class="py-2 px-2 font-mono text-xs max-w-32 truncate">' + escHtml$1(targetStr) + "</td></tr>";
+    }).join("");
+  }
+  if (!window.reviewResults) {
+    window.reviewResults = [];
+  }
+  function renderEngineStatus() {
+    const el = document.getElementById("engine-status");
+    if (!el) return;
+    try {
+      const text = document.getElementById("health-status")?.textContent || "{}";
+      const health = JSON.parse(text);
+      const specCount = window.SPEC_DATA?.length || 0;
+      const [funcCount = "340", funcCap = "390"] = (health.engine?.func_registry || "340/390").split("/");
+      el.innerHTML = `<div class="flex justify-between"><span>原子函数</span><span>${funcCount}/${funcCap} 已注册</span></div><div class="flex justify-between"><span>规范库</span><span>${specCount}条 (L1~L3)</span></div><div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div><div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配</span></div>`;
+    } catch {
+      el.innerHTML = `<div class="flex justify-between"><span>原子函数</span><span>340/390 已注册</span></div><div class="flex justify-between"><span>规范库</span><span>199条 (L1~L3)</span></div><div class="flex justify-between"><span>建筑类型阈值</span><span>civil/industrial</span></div><div class="flex justify-between"><span>判定过滤</span><span>实体类型匹配 (90.8%)</span></div>`;
+    }
+  }
+  function resolveAction(name) {
+    const parts = name.split(".");
+    let cur = window;
+    for (const p of parts) {
+      if (!cur || typeof cur !== "object") return void 0;
+      cur = cur[p];
+    }
+    return typeof cur === "function" ? cur : void 0;
+  }
+  let _delegatedBound = false;
+  function bindActionDelegation() {
+    if (_delegatedBound) return;
+    _delegatedBound = true;
+    document.addEventListener("click", (ev) => {
+      const el = ev.target.closest("[data-action]");
+      if (!el) return;
+      const name = el.getAttribute("data-action");
+      if (!name) return;
+      let args = [];
+      try {
+        const raw = el.getAttribute("data-args") || "[]";
+        args = JSON.parse(raw);
+        args = args.map((a) => a === "@this@" ? ev.target : a);
+      } catch {
+        args = [];
+      }
+      const fn = resolveAction(name);
+      if (!fn) {
+        console.warn("[delegation] 未挂载的 action:", name, "on", el);
+        return;
+      }
+      ev.preventDefault();
+      try {
+        const ret = fn(...args);
+        if (ret && typeof ret.then === "function") {
+          ret.catch((e) => console.error("[delegation] action error:", name, e));
+        }
+      } catch (e) {
+        console.error("[delegation] action error:", name, e);
+      }
+    }, true);
+  }
+  function initApp() {
+    appState.loadApiBase();
+    initAdminToken();
+    loadKeys();
+    populateTokenSelect();
+    loadParsedDrawings();
+    renderDrawingList();
+    refreshReviewDrawingSelect();
+    loadReviewResults();
+    loadDashboard();
+    loadSpecs();
+    const apiBase = document.getElementById("api-base");
+    apiBase?.addEventListener("change", () => appState.saveApiBase());
+    bindActionDelegation();
+    renderEngineStatus();
+  }
+  const DEFAULT_STATUS_OPTIONS = [
+    { value: "", label: "📋 全部" },
+    { value: "unreviewed", label: "⚪ 未审核" },
+    { value: "confirmed", label: "✅ 已确认" },
+    { value: "dismissed", label: "❌ 已驳回" },
+    { value: "pending", label: "⏳ 待核实" }
+  ];
+  const DEFAULT_SEVERITY_OPTIONS = [
+    { value: "", label: "🚦 全部严重度" },
+    { value: "critical", label: "🔴 严重" },
+    { value: "major", label: "🟠 主要" },
+    { value: "minor", label: "🟡 轻微" }
+  ];
+  function renderFilterBar(container, options = {}) {
+    const statusOpts = options.statusOptions || DEFAULT_STATUS_OPTIONS;
+    const severityOpts = options.severityOptions || DEFAULT_SEVERITY_OPTIONS;
+    const clauseOpts = options.clauseOptions || [];
+    const aStatus = options.activeStatus || "";
+    const aSeverity = options.activeSeverity || "";
+    const aClause = options.activeClause || "";
+    const sel = "px-2 py-1 rounded text-xs bg-blue-100 text-blue-700 border border-blue-200";
+    const unsel = "px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";
+    let html = '<div class="flex flex-wrap items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg border"><span class="text-xs text-gray-500 font-medium">筛选:</span>';
+    if (options.stats) {
+      const s = options.stats;
+      html += `<span class="text-xs text-gray-400 mr-2">|</span><span class="text-xs text-gray-500">已审核 <strong class="text-blue-600">${s.total - s.unreviewed}</strong>/${s.total} | 确认 <span class="text-green-600">${s.confirmed}</span> | 驳回 <span class="text-red-600">${s.dismissed}</span> | 待核实 <span class="text-yellow-600">${s.pending}</span></span>`;
+    }
+    if (statusOpts.length > 0) {
+      html += '<span class="text-xs text-gray-400 ml-2">状态:</span>';
+      for (const opt of statusOpts) {
+        const cls = opt.value === aStatus ? sel : unsel;
+        html += `<button data-filter-status="${opt.value}" class="${cls}">${opt.label}</button>`;
+      }
+    }
+    if (severityOpts.length > 0) {
+      html += '<span class="text-xs text-gray-400 ml-2">严重度:</span>';
+      for (const opt of severityOpts) {
+        const cls = opt.value === aSeverity ? sel : unsel;
+        html += `<button data-filter-severity="${opt.value}" class="${cls}">${opt.label}</button>`;
+      }
+    }
+    if (clauseOpts.length > 0) {
+      html += '<span class="text-xs text-gray-400 ml-2">规范:</span>';
+      for (const opt of clauseOpts.slice(0, 15)) {
+        const cls = opt.value === aClause ? sel : unsel;
+        html += `<button data-filter-clause="${opt.value}" class="${cls}">${opt.label}</button>`;
+      }
+      if (clauseOpts.length > 15) {
+        html += `<span class="text-xs text-gray-400">+${clauseOpts.length - 15}</span>`;
+      }
+    }
+    if (aStatus || aSeverity || aClause) {
+      html += '<button data-filter-clear class="px-2 py-1 rounded text-xs bg-red-100 text-red-600 hover:bg-red-200 ml-auto">✕ 清除</button>';
+    }
+    html += "</div>";
+    container.innerHTML = html;
+    container.querySelectorAll("[data-filter-status]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        options.onChange?.(
+          btn.dataset.filterStatus || "",
+          aSeverity,
+          aClause
+        );
+      });
+    });
+    container.querySelectorAll("[data-filter-severity]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        options.onChange?.(
+          aStatus,
+          btn.dataset.filterSeverity || "",
+          aClause
+        );
+      });
+    });
+    container.querySelectorAll("[data-filter-clause]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        options.onChange?.(
+          aStatus,
+          aSeverity,
+          btn.dataset.filterClause || ""
+        );
+      });
+    });
+    const clearBtn = container.querySelector("[data-filter-clear]");
+    clearBtn?.addEventListener("click", () => {
+      options.onChange?.("", "", "");
+    });
+  }
+  if (typeof window !== "undefined") {
+    window.renderFilterBar = renderFilterBar;
+  }
+  const SEV_COLOR = {
+    critical: "red",
+    major: "orange",
+    minor: "yellow"
+  };
+  const SEV_LABEL = {
+    critical: "严重",
+    major: "主要",
+    minor: "轻微"
+  };
+  function confColor(conf) {
+    if (conf >= 0.85) return "green";
+    if (conf >= 0.6) return "yellow";
+    return "red";
+  }
+  function confLabel(conf) {
+    if (conf >= 0.85) return "高";
+    if (conf >= 0.6) return "中";
+    return "低";
+  }
+  function renderReviewItem(props) {
+    const sevColor = SEV_COLOR[props.severity] || "orange";
+    const sevLabel = SEV_LABEL[props.severity] || props.severity;
+    const conf = Math.max(0, Math.min(1, props.confidence));
+    const confPct = Math.round(conf * 100);
+    const cColor = confColor(conf);
+    const cLabel = confLabel(conf);
+    let html = '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5"><div class="flex justify-between items-start"><div><span class="font-medium">' + escHtml$1(props.clauseTitle) + '</span> <span class="text-gray-400">(' + escHtml$1(props.funcId || props.clauseId) + ')</span></div><div class="flex gap-1"><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + '</span><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + cColor + "-100 text-" + cColor + '-700" title="置信度 ' + confPct + '%">' + cLabel + '</span><span class="text-' + sevColor + '-600 font-medium">' + escHtml$1(props.result) + '</span></div></div><span class="text-gray-500">' + escHtml$1(props.entityType) + " · 实测: " + (props.extractedValue != null ? props.extractedValue.toFixed(2) : "-") + " · 要求: " + (props.requiredValue != null ? props.requiredValue.toFixed(2) : "-") + '</span><br/><div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="' + cColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></div><span class="text-gray-400">' + escHtml$1(props.explanation) + "</span>";
+    if (props.corrections && props.corrections.length > 0) {
+      const top = props.corrections[0];
+      const pColor = top.priority === "high" ? "red" : top.priority === "medium" ? "orange" : "yellow";
+      const pLabel = top.priority === "high" ? "🔴 高" : top.priority === "medium" ? "🟠 中" : "🟡 低";
+      html += '<details class="mt-1"><summary class="cursor-pointer text-purple-600 font-medium">💡 修正建议 (' + props.corrections.length + '条)</summary><div class="mt-0.5 p-1 bg-' + pColor + "-50 rounded border-l-2 border-" + pColor + '-400"><p class="text-xs"><span class="text-' + pColor + '-600">' + pLabel + "</span> " + escHtml$1(top.recommendation) + "</p>" + (Object.keys(top.parameters || {}).length > 0 ? '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(top.parameters) + "</p>" : "") + "</div></details>";
+    }
+    if (props.auditItemId) {
+      html += renderAuditButtons$1(props.auditItemId, props.auditState || "unreviewed", props.clauseId);
+    }
+    html += "</div>";
+    return html;
+  }
+  function renderAuditButtons$1(itemId, itemStatus, clauseId) {
+    const safeClause = escHtml$1(clauseId || "");
+    let html = '<div class="flex gap-1 mt-1"><span class="text-[10px] text-gray-400">审核:</span>';
+    switch (itemStatus) {
+      case "confirmed":
+        html += `<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ 已确认</span><button onclick="auditAction('` + escHtml$1(itemId) + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700">↩ 驳回</button>`;
+        break;
+      case "dismissed":
+        html += `<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">❌ 已驳回</span><button onclick="auditAction('` + escHtml$1(itemId) + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700">↩ 确认</button>`;
+        break;
+      case "pending":
+        html += `<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ 待核实</span><button onclick="auditAction('` + escHtml$1(itemId) + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button><button onclick="auditAction('` + escHtml$1(itemId) + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`;
+        break;
+      default:
+        html += `<button onclick="auditAction('` + escHtml$1(itemId) + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button><button onclick="auditAction('` + escHtml$1(itemId) + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button><button onclick="auditAction('` + escHtml$1(itemId) + "','pending','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">⏳ 待核实</button>`;
+    }
+    html += "</div>";
+    return html;
+  }
+  if (typeof window !== "undefined") {
+    window.renderReviewItem = renderReviewItem;
+  }
+  function renderReviewTable(container, options) {
+    const { items, page: curPage = 1, pageSize = 20 } = options;
+    const filtered = filterItems(items, options);
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.max(1, Math.min(curPage, totalPages));
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, total);
+    const pageItems = filtered.slice(start, end);
+    if (total === 0) {
+      container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">暂无违规数据</div>';
+      return;
+    }
+    let html = "";
+    for (const item of pageItems) {
+      html += renderReviewItem(item);
+    }
+    if (totalPages > 1) {
+      html += '<div class="flex items-center justify-center gap-2 mt-3 text-xs">';
+      html += '<button data-page="prev" class="px-2 py-1 border rounded hover:bg-gray-100"' + (page <= 1 ? " disabled" : "") + ">‹</button>";
+      const pageRangeStart = Math.max(1, page - 2);
+      const pageRangeEnd = Math.min(totalPages, page + 2);
+      for (let p = pageRangeStart; p <= pageRangeEnd; p++) {
+        html += '<button data-page="' + p + '" class="px-2 py-1 border rounded ' + (p === page ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100") + '">' + p + "</button>";
+      }
+      html += '<button data-page="next" class="px-2 py-1 border rounded hover:bg-gray-100"' + (page >= totalPages ? " disabled" : "") + ">›</button>";
+      html += '<span class="text-gray-400">' + page + "/" + totalPages + "</span>";
+      html += "</div>";
+    }
+    html += `<div class="text-xs text-gray-400 text-right mt-1">共 ${total} 条违规</div>`;
+    container.innerHTML = html;
+    container.querySelectorAll("[data-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.dataset.page;
+        if (!val || val === "prev" || val === "next") return;
+        if (typeof window !== "undefined") {
+          const w2 = window;
+          if (typeof w2.renderViolationPage === "function") {
+            w2["_reviewPage"] = parseInt(val, 10);
+            w2.renderViolationPage();
+          }
+        }
+      });
+    });
+  }
+  function filterItems(items, options) {
+    let filtered = items;
+    if (options.filterStatus) {
+      filtered = filtered.filter((i) => i.auditState === options.filterStatus);
+    }
+    if (options.filterSeverity) {
+      filtered = filtered.filter((i) => i.severity === options.filterSeverity);
+    }
+    return filtered;
+  }
+  if (typeof window !== "undefined") {
+    window.renderReviewTable = renderReviewTable;
+  }
+  function _escHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  async function _initAuditItems(result) {
+    const reviewId = result.queue_info?.task_id || result.task_id || "";
+    if (!reviewId) return;
+    const details = (result.findings || []).filter((f) => f.result === "FAIL" && !f.is_duplicate);
+    if (details.length === 0) {
+      window._reviewAuditMapping = {};
+      return;
+    }
+    try {
+      const url = window.API_BASE?.() + "/api/v1/audit/items";
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...window.HEADERS?.() || {}, "Content-Type": "application/json" },
+        body: JSON.stringify({ review_id: reviewId, details })
+      });
+      if (r.ok) {
+        const mapping = {};
+        details.forEach((d, i) => {
+          const fid = d.func_id || d.clause_id || "";
+          const eid = d.entity_id || "";
+          mapping[fid + ":" + eid + ":" + i] = reviewId + ":" + i;
+        });
+        window._reviewAuditMapping = { mapping, reviewId };
+        window._reviewAuditDetailList = details;
+        await _loadAuditItemStates(reviewId);
+      }
+    } catch (err) {
+      console.warn("[P119] 审计条目初始化失败:", err.message);
+    }
+  }
+  async function _loadAuditItemStates(reviewId) {
+    try {
+      const url = window.API_BASE?.() + "/api/v1/audit/items?review_id=" + encodeURIComponent(reviewId);
+      const r = await fetch(url, { headers: window.HEADERS?.() || {} });
+      if (r.ok) {
+        const resp = await r.json();
+        const states = {};
+        (resp.items || []).forEach((item) => {
+          states[item.id] = item.status;
+        });
+        window._reviewAuditStates = states;
+      }
+    } catch (err) {
+      console.warn("[P119] 审计状态加载失败:", err.message);
+    }
+  }
+  function renderAuditButtons(itemId, itemStatus, clauseId) {
+    if (!itemId) return "";
+    const safeClause = _escHtml(clauseId || "");
+    let html = '<div class="flex gap-1 mt-1"><span class="text-[10px] text-gray-400">审核:</span>';
+    switch (itemStatus) {
+      case "confirmed":
+        html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">✅ 已确认</span>';
+        html += `<button onclick="window.auditAction('` + itemId + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700">↩ 驳回</button>`;
+        break;
+      case "dismissed":
+        html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">❌ 已驳回</span>';
+        html += `<button onclick="window.auditAction('` + itemId + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700">↩ 确认</button>`;
+        break;
+      case "pending":
+        html += '<span class="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">⏳ 待核实</span>';
+        html += `<button onclick="window.auditAction('` + itemId + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>`;
+        html += `<button onclick="window.auditAction('` + itemId + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`;
+        break;
+      default:
+        html += `<button onclick="window.auditAction('` + itemId + "','confirm','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 hover:bg-green-200">✅ 确认</button>`;
+        html += `<button onclick="window.auditAction('` + itemId + "','dismiss','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 hover:bg-red-200">❌ 驳回</button>`;
+        html += `<button onclick="window.auditAction('` + itemId + "','pending','" + safeClause + `')" class="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200">⏳ 待核实</button>`;
+    }
+    html += "</div>";
+    return html;
+  }
+  async function auditAction(itemId, action, clauseId) {
+    const safeAction = _escHtml(action || "");
+    try {
+      const body = action === "dismiss" ? { reason: "人工驳回" } : {};
+      const url = window.API_BASE?.() + "/api/v1/audit/items/" + encodeURIComponent(itemId) + "/" + safeAction;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...window.HEADERS?.() || {}, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        showToast?.("操作失败: " + (err.detail || r.statusText), "error");
+        return;
+      }
+      showToast?.(
+        (action === "confirm" ? "✅ 已确认违规" : action === "dismiss" ? "❌ 已驳回（误报）" : "⏳ 已标记待核实") + " " + _escHtml(clauseId || ""),
+        "info"
+      );
+      renderViolationPage?.();
+    } catch (err) {
+      showToast?.("网络错误: " + err.message, "error");
+    }
+  }
+  const STATUS_META = {
+    all: { label: "全部", color: "bg-gray-100 text-gray-700" },
+    unreviewed: { label: "未审核", color: "bg-gray-200 text-gray-800" },
+    confirmed: { label: "已确认", color: "bg-green-100 text-green-700" },
+    dismissed: { label: "已驳回", color: "bg-red-100 text-red-700" },
+    pending: { label: "待核实", color: "bg-yellow-100 text-yellow-700" }
+  };
+  function renderAuditStatsBar(reviewId, stats) {
+    const safeId = _escHtml(reviewId);
+    const { total, confirmed, dismissed, pending, unreviewed } = stats;
+    let html = '<div id="audit-stats-bar" class="mb-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-4 flex-wrap">';
+    html += '<span class="text-xs font-semibold text-blue-800 mr-2">📋 审核进度</span>';
+    const reviewed = confirmed + dismissed + pending;
+    html += '<span class="text-xs text-blue-600">已审核 <b>' + reviewed + "</b> / <b>" + total + "</b></span>";
+    if (unreviewed > 0) html += _statChip("⏳ " + unreviewed + " 未审核", "bg-gray-200 text-gray-800");
+    if (confirmed > 0) html += _statChip("✅ " + confirmed + " 确认", "bg-green-100 text-green-700");
+    if (dismissed > 0) html += _statChip("❌ " + dismissed + " 驳回", "bg-red-100 text-red-700");
+    if (pending > 0) html += _statChip("⏳ " + pending + " 待核实", "bg-yellow-100 text-yellow-700");
+    if (total === 0) html += '<span class="text-xs text-gray-500">暂无审核条目</span>';
+    html += "</div>";
+    html += '<div id="audit-filter-bar" class="mb-3 flex items-center gap-2">';
+    html += `<select id="audit-status-filter" onchange="window._onAuditFilterChange(this.value,'` + safeId + `')" class="text-xs border rounded px-2 py-1">`;
+    ["all", "unreviewed", "confirmed", "dismissed", "pending"].forEach((k) => {
+      const m = STATUS_META[k];
+      html += '<option value="' + k + '">' + m.label + "</option>";
+    });
+    html += "</select>";
+    if (confirmed > 0) {
+      html += `<button onclick="window.downloadCorrectionNotice('` + safeId + `')" class="ml-auto px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">📄 生成整改通知单</button>`;
+    }
+    html += "</div>";
+    return html;
+  }
+  function _statChip(text, css) {
+    return '<span class="px-2 py-0.5 rounded text-xs font-medium ' + css + '">' + text + "</span>";
+  }
+  async function _loadAuditStats(reviewId) {
+    try {
+      const url = window.API_BASE?.() + "/api/v1/audit/stats?review_id=" + encodeURIComponent(reviewId);
+      const r = await fetch(url, { headers: window.HEADERS?.() || {} });
+      if (r.ok) {
+        const resp = await r.json();
+        window._auditStats = resp.stats;
+        return resp.stats;
+      }
+    } catch (err) {
+      console.warn("[P119] 审核统计加载失败:", err.message);
+    }
+    return null;
+  }
+  async function _refreshAuditPanel(reviewId) {
+    const stats = await _loadAuditStats(reviewId);
+    if (!stats) return;
+    const barEl = document.getElementById("audit-stats-bar");
+    if (barEl) {
+      barEl.outerHTML = renderAuditStatsBar(reviewId, stats);
+    }
+    await _loadAuditItemStates(reviewId);
+    renderViolationPage?.();
+  }
+  async function _onAuditFilterChange(status, reviewId) {
+    window._auditFilterStatus = status === "all" ? "" : status;
+    renderViolationPage?.();
+  }
+  async function downloadCorrectionNotice(reviewId) {
+    try {
+      const url = window.API_BASE?.() + "/api/v1/audit/export/pdf?review_id=" + encodeURIComponent(reviewId);
+      const r = await fetch(url, { headers: window.HEADERS?.() || {} });
+      if (!r.ok) {
+        showToast?.("生成失败: " + r.statusText, "error");
+        return;
+      }
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "correction-notice-" + _escHtml(reviewId) + ".pdf";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast?.("✅ 整改通知单已下载", "info");
+    } catch (err) {
+      showToast?.("网络错误: " + err.message, "error");
+    }
+  }
+  async function runReview() {
+    const select = document.getElementById("review-drawing-select");
+    const id = select?.value ?? "";
+    if (!id) {
+      window.showToast?.("请选择已解析的图纸", "info");
+      return;
+    }
+    const drawings = getParsedDrawings();
+    const drawing = drawings.find((d) => d.id === id);
+    if (!drawing) {
+      window.showToast?.("图纸数据不存在", "info");
+      return;
+    }
+    const bt = drawing.building_type || "";
+    const entities = drawing.entities || drawing.raw?.entities || [];
+    if (entities.length === 0) {
+      window.showToast?.("该图纸没有解析出实体数据，请重新上传解析", "info");
+      return;
+    }
+    const loading = document.getElementById("review-loading");
+    if (loading) {
+      loading.classList.remove("hidden");
+      loading.textContent = "⏳ 正在审查...";
+    }
+    const btn = document.getElementById("review-start-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "⏳ 审查中...";
+    }
+    try {
+      const url = window.API_BASE?.() + "/review-from-data";
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { ...window.HEADERS?.() || {}, "Content-Type": "application/json" },
+        body: JSON.stringify({ entities, building_type: bt })
+      });
+      const result = await r.json();
+      if (loading) loading.classList.add("hidden");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "🔍 开始审查";
+      }
+      const summary = document.getElementById("review-summary");
+      const details = document.getElementById("review-details");
+      window._currentReviewResult = result;
+      window._currentReviewEntities = entities;
+      if (result.status === "success") {
+        renderReviewSummary(summary, result);
+        renderReviewDetails(details, result);
+        _initAuditItems(result).then(() => {
+          const reviewId = result.queue_info?.task_id || result.task_id || "";
+          if (reviewId) {
+            _refreshAuditPanel(reviewId);
+          }
+        });
+      } else {
+        if (summary) {
+          summary.innerHTML = '<span class="text-red-500">❌ 审查失败: ' + (result.message || "未知错误") + "</span>";
+        }
+      }
+    } catch (err) {
+      if (loading) loading.classList.add("hidden");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "🔍 开始审查";
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      const summary = document.getElementById("review-summary");
+      if (summary) {
+        summary.innerHTML = '<span class="text-red-500">❌ 审查失败: ' + msg + "</span>";
+      }
+    }
+  }
+  function renderReviewSummary(container, result) {
+    if (!container) return;
+    const vs = result.summary || {};
+    const tc = vs.confidence_tier_counts || { confirmed: 0, suspected: 0, needs_review: 0 };
+    let html = '<div class="grid grid-cols-4 gap-2 mb-3"><div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (vs.violations || 0) + '</div><div class="text-xs text-gray-400">违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + (tc.confirmed || 0) + '</div><div class="text-xs text-gray-400">✅ 确认违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + (tc.suspected || 0) + '</div><div class="text-xs text-gray-400">🟡 疑似违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + (tc.needs_review || 0) + '</div><div class="text-xs text-gray-400">🔴 建议复核</div></div></div>';
+    const reviewId = result.queue_info?.task_id || result.task_id || "";
+    const summaryObj = result.summary || {};
+    const entityTypes = summaryObj.entity_types || {};
+    if (Object.keys(entityTypes).length > 0 || reviewId) {
+      const extras = [];
+      if (Object.keys(entityTypes).length > 0) {
+        const parts = [];
+        for (const [type, count] of Object.entries(entityTypes)) {
+          parts.push('<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + type + ": " + count + "</span>");
+        }
+        extras.push('<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">' + parts.join("") + "</div>");
+      }
+      if (reviewId) {
+        const safeId = window._escHtml?.(reviewId) || reviewId;
+        extras.push(
+          `<div class="mt-3 flex gap-2 flex-wrap"><button onclick="window.downloadReviewPdf?.('` + safeId + `')" class="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">📄 PDF报告</button><button onclick="window.downloadReviewExport?.('` + safeId + `','json')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">📋 导出JSON</button><button onclick="window.downloadReviewExport?.('` + safeId + `','csv')" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">📊 导出CSV</button></div>`
+        );
+      }
+      html += extras.join("");
+    }
+    container.innerHTML = html;
+  }
+  function renderReviewDetails(container, result) {
+    if (!container) return;
+    const findings = result.findings || [];
+    const violations = findings.filter((f) => f.result === "FAIL" && !f.is_duplicate);
+    if (violations.length === 0) {
+      container.innerHTML = '<div class="text-center py-8 text-green-400 text-sm">✅ 无违规，图纸合规</div>';
+      return;
+    }
+    const sevCounts = {};
+    violations.forEach((f) => {
+      const sev = f.severity || "major";
+      sevCounts[sev] = (sevCounts[sev] || 0) + 1;
+    });
+    const totalViols = Object.values(sevCounts).reduce((a, b) => a + b, 0);
+    let html = "";
+    if (totalViols > 0) {
+      const sevColors = { critical: "bg-red-500", major: "bg-orange-500", minor: "bg-yellow-400" };
+      const sevLabels = { critical: "严重", major: "主要", minor: "轻微" };
+      const sevTextColors = { critical: "text-red-700", major: "text-orange-700", minor: "text-yellow-700" };
+      const sevGrid = ["critical", "major", "minor"].map((sev) => {
+        const count = sevCounts[sev] || 0;
+        const pct = totalViols > 0 ? (count / totalViols * 100).toFixed(0) : 0;
+        return '<div class="card p-2 text-center"><div class="text-lg font-bold ' + (sevTextColors[sev] || "text-gray-600") + '">' + count + '</div><div class="text-xs text-gray-400">' + (sevLabels[sev] || sev) + '</div><div class="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div class="' + (sevColors[sev] || "bg-gray-400") + ' h-1.5 rounded-full" style="width:' + pct + '%"></div></div></div>';
+      });
+      html += '<div class="grid grid-cols-3 gap-2 mb-3">' + sevGrid.join("") + "</div>";
+    }
+    html += '<div id="audit-stats-bar-container"></div>';
+    html += '<div id="review-table-container"></div>';
+    container.innerHTML = html;
+    const tableContainer = document.getElementById("review-table-container");
+    if (tableContainer) {
+      const items = violations.map((f) => mapFindingToItem(f));
+      renderReviewTable(tableContainer, { items });
+    }
+  }
+  function mapFindingToItem(f) {
+    const corrKey = (f.clause_id || f.func_id || "").trim();
+    const corrections = window._currentReviewResult?.corrections || [];
+    const matchingCorrections = corrections.filter((c) => c.clause_id === corrKey);
+    let auditItemId;
+    let auditState;
+    const mapping = window._reviewAuditMapping;
+    if (mapping?.mapping) {
+      const fid = f.func_id || f.clause_id || "";
+      const eid = f.entity_id || "";
+      const key = fid + ":" + eid;
+      if (mapping.mapping[key]) {
+        auditItemId = mapping.mapping[key];
+        const states = window._reviewAuditStates;
+        auditState = states?.[auditItemId] || "unreviewed";
+      }
+    }
+    return {
+      funcId: f.func_id || "",
+      clauseId: f.clause_id || "",
+      clauseTitle: f.clause_title || "",
+      severity: f.severity || "major",
+      confidence: f.confidence != null ? f.confidence : 1,
+      confidenceTier: f.confidence_tier || void 0,
+      entityType: f.entity_type || "",
+      extractedValue: f.extracted_value != null ? f.extracted_value : null,
+      requiredValue: f.required_value != null ? f.required_value : null,
+      explanation: f.explanation || "",
+      result: f.result || "",
+      entityId: f.entity_id || "",
+      corrections: matchingCorrections.map((c) => ({
+        recommendation: c.recommendation || "",
+        priority: c.priority || "medium",
+        parameters: c.parameters || {}
+      })),
+      auditItemId,
+      auditState: auditState || "unreviewed"
+    };
+  }
+  const ENTITY_COLORS = {
+    staircase: "#ef4444",
+    stair: "#ef4444",
+    corridor: "#f97316",
+    aisle: "#f97316",
+    fire_door: "#ef4444",
+    door: "#f59e0b",
+    fire_lane: "#ef4444",
+    road: "#ef4444",
+    fire_zone: "#f97316",
+    room: "#22c55e",
+    exit: "#ef4444",
+    exit_door: "#ef4444",
+    fire_window: "#f97316",
+    window: "#3b82f6",
+    refuge_floor: "#ef4444",
+    exit_sign: "#f59e0b",
+    sign: "#f59e0b",
+    sprinkler_system: "#f97316",
+    fire_alarm: "#f97316",
+    shaft: "#f59e0b",
+    insulation: "#f97316",
+    evacuation_lighting: "#f59e0b",
+    wall: "#6b7280"
+  };
+  function renderViolationOverlay(canvas, result, emptyElId) {
+    const viols = result.details || [];
+    const elements = result.elements || result.rawResult?.elements || [];
+    const hasPosData = elements.length > 0 || viols.some((v) => v.entity_type);
+    if (!hasPosData) {
+      if (emptyElId) {
+        const el = document.getElementById(emptyElId);
+        if (el) {
+          el.className = "absolute inset-0 flex items-center justify-center text-gray-400 text-sm";
+          el.textContent = "无实体位置数据";
+        }
+      }
+      canvas.style.display = "none";
+      return;
+    }
+    if (emptyElId) {
+      const emptyEl = document.getElementById(emptyElId);
+      if (emptyEl) emptyEl.className = "hidden";
+    }
+    canvas.style.display = "block";
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#f8f9fa";
+    ctx.fillRect(0, 0, W, H);
+    const violTypes = {};
+    const violClauses = {};
+    viols.forEach((v) => {
+      const et = v.entity_type || "unknown";
+      const severity = v.severity || "major";
+      if (!violTypes[et] || violTypes[et] === "major") violTypes[et] = severity;
+      if (!violClauses[et]) violClauses[et] = [];
+      violClauses[et].push(v.clause_id + ": " + (v.clause_title || ""));
+    });
+    const allTypes = [
+      ...new Set([
+        ...viols.map((v) => v.entity_type || "unknown"),
+        ...elements.map((e) => e.type || e.entity_type || "")
+      ].filter(Boolean))
+    ];
+    if (allTypes.length === 0) {
+      ctx.fillStyle = "#999";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("无实体位置数据", W / 2, H / 2);
+      return;
+    }
+    const cols = Math.min(4, Math.ceil(Math.sqrt(allTypes.length)));
+    const rows = Math.ceil(allTypes.length / cols);
+    const cellW = (W - 60) / cols;
+    const cellH = (H - 60) / rows;
+    const circles = [];
+    allTypes.forEach((t, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cx = 30 + col * cellW + cellW / 2;
+      const cy = 30 + row * cellH + cellH / 2;
+      const radius = Math.min(cellW, cellH) * 0.3;
+      const color = ENTITY_COLORS[t] || "#6b7280";
+      const severity = violTypes[t] || "none";
+      const isViolated = violTypes[t] !== void 0;
+      const hints = violClauses[t] || [];
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = isViolated ? severity === "critical" ? "#fecaca" : "#fed7aa" : "#dcfce7";
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isViolated ? 3 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const label = t.length > 12 ? t.slice(0, 10) + ".." : t;
+      ctx.fillText(label, cx, cy);
+      if (isViolated) {
+        ctx.fillStyle = color;
+        ctx.font = "bold 8px sans-serif";
+        ctx.fillText("✗", cx + radius + 8, cy - radius);
+      }
+      if (hints.length > 0) {
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "7px sans-serif";
+        ctx.textAlign = "center";
+        hints.slice(0, 2).forEach((h, hi) => {
+          ctx.fillText(
+            h.length > 20 ? h.slice(0, 18) + ".." : h,
+            cx,
+            cy + 12 + hi * 10
+          );
+        });
+      }
+      circles.push({ x: cx, y: cy, r: radius, type: t, color, severity, isViolated, hints });
+    });
+    let tip = document.getElementById("compare-vis-tooltip");
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.id = "compare-vis-tooltip";
+      tip.className = "fixed hidden bg-black bg-opacity-90 text-white text-xs rounded-lg p-2 pointer-events-none z-50 max-w-xs shadow-lg";
+      document.body.appendChild(tip);
+    }
+    if (canvas.__onMove) {
+      canvas.removeEventListener(
+        "mousemove",
+        canvas.__onMove
+      );
+    }
+    if (canvas.__onLeave) {
+      canvas.removeEventListener(
+        "mouseleave",
+        canvas.__onLeave
+      );
+    }
+    canvas.__circles = circles;
+    canvas.__tooltip = tip;
+    const onMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
+      let hit = null;
+      let hitDist = Infinity;
+      for (const c of circles) {
+        const d = Math.hypot(mx - c.x, my - c.y);
+        if (d < c.r * 1.3 && d < hitDist) {
+          hit = c;
+          hitDist = d;
+        }
+      }
+      if (!hit) {
+        tip.classList.add("hidden");
+        return;
+      }
+      const sevText = hit.severity === "critical" ? "严重" : hit.severity === "major" ? "主要" : "轻微";
+      const sevColor = hit.severity === "critical" ? "red" : hit.severity === "major" ? "orange" : "yellow";
+      let html = '<div class="font-medium mb-1">' + hit.type + (hit.isViolated ? " ✗" : " ✓") + "</div>";
+      if (hit.isViolated) {
+        html += '<div class="mb-1"><span class="text-' + sevColor + '-400">● ' + sevText + "</span></div>";
+        if (hit.hints.length > 0) {
+          html += '<div class="text-gray-300 text-[10px]">' + hit.hints.slice(0, 4).join("<br>") + "</div>";
+          if (hit.hints.length > 4) {
+            html += '<div class="text-gray-500 text-[10px]">… 还有 ' + (hit.hints.length - 4) + " 条</div>";
+          }
+        }
+      } else {
+        html += '<div class="text-gray-400 text-[10px]">无违规</div>';
+      }
+      tip.innerHTML = html;
+      tip.style.left = e.clientX + 12 + "px";
+      tip.style.top = e.clientY + 12 + "px";
+      tip.classList.remove("hidden");
+    };
+    const onLeave = () => {
+      tip.classList.add("hidden");
+    };
+    canvas.__onMove = onMove;
+    canvas.__onLeave = onLeave;
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", onLeave);
+  }
+  if (typeof window !== "undefined") {
+    window.renderViolationOverlay = renderViolationOverlay;
+  }
+  const DEFAULT_IDS = {
+    summary: "batch-review-summary",
+    details: "batch-review-details",
+    loading: "batch-review-loading",
+    btn: "batch-review-start-btn"
+  };
+  function getEl(id) {
+    return document.getElementById(id);
+  }
+  async function runBatchReview(files, options = {}) {
+    if (files.length === 0) {
+      showToast$1("请先选择至少一个图纸文件", "info");
+      return;
+    }
+    const ids = { ...DEFAULT_IDS, ...options };
+    const btn = getEl(ids.btn);
+    const loading = getEl(ids.loading);
+    const summary = getEl(ids.summary);
+    const details = getEl(ids.details);
+    btn?.setAttribute("disabled", "true");
+    loading?.classList.remove("hidden");
+    loading.textContent = "⏳ 正在批量审查...";
+    if (summary) summary.innerHTML = "";
+    if (details) details.innerHTML = "";
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    try {
+      const r = await fetch(getApiBase() + "/batch-review", {
+        method: "POST",
+        headers: getHeaders(),
+        body: formData
+      });
+      const resp = await r.json();
+      if (!r.ok) {
+        throw new Error(resp.detail?.message || "审查请求失败");
+      }
+      if (resp.status !== "success") {
+        throw new Error(resp.message || "审查失败");
+      }
+      renderBatchSummary(resp.batch_summary, summary);
+      renderBatchDetails(resp, details);
+      if (loading) loading.classList.add("hidden");
+    } catch (err) {
+      if (loading) {
+        loading.textContent = "❌ " + err.message;
+        loading.className = "mt-3 text-sm text-red-500";
+      }
+    } finally {
+      btn?.removeAttribute("disabled");
+    }
+  }
+  function renderBatchSummary(bs, summary) {
+    if (!summary) return;
+    const timeSec = (bs.processing_time_ms / 1e3).toFixed(1);
+    summary.innerHTML = '<div class="grid grid-cols-2 gap-2 mb-2"><div class="card p-2 text-xs"><p class="font-medium">📁 文件统计</p><p>总数: ' + bs.total_files + " | ✅成功: " + bs.success_files + " | ❌失败: " + bs.failed_files + '</p></div><div class="card p-2 text-xs"><p class="font-medium">📊 审查统计</p><p>实体: ' + bs.total_entities + " | 检查: " + bs.total_checks.toLocaleString() + " | 违规: " + bs.total_violations + "</p><p>耗时: " + timeSec + "s</p></div></div>";
+  }
+  function renderBatchDetails(resp, details) {
+    if (!details) return;
+    let crossHtml = "";
+    if (resp.cross_analysis && resp.cross_analysis.length > 0) {
+      crossHtml = '<div class="card p-2 text-xs mb-2"><p class="font-medium text-sm mb-1">🔗 跨文件违规交叉分析</p><table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-1">规范条款</th><th class="pb-1 pr-1">违规数</th><th class="pb-1 pr-1">涉及图纸</th><th class="pb-1 pr-1">文件</th></tr></thead><tbody>';
+      resp.cross_analysis.slice(0, 8).forEach((c) => {
+        crossHtml += '<tr class="border-b border-gray-50"><td class="py-1 pr-1">' + escHtml$1(c.clause_id) + '</td><td class="py-1 pr-1">' + c.violations + '</td><td class="py-1 pr-1">' + c.files + ' 张</td><td class="py-1 text-gray-400 truncate max-w-20">' + escHtml$1((c.file_names || []).join(", ")) + "</td></tr>";
+      });
+      crossHtml += "</tbody></table></div>";
+    }
+    let fileHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">';
+    resp.results.forEach((r) => {
+      if (r.status === "error") {
+        fileHtml += '<div class="card p-2 text-xs border-l-2 border-red-500 bg-red-50"><p class="font-medium text-red-600">❌ ' + escHtml$1(r.filename || "") + '</p><p class="text-gray-500">' + escHtml$1(r.message || "") + "</p></div>";
+        return;
+      }
+      const s = r.summary || {};
+      const isClean = (s.violations || 0) === 0;
+      const sevColor = isClean ? "green" : (s.violations || 0) >= 20 ? "red" : "orange";
+      const total = s.total_checks || 0;
+      const passRate = total > 0 ? Math.round((1 - (s.violations || 0) / total) * 100) : 100;
+      const sevCount = { critical: 0, major: 0, minor: 0 };
+      (r.details || []).forEach((v) => {
+        const sv = String(v.severity || "major");
+        if (sv in sevCount) sevCount[sv]++;
+      });
+      const bar = '<div class="mt-1 bg-gray-200 rounded-full h-1.5 overflow-hidden"><div class="' + sevColor + '-500 h-full rounded-full" style="width:' + passRate + '%"></div></div><div class="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>通过率 ' + passRate + "%</span><span>检查 " + total.toLocaleString() + "</span></div>";
+      let badges = "";
+      if (sevCount.critical > 0)
+        badges += '<span class="px-1 rounded bg-red-100 text-red-700 text-[10px]">● ' + sevCount.critical + " 严重</span>";
+      if (sevCount.major > 0)
+        badges += '<span class="px-1 rounded bg-orange-100 text-orange-700 text-[10px]">● ' + sevCount.major + " 主要</span>";
+      if (sevCount.minor > 0)
+        badges += '<span class="px-1 rounded bg-yellow-100 text-yellow-700 text-[10px]">● ' + sevCount.minor + " 轻微</span>";
+      if (!badges)
+        badges = '<span class="px-1 rounded bg-green-100 text-green-700 text-[10px]">✓ 无违规</span>';
+      const violByClause = s.violation_by_clause || {};
+      const topClauses = Object.entries(violByClause).slice(0, 3);
+      const clauseText = topClauses.length > 0 ? '<p class="text-[10px] text-gray-400 mt-1">主要: ' + topClauses.map(([k, v]) => k + "(" + v + ")").join(", ") + "</p>" : "";
+      fileHtml += '<div class="card p-2 text-xs border-l-2 border-' + sevColor + '-500"><div class="flex items-center justify-between mb-1"><p class="font-medium truncate" title="' + escHtml$1(r.filename || "") + '">' + escHtml$1(r.filename || "") + '</p><span class="text-' + sevColor + '-600 font-medium text-sm">' + (isClean ? "✓" : s.violations || 0) + '</span></div><p class="text-gray-500 text-[10px]">' + (s.total_entities || 0) + " 实体 · " + (r.buildingType === "civil" ? "民用" : "工业") + "</p>" + bar + '<div class="mt-1 flex flex-wrap gap-0.5">' + badges + "</div>" + clauseText + "</div>";
+    });
+    fileHtml += "</div>";
+    details.innerHTML = crossHtml + fileHtml;
+  }
+  if (typeof window !== "undefined") {
+    const w2 = window;
+    w2.runBatchReviewComponent = runBatchReview;
+  }
+  function downloadReviewPdf(reviewId) {
+    const url = getApiBase() + "/api/v1/review/pdf?review_id=" + encodeURIComponent(reviewId);
+    const key = getActiveKeyValue$1();
+    const headers = {};
+    if (key) headers["Authorization"] = "Bearer " + key;
+    fetch(url, { headers }).then((resp) => {
+      if (!resp.ok) {
+        return resp.json().then((d) => {
+          throw new Error(d.detail?.toString() || "下载失败 (" + resp.status + ")");
+        });
+      }
+      return resp.blob();
+    }).then((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "审查报告_" + (reviewId || "report") + ".pdf";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }).catch((err) => {
+      showToast$1("❌ " + err.message, "error");
+    });
+  }
+  function downloadReviewExport(reviewId, format) {
+    if (!reviewId) {
+      showToast$1("没有可导出的审查结果", "info");
+      return;
+    }
+    const url = getApiBase() + "/review/export?review_id=" + encodeURIComponent(reviewId) + "&format=" + format;
+    fetch(url, { method: "GET", headers: getHeaders() }).then((resp) => {
+      if (!resp.ok) return resp.json().then((d) => {
+        throw new Error(d.detail?.toString() || resp.statusText);
+      });
+      return resp.blob();
+    }).then((blob) => {
+      const mime = format === "csv" ? "text/csv;charset=utf-8-sig" : "application/json";
+      const ext = format === "csv" ? "csv" : "json";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([blob], { type: mime }));
+      a.download = "审查结果_" + reviewId + "." + ext;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast$1("✅ 已导出 " + format.toUpperCase() + " 文件", "success");
+    }).catch((e) => {
+      showToast$1("❌ 导出失败: " + e.message, "error");
+    });
+  }
+  function downloadReviewJSON() {
+    const violations = window._reviewViolations || [];
+    if (violations.length === 0) {
+      showToast$1("没有可导出的审查结果", "info");
+      return;
+    }
+    const exportData = {
+      exportTime: (/* @__PURE__ */ new Date()).toISOString(),
+      totalViolations: violations.length,
+      violations: violations.map((v) => ({
+        entity_id: v.entity_id,
+        entity_type: v.entity_type,
+        clause_id: v.clause_id,
+        clause_title: v.clause_title,
+        severity: v.severity || "major",
+        result: v.result,
+        extracted_value: v.extracted_value,
+        required_value: v.required_value,
+        difference: v.difference,
+        explanation: v.explanation
+      })),
+      violationByClause: {}
+    };
+    violations.forEach((v) => {
+      const cid = String(v.clause_id || "unknown");
+      exportData.violationByClause[cid] = (exportData.violationByClause[cid] || 0) + 1;
+    });
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "审查结果_" + (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  async function loadFeedbackStats() {
+    const el = document.getElementById("fb-stats");
+    if (!el) return;
+    try {
+      const data = await apiGet("/api/v1/feedbacks/stats");
+      if (data.status !== "success") throw new Error("加载失败");
+      const s = data.stats;
+      const byClause = s.by_clause || {};
+      const topClauses = Object.entries(byClause).slice(0, 5).map(([c, n]) => "<p>" + escHtml$1(c) + ": " + String(n) + "条</p>").join("");
+      const stats = s;
+      el.innerHTML = '<div class="grid grid-cols-2 gap-2"><div class="card p-2 text-xs"><p class="font-medium">📊 申诉统计</p><p>总数: ' + stats.total + "</p><p>待审核: " + (stats.by_status?.pending || 0) + "</p><p>已接受: " + (stats.by_status?.accepted || 0) + "</p><p>已拒绝: " + (stats.by_status?.rejected || 0) + "</p><p>接受率: " + ((stats.accepted_rate || 0) * 100).toFixed(1) + '%</p></div><div class="card p-2 text-xs"><p class="font-medium">📋 高频条款</p>' + topClauses + "</div></div>";
+    } catch (e) {
+      el.textContent = "加载失败: " + e.message;
+    }
+  }
+  async function loadFeedbacks() {
+    const el = document.getElementById("fb-list");
+    if (!el) return;
+    try {
+      const data = await apiGet("/api/v1/feedbacks");
+      if (data.status !== "success") throw new Error("加载失败");
+      const fbs = data.feedbacks || [];
+      if (fbs.length === 0) {
+        el.innerHTML = '<p class="text-gray-400 text-center py-4">暂无申诉记录</p>';
+        return;
+      }
+      el.innerHTML = fbs.map((fb) => {
+        const status = String(fb.status || "");
+        const badge = status === "accepted" ? "bg-green-100 text-green-700" : status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700";
+        const stxt = status === "accepted" ? "✅ 已接受" : status === "rejected" ? "❌ 已拒绝" : "⏳ 待审核";
+        const reviewed = fb.reviewed_by ? '<p class="text-gray-400">审核: ' + escHtml$1(String(fb.reviewed_by)) + " - " + escHtml$1(String(fb.review_comment || "")) + "</p>" : "";
+        return '<div class="card p-2 text-xs"><div class="flex items-center gap-2 mb-1"><span class="font-mono">' + escHtml$1(String(fb.feedback_id || "")) + '</span><span class="px-1.5 py-0.5 rounded text-xs ' + badge + '">' + stxt + '</span></div><p class="font-medium">' + escHtml$1(String(fb.clause_id || "")) + '</p><p class="text-gray-500">' + escHtml$1(String(fb.reason || "无理由")) + "</p>" + reviewed + '<p class="text-gray-400 text-xs">' + String(fb.created_at || "").slice(0, 10) + "</p></div>";
+      }).join("");
+    } catch (e) {
+      el.innerHTML = '<p class="text-red-400 text-center py-4">加载失败: ' + e.message + "</p>";
+    }
+  }
+  async function submitFeedback() {
+    const val = (id) => document.getElementById(id)?.value?.trim() || "";
+    const taskId = val("fb-task-id");
+    const clauseId = val("fb-clause-id");
+    const entityId = val("fb-entity-id");
+    const reason = val("fb-reason");
+    const description = val("fb-description");
+    const originalValue = val("fb-original-value");
+    const severity = val("fb-severity");
+    if (!taskId || !clauseId || !reason) {
+      showToast$1("请填写任务 ID、规范条款和申诉理由", "info");
+      return;
+    }
+    try {
+      const data = await apiFetch("/api/v1/feedbacks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          clause_id: clauseId,
+          entity_id: entityId,
+          entity_type: "",
+          reason,
+          description,
+          original_value: originalValue ? parseFloat(originalValue) : null,
+          severity
+        })
+      });
+      if (!data.status) throw new Error("提交失败");
+      const fb = data.feedback;
+      showToast$1("申诉提交成功！ID: " + (fb?.feedback_id || ""), "success");
+      ["fb-task-id", "fb-clause-id", "fb-entity-id", "fb-reason", "fb-description", "fb-original-value", "fb-severity"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      loadFeedbackStats();
+      loadFeedbacks();
+    } catch (e) {
+      showToast$1("提交失败: " + e.message, "error");
+    }
+  }
+  let _diffResult = null;
+  function _onDiffFileSelect(inputId, labelId) {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(labelId);
+    if (!input || !label) return;
+    input.addEventListener("change", () => {
+      label.textContent = input.files && input.files[0] ? input.files[0].name : "";
+    });
+  }
+  _onDiffFileSelect("diff-file1", "diff-file1-name");
+  _onDiffFileSelect("diff-file2", "diff-file2-name");
+  async function runDiffComparison() {
+    const file1 = document.getElementById("diff-file1")?.files?.[0];
+    const file2 = document.getElementById("diff-file2")?.files?.[0];
+    if (!file1 || !file2) {
+      showToast$1("请选择两个版本的图纸文件", "info");
+      return;
+    }
+    const bt = document.getElementById("diff-building-type")?.value || "";
+    const std = document.getElementById("diff-standard")?.value || "";
+    const loading = document.getElementById("diff-loading");
+    if (loading) {
+      loading.className = "mt-3";
+      renderProgress(loading, "审查并对比", 20);
+    }
+    try {
+      const form = new FormData();
+      form.append("file1", file1);
+      form.append("file2", file2);
+      const url = getApiBase() + "/review/compare?building_type=" + encodeURIComponent(bt) + "&standard=" + encodeURIComponent(std);
+      const resp = await fetch(url, { method: "POST", headers: getReviewHeaders(), body: form });
+      const data = await resp.json();
+      if (loading) loading.className = "hidden";
+      if (resp.status !== 200) {
+        showToast$1("对比失败: " + (data.detail || JSON.stringify(data)), "error");
+        return;
+      }
+      _diffResult = data;
+      renderDiffResults(data);
+    } catch (e) {
+      if (loading) {
+        loading.className = "mt-3 text-sm text-red-500";
+        loading.innerHTML = "❌ 请求失败: " + e.message;
+      }
+    }
+  }
+  function renderDiffResults(data) {
+    const s = data.summary || {};
+    const empty = document.getElementById("diff-empty");
+    const results = document.getElementById("diff-results");
+    if (empty) empty.className = "hidden";
+    if (results) results.className = "";
+    const summaryDiv = document.getElementById("diff-summary");
+    const newC = s.new_violations || 0;
+    const fixedC = s.fixed_violations || 0;
+    const changedC = s.changed_violations || 0;
+    const totalV1 = s.total_v1 || 0;
+    const totalV2 = s.total_v2 || 0;
+    if (summaryDiv) {
+      summaryDiv.innerHTML = '<div class="card p-3 text-center"><div class="text-lg font-bold text-blue-600">' + totalV1 + " → " + totalV2 + '</div><div class="text-xs text-gray-400">违规数</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-green-600">' + newC + '</div><div class="text-xs text-gray-400">🆕 新增违规</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-emerald-600">' + fixedC + '</div><div class="text-xs text-gray-400">✅ 已修复</div></div><div class="card p-3 text-center"><div class="text-lg font-bold text-yellow-600">' + changedC + '</div><div class="text-xs text-gray-400">🔄 变化项</div></div><div class="card p-3 text-center"><div class="text-lg font-bold ' + (newC === 0 ? "text-green-600" : "text-red-600") + '">' + (newC === 0 ? "✓ 合格" : newC + "项") + '</div><div class="text-xs text-gray-400">综合评估</div></div>';
+    }
+    const items = data.items || [];
+    const groups = { new: [], fixed: [], changed: [] };
+    items.forEach((item) => {
+      const t = String(item.diff_type || "new");
+      if (groups[t]) groups[t].push(item);
+    });
+    ["new", "fixed", "changed"].forEach((t) => renderDiffItemPanel(t, groups[t] || []));
+    const rawEl = document.getElementById("diff-raw-json");
+    if (rawEl) rawEl.textContent = JSON.stringify(data, null, 2);
+    loadDiffVisualization(data);
+    switchDiffTab("new");
+  }
+  function renderDiffItemPanel(type, items) {
+    const el = document.getElementById("diff-items-" + type);
+    if (!el) return;
+    if (items.length === 0) {
+      const labels = { new: "🆕 无新增违规", fixed: "✅ 无已修复项", changed: "🔄 无变化项" };
+      el.innerHTML = '<div class="text-xs text-gray-400 py-4 text-center">' + (labels[type] || "无差异项") + "</div>";
+      return;
+    }
+    let html = '<div class="flex items-center gap-2 mb-2"><span class="text-xs text-gray-500">共 ' + items.length + ' 项</span><span class="text-xs text-gray-400">|</span><span class="text-xs text-gray-400">严重: ' + items.filter((i) => i.severity === "critical").length + '</span><span class="text-xs text-gray-400">|</span><span class="text-xs text-gray-400">一般: ' + items.filter((i) => i.severity === "normal" || !i.severity).length + "</span></div>";
+    html += '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-2">条款</th><th class="pb-1 pr-2">实体</th><th class="pb-1 pr-2">类型</th>';
+    if (type === "new") html += '<th class="pb-1 pr-2">实测值</th><th class="pb-1 pr-2">要求值</th>';
+    else if (type === "fixed") html += '<th class="pb-1 pr-2">原实测值</th><th class="pb-1 pr-2">要求值</th>';
+    else html += '<th class="pb-1 pr-2">旧值</th><th class="pb-1 pr-2">新值</th>';
+    html += '<th class="pb-1">严重度</th></tr></thead><tbody>';
+    items.forEach((item) => {
+      const sev = String(item.severity || "");
+      const sevColor = sev === "critical" ? "red" : sev === "normal" ? "orange" : "gray";
+      const sevLabel = sev === "critical" ? "严重" : sev === "normal" ? "一般" : "轻微";
+      const oldV = item.old_value != null ? Number(item.old_value).toFixed(2) : "-";
+      const newV = item.new_value != null ? Number(item.new_value).toFixed(2) : "-";
+      const reqV = item.old_required != null ? item.old_required : item.new_required != null ? item.new_required : "-";
+      html += '<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="py-1.5 pr-2"><span title="' + escHtml$1(String(item.clause_title || "")) + '" class="cursor-help">' + escHtml$1(String(item.clause_id || "")) + '</span></td><td class="py-1.5 pr-2 truncate max-w-20" title="' + escHtml$1(String(item.entity_id || "")) + '">' + escHtml$1(String(item.entity_type || "-")) + '</td><td class="py-1.5 pr-2">' + (item.entity_id ? escHtml$1(String(item.entity_id).slice(0, 16)) : "-") + "</td>";
+      if (type === "new") html += '<td class="py-1.5 pr-2 text-red-600">' + newV + '</td><td class="py-1.5 pr-2">' + reqV + "</td>";
+      else if (type === "fixed") html += '<td class="py-1.5 pr-2 text-green-600 line-through">' + oldV + '</td><td class="py-1.5 pr-2">' + reqV + "</td>";
+      else html += '<td class="py-1.5 pr-2 text-gray-400">' + oldV + '</td><td class="py-1.5 pr-2 text-yellow-600">' + newV + "</td>";
+      html += '<td class="py-1.5"><span class="px-1.5 py-0.5 rounded text-xs bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + "</span></td></tr>";
+      if (item.explanation) {
+        html += '<tr class="border-b border-gray-50"><td colspan="7" class="pb-1.5 pl-4 text-gray-400 text-xs">💡 ' + escHtml$1(String(item.explanation).slice(0, 120)) + "</td></tr>";
+      }
+    });
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  }
+  function switchDiffTab(tab) {
+    ["new", "fixed", "changed"].forEach((t) => {
+      const panel = document.getElementById("diff-items-" + t);
+      if (panel) panel.className = "diff-items-panel" + (t === tab ? "" : " hidden");
+    });
+    document.querySelectorAll(".diff-tab-btn").forEach((btn) => {
+      const isActive = btn.dataset.tab === tab;
+      btn.className = "diff-tab-btn px-3 py-1 rounded-lg font-medium " + (isActive ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600");
+    });
+  }
+  function loadDiffVisualization(data) {
+    const v1FileId = data.v1_file_id;
+    const v2FileId = data.v2_file_id;
+    const items = data.items || [];
+    const v1El = document.getElementById("diff-vis-v1");
+    const v2El = document.getElementById("diff-vis-v2");
+    const makeUrl = (fileId, isV1 = false) => {
+      if (!fileId) return null;
+      const filtered = items.filter((item) => isV1 && item.diff_type === "fixed" || !isV1 && item.diff_type === "new");
+      return getApiBase() + "/render/" + encodeURIComponent(fileId) + "/overlay?violations=" + encodeURIComponent(JSON.stringify(filtered.slice(0, 50).map((item) => ({
+        entity_type: item.entity_type || "unknown",
+        severity: item.severity || "major",
+        clause_id: item.clause_id || "",
+        x: 0,
+        y: 0
+      }))));
+    };
+    const v1Url = makeUrl(v1FileId, true);
+    const v2Url = makeUrl(v2FileId, false);
+    if (v1El && v1Url) {
+      v1El.innerHTML = '<img src="' + v1Url + `" class="w-full" alt="版本1图纸" style="max-height:400px" onerror="this.outerHTML='<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>'" />`;
+    } else if (v1El) {
+      v1El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>';
+    }
+    if (v2El && v2Url) {
+      v2El.innerHTML = '<img src="' + v2Url + `" class="w-full" alt="版本2图纸" style="max-height:400px" onerror="this.outerHTML='<div class=text-center py-8 text-gray-400 text-xs>⚠️ 图纸渲染失败</div>'" />`;
+    } else if (v2El) {
+      v2El.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">无渲染数据</div>';
+    }
+  }
+  function clearDiffResults() {
+    const file1 = document.getElementById("diff-file1");
+    const file2 = document.getElementById("diff-file2");
+    if (file1) file1.value = "";
+    if (file2) file2.value = "";
+    const name1 = document.getElementById("diff-file1-name");
+    const name2 = document.getElementById("diff-file2-name");
+    if (name1) name1.textContent = "";
+    if (name2) name2.textContent = "";
+    const results = document.getElementById("diff-results");
+    if (results) results.className = "hidden";
+    const empty = document.getElementById("diff-empty");
+    if (empty) {
+      empty.className = "card text-center py-8 text-gray-300";
+      empty.textContent = "上传两个版本的图纸后开始对比";
+    }
+    _diffResult = null;
+  }
+  const CLIMATE_NAMES = {
+    severe_cold: "严寒",
+    cold: "寒冷",
+    hot_cold: "夏热冬冷",
+    hot_warm: "夏热冬暖"
+  };
+  const THERMAL_THRESHOLDS = {
+    severe_cold: { exterior_wall: 0.45, roof: 0.35, ground_floor: 0.3, exterior_window: 2 },
+    cold: { exterior_wall: 0.6, roof: 0.5, ground_floor: 0.45, exterior_window: 2.4 },
+    hot_cold: { exterior_wall: 1.5, roof: 1.2, ground_floor: 0.6, exterior_window: 3.2 },
+    hot_warm: { exterior_wall: 2, roof: 1.5, ground_floor: 0.8, exterior_window: 4 }
+  };
+  const DEFAULT_THERMAL_THICKNESS = {
+    exterior_wall: 50,
+    roof: 60,
+    ground_floor: 80,
+    exterior_window: 30
+  };
+  function onThermalCompTypeChange() {
+    const compType = document.getElementById("thermal-comp-type")?.value || "";
+    const input = document.getElementById("thermal-thickness");
+    if (input) input.value = String(DEFAULT_THERMAL_THICKNESS[compType] || 50);
+  }
+  function renderThermalThresholds() {
+    const el = document.getElementById("thermal-thresholds");
+    if (!el) return;
+    let html = '<table class="w-full"><thead><tr class="text-gray-400 border-b"><th class="text-left py-1">气候带</th><th>外墙</th><th>屋顶</th><th>地面</th><th>外窗</th></tr></thead><tbody>';
+    for (const [key, thresholds] of Object.entries(THERMAL_THRESHOLDS)) {
+      html += '<tr class="border-b"><td class="py-1">' + escHtml$1(CLIMATE_NAMES[key] || key) + "</td>";
+      for (const comp of ["exterior_wall", "roof", "ground_floor", "exterior_window"]) {
+        html += '<td class="text-center">' + thresholds[comp].toFixed(2) + "</td>";
+      }
+      html += "</tr>";
+    }
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  }
+  async function computeThermalK() {
+    const compType = document.getElementById("thermal-comp-type")?.value || "";
+    const materialKey = document.getElementById("thermal-material")?.value || "";
+    const thicknessMm = parseFloat(document.getElementById("thermal-thickness")?.value || "0");
+    const climate = document.getElementById("thermal-climate")?.value || "";
+    const resultDiv = document.getElementById("thermal-result");
+    if (isNaN(thicknessMm) || thicknessMm <= 0) {
+      if (resultDiv) resultDiv.innerHTML = '<span class="text-red-600">厚度无效</span>';
+      return;
+    }
+    if (resultDiv) resultDiv.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
+    try {
+      const r = await fetch(getApiBase() + "/api/v1/review/thermal/k-value", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ compType, material: materialKey, thicknessMm, climate })
+      });
+      const data = await r.json();
+      if (data.status !== "success") {
+        if (resultDiv) resultDiv.innerHTML = '<span class="text-red-600">后端返回异常</span>';
+        return;
+      }
+      const pass = Boolean(data.passed);
+      let html = '<div class="mt-2 p-2 ' + (pass ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200") + ' rounded">';
+      html += '<p class="font-medium ' + (pass ? "text-green-700" : "text-red-700") + '">';
+      html += "K = " + data.K + " W/(m²·K) " + (pass ? "✅ ≤ " : "❌ > ") + data.threshold;
+      html += "</p>";
+      html += "<p>材料: " + data.material + " (λ=" + data.lambda + ") · 厚度: " + data.thicknessMm + "mm · R=" + data.R + " m²·K/W</p>";
+      if (!pass) {
+        html += '<p class="text-orange-600 mt-1">→ 改用当前材料需厚度 ≥ ' + data.requiredThicknessMm + "mm（当前差 " + data.additionalThicknessMm + "mm）</p>";
+      } else {
+        const climateLabel = CLIMATE_NAMES[data.climate] || String(data.climate);
+        html += '<p class="text-gray-500 mt-1">→ 满足 GB55015-3.2.2 ' + climateLabel + " 要求</p>";
+      }
+      html += "</div>";
+      if (resultDiv) resultDiv.innerHTML = html;
+      try {
+        localStorage.setItem("baa_last_thermal_result", JSON.stringify(data));
+      } catch (_e) {
+      }
+    } catch (e) {
+      if (resultDiv) resultDiv.innerHTML = '<span class="text-red-600">计算失败: ' + e.message + "</span>";
+    }
+  }
+  function renderThermalViolations(thermalViolations) {
+    const el = document.getElementById("thermal-review-list");
+    if (!el) return;
+    if (!thermalViolations || thermalViolations.length === 0) {
+      el.innerHTML = '<span class="text-gray-400">✅ 单图审查后自动展示热工违规项</span>';
+      return;
+    }
+    let html = '<p class="font-medium text-sm mb-1 text-orange-600">🌡️ 热工违规 (' + thermalViolations.length + "项)</p>";
+    const corrs = window._currentReviewResult?.corrections || [];
+    thermalViolations.forEach((f) => {
+      const funcId = String(f.func_id || "THERM-xxx");
+      const title = String(f.clause_title || f.description || "未知条款");
+      const clauseId = String(f.clause_id || "");
+      const actual = f.extracted_value ?? f.actual_value ?? "?";
+      const required = f.required_value ?? f.threshold ?? "?";
+      const sev = String(f.severity || "major");
+      const sevColor = sev === "critical" ? "red" : sev === "major" ? "orange" : "yellow";
+      const sevLabel = sev === "critical" ? "严重" : sev === "major" ? "主要" : "轻微";
+      const conf = typeof f.confidence === "number" ? f.confidence : 1;
+      const confPct = Math.round(conf * 100);
+      const confColor2 = conf >= 0.85 ? "green" : conf >= 0.6 ? "yellow" : "red";
+      const corrKey = String(f.clause_id || f.func_id || "").trim();
+      const matchedCorrs = corrs.filter((c) => c.clause_id === corrKey);
+      const hasCorr = matchedCorrs.length > 0;
+      html += '<div class="p-1.5 rounded bg-' + sevColor + "-50 border-l-2 border-" + sevColor + '-400 mb-1">';
+      html += '<div class="flex justify-between items-start"><p class="font-medium text-' + sevColor + '-700">' + escHtml$1(funcId) + '</p><div class="flex gap-1"><span class="px-1 rounded text-xs bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + '</span><span class="px-1 rounded text-xs bg-' + confColor2 + "-100 text-" + confColor2 + '-700" title="置信度 ' + confPct + '%">' + (conf >= 0.85 ? "高" : conf >= 0.6 ? "中" : "低") + '</span></div></div><p class="text-xs text-gray-600">' + escHtml$1(title) + '</p><p class="text-xs text-gray-500">实测: ' + (typeof actual === "number" ? actual.toFixed(3) : escHtml$1(String(actual))) + " · 要求: " + (typeof required === "number" ? required.toFixed(3) : escHtml$1(String(required))) + " · [" + escHtml$1(clauseId) + ']</p><div class="mt-1 bg-gray-200 rounded-full h-1 overflow-hidden"><div class="' + confColor2 + '-500 h-full rounded-full" style="width:' + confPct + '%"></div></div>';
+      if (hasCorr) {
+        const top = matchedCorrs[0];
+        const pColor = String(top.priority) === "high" ? "red" : String(top.priority) === "medium" ? "orange" : "yellow";
+        const pLabel = String(top.priority) === "high" ? "🔴 高" : String(top.priority) === "medium" ? "🟠 中" : "🟡 低";
+        html += '<details class="mt-0.5"><summary class="cursor-pointer text-purple-600 font-medium text-xs">💡 修正建议 (' + matchedCorrs.length + '条)</summary><div class="mt-0.5 p-1 bg-' + pColor + "-50 rounded border-l-2 border-" + pColor + '-400"><p class="text-xs"><span class="text-' + pColor + '-600">' + pLabel + "</span> " + escHtml$1(String(top.recommendation)) + "</p></div></details>";
+      }
+      html += "</div>";
+    });
+    el.innerHTML = html;
+  }
+  async function generateCorrectionSuggestions() {
+    const result = window._currentReviewResult;
+    const entities = window._currentReviewEntities;
+    if (!result || !entities) {
+      showToast$1("请先运行审查", "info");
+      return;
+    }
+    const rr = result;
+    const findings = (rr.findings || []).filter((f) => f.result === "FAIL" && !f.is_duplicate);
+    if (findings.length === 0) {
+      const el = document.getElementById("correction-results");
+      if (el) el.innerHTML = '<div class="text-green-600">✅ 无违规，无需修正建议</div>';
+      return;
+    }
+    const panel = document.getElementById("review-correction-panel");
+    const loading = document.getElementById("correction-loading");
+    const resultsDiv = document.getElementById("correction-results");
+    const btn = document.getElementById("correction-generate-btn");
+    const modeSelect = document.getElementById("correction-mode-select");
+    if (panel) panel.className = panel.className.replace(/hidden/g, "").trim();
+    if (loading) loading.className = "";
+    if (resultsDiv) resultsDiv.innerHTML = "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "...";
+    }
+    try {
+      const mode = modeSelect?.value || "auto";
+      const r = await fetch(getApiBase() + "/correction/suggestions", {
+        method: "POST",
+        headers: { ...getReviewHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ findings, entities, mode })
+      });
+      const data = await r.json();
+      if (loading) loading.className = "hidden";
+      const suggestions = data.suggestions;
+      if (!suggestions || suggestions.length === 0) {
+        if (resultsDiv) resultsDiv.innerHTML = '<div class="text-gray-500">未生成修正建议（规则引擎无匹配）</div>';
+        return;
+      }
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      const sorted = suggestions.slice().sort((a, b) => (priorityOrder[String(a.priority)] ?? 3) - (priorityOrder[String(b.priority)] ?? 3));
+      let html = '<p class="mb-1 text-gray-500">共 ' + sorted.length + " 条建议（" + mode + " 模式）</p>";
+      for (const s of sorted) {
+        const pColor = String(s.priority) === "high" ? "red" : String(s.priority) === "medium" ? "orange" : "yellow";
+        const pLabel = String(s.priority) === "high" ? "🔴 高" : String(s.priority) === "medium" ? "🟠 中" : "🟡 低";
+        html += '<div class="p-1.5 bg-gray-50 rounded border-l-2 border-' + pColor + '-400">';
+        html += '<p class="font-medium"><span class="text-' + pColor + '-600">' + pLabel + "</span> [" + s.clause_id + "] " + s.description + "</p>";
+        html += '<p class="text-gray-600 mt-0.5">💡 ' + s.recommendation + "</p>";
+        if (Object.keys(s.parameters || {}).length > 0) {
+          html += '<p class="text-xs text-gray-400 mt-0.5">参数: ' + JSON.stringify(s.parameters) + "</p>";
+        }
+        html += "</div>";
+      }
+      if (resultsDiv) resultsDiv.innerHTML = html;
+    } catch (e) {
+      if (loading) loading.className = "hidden";
+      if (resultsDiv) resultsDiv.innerHTML = '<div class="text-red-600">生成失败: ' + e.message + "</div>";
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "生成";
+      }
+    }
+  }
+  function confirmCorrection(reviewId, corrIdx, accepted) {
+    const key = "corr_" + reviewId + "_" + corrIdx;
+    localStorage.setItem(key, accepted ? "accepted" : "rejected");
+    const select = document.getElementById("compare-drawing-select");
+    if (select && select.value) {
+      const fn = window.onCompareSelect;
+      if (typeof fn === "function") fn();
+    }
+  }
+  const STRUCTURAL_PARAMS = {
+    floor_live: { label: "楼面活荷载", clause: "GB50009-5.1.1", unit: "kN/㎡", threshold: { 住宅: 2, 办公: 2.5, 商业: 3.5, 图书馆: 4, 档案: 5, 车库: 2.5 }, op: ">=" },
+    beam_reinforcement: { label: "梁最小配筋率", clause: "GB50010-9.2.1", unit: "%", threshold: { 默认: 0.2 }, op: ">=" },
+    column_reinforcement: { label: "柱纵向配筋率下限", clause: "GB50010-11.4.12", unit: "%", threshold: { 抗震一级: 0.55, 抗震二级: 0.5, 抗震三级: 0.55, 抗震四级: 0.5 }, op: ">=" },
+    foundation_depth: { label: "基础最小埋深", clause: "GB50007-5.1.3", unit: "m", threshold: { 默认: 0.5, 冻土区: 1 }, op: ">=" },
+    slab_thickness: { label: "楼板最小厚度", clause: "GB50010-9.1.2", unit: "mm", threshold: { 默认: 80, 屋面板: 90 }, op: ">=" },
+    beam_height: { label: "梁高跨比", clause: "GB50010-9.2.3", unit: "1/跨", threshold: { 简支: 0.083, 连续: 0.067 }, op: ">=" },
+    concrete_strength: { label: "混凝土最低强度等级", clause: "GB50010-4.1.2", unit: "MPa", threshold: { 默认: 20, 预应力: 40 }, op: ">=" },
+    seismic_grade: { label: "抗震等级标注", clause: "GB55008-3.2.1", unit: "有/无", threshold: { 必须: 1 }, op: "==" },
+    seismic_intensity: { label: "抗震设防烈度", clause: "GB55008-3.1.1", unit: "度", threshold: { 最小: 6 }, op: ">=" },
+    shear_wall_thickness: { label: "剪力墙最小厚度", clause: "GB55008-4.3.1", unit: "mm", threshold: { 默认: 160, 框支层: 200 }, op: ">=" },
+    pile_count: { label: "柱下独立桩基数量", clause: "GB55008-4.1.1", unit: "根", threshold: { 默认: 2, 条形桩基: 3 }, op: ">=" }
+  };
+  function renderStructuralThresholds() {
+    const el = document.getElementById("structural-thresholds");
+    if (!el) return;
+    let html = '<table class="w-full"><thead><tr class="text-gray-400 border-b"><th class="text-left py-1">构件</th><th>要求</th><th>单位</th><th>规范</th></tr></thead><tbody>';
+    for (const [_key, p] of Object.entries(STRUCTURAL_PARAMS)) {
+      const threshText = Object.entries(p.threshold).map(([k, v]) => k + ":" + v).join(" / ");
+      html += '<tr class="border-b"><td class="py-1">' + escHtml$1(p.label) + '</td><td class="text-center">' + p.op + " " + threshText + '</td><td class="text-center">' + escHtml$1(p.unit) + '</td><td class="text-gray-500">' + escHtml$1(p.clause) + "</td></tr>";
+    }
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  }
+  function onStructuralCompTypeChange() {
+    const type = document.getElementById("structural-comp-type")?.value || "";
+    const p = STRUCTURAL_PARAMS[type];
+    if (!p) return;
+    const firstKey = Object.keys(p.threshold)[0];
+    const input = document.getElementById("structural-value");
+    if (input && firstKey) input.value = String(p.threshold[firstKey]);
+  }
+  async function computeStructuralCheck() {
+    const compType = document.getElementById("structural-comp-type")?.value || "";
+    const value = parseFloat(document.getElementById("structural-value")?.value || "0");
+    const note = document.getElementById("structural-note")?.value || "";
+    const resultDiv = document.getElementById("structural-result");
+    if (isNaN(value)) {
+      if (resultDiv) resultDiv.innerHTML = '<span class="text-red-600">输入值无效</span>';
+      return;
+    }
+    const p = STRUCTURAL_PARAMS[compType];
+    if (!p) return;
+    let activeThreshold = null;
+    let activeThresholdLabel = "";
+    for (const [label, t] of Object.entries(p.threshold)) {
+      if (note && note.includes(label)) {
+        activeThreshold = t;
+        activeThresholdLabel = label;
+        break;
+      }
+    }
+    if (activeThreshold === null) {
+      const keys = Object.keys(p.threshold);
+      activeThreshold = p.threshold[keys[0] || ""];
+      activeThresholdLabel = keys[0] || "";
+    }
+    let passed = false;
+    if (activeThreshold !== null) {
+      if (p.op === ">=") passed = value >= activeThreshold;
+      else if (p.op === "<=") passed = value <= activeThreshold;
+      else if (p.op === "==") passed = value === activeThreshold;
+      else if (p.op === ">") passed = value > activeThreshold;
+      else if (p.op === "<") passed = value < activeThreshold;
+      else passed = value === activeThreshold;
+    }
+    const sign = p.op === ">=" ? "≥" : p.op === "<=" ? "≤" : p.op === "==" ? "=" : p.op;
+    let html = '<div class="mt-2 p-2 ' + (passed ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200") + ' rounded">';
+    html += '<p class="font-medium ' + (passed ? "text-green-700" : "text-red-700") + '">';
+    html += escHtml$1(p.label) + ": " + value + " " + p.unit + " " + (passed ? "✅ " : "❌ ") + sign + " " + activeThreshold + " " + p.unit;
+    html += "</p>";
+    html += '<p class="text-xs text-gray-500">规范: ' + p.clause + " · 适用条件: " + escHtml$1(activeThresholdLabel) + "</p>";
+    if (!passed) {
+      html += '<p class="text-orange-600 text-xs mt-1">→ 当前值不满足规范要求，建议修正至 ' + sign + " " + activeThreshold + " " + p.unit + "</p>";
+    }
+    html += "</div>";
+    if (resultDiv) resultDiv.innerHTML = html;
+  }
+  function renderStructuralViolations(structuralViolations) {
+    const el = document.getElementById("structural-review-list");
+    if (!el) return;
+    if (!structuralViolations || structuralViolations.length === 0) {
+      el.innerHTML = '<span class="text-gray-400">✅ 单图审查后自动展示结构违规项</span>';
+      return;
+    }
+    let html = "";
+    structuralViolations.forEach((f) => {
+      const funcId = String(f.func_id || "STR-xxx");
+      const title = String(f.clause_title || f.description || "未知条款");
+      const clauseId = String(f.clause_id || "");
+      const actual = f.extracted_value ?? f.actual_value ?? "?";
+      const required = f.required_value ?? f.threshold ?? "?";
+      const isFail = f.result === "FAIL";
+      html += '<div class="p-1.5 rounded ' + (isFail ? "bg-red-50 border-l-2 border-red-400" : "bg-green-50 border-l-2 border-green-400") + ' mb-1">';
+      html += '<p class="font-medium ' + (isFail ? "text-red-700" : "text-green-700") + '">' + escHtml$1(funcId) + "</p>";
+      html += '<p class="text-gray-600">' + escHtml$1(title) + "</p>";
+      html += '<p class="text-xs text-gray-500">实测: ' + (typeof actual === "number" ? actual.toFixed(3) : escHtml$1(String(actual))) + " · 要求: " + (typeof required === "number" ? required.toFixed(3) : escHtml$1(String(required))) + " · [" + escHtml$1(clauseId) + "]</p>";
+      html += "</div>";
+    });
+    el.innerHTML = html;
+  }
+  function escHtml(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  const HISTORY_PAGE_SIZE = 20;
+  function _historyPage() {
+    const w2 = window;
+    return w2.historyPage || 0;
+  }
+  function _setHistoryPage(v) {
+    const w2 = window;
+    w2.historyPage = v;
+  }
+  function _getReviewResults$1() {
+    const w2 = window;
+    return w2.reviewResults || [];
+  }
+  function _setReviewResults(r) {
+    const w2 = window;
+    w2.reviewResults = r;
+  }
+  function renderHistoryList(resetPage = false) {
+    if (resetPage) _setHistoryPage(0);
+    const el = document.getElementById("history-list");
+    if (!el) return;
+    loadReviewResults();
+    const search = (document.getElementById("history-search")?.value || "").toLowerCase();
+    const filter = document.getElementById("history-filter")?.value || "all";
+    const teamFilter = document.getElementById("history-team-filter")?.value || "";
+    const projFilter = document.getElementById("history-project-filter")?.value || "";
+    let filtered = _getReviewResults$1();
+    if (filter === "civil") filtered = filtered.filter((r) => r.buildingType === "civil");
+    else if (filter === "industrial") filtered = filtered.filter((r) => r.buildingType === "industrial");
+    else if (filter === "violations") filtered = filtered.filter((r) => (r.violationCount || 0) > 0);
+    else if (filter === "clean") filtered = filtered.filter((r) => (r.violationCount || 0) === 0);
+    if (teamFilter) filtered = filtered.filter((r) => r.teamId === teamFilter);
+    if (projFilter) filtered = filtered.filter((r) => r.projectId === projFilter);
+    if (search) {
+      filtered = filtered.filter(
+        (r) => String(r.drawingName || "").toLowerCase().includes(search) || (r.details || []).some(
+          (v) => String(v.clause_id || "").toLowerCase().includes(search) || String(v.clause_title || "").toLowerCase().includes(search)
+        )
+      );
+    }
+    const ctxEl = document.getElementById("history-context-info");
+    if (ctxEl) {
+      const w2 = window;
+      const ctxParts = [];
+      if (w2.currentTeamId) ctxParts.push("📌团队已选");
+      if (w2.currentProjectId) ctxParts.push("📋项目已选");
+      ctxEl.textContent = ctxParts.length ? ctxParts.join(" · ") : "";
+    }
+    _populateHistoryFilters();
+    const totalPages = Math.ceil(filtered.length / HISTORY_PAGE_SIZE) || 1;
+    if (_historyPage() >= totalPages) _setHistoryPage(totalPages - 1);
+    const pageData = filtered.slice(_historyPage() * HISTORY_PAGE_SIZE, (_historyPage() + 1) * HISTORY_PAGE_SIZE);
+    const countEl = document.getElementById("history-total-count");
+    if (countEl) countEl.textContent = String(filtered.length);
+    if (filtered.length === 0) {
+      el.innerHTML = '<div class="text-center text-gray-400 py-8">无匹配记录</div>';
+      return;
+    }
+    el.innerHTML = pageData.map((r) => {
+      const viols = r.violationCount || r.details?.length || 0;
+      const btLabel = r.buildingType === "civil" ? "民用" : r.buildingType === "industrial" ? "工业" : "--";
+      const timeStr = new Date(String(r.reviewedAt || r.createdAt || Date.now())).toLocaleString();
+      const color = viols === 0 ? "green" : "red";
+      const teamTag = r.teamId ? '<span class="px-1 bg-blue-100 text-blue-600 rounded" title="团队">👥</span>' : "";
+      const projTag = r.projectId ? '<span class="px-1 bg-purple-100 text-purple-600 rounded" title="项目">📋</span>' : "";
+      const id = escHtml(String(r.id || ""));
+      const name = escHtml(String(r.drawingName || ""));
+      return `<div class="card p-3 hover:shadow-md transition-shadow"><div class="flex items-center justify-between"><div class="flex items-center gap-3 cursor-pointer flex-1" onclick="window.viewHistoryDetail('` + id + `')"><span class="text-` + color + '-500 text-lg">' + (viols === 0 ? "✅" : "🔴") + '</span><div><div class="font-medium text-sm">' + name + " " + teamTag + projTag + '</div><div class="text-xs text-gray-400">' + btLabel + " · " + timeStr + '</div></div></div><div class="text-right mr-3"><div class="text-sm font-bold text-' + color + '-600">' + viols + ' 项违规</div><div class="text-xs text-gray-400">💡 ' + (r.correctionCount || 0) + ` 条建议</div></div><button onclick="event.stopPropagation();window.deleteReviewRecord('` + id + `')" class="px-2 py-0.5 text-xs text-red-400 hover:text-red-600" title="删除">🗑️</button></div></div>`;
+    }).join("") + renderPagination(totalPages);
+  }
+  function _populateHistoryFilters() {
+    const teamSelect = document.getElementById("history-team-filter");
+    const projSelect = document.getElementById("history-project-filter");
+    const results = _getReviewResults$1();
+    if (!results || results.length === 0) return;
+    const teams = {};
+    const projects = {};
+    results.forEach((r) => {
+      if (r.teamId) teams[String(r.teamId)] = String(r.teamId);
+      if (r.projectId) projects[String(r.projectId)] = String(r.projectId);
+    });
+    if (teamSelect && Object.keys(teams).length > 0) {
+      const curTeam = teamSelect.value || "";
+      teamSelect.innerHTML = '<option value="">📌 全部团队</option>';
+      Object.keys(teams).forEach((id) => {
+        teamSelect.insertAdjacentHTML("beforeend", '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + "</option>");
+      });
+      teamSelect.value = curTeam;
+    }
+    if (projSelect && Object.keys(projects).length > 0) {
+      const curProj = projSelect.value || "";
+      projSelect.innerHTML = '<option value="">📌 全部项目</option>';
+      Object.keys(projects).forEach((id) => {
+        projSelect.insertAdjacentHTML("beforeend", '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + "</option>");
+      });
+      projSelect.value = curProj;
+    }
+  }
+  function renderPagination(totalPages) {
+    if (totalPages <= 1) return "";
+    return '<div class="flex items-center justify-center gap-3 mt-4 text-sm"><button onclick="window.historyPage=Math.max(0,window.historyPage-1);window.renderHistoryList()" class="px-3 py-1 border rounded ' + (_historyPage() === 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100") + '" ' + (_historyPage() === 0 ? "disabled" : "") + '>上一页</button><span class="text-gray-500">第 ' + (_historyPage() + 1) + " / " + totalPages + ' 页</span><button onclick="window.historyPage=Math.min(' + (totalPages - 1) + ',window.historyPage+1);window.renderHistoryList()" class="px-3 py-1 border rounded ' + (_historyPage() >= totalPages - 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100") + '" ' + (_historyPage() >= totalPages - 1 ? "disabled" : "") + ">下一页</button></div>";
+  }
+  async function deleteReviewRecord(id) {
+    if (!confirm("确定删除此审查记录？")) return;
+    try {
+      await fetch(getApiBase() + "/review/history/" + id, { method: "DELETE", headers: getHeaders() });
+      const results = _getReviewResults$1().filter((r) => r.id !== id);
+      _setReviewResults(results);
+      renderHistoryList();
+    } catch (_e) {
+      const results = _getReviewResults$1().filter((r) => r.id !== id);
+      _setReviewResults(results);
+      renderHistoryList();
+      showToast$1("已从本地移除（后端未找到该记录）", "info");
+    }
+  }
+  async function viewHistoryDetail(id) {
+    const r = _getReviewResults$1().find((x) => String(x.id) === id);
+    if (!r) return;
+    let modal = document.getElementById("history-detail-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "history-detail-modal";
+      modal.className = "fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center";
+      modal.onclick = function(e) {
+        if (e.target === modal) closeHistoryModal();
+      };
+      document.body.appendChild(modal);
+    }
+    const name = escHtml(String(r.drawingName || ""));
+    modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="text-lg font-bold">审查详情: ' + name + '</h3><button onclick="window.closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div><div class="p-4 text-center text-gray-400">加载中...</div></div>';
+    try {
+      const resp = await fetch(getApiBase() + "/review/history/" + id, { headers: getHeaders() });
+      const detail = await resp.json();
+      if (!detail || detail.status === "error") {
+        modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4"><div class="p-4 text-center text-red-500">加载失败</div></div>';
+        return;
+      }
+      const details = detail.details || [];
+      const detailName = escHtml(String(detail.drawingName || r.drawingName || ""));
+      const btLabel = detail.buildingType === "civil" ? "民用" : "工业";
+      const reviewTime = new Date(String(detail.reviewedAt || r.reviewedAt)).toLocaleString();
+      const criticalCount = details.filter((v) => v.severity === "critical").length || 0;
+      const majorCount = details.filter((v) => v.severity === "major").length || 0;
+      const minorCount = details.filter((v) => v.severity !== "critical" && v.severity !== "major").length || 0;
+      let dm = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="text-lg font-bold">审查详情: ' + detailName + '</h3><button onclick="window.closeHistoryModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button></div><div class="p-4 overflow-y-auto flex-1"><div class="grid grid-cols-4 gap-3 mb-4"><div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + details.length + '</div><div class="text-xs text-gray-400">违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + criticalCount + '</div><div class="text-xs text-gray-400">严重</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + majorCount + '</div><div class="text-xs text-gray-400">主要</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + minorCount + '</div><div class="text-xs text-gray-400">轻微</div></div></div><div class="text-xs text-gray-400 mb-2">建筑类型: ' + btLabel + " · 审查时间: " + reviewTime + '</div><div class="space-y-2">';
+      details.slice().sort((a, b) => {
+        const order = { critical: 0, major: 1 };
+        return (order[String(a.severity)] !== void 0 ? order[String(a.severity)] : 2) - (order[String(b.severity)] !== void 0 ? order[String(b.severity)] : 2);
+      }).slice(0, 50).forEach((v) => {
+        const sevColor = v.severity === "critical" ? "red" : v.severity === "major" ? "orange" : "yellow";
+        const sevLabel = v.severity === "critical" ? "严重" : v.severity === "major" ? "主要" : "轻微";
+        dm += '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs"><div class="flex justify-between"><span class="font-medium">' + escHtml(String(v.clause_title || "")) + '</span><span class="px-1.5 py-0.5 rounded bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + '</span></div><span class="text-gray-500">' + escHtml(String(v.clause_id || "")) + " · " + escHtml(String(v.entity_type || "")) + '</span><br/><span class="text-gray-400">' + escHtml(String(v.explanation || "")) + "</span></div>";
+      });
+      dm += (details.length > 50 ? '<div class="text-xs text-gray-400 text-center pt-2">... 仅显示前50项</div>' : "") + "</div>";
+      const corrections = detail.corrections || [];
+      if (corrections.length > 0) {
+        dm += '<div class="mt-4 border-t pt-3"><p class="font-medium text-sm mb-2">💡 修正建议</p><div class="space-y-2">';
+        corrections.slice(0, 20).forEach((c) => {
+          const priColor = c.priority === "high" ? "red" : c.priority === "medium" ? "orange" : "green";
+          dm += '<div class="p-2 bg-green-50 rounded text-xs"><span class="font-medium">' + escHtml(String(c.action || "")) + '</span> <span class="px-1.5 py-0.5 rounded bg-' + priColor + "-100 text-" + priColor + '-700">' + (c.priority || "low") + '</span><div class="text-gray-600 mt-1">' + escHtml(String(c.description || "")) + "</div>" + (c.recommendation ? '<div class="text-gray-500 mt-0.5">' + escHtml(String(c.recommendation)) + "</div>" : "") + "</div>";
+        });
+        dm += (corrections.length > 20 ? '<div class="text-xs text-gray-400 text-center">... 仅显示前20条</div>' : "") + "</div></div>";
+      }
+      dm += "</div></div></div>";
+      modal.innerHTML = dm;
+    } catch (e) {
+      modal.innerHTML = '<div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4"><div class="p-4 text-center text-red-500">加载失败: ' + String(e) + "</div></div>";
+    }
+  }
+  function closeHistoryModal() {
+    const modal = document.getElementById("history-detail-modal");
+    if (modal) modal.remove();
+  }
+  function clearReviewHistory() {
+    if (!confirm("确定清空所有审查历史记录？此操作不可恢复。")) return;
+    localStorage.removeItem("baa_review_results");
+    _setReviewResults([]);
+    fetch(getApiBase() + "/review/history", { method: "DELETE" }).catch(() => {
+    });
+    renderHistoryList();
+    loadDashboard();
+  }
+  let statsCache = null;
+  function _getReviewResults() {
+    return window.reviewResults || [];
+  }
+  async function loadStats(days = 30) {
+    try {
+      const url = getApiBase() + `/api/v1/stats?days=${days}`;
+      const r = await fetch(url, { headers: getHeaders() });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.status === "ok") {
+          statsCache = data;
+          return;
+        }
+      }
+    } catch {
+    }
+    statsCache = null;
+  }
+  function renderOverviewCards() {
+    const el = document.getElementById("overview-cards");
+    if (!el) return;
+    const overview = statsCache?.overview || {};
+    const reviewResults = _getReviewResults();
+    if (!overview.total_reviews && reviewResults.length) {
+      const totalV = reviewResults.reduce((s, r) => s + (r.details.length || 0), 0);
+      Object.assign(overview, {
+        total_reviews: reviewResults.length,
+        total_violations: totalV,
+        avg_compliance_rate: reviewResults.filter((r) => (r.details.length || 0) === 0).length / reviewResults.length,
+        avg_compliance_score: 0,
+        avg_processing_time_ms: 0
+      });
+    }
+    if (overview.total_reviews === 0) {
+      el.innerHTML = '<div class="text-center text-gray-400 py-8">暂无审查数据</div>';
+      return;
+    }
+    const passRate = (overview.avg_compliance_rate || 0) * 100;
+    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;"><div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">${overview.total_reviews}</div><div class="text-xs text-gray-500 mt-1">审查次数</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">${overview.total_violations}</div><div class="text-xs text-gray-500 mt-1">违规总数</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-green-600">${Math.round(passRate)}%</div><div class="text-xs text-gray-500 mt-1">平均合规率</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-yellow-600">${overview.avg_compliance_score || "--"}</div><div class="text-xs text-gray-500 mt-1">平均得分</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-purple-600">${Math.round(overview.avg_processing_time_ms || 0)}ms</div><div class="text-xs text-gray-500 mt-1">平均耗时</div></div></div>`;
+  }
+  function renderTrendChart() {
+    const el = document.getElementById("trend-chart");
+    if (!el) return;
+    const trend = statsCache?.trend || [];
+    if (!trend.length) {
+      el.innerHTML = '<div class="text-gray-400 text-sm">暂无趋势数据</div>';
+      return;
+    }
+    const maxH = Math.max(...trend.flatMap((t) => [t.violations, t.reviews]), 1);
+    let bars = '<div style="flex:1;display:flex;align-items:flex-end;gap:4px;height:120px;border-bottom:1px solid #e5e7eb;padding-bottom:2px;">';
+    trend.forEach((t) => {
+      const hV = Math.round(t.violations / maxH * 115);
+      const hR = Math.round(t.reviews / maxH * 115);
+      const sd = t.date.length > 4 ? t.date.slice(5) : t.date;
+      bars += `<div style="flex:1;min-width:30px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;"><div style="display:flex;align-items:flex-end;gap:1px;"><div style="background:#ef4444;border-radius:2px 2px 0 0;width:10px;height:${hV}px"></div><div style="background:#3b82f6;border-radius:2px 2px 0 0;width:10px;height:${hR}px"></div></div><span style="font-size:9px;color:#9ca3af;margin-top:2px;">${sd}</span></div>`;
+    });
+    bars += "</div>";
+    el.innerHTML = bars + `<div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;margin-top:4px;"><div><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>违规<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#3b82f6;margin-left:16px;margin-right:4px;"></span>审查</div><span style="color:#9ca3af;">峰值: ${maxH}</span></div>`;
+  }
+  function renderViolationDist() {
+    const el = document.getElementById("violation-dist");
+    if (!el) return;
+    const dist = statsCache?.violation_distribution || {};
+    const total = dist.critical + dist.major + dist.minor || 1;
+    const items = [
+      { label: "严重", count: dist.critical || 0, color: "#ef4444" },
+      { label: "主要", count: dist.major || 0, color: "#f97316" },
+      { label: "轻微", count: dist.minor || 0, color: "#eab308" }
+    ];
+    el.innerHTML = items.map(
+      (s) => `<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count / total * 100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`
+    ).join("");
+  }
+  function renderConfidenceDist() {
+    const el = document.getElementById("confidence-dist");
+    if (!el) return;
+    const dist = statsCache?.confidence_distribution || {};
+    const total = dist.confirmed + dist.suspected + dist.needs_review || 1;
+    const items = [
+      { label: "确认", count: dist.confirmed || 0, color: "#22c55e" },
+      { label: "疑似", count: dist.suspected || 0, color: "#f59e0b" },
+      { label: "待复核", count: dist.needs_review || 0, color: "#ef4444" }
+    ];
+    el.innerHTML = items.map(
+      (s) => `<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count / total * 100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`
+    ).join("");
+  }
+  function renderBuildingTypeDist() {
+    const el = document.getElementById("building-type-dist");
+    if (!el) return;
+    const dist = statsCache?.building_type_distribution || {};
+    const total = Object.values(dist).reduce((a, b) => a + b, 0) || 1;
+    const items = [
+      { label: "民用", count: dist.civil || 0, color: "#3b82f6" },
+      { label: "工业", count: dist.industrial || 0, color: "#8b5cf6" }
+    ];
+    el.innerHTML = items.map(
+      (s) => `<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count / total * 100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`
+    ).join("");
+  }
+  function renderEntityDist() {
+    const el = document.getElementById("entity-dist");
+    if (!el) return;
+    const dist = statsCache?.entity_type_distribution || {};
+    const items = Object.entries(dist).slice(0, 10);
+    if (!items.length) {
+      el.innerHTML = '<div class="text-gray-400 text-sm">暂无数据</div>';
+      return;
+    }
+    const maxV = items[0][1];
+    el.innerHTML = items.map(
+      ([type, count]) => `<div class="flex items-center gap-2"><span class="w-20 text-xs font-mono truncate">${type}</span><div class="flex-1 bg-gray-100 rounded-full h-3"><div class="h-3 rounded-full bg-blue-500" style="width:${Math.round(count / maxV * 100)}%"></div></div><span class="text-xs">${count}</span></div>`
+    ).join("");
+  }
+  function renderTopViolations() {
+    const el = document.getElementById("top-violations");
+    if (!el) return;
+    const top = statsCache?.top_violations || [];
+    if (!top.length) {
+      el.innerHTML = '<div class="text-gray-400 text-sm">暂无数据</div>';
+      return;
+    }
+    el.innerHTML = '<table class="w-full text-sm"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-2 px-2">#</th><th class="pb-2 px-2">条款编号</th><th class="pb-2 px-2">条款标题</th><th class="pb-2 px-2 text-right">次数</th></tr></thead><tbody>' + top.map((v, i) => `<tr class="border-b border-gray-50"><td class="py-1 px-2 text-xs">${i + 1}</td><td class="py-1 px-2 font-mono text-xs">${v.clause_id}</td><td class="py-1 px-2 truncate max-w-64">${v.title || "--"}</td><td class="py-1 px-2 text-right text-sm font-medium text-red-600">${v.count}</td></tr>`).join("") + "</tbody></table>";
+  }
+  async function loadAnalysis(days = 30) {
+    document.querySelectorAll('button[onclick^="loadAnalysis"]').forEach((btn) => {
+      btn.classList.remove("bg-blue-100", "hover:bg-blue-200");
+      btn.classList.add("hover:bg-gray-100");
+      const match = btn.getAttribute("onclick")?.match(/loadAnalysis\((\d*)\)/);
+      if (match) {
+        const btnDays = match[1] ? parseInt(match[1]) : 0;
+        if (btnDays === days || !match[1] && days === 30) {
+          btn.classList.remove("hover:bg-gray-100");
+          btn.classList.add("bg-blue-100", "hover:bg-blue-200");
+        }
+      }
+    });
+    await loadStats(days);
+    renderOverviewCards();
+    renderTrendChart();
+    renderViolationDist();
+    renderConfidenceDist();
+    renderBuildingTypeDist();
+    renderEntityDist();
+    renderTopViolations();
+  }
+  function getReviewResults() {
+    return window.reviewResults || [];
+  }
+  function renderAnalysisTable() {
+    const tbody = document.getElementById("analysis-table");
+    if (!tbody) return;
+    const reviewResults = getReviewResults();
+    if (reviewResults.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-300">暂无数据，请先审查图纸</td></tr>';
+      return;
+    }
+    tbody.innerHTML = [...reviewResults].sort((a, b) => (b.violationCount || 0) - (a.violationCount || 0)).slice(0, 30).map((h, i) => {
+      const viols = h.violationCount || 0;
+      const checks = h.entityCount || 1;
+      const passRate = checks > 0 ? Math.round((1 - viols / checks) * 100) : 0;
+      const bt = h.buildingType;
+      const btLabel = bt === "civil" ? "民用" : bt === "industrial" ? "工业" : "--";
+      const safeName = escHtml$1(h.drawingName);
+      return `<tr class="border-b border-gray-50 text-sm">
+        <td class="py-2 px-2">${i + 1}</td>
+        <td class="py-2 px-2 truncate max-w-32" title="${safeName}">${safeName}</td>
+        <td class="py-2 px-2 text-xs">${btLabel}</td>
+        <td class="py-2 px-2 text-red-600">${viols}</td>
         <td class="py-2 px-2"><div class="flex items-center gap-2">
-          <div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-${i>80?"green":i>50?"yellow":"red"}-500 h-2 rounded-full" style="width:${Math.max(0,i)}%"></div></div>
-          <span class="text-xs">${Math.max(0,i)}%</span></div></td>
-        <td class="py-2 px-2 text-xs">${n.reviewedAt?new Date(n.reviewedAt).toLocaleString("zh-CN"):"--"}</td></tr>`}).join("")}function mo(){const e=document.getElementById("category-analysis");if(!e)return;const t=Ce();if(!t.length){e.innerHTML='<div class="text-gray-400 text-xs">审查图纸后自动统计</div>';return}const n={};t.forEach(c=>{var g;const d=c.drawingName||"unknown";n[d]||(n[d]={evac:0,corridor:0,dead_end:0,other:0}),(g=c.details)==null||g.forEach(m=>{const y=m.func_id||"";y.startsWith("EVAC-")?n[d].evac++:y==="DIM-004"?n[d].corridor++:(m.explanation||"").toLowerCase().includes("死胡同")?n[d].dead_end++:n[d].other++})});const o=Object.keys(n);if(!o.length){e.innerHTML='<div class="text-gray-400 text-xs">审查图纸后自动统计</div>';return}const s=o.reduce((c,d)=>c+n[d].evac,0),a=o.reduce((c,d)=>c+n[d].corridor,0),i=o.reduce((c,d)=>c+n[d].dead_end,0),l=o.reduce((c,d)=>c+n[d].other,0);let r='<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-2">图纸</th><th class="pb-1 pr-2">🚪疏散</th><th class="pb-1 pr-2">📏走廊</th><th class="pb-1 pr-2">🔒死胡同</th><th class="pb-1">其他</th></tr></thead><tbody>';o.forEach(c=>{const d=n[c];r+=`<tr class="border-b border-gray-50">
-      <td class="py-1 pr-2 truncate max-w-28" title="${c}">${c}</td>
-      <td class="py-1 pr-2"><span class="${d.evac>0?"text-red-600 font-medium":"text-green-500"}">${d.evac}</span></td>
-      <td class="py-1 pr-2"><span class="${d.corridor>0?"text-orange-600 font-medium":"text-green-500"}">${d.corridor}</span></td>
-      <td class="py-1 pr-2"><span class="${d.dead_end>0?"text-yellow-600 font-medium":"text-green-500"}">${d.dead_end}</span></td>
-      <td class="py-1">${d.other}</td></tr>`}),r+=`<tr class="font-medium bg-gray-50"><td class="py-1 pr-2">合计</td><td class="py-1 pr-2">${s}</td><td class="py-1 pr-2">${a}</td><td class="py-1 pr-2">${i}</td><td class="py-1">${l}</td></tr>`,r+="</tbody></table>",e.innerHTML=r}function fo(){var d,g;const e=document.getElementById("trend-bars");if(!e)return;const t=Ce();if(!t.length){e.innerHTML='<div class="text-gray-400">审查图纸后自动统计</div>';return}const n=t.slice(0,20).reverse(),o=Math.max(...n.map(m=>m.details.length||0),1),s=n.reduce((m,y)=>m+(y.details.length||0),0),a=Math.round(s/n.length*10)/10,i=n.filter(m=>(m.details.length||0)===0).length,l=new Date(((d=n[0])==null?void 0:d.reviewedAt)||Date.now()).toLocaleDateString(),r=new Date(((g=n[n.length-1])==null?void 0:g.reviewedAt)||Date.now()).toLocaleDateString();let c=`<div class="grid grid-cols-4 gap-1 mb-2 text-xs"><div class="bg-blue-50 rounded p-1 text-center"><div class="text-blue-600 font-bold">${n.length}</div><div class="text-gray-500 text-[10px]">审查次数</div></div><div class="bg-red-50 rounded p-1 text-center"><div class="text-red-600 font-bold">${s}</div><div class="text-gray-500 text-[10px]">违规总数</div></div><div class="bg-yellow-50 rounded p-1 text-center"><div class="text-yellow-600 font-bold">${a}</div><div class="text-gray-500 text-[10px]">平均违规/次</div></div><div class="bg-green-50 rounded p-1 text-center"><div class="text-green-600 font-bold">${n.length-i}/${n.length}</div><div class="text-gray-500 text-[10px]">有违规比率</div></div></div><div class="text-[10px] text-gray-400 mb-1"><span>📅 ${l} → ${r}</span><span>最大: ${o}</span></div>`;c+='<div class="flex items-end gap-0.5 h-24 border-b border-gray-200 pb-0.5 overflow-x-auto">',n.forEach(m=>{const y=m.details.length||0,x=Math.round(y/o*100),p=Math.max(1,Math.round(x/100*96)),v=y===0?"green":y>o*.5?"red":"orange",h=(m.drawingName||"").slice(0,10);c+=`<div class="flex-1 min-w-[24px] flex flex-col items-center"><div class="w-full bg-${v}-500 rounded-t" style="height:${p}px"></div><span class="text-[8px] text-gray-400 mt-0.5" title="${h}">${h.slice(0,4)}</span></div>`}),c+="</div>",e.innerHTML=c}function po(){const e=document.getElementById("violation-dist-bars");if(!e)return;const t=Ce();if(!t.length){e.innerHTML='<div class="text-gray-400">审查图纸后自动统计</div>';return}const n={critical:0,major:0,minor:0};t.forEach(s=>{var a;return(a=s.details)==null?void 0:a.forEach(i=>{i.severity==="critical"?n.critical++:i.severity==="major"?n.major++:n.minor++})});const o=n.critical+n.major+n.minor||1;e.innerHTML=[{label:"严重",count:n.critical,color:"#ef4444"},{label:"主要",count:n.major,color:"#f97316"},{label:"轻微",count:n.minor,color:"#eab308"}].map(s=>`<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count/o*100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`).join("")}const go={arch:"建筑",struct:"结构",mech:"暖通",elec:"电气",plumb:"给排水"},yo={L1:"red",L2:"orange",L3:"green"},xo={auto:"自动",manual:"人工",ai:"AI"},vo={auto:"🤖",manual:"👤",ai:"🦈"};async function xn(){var c,d,g,m,y;const e=(((c=document.getElementById("cd-search"))==null?void 0:c.value)||"").toLowerCase(),t=((d=document.getElementById("cd-filter-level"))==null?void 0:d.value)||"all",n=((g=document.getElementById("cd-filter-major"))==null?void 0:g.value)||"all",o=((m=document.getElementById("cd-filter-method"))==null?void 0:m.value)||"all",s=document.getElementById("cd-skeleton"),a=document.getElementById("cd-content");s&&s.classList.remove("hidden"),a&&a.classList.add("hidden");const i=[];t!=="all"&&i.push(`level=${encodeURIComponent(t)}`),n!=="all"&&i.push(`major=${encodeURIComponent(n)}`),o!=="all"&&i.push(`method=${encodeURIComponent(o)}`);const r=`/api/v1/construction-review${i.length?`?${i.join("&")}`:""}`;try{const x=await R(r);s&&s.classList.add("hidden"),a&&a.classList.remove("hidden");const p=x.items||[];let v=p;e&&(v=p.filter(E=>E.item_id.toLowerCase().includes(e)||E.title.toLowerCase().includes(e)||(E.description||"").toLowerCase().includes(e)||(E.standard_ref||"").toLowerCase().includes(e)));const h=document.getElementById("cd-total"),S=document.getElementById("cd-l1"),I=document.getElementById("cd-l2"),L=document.getElementById("cd-l3");h&&(h.textContent=String(((y=x.summary)==null?void 0:y.total)??p.length)),S&&(S.textContent=String(x.summary.L1??0)),I&&(I.textContent=String(x.summary.L2??0)),L&&(L.textContent=String(x.summary.L3??0));const b=document.getElementById("cd-filter-count");b&&(b.textContent=`${v.length} 项${v.length<p.length?" / "+p.length:""}`);const B=document.getElementById("cd-list");if(!B)return;if(v.length===0){B.innerHTML='<tr><td colspan="8" class="py-8 text-center text-gray-300">无匹配项</td></tr>';return}B.innerHTML=v.map((E,_)=>{const T=E.level||"L1",K=go[E.major||""]||E.major||"--",$=xo[E.check_method||""]||E.check_method||"--",H=vo[E.check_method||""]||"—",U=E.func_id||'<span class="text-gray-400">—</span>',q=yo[T]||"gray";return`<tr class="border-b border-gray-50">
-          <td class="py-2 px-2 text-xs">${_+1}</td>
-          <td class="py-2 px-2 font-mono text-xs text-blue-600">${E.item_id}</td>
-          <td class="py-2 px-2 text-sm">${E.title}<br/><span class="text-xs text-gray-400">${E.description||""}</span></td>
-          <td class="py-2 px-2 font-mono text-xs text-gray-500">${E.standard_ref||""}</td>
-          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-${q}-100 text-${q}-700 rounded text-xs">${T}</span></td>
-          <td class="py-2 px-2 text-xs">${K}</td>
-          <td class="py-2 px-2 text-xs">${H} ${$}</td>
-          <td class="py-2 px-2 font-mono text-xs">${U}</td>
-        </tr>`}).join("")}catch(x){s&&s.classList.add("hidden"),a&&a.classList.remove("hidden");const p=document.getElementById("cd-list");p&&(p.innerHTML=`<tr><td colspan="8" class="py-8 text-center text-red-400">加载失败: ${x.message}</td></tr>`)}}document.addEventListener("DOMContentLoaded",()=>{const e=document.getElementById("page-cd");if(!e)return;new MutationObserver(()=>{e.classList.contains("hidden")||xn()}).observe(e,{attributes:!0,attributeFilter:["class"]})});const vn={functions:"原子函数参数","layer-rules":"图层规则","cd-items":"施工图审查标准",samples:"审查样本",export:"数据导出"};let ve=!1;function G(e,t){if(!e){ve=!1;return}e.classList.remove("hidden"),e.style.display="block",e.style.overflow="auto",e.style.maxHeight="480px",e.innerHTML=t,ve=!1}function $e(e,t){const n=t instanceof Error?t.message:String(t);G(e,`<p class="text-red-400 text-sm">加载失败: ${f(n)}</p>`)}async function ho(){const e=document.getElementById("mp-functions");try{const t=await R("/api/v1/model-params/functions?limit=2000"),n=t.data||t.functions||[];if(n.length===0){G(e,'<p class="text-gray-400 text-sm">无数据</p>');return}const o={};n.forEach(i=>{const l=i.category||"other";o[l]=(o[l]||0)+1});const s=Object.keys(o).slice(0,12).map(i=>`<span class="badge badge-sm badge-secondary">${f(i)} ${o[i]}</span>`).join(" "),a=n.slice(0,80).map(i=>`<tr><td class="py-1 px-2 text-xs text-mono">${f(i.func_id)}</td><td class="py-1 px-2 text-xs">${f(i.title)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs">${f(i.category)}</span></td><td class="py-1 px-2 text-xs text-mono">${f(i.clause_id)}</td><td class="py-1 px-2 text-xs">${f(i.operator)} ${f(i.threshold)}</td></tr>`).join("");G(e,`<div class="flex gap-2 mb-2 flex-wrap">${s}</div><div class="text-xs text-gray-400 mb-2">显示 ${n.length} 个原子函数（前 80 条）</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">#</th><th class="py-1 px-2">标题</th><th class="py-1 px-2">分类</th><th class="py-1 px-2">规范条款</th><th class="py-1 px-2">判定条件</th></tr></thead><tbody>${a}</tbody></table></div>`)}catch(t){$e(e,t)}}async function bo(){const e=document.getElementById("mp-layer-rules");try{const t=await R("/api/v1/model-params/layer-rules"),n=t.data||t.rules||[];if(n.length===0){G(e,'<p class="text-gray-400 text-sm">无数据</p>');return}const o=n.filter(i=>i.source==="LAYER_RULES").length,s=n.filter(i=>i.source==="SHORT_LAYER_RULES").length,a=n.slice(0,60).map(i=>{const l=i.source==="SHORT_LAYER_RULES"?"badge-secondary":"badge-primary";return`<tr><td class="py-1 px-2 text-xs text-mono">${f(i.pattern)}</td><td class="py-1 px-2 text-xs">${f(i.entity_type)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs ${l}">${f(i.source)}</span></td><td class="py-1 px-2 text-xs">${f(i.match_type)}</td></tr>`}).join("");G(e,`<div class="text-xs text-gray-400 mb-2">${n.length} 条（LAYER_RULES: ${o} / SHORT: ${s}）前 60 条</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">关键字</th><th class="py-1 px-2">实体类型</th><th class="py-1 px-2">来源</th><th class="py-1 px-2">匹配方式</th></tr></thead><tbody>${a}</tbody></table></div>`)}catch(t){$e(e,t)}}async function wo(){const e=document.getElementById("mp-cd-items");try{const t=await R("/api/v1/model-params/cd-items"),n=t.data||t.items||[];if(n.length===0){G(e,'<p class="text-gray-400 text-sm">无数据</p>');return}const o={L1:0,L2:0,L3:0};n.forEach(i=>{i.level&&o[i.level]!==void 0&&o[i.level]++});const s=Object.keys(o).map(i=>`<span class="${i==="L1"?"text-red-500":i==="L2"?"text-orange-500":"text-green-500"}">${i}: ${o[i]}</span>`).join(" "),a=n.slice(0,50).map(i=>`<tr><td class="py-1 px-2 text-xs text-mono">${f(i.item_id)}</td><td class="py-1 px-2 text-xs">${f(i.title)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs">${f(i.level)}</span></td><td class="py-1 px-2 text-xs">${f(i.major)}</td></tr>`).join("");G(e,`<div class="flex gap-3 mb-2 text-xs">${s}</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">编码</th><th class="py-1 px-2">审查项</th><th class="py-1 px-2">等级</th><th class="py-1 px-2">专业</th></tr></thead><tbody>${a}</tbody></table></div>`)}catch(t){$e(e,t)}}async function _o(){const e=document.getElementById("mp-samples");try{const t=await R("/api/v1/model-params/samples?limit=20"),n=t.data||t.samples||[];if(n.length===0){G(e,'<p class="text-yellow-500 text-sm">无样本数据（需有审查记录后自动生成）</p>');return}const o=n.slice(0,10).map(s=>`<div class="card p-2 mb-2"><div class="text-xs text-gray-400">${f(s.created_at)}</div><div class="text-sm font-medium">${f(s.title??s.func_id??"样本")}</div><div class="text-xs text-mono">${f(s.func_id)} | ${f(s.dxf_file)}</div><div class="text-xs text-gray-500 mt-1">${s.query?f(s.query).slice(0,200):""}</div></div>`).join("");G(e,`<div class="text-xs text-gray-400 mb-2">共 ${n.length} 条（前 10 条）</div>`+o)}catch(t){$e(e,t)}}function So(e){if(!(ve&&e!=="export")){if(ve=!0,Object.keys(vn).forEach(t=>{const n=document.getElementById(`mptab-${t}`),o=document.getElementById(`mp-${t}`);n&&n.classList.toggle("active-tab",t===e),o&&(t===e?(o.classList.remove("hidden"),o.style.display="block"):(o.classList.add("hidden"),o.style.display="none"))}),e==="functions")ho();else if(e==="layer-rules")bo();else if(e==="cd-items")wo();else if(e==="samples")_o();else if(e==="export"){ve=!1;return}}}async function Eo(e){try{const t=k()+`/api/v1/model-params/export?format=${encodeURIComponent(e)}`;window.open(t,"_blank"),w(`已开始下载 ${e} 格式`)}catch(t){w(`下载失败: ${t.message}`)}}function Io(e){if(!e||!e.src||e.style.display==="none")return;const t=document.getElementById("zoom-viewer");t&&t.remove();const n=document.createElement("div");n.id="zoom-viewer",n.className="fixed inset-0 z-50 bg-black bg-opacity-90 select-none",n.innerHTML='<div class="absolute inset-0 flex items-center justify-center overflow-hidden" id="zoom-stage"><img id="zoom-img" src="'+e.src+'" alt="" draggable="false" style="max-width:95vw;max-height:95vh;transition:transform .12s ease-out;cursor:grab" /></div><div class="absolute top-3 left-3 flex gap-1 z-10" id="zoom-toolbar"><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet(1)">＋</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet(-1)">－</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomReset()" title="重置">⟲</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomFit()" title="适应窗口">⊡</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomClose()" title="关闭">✕</button><span id="zoom-scale" class="bg-white bg-opacity-80 text-gray-700 px-2 py-1 rounded text-xs self-center ml-1">100%</span></div><div class="absolute bottom-3 right-3 bg-black bg-opacity-50 text-gray-300 text-xs px-2 py-1 rounded" id="zoom-hint">滚轮缩放 · 拖拽平移 · ←↑→↓ · 空格/ESC 关闭</div>',document.body.appendChild(n);const o=document.getElementById("zoom-img"),s=document.getElementById("zoom-stage"),a=document.getElementById("zoom-scale"),i={scale:1,offsetX:0,offsetY:0,isDragging:!1,lastX:0,lastY:0};window.__zoomState=i;const l=()=>{if(!o||!s||!a)return;const r=i.offsetX+(s.clientWidth-s.clientWidth*i.scale)/2,c=i.offsetY+(s.clientHeight-s.clientHeight*i.scale)/2;o.style.transform="translate("+r.toFixed(1)+"px, "+c.toFixed(1)+"px) scale("+i.scale.toFixed(4)+")",o.style.transformOrigin="0 0",a.textContent=Math.round(i.scale*100)+"%"};o==null||o.addEventListener("mousedown",r=>{i.isDragging=!0,i.lastX=r.clientX,i.lastY=r.clientY,o.style.cursor="grabbing",r.preventDefault()}),window.addEventListener("mousemove",r=>{i.isDragging&&(i.offsetX+=r.clientX-i.lastX,i.offsetY+=r.clientY-i.lastY,i.lastX=r.clientX,i.lastY=r.clientY,l())}),window.addEventListener("mouseup",()=>{i.isDragging=!1,o&&(o.style.cursor="grab")}),s==null||s.addEventListener("wheel",r=>{r.preventDefault();const d=r.deltaY<0?1.12:1/1.12,g=Math.max(.1,Math.min(20,i.scale*d)),m=s.getBoundingClientRect(),y=r.clientX-m.left,x=r.clientY-m.top,p=i.offsetX+(m.width-m.width*i.scale)/2,v=i.offsetY+(m.height-m.height*i.scale)/2,h=(y-p)/i.scale,S=(x-v)/i.scale;i.offsetX=y-h*g-(m.width-m.width*g)/2,i.offsetY=x-S*g-(m.height-m.height*g)/2,i.scale=g,l()},{passive:!1}),n.addEventListener("click",r=>{(r.target===n||r.target===s)&&je()}),window.addEventListener("keydown",r=>{if(r.key==="Escape"){je();return}if(r.key===" "){r.preventDefault(),je();return}if(r.key==="+"||r.key==="="){lt(1);return}if(r.key==="-"){lt(-1);return}r.key==="ArrowLeft"&&(i.offsetX+=30,l(),r.preventDefault()),r.key==="ArrowRight"&&(i.offsetX-=30,l(),r.preventDefault()),r.key==="ArrowUp"&&(i.offsetY+=30,l(),r.preventDefault()),r.key==="ArrowDown"&&(i.offsetY-=30,l(),r.preventDefault())}),l()}function lt(e){const t=window.__zoomState;if(!t)return;const n=document.getElementById("zoom-img"),o=document.getElementById("zoom-stage");if(!n||!o)return;const s=e>0?1.25:.8,a=Math.max(.1,Math.min(20,t.scale*s)),i=o.getBoundingClientRect(),l=t.offsetX+(i.width-i.width*t.scale)/2,r=t.offsetY+(i.height-i.height*t.scale)/2;t.offsetX=l-(i.width-i.width*a)/2,t.offsetY=r-(i.height-i.height*a)/2,t.scale=a;const c=t.offsetX+(i.width-i.width*t.scale)/2,d=t.offsetY+(i.height-i.height*t.scale)/2;n.style.transform="translate("+c.toFixed(1)+"px, "+d.toFixed(1)+"px) scale("+t.scale.toFixed(4)+")",n.style.transformOrigin="0 0";const g=document.getElementById("zoom-scale");g&&(g.textContent=Math.round(t.scale*100)+"%")}function hn(){const e=window.__zoomState,t=document.getElementById("zoom-img");if(!e||!t)return;e.scale=1,e.offsetX=0,e.offsetY=0,t.style.transform="none";const n=document.getElementById("zoom-scale");n&&(n.textContent="100%")}function Lo(){hn()}function je(){window.__zoomState=null;const e=document.getElementById("zoom-viewer");e&&e.remove()}const ct=[];async function Bo(){var r,c,d,g;const e=document.getElementById("ms-file-input"),t=(r=e==null?void 0:e.files)==null?void 0:r[0];if(!t){window.showToast("请先选择 DXF/DWG 文件","info");return}const n=document.getElementById("ms-review-start-btn"),o=document.getElementById("ms-review-loading"),s=document.getElementById("ms-review-results");if(!n||!o||!s)return;n.disabled=!0,n.textContent="⏳ 审查中...",o.classList.remove("hidden"),s.classList.add("hidden");const a=((c=document.getElementById("ms-building-type"))==null?void 0:c.value)||"civil",i=((d=document.getElementById("ms-standard"))==null?void 0:d.value)||"GB 50016-2014",l=new FormData;l.append("file",t);try{const m=k()+`/review-multi-sheet?building_type=${encodeURIComponent(a)}&standard=${encodeURIComponent(i)}`,y=await fetch(m,{method:"POST",headers:N(),body:l}),x=await y.json();if(!y.ok||x.status!=="success")throw new Error(((g=x.detail)==null?void 0:g.message)||x.message||"审查失败");ct.splice(0,ct.length,...x.sheets||[]),ko(x),s.classList.remove("hidden"),o.classList.add("hidden"),n.textContent="📑 重新审查",n.disabled=!1}catch(m){o.classList.add("hidden"),n.textContent="📑 开始多Sheet审查",n.disabled=!1,window.showToast(`❌ 审查失败: ${m.message}`,"error")}}function ko(e){const t=e.project_summary||{},n=e.sheets||[],o=document.getElementById("ms-project-summary");if(o){const a=t.compliance_rate,i=a!==void 0?(a*100).toFixed(1):"--",l=t.violations_by_severity||{};o.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;"><div class="card p-3 text-center"><div class="text-2xl font-bold text-indigo-600">${t.sheet_count||0}</div><div class="text-xs text-gray-500 mt-1">Sheet 数量</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">${t.total_entities||0}</div><div class="text-xs text-gray-500 mt-1">总实体</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">${t.total_violations||0}</div><div class="text-xs text-gray-500 mt-1">总违规</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold ${parseFloat(i)>80?"text-green-600":parseFloat(i)>60?"text-yellow-600":"text-red-600"}">${i}%</div><div class="text-xs text-gray-500 mt-1">合规率</div></div></div><div class="flex gap-4 text-xs text-gray-500"><span>🔴 严重: ${l.critical||0}</span><span>🟠 主要: ${l.major||0}</span><span>🟡 轻微: ${l.minor||0}</span><span>⏱ ${t.processing_time_ms||0}ms</span></div>`}const s=document.getElementById("ms-sheet-tabs");s&&(s.innerHTML=n.map((a,i)=>{const l=a.violation_count||0,r=l>0?`<span class="text-red-500"> (${l})</span>`:"";return`<button class="px-3 py-1.5 rounded-lg font-medium ${i===0?"bg-indigo-100 text-indigo-700":"bg-gray-100 text-gray-600 hover:bg-gray-200"}" onclick="switchMultiSheetTab(${i})">${f(a.name||"Sheet "+(i+1))}${r}</button>`}).join("")),n.length>0&&dt(0)}function To(e){document.querySelectorAll("#ms-sheet-tabs button").forEach((t,n)=>{t.className=`px-3 py-1.5 rounded-lg font-medium ${n===e?"bg-indigo-100 text-indigo-700":"bg-gray-100 text-gray-600 hover:bg-gray-200"}`}),dt(e)}function dt(e){const t=document.getElementById("ms-sheet-detail");if(!t)return;const n=ct[e];if(!n){t.innerHTML='<div class="text-gray-400">无效的 Sheet 索引</div>';return}const o=n.violations||[];if(o.length===0){t.innerHTML='<div class="text-center text-green-500 py-4">✅ 该 Sheet 无违规</div>';return}const a={critical:0,major:1,minor:2};o.sort((i,l)=>a[i.severity??9]-a[l.severity??9]),t.innerHTML='<div class="text-xs space-y-2 max-h-96 overflow-y-auto">'+o.map(i=>{const l=i.severity,r=l==="critical"?"🔴 严重":l==="major"?"🟠 主要":"🟡 轻微";return`<div class="border rounded p-2 ${l==="critical"?"border-l-red-500":l==="major"?"border-l-orange-400":"border-l-yellow-400"}" style="border-left-width:3px;"><div class="flex items-center justify-between"><span class="font-medium">${f(i.clause_title||i.clause_id||"")}</span><span class="text-xs">${r}</span></div><div class="text-gray-500 mt-1">条款: <span class="font-mono">${f(i.clause_id||"")}</span>${i.entity_type?" · 实体: "+f(i.entity_type):""}${i.extracted_value!==void 0?" · 实测: "+i.extracted_value:""}${i.required_value!==void 0?" · 要求: "+i.required_value:""}${i.difference!==void 0?" · 偏差: "+i.difference:""}</div><div class="mt-1 text-xs bg-blue-50 p-1 rounded">💡 ${f(i.correction||"")}</div></div>`}).join("")+"</div>"}function ut(e){if(!e)return"";const t=new Date(e),o=new Date().getTime()-t.getTime(),s=Math.floor(o/6e4),a=Math.floor(o/36e5),i=Math.floor(o/864e5);return s<1?"刚刚":s<60?s+"分钟前":a<24?a+"小时前":i+"天前"}function Co(){const e=document.getElementById("reverse-dxf");e&&navigator.clipboard.writeText(e.textContent).then(()=>w("DXF 已复制到剪贴板","info"))}async function $o(){var i,l,r,c;const e=document.getElementById("reverse-result"),t=document.getElementById("reverse-error");if(!e)return;const n=document.getElementById("reverse-constraints"),o=document.getElementById("reverse-validation"),s=document.getElementById("reverse-dxf");e.classList.add("hidden"),t==null||t.classList.add("hidden");const a={room_type:((i=document.getElementById("reverse-room-type"))==null?void 0:i.value)||"office",width_mm:parseInt(((l=document.getElementById("reverse-width"))==null?void 0:l.value)||"0")||5e3,height_mm:parseInt(((r=document.getElementById("reverse-height"))==null?void 0:r.value)||"0")||4e3,door_width_mm:parseInt(((c=document.getElementById("reverse-door-width"))==null?void 0:c.value)||"0")||null};try{const g=await(await fetch(k()+"/api/v1/reverse",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(J()||"")},body:JSON.stringify(a)})).json();if(g.status!=="ok"){t.textContent="错误: "+JSON.stringify(g),t.classList.remove("hidden");return}const m=g.constraints;n&&(n.innerHTML='<table class="w-full text-sm"><tr><td class="py-1 text-gray-500">最小宽度</td><td class="py-1">'+m.min_width_mm+' mm</td></tr><tr><td class="py-1 text-gray-500">最小高度</td><td class="py-1">'+m.min_height_mm+' mm</td></tr><tr><td class="py-1 text-gray-500">最小门宽</td><td class="py-1">'+m.min_door_width_mm+' mm</td></tr><tr><td class="py-1 text-gray-500">面积</td><td class="py-1">'+m.min_area_m2.toFixed(1)+" m²</td></tr>"+(m.notes.length?'<tr><td class="py-1 text-gray-500">规范约束</td><td class="py-1">'+m.notes.join("<br>")+"</td></tr>":"")+"</table>");const y=document.getElementById("reverse-svg");if(y&&g.validation){const p={rooms:[{type:a.room_type,x:0,y:0,w:a.width_mm,h:a.height_mm}],corridor:null};y.innerHTML=Ae(p,g.validation),window._reverseSVGLayout=p,window._reverseSVGValidation=g.validation}const x=g.validation||{};o&&(o.innerHTML='<span class="'+(x.all_pass?"text-green-600":"text-red-600")+'" font-bold>'+(x.all_pass?"✅ 闭环验证通过":"❌ "+(x.fail_count||"?")+" FAIL")+"</span>"),s&&(s.textContent=g.dxf),e.classList.remove("hidden")}catch(d){t&&(t.textContent="请求失败: "+d.message,t.classList.remove("hidden"))}}async function bn(){try{const t=await(await fetch(k()+"/api/v1/functions",{headers:{Authorization:"Bearer "+(J()||"")}})).json();if(t.status!=="ok")return;const n=document.getElementById("func-count");n&&(n.textContent="共 "+t.count+" 个函数");const o=new Set;t.functions.forEach(a=>o.add(a.category));const s=document.getElementById("func-category-filter");s&&o.forEach(a=>{const i=document.createElement("option");i.value=String(a),i.textContent=String(a),s.appendChild(i)}),window._allFuncs=t.functions,wn()}catch(e){const t=document.getElementById("func-list");t&&(t.innerHTML='<div class="text-center text-red-500 py-8">加载失败: '+e.message+"</div>")}}function wn(){var a,i;const e=((a=document.getElementById("func-search"))==null?void 0:a.value.toLowerCase())||"",t=((i=document.getElementById("func-category-filter"))==null?void 0:i.value)||"",n=window._allFuncs||[],o=document.getElementById("func-list");if(!o)return;const s=n.filter(l=>!(t&&l.category!==t||e&&!l.func_id.toLowerCase().includes(e)&&!l.name.toLowerCase().includes(e)));o.innerHTML=s.map(l=>{const c={dim:"blue",dist:"green",count:"purple",attr:"orange",exist:"red",area:"teal",evac:"pink",access:"indigo"}[l.category]||"gray",d=l.func_id;return'<div class="card p-3 hover:shadow-md transition cursor-pointer" onclick="toggleFuncDetail(&#39;'+d+'&#39;)"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xs font-mono bg-'+c+"-100 text-"+c+'-700 px-2 py-0.5 rounded">'+d+'</span><span class="font-medium">'+l.name+'</span></div><span class="text-xs text-gray-400">'+l.clause_id+'</span></div><div class="text-sm text-gray-500 mt-1">'+l.description+'</div><div id="detail-'+d+'" class="hidden mt-2 pt-2 border-t border-gray-100"><div class="grid grid-cols-2 gap-2 text-sm"><div><span class="text-gray-500">目标实体:</span> '+(l.target_entities||[]).join(", ")+'</div><div><span class="text-gray-500">运算符:</span> '+l.operator+'</div><div><span class="text-gray-500">阈值:</span> <input class="input w-24 inline text-sm" value="'+l.threshold+'" id="th-'+d+'" /></div><div><span class="text-gray-500">单位:</span> <input class="input w-20 inline text-sm" value="'+l.unit+'" id="unit-'+d+'" /></div></div><button class="btn-primary text-xs mt-2" onclick="event.stopPropagation();updateFunction(&#39;'+d+'&#39;)">保存修改</button></div></div>'}).join("")}function jo(e){var t;(t=document.getElementById("detail-"+e))==null||t.classList.toggle("hidden")}async function Mo(e){const t=document.getElementById("th-"+e),n=document.getElementById("unit-"+e);if(!(!t||!n))try{await W("/api/v1/functions/"+e+"/update",{method:"POST",body:JSON.stringify({threshold:parseFloat(t.value),unit:n.value})}),w("更新成功","success")}catch(o){w("更新失败: "+o.message,"error")}}function Ao(e){var a,i;const t=document.getElementById("rev-single-panel"),n=document.getElementById("rev-multi-panel"),o=document.getElementById("rev-tab-single"),s=document.getElementById("rev-tab-multi");e==="multi"?(t==null||t.classList.add("hidden"),n==null||n.classList.remove("hidden"),o==null||o.classList.remove("bg-white","shadow-sm","font-medium"),o==null||o.classList.add("text-gray-600"),s==null||s.classList.add("bg-white","shadow-sm","font-medium"),s==null||s.classList.remove("text-gray-600"),_n()):(t==null||t.classList.remove("hidden"),n==null||n.classList.add("hidden"),o==null||o.classList.add("bg-white","shadow-sm","font-medium"),o==null||o.classList.remove("text-gray-600"),s==null||s.classList.remove("bg-white","shadow-sm","font-medium"),s==null||s.classList.add("text-gray-600")),(a=document.getElementById("reverse-result"))==null||a.classList.add("hidden"),(i=document.getElementById("reverse-error"))==null||i.classList.add("hidden")}function _n(){const e=document.getElementById("multi-room-list");!e||e.children.length>0||(Me("office",5e3,4e3,900),Me("equipment",3e3,3e3,900),Me("accessible_toilet",2500,2500,900))}function Me(e,t,n,o){const s=document.getElementById("multi-room-list");if(!s)return;const a=document.createElement("div");a.className="multi-room-row flex items-center gap-2 mb-2 p-2 border rounded-lg bg-gray-50",a.innerHTML='<select class="multi-room-type input text-sm w-28">'+["office|办公室","stair|楼梯间","corridor|走廊","exit|安全出口","fire_lobby|前室","equipment|设备间","accessible_toilet|无障碍卫生间"].map(i=>{const[l,r]=i.split("|");return'<option value="'+l+'" '+(l===e?"selected":"")+">"+r+"</option>"}).join("")+'</select><input class="multi-room-width input text-sm w-20" value="'+t+'" placeholder="宽" /><input class="multi-room-height input text-sm w-20" value="'+n+'" placeholder="高" /><input class="multi-room-door-width input text-sm w-20" value="'+(o||"")+`" placeholder="门宽" /><span class="text-xs text-gray-400 w-16">mm</span><button class="text-red-500 hover:text-red-700 text-sm" onclick="this.closest('.multi-room-row').remove()">✕</button>`,s.appendChild(a)}async function Ro(){const e=document.getElementById("reverse-result"),t=document.getElementById("reverse-error");if(!e)return;const n=document.getElementById("reverse-dxf"),o=document.getElementById("reverse-validation");e.classList.add("hidden"),t==null||t.classList.add("hidden");const s=[];document.querySelectorAll(".multi-room-row").forEach(a=>{var i,l,r,c;s.push({room_type:((i=a.querySelector(".multi-room-type"))==null?void 0:i.value)||"office",width_mm:parseInt(((l=a.querySelector(".multi-room-width"))==null?void 0:l.value)||"0")||5e3,height_mm:parseInt(((r=a.querySelector(".multi-room-height"))==null?void 0:r.value)||"0")||4e3,door_width_mm:parseInt(((c=a.querySelector(".multi-room-door-width"))==null?void 0:c.value)||"0")||null})}),s.length===0&&(s.push({room_type:"office",width_mm:5e3,height_mm:4e3}),s.push({room_type:"stair",width_mm:3e3,height_mm:5e3}));try{const i=await(await fetch(k()+"/api/v1/reverse/multi",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(J()||"")},body:JSON.stringify({rooms:s,validate:!0})})).json();if(i.status!=="ok"){t.textContent="错误: "+JSON.stringify(i),t.classList.remove("hidden");return}const l=document.getElementById("reverse-svg");l&&(l.innerHTML=Ae(i.layout,i.validation),window._reverseSVGLayout=i.layout,window._reverseSVGValidation=i.validation);const r=i.validation||{};o&&(o.innerHTML='<span class="'+(r.all_pass?"text-green-600":"text-gray-500")+' font-bold">'+(r.all_pass?"✅ 闭环验证通过":"验证未开启")+"</span>"),n&&(n.textContent=i.dxf),e.classList.remove("hidden")}catch(a){t&&(t.textContent="请求失败: "+a.message,t.classList.remove("hidden"))}}function Ae(e,t){const n=e.rooms||[],o=e.corridor;if(!n.length&&!o)return'<div class="text-center text-gray-400 py-8">无布局数据</div>';const s=.1,a=40;let i=1/0,l=1/0,r=-1/0,c=-1/0;if(n.forEach(h=>{i=Math.min(i,h.x),l=Math.min(l,h.y),r=Math.max(r,h.x+h.w),c=Math.max(c,h.y+h.h)}),o){const h=n.map(I=>I.y+I.h).concat(n.map(I=>I.y)),S=Math.min(...h);i=Math.min(i,0),l=Math.min(l,S-o.h),r=Math.max(r,o.w),c=Math.max(c,S)}const d=(r-i)*s+a*2,g=(c-l)*s+a*2,m={office:"#dbeafe",stair:"#bfdbfe",corridor:"#e0f2fe",exit:"#bbf7d0",fire_lobby:"#fde68a",equipment:"#fed7aa",accessible_toilet:"#ddd6fe",bedroom:"#fce7f3",wc:"#f3e8ff",toilet:"#f3e8ff",hallway:"#ecfeff",kitchen:"#fef9c3",bathroom:"#e0e7ff"},y={office:"#3b82f6",stair:"#2563eb",corridor:"#0891b2",exit:"#16a34a",fire_lobby:"#d97706",equipment:"#ea580c",accessible_toilet:"#7c3aed",bedroom:"#db2777",wc:"#8b5cf6",toilet:"#8b5cf6",hallway:"#06b6d4",kitchen:"#ca8a04",bathroom:"#6366f1"};let x=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${d} ${g}" style="width:100%;height:100%;display:block;background:#fafafa" font-family="system-ui,sans-serif">`;if(x+='<defs><marker id="arrow-evac" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444" stroke="#ef4444" stroke-width="0.5"/></marker></defs>',n.forEach(h=>{const S=(h.x-i)*s+a,I=(h.y-l)*s+a,L=h.w*s,b=h.h*s,B=m[h.type]||"#e5e7eb",E=y[h.type]||"#6b7280";x+=`<rect x="${S}" y="${I}" width="${L}" height="${b}" fill="${B}" stroke="${E}" stroke-width="2" rx="2"/>`;const _=h.type.charAt(0).toUpperCase()+h.type.slice(1).replace(/_/g," "),T=Math.max(9,Math.min(14,Math.min(L,b)/6));x+=`<text x="${S+L/2}" y="${I+b/2-4}" text-anchor="middle" font-size="${T}" font-weight="600" fill="#1f2937">${_}</text>`,x+=`<text x="${S+L/2}" y="${I+b/2+10}" text-anchor="middle" font-size="8" fill="#6b7280">${h.w}x${h.h}mm</text>`}),o){const h=n.map(E=>E.y+E.h).concat(n.map(E=>E.y)),S=Math.min(...h),I=(0-i)*s+a,L=(S-o.h-l)*s+a,b=o.w*s,B=o.h*s;x+=`<rect x="${I}" y="${L}" width="${b}" height="${B}" fill="#e0f2fe" stroke="#0891b2" stroke-width="2" stroke-dasharray="6,4" rx="2"/>`,x+=`<text x="${I+b/2}" y="${L+B/2}" text-anchor="middle" font-size="11" font-weight="600" fill="#0e7490">CORRIDOR</text>`}if(n.length>1){n.forEach(b=>{const B=b.y+b.h,E=Math.min(...n.map(H=>H.y+H.h)),_=(b.x+b.w/2-i)*s+a,T=(B-l)*s+a+4,K=_,$=(E-l)*s+a-4;$>T&&(x+=`<line x1="${_}" y1="${T}" x2="${K}" y2="${$}" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-evac)"/>`)});const h=Math.min(...n.map(b=>b.y+b.h)),S=(0+(o?o.w:3e3)/2-i)*s+a,I=(h-l)*s+a,L=(o?o.w:3e3)*s+a;L>S&&(x+=`<line x1="${S}" y1="${I}" x2="${L-20}" y2="${I}" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-evac)"/>`,x+=`<text x="${L-15}" y="${I-8}" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="700">出口</text>`)}t&&(t.fail_count??0)>0?x+=`<text x="${d/2}" y="${g-10}" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="700">${t.fail_count} 项违规</text>`:t&&t.all_pass&&(x+=`<text x="${d/2}" y="${g-10}" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="700">闭环验证通过</text>`);const p=2e3*s,v=g-25;return x+=`<line x1="20" y1="${v}" x2="${20+p}" y2="${v}" stroke="#374151" stroke-width="2"/>`,x+=`<line x1="20" y1="${v-4}" x2="20" y2="${v+4}" stroke="#374151" stroke-width="1.5"/>`,x+=`<line x1="${20+p}" y1="${v-4}" x2="${20+p}" y2="${v+4}" stroke="#374151" stroke-width="1.5"/>`,x+=`<text x="${20+p/2}" y="${v-6}" text-anchor="middle" font-size="8" fill="#6b7280">2m</text>`,x+="</svg>",x}function Do(){const e=window._reverseSVGLayout;if(!e){w("先生成布局","info");return}const t=document.createElement("div");t.className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4",t.innerHTML=`<div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="font-bold">布局可视化</h3><button onclick="this.closest('div.fixed').remove()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><div class="flex-1 overflow-auto p-4">`+Ae(e,window._reverseSVGValidation)+"</div></div>",document.body.appendChild(t),t.addEventListener("click",n=>{n.target===t&&t.remove()})}function Ho(){const e=document.querySelector("#reverse-svg svg");if(!e){w("先生成布局","info");return}const t=new Blob([e.outerHTML],{type:"image/svg+xml"}),n=document.createElement("a");n.href=URL.createObjectURL(t),n.download="baa-layout.svg",n.click(),URL.revokeObjectURL(n.href)}const mt=15;async function Oo(){try{const e=await W("/api/v1/cases/stats");if(e.status!=="ok")return;const t=document.getElementById("case-total"),n=document.getElementById("case-violations"),o=document.getElementById("case-avg-score"),s=document.getElementById("case-tags-count");t&&(t.textContent=String(e.totalCases??"-")),n&&(n.textContent=String(e.totalViolations??"-")),o&&(o.textContent=String(e.avgScore??"-")),s&&(s.textContent=String(e.topTags?Object.keys(e.topTags).length:0))}catch(e){console.error("loadCaseStats failed:",e)}}async function Po(e=0){var a,i,l;const t=((a=document.getElementById("case-search"))==null?void 0:a.value)||"",n=((i=document.getElementById("case-filter-type"))==null?void 0:i.value)||"",o=((l=document.getElementById("case-filter-tag"))==null?void 0:l.value)||"",s=document.getElementById("case-list");s&&(s.innerHTML='<div class="text-center text-gray-400 py-8">加载中...</div>');try{let r;if(t)r=await W(`/api/v1/cases/search?q=${encodeURIComponent(t)}`);else{const d=new URLSearchParams({limit:String(mt),offset:String(e*mt)});n&&d.set("building_type",n),o&&d.set("tag",o),r=await W(`/api/v1/cases?${d}`)}if(r.status!=="ok"){s&&(s.innerHTML='<div class="text-center text-gray-400 py-8">加载失败</div>');return}const c=r.cases||[];Sn(c,r.total??0),En(r.total??0,e)}catch(r){console.error("loadCases failed:",r),s&&(s.innerHTML='<div class="text-center text-red-400 py-8">加载失败: '+r.message+"</div>")}}function Sn(e,t){const n=document.getElementById("case-list");if(!n)return;if(e.length===0){n.innerHTML='<div class="text-center text-gray-400 py-8">暂无案例数据</div>';return}const o={尺寸不合规:"bg-red-100 text-red-700",距离不合规:"bg-orange-100 text-orange-700",数量不合规:"bg-yellow-100 text-yellow-700",缺失设施:"bg-red-100 text-red-700",面积不合规:"bg-blue-100 text-blue-700",属性不合规:"bg-gray-100 text-gray-700",照明不合规:"bg-yellow-100 text-yellow-700",无障碍不合规:"bg-green-100 text-green-700"};let s="";for(const a of e){const i=a.score??0,l=i>=80?"text-green-600":i>=50?"text-yellow-600":"text-red-600",r=a.violationCount??0,c=a.correctionCount??0,d=(a.tags||[]).slice(0,4).map(g=>`<span class="inline-block px-2 py-0.5 text-xs rounded-full ${o[g]||"bg-gray-100 text-gray-600"}">${f(g)}</span>`).join(" ");s+=`<div class="card p-4 hover:bg-gray-50 cursor-pointer transition" onclick="openCaseDetail('${f(a.caseId)}')">
+          <div class="w-20 bg-gray-200 rounded-full h-2"><div class="bg-${passRate > 80 ? "green" : passRate > 50 ? "yellow" : "red"}-500 h-2 rounded-full" style="width:${Math.max(0, passRate)}%"></div></div>
+          <span class="text-xs">${Math.max(0, passRate)}%</span></div></td>
+        <td class="py-2 px-2 text-xs">${h.reviewedAt ? new Date(h.reviewedAt).toLocaleString("zh-CN") : "--"}</td></tr>`;
+    }).join("");
+  }
+  function renderCategoryAnalysis() {
+    const el = document.getElementById("category-analysis");
+    if (!el) return;
+    const reviewResults = getReviewResults();
+    if (!reviewResults.length) {
+      el.innerHTML = '<div class="text-gray-400 text-xs">审查图纸后自动统计</div>';
+      return;
+    }
+    const catStats = {};
+    reviewResults.forEach((h) => {
+      const name = h.drawingName || "unknown";
+      if (!catStats[name]) catStats[name] = { evac: 0, corridor: 0, dead_end: 0, other: 0 };
+      h.details?.forEach((v) => {
+        const fid = v.func_id || "";
+        if (fid.startsWith("EVAC-")) catStats[name].evac++;
+        else if (fid === "DIM-004") catStats[name].corridor++;
+        else if ((v.explanation || "").toLowerCase().includes("死胡同")) catStats[name].dead_end++;
+        else catStats[name].other++;
+      });
+    });
+    const names = Object.keys(catStats);
+    if (!names.length) {
+      el.innerHTML = '<div class="text-gray-400 text-xs">审查图纸后自动统计</div>';
+      return;
+    }
+    const totalEvac = names.reduce((s, n) => s + catStats[n].evac, 0);
+    const totalCor = names.reduce((s, n) => s + catStats[n].corridor, 0);
+    const totalDead = names.reduce((s, n) => s + catStats[n].dead_end, 0);
+    const totalOther = names.reduce((s, n) => s + catStats[n].other, 0);
+    let html = '<table class="w-full text-xs"><thead><tr class="text-left text-gray-400 border-b"><th class="pb-1 pr-2">图纸</th><th class="pb-1 pr-2">🚪疏散</th><th class="pb-1 pr-2">📏走廊</th><th class="pb-1 pr-2">🔒死胡同</th><th class="pb-1">其他</th></tr></thead><tbody>';
+    names.forEach((name) => {
+      const s = catStats[name];
+      html += `<tr class="border-b border-gray-50">
+      <td class="py-1 pr-2 truncate max-w-28" title="${name}">${name}</td>
+      <td class="py-1 pr-2"><span class="${s.evac > 0 ? "text-red-600 font-medium" : "text-green-500"}">${s.evac}</span></td>
+      <td class="py-1 pr-2"><span class="${s.corridor > 0 ? "text-orange-600 font-medium" : "text-green-500"}">${s.corridor}</span></td>
+      <td class="py-1 pr-2"><span class="${s.dead_end > 0 ? "text-yellow-600 font-medium" : "text-green-500"}">${s.dead_end}</span></td>
+      <td class="py-1">${s.other}</td></tr>`;
+    });
+    html += `<tr class="font-medium bg-gray-50"><td class="py-1 pr-2">合计</td><td class="py-1 pr-2">${totalEvac}</td><td class="py-1 pr-2">${totalCor}</td><td class="py-1 pr-2">${totalDead}</td><td class="py-1">${totalOther}</td></tr>`;
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  }
+  function renderTrendBars() {
+    const el = document.getElementById("trend-bars");
+    if (!el) return;
+    const reviewResults = getReviewResults();
+    if (!reviewResults.length) {
+      el.innerHTML = '<div class="text-gray-400">审查图纸后自动统计</div>';
+      return;
+    }
+    const recent = reviewResults.slice(0, 20).reverse();
+    const maxV = Math.max(...recent.map((r) => r.details.length || 0), 1);
+    const totalV = recent.reduce((s, r) => s + (r.details.length || 0), 0);
+    const avgV = Math.round(totalV / recent.length * 10) / 10;
+    const cleanCount = recent.filter((r) => (r.details.length || 0) === 0).length;
+    const firstD = new Date(recent[0]?.reviewedAt || Date.now()).toLocaleDateString();
+    const lastD = new Date(recent[recent.length - 1]?.reviewedAt || Date.now()).toLocaleDateString();
+    let chart = `<div class="grid grid-cols-4 gap-1 mb-2 text-xs"><div class="bg-blue-50 rounded p-1 text-center"><div class="text-blue-600 font-bold">${recent.length}</div><div class="text-gray-500 text-[10px]">审查次数</div></div><div class="bg-red-50 rounded p-1 text-center"><div class="text-red-600 font-bold">${totalV}</div><div class="text-gray-500 text-[10px]">违规总数</div></div><div class="bg-yellow-50 rounded p-1 text-center"><div class="text-yellow-600 font-bold">${avgV}</div><div class="text-gray-500 text-[10px]">平均违规/次</div></div><div class="bg-green-50 rounded p-1 text-center"><div class="text-green-600 font-bold">${recent.length - cleanCount}/${recent.length}</div><div class="text-gray-500 text-[10px]">有违规比率</div></div></div><div class="text-[10px] text-gray-400 mb-1"><span>📅 ${firstD} → ${lastD}</span><span>最大: ${maxV}</span></div>`;
+    chart += '<div class="flex items-end gap-0.5 h-24 border-b border-gray-200 pb-0.5 overflow-x-auto">';
+    recent.forEach((r) => {
+      const v = r.details.length || 0;
+      const pct = Math.round(v / maxV * 100);
+      const height = Math.max(1, Math.round(pct / 100 * 96));
+      const color = v === 0 ? "green" : v > maxV * 0.5 ? "red" : "orange";
+      const name = (r.drawingName || "").slice(0, 10);
+      chart += `<div class="flex-1 min-w-[24px] flex flex-col items-center"><div class="w-full bg-${color}-500 rounded-t" style="height:${height}px"></div><span class="text-[8px] text-gray-400 mt-0.5" title="${name}">${name.slice(0, 4)}</span></div>`;
+    });
+    chart += "</div>";
+    el.innerHTML = chart;
+  }
+  function renderViolationDistBars() {
+    const el = document.getElementById("violation-dist-bars");
+    if (!el) return;
+    const reviewResults = getReviewResults();
+    if (!reviewResults.length) {
+      el.innerHTML = '<div class="text-gray-400">审查图纸后自动统计</div>';
+      return;
+    }
+    const sev = { critical: 0, major: 0, minor: 0 };
+    reviewResults.forEach((r) => r.details?.forEach((v) => {
+      if (v.severity === "critical") sev.critical++;
+      else if (v.severity === "major") sev.major++;
+      else sev.minor++;
+    }));
+    const total = sev.critical + sev.major + sev.minor || 1;
+    el.innerHTML = [
+      { label: "严重", count: sev.critical, color: "#ef4444" },
+      { label: "主要", count: sev.major, color: "#f97316" },
+      { label: "轻微", count: sev.minor, color: "#eab308" }
+    ].map(
+      (s) => `<div class="flex items-center gap-2"><span class="w-10 text-xs">${s.label}</span><div class="flex-1 bg-gray-100 rounded-full h-4"><div class="h-4 rounded-full" style="width:${s.count / total * 100}%;background:${s.color}"></div></div><span class="w-6 text-right text-xs">${s.count}</span></div>`
+    ).join("");
+  }
+  const CD_MAJOR_LABELS = {
+    arch: "建筑",
+    struct: "结构",
+    mech: "暖通",
+    elec: "电气",
+    plumb: "给排水"
+  };
+  const CD_LEVEL_COLORS = {
+    L1: "red",
+    L2: "orange",
+    L3: "green"
+  };
+  const CD_METHOD_LABELS = {
+    auto: "自动",
+    manual: "人工",
+    ai: "AI"
+  };
+  const CD_METHOD_ICONS = {
+    auto: "🤖",
+    manual: "👤",
+    ai: "🦈"
+  };
+  async function loadCDItems() {
+    const search = (document.getElementById("cd-search")?.value || "").toLowerCase();
+    const level = document.getElementById("cd-filter-level")?.value || "all";
+    const major = document.getElementById("cd-filter-major")?.value || "all";
+    const method = document.getElementById("cd-filter-method")?.value || "all";
+    const skel = document.getElementById("cd-skeleton");
+    const content = document.getElementById("cd-content");
+    if (skel) skel.classList.remove("hidden");
+    if (content) content.classList.add("hidden");
+    const parts = [];
+    if (level !== "all") parts.push(`level=${encodeURIComponent(level)}`);
+    if (major !== "all") parts.push(`major=${encodeURIComponent(major)}`);
+    if (method !== "all") parts.push(`method=${encodeURIComponent(method)}`);
+    const qs = parts.length ? `?${parts.join("&")}` : "";
+    const path = `/api/v1/construction-review${qs}`;
+    try {
+      const data = await apiGet(path);
+      if (skel) skel.classList.add("hidden");
+      if (content) content.classList.remove("hidden");
+      const items = data.items || [];
+      let filtered = items;
+      if (search) {
+        filtered = items.filter(
+          (i) => i.item_id.toLowerCase().includes(search) || i.title.toLowerCase().includes(search) || (i.description || "").toLowerCase().includes(search) || (i.standard_ref || "").toLowerCase().includes(search)
+        );
+      }
+      const totalEl = document.getElementById("cd-total");
+      const l1El = document.getElementById("cd-l1");
+      const l2El = document.getElementById("cd-l2");
+      const l3El = document.getElementById("cd-l3");
+      if (totalEl) totalEl.textContent = String(data.summary?.total ?? items.length);
+      if (l1El) l1El.textContent = String(data.summary.L1 ?? 0);
+      if (l2El) l2El.textContent = String(data.summary.L2 ?? 0);
+      if (l3El) l3El.textContent = String(data.summary.L3 ?? 0);
+      const fc = document.getElementById("cd-filter-count");
+      if (fc) fc.textContent = `${filtered.length} 项${filtered.length < items.length ? " / " + items.length : ""}`;
+      const tbody = document.getElementById("cd-list");
+      if (!tbody) return;
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-300">无匹配项</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtered.map((i, idx) => {
+        const lv = i.level || "L1";
+        const majorLabel = CD_MAJOR_LABELS[i.major || ""] || i.major || "--";
+        const methodLabel = CD_METHOD_LABELS[i.check_method || ""] || i.check_method || "--";
+        const methodIcon = CD_METHOD_ICONS[i.check_method || ""] || "—";
+        const funcId = i.func_id || '<span class="text-gray-400">—</span>';
+        const color = CD_LEVEL_COLORS[lv] || "gray";
+        return `<tr class="border-b border-gray-50">
+          <td class="py-2 px-2 text-xs">${idx + 1}</td>
+          <td class="py-2 px-2 font-mono text-xs text-blue-600">${i.item_id}</td>
+          <td class="py-2 px-2 text-sm">${i.title}<br/><span class="text-xs text-gray-400">${i.description || ""}</span></td>
+          <td class="py-2 px-2 font-mono text-xs text-gray-500">${i.standard_ref || ""}</td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-${color}-100 text-${color}-700 rounded text-xs">${lv}</span></td>
+          <td class="py-2 px-2 text-xs">${majorLabel}</td>
+          <td class="py-2 px-2 text-xs">${methodIcon} ${methodLabel}</td>
+          <td class="py-2 px-2 font-mono text-xs">${funcId}</td>
+        </tr>`;
+      }).join("");
+    } catch (e) {
+      if (skel) skel.classList.add("hidden");
+      if (content) content.classList.remove("hidden");
+      const tbody = document.getElementById("cd-list");
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-red-400">加载失败: ${e.message}</td></tr>`;
+      }
+    }
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    const page = document.getElementById("page-cd");
+    if (!page) return;
+    const observer = new MutationObserver(() => {
+      if (!page.classList.contains("hidden")) loadCDItems();
+    });
+    observer.observe(page, { attributes: true, attributeFilter: ["class"] });
+  });
+  const MODEL_PARAMS_TABS = {
+    "functions": "原子函数参数",
+    "layer-rules": "图层规则",
+    "cd-items": "施工图审查标准",
+    "samples": "审查样本",
+    "export": "数据导出"
+  };
+  let _mpLoading = false;
+  function _mpSetHTML(box, html) {
+    if (!box) {
+      _mpLoading = false;
+      return;
+    }
+    box.classList.remove("hidden");
+    box.style.display = "block";
+    box.style.overflow = "auto";
+    box.style.maxHeight = "480px";
+    box.innerHTML = html;
+    _mpLoading = false;
+  }
+  function _mpSetError(box, err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    _mpSetHTML(box, `<p class="text-red-400 text-sm">加载失败: ${escHtml$1(msg)}</p>`);
+  }
+  async function _mpLoadFunctions() {
+    const box = document.getElementById("mp-functions");
+    try {
+      const data = await apiGet("/api/v1/model-params/functions?limit=2000");
+      const funcs = data.data || data.functions || [];
+      if (funcs.length === 0) {
+        _mpSetHTML(box, '<p class="text-gray-400 text-sm">无数据</p>');
+        return;
+      }
+      const cats = {};
+      funcs.forEach((f) => {
+        const c = f.category || "other";
+        cats[c] = (cats[c] || 0) + 1;
+      });
+      const summary = Object.keys(cats).slice(0, 12).map(
+        (c) => `<span class="badge badge-sm badge-secondary">${escHtml$1(c)} ${cats[c]}</span>`
+      ).join(" ");
+      const rows = funcs.slice(0, 80).map(
+        (f) => `<tr><td class="py-1 px-2 text-xs text-mono">${escHtml$1(f.func_id)}</td><td class="py-1 px-2 text-xs">${escHtml$1(f.title)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs">${escHtml$1(f.category)}</span></td><td class="py-1 px-2 text-xs text-mono">${escHtml$1(f.clause_id)}</td><td class="py-1 px-2 text-xs">${escHtml$1(f.operator)} ${escHtml$1(f.threshold)}</td></tr>`
+      ).join("");
+      _mpSetHTML(
+        box,
+        `<div class="flex gap-2 mb-2 flex-wrap">${summary}</div><div class="text-xs text-gray-400 mb-2">显示 ${funcs.length} 个原子函数（前 80 条）</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">#</th><th class="py-1 px-2">标题</th><th class="py-1 px-2">分类</th><th class="py-1 px-2">规范条款</th><th class="py-1 px-2">判定条件</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      );
+    } catch (e) {
+      _mpSetError(box, e);
+    }
+  }
+  async function _mpLoadLayerRules() {
+    const box = document.getElementById("mp-layer-rules");
+    try {
+      const data = await apiGet("/api/v1/model-params/layer-rules");
+      const rules = data.data || data.rules || [];
+      if (rules.length === 0) {
+        _mpSetHTML(box, '<p class="text-gray-400 text-sm">无数据</p>');
+        return;
+      }
+      const lr = rules.filter((r) => r.source === "LAYER_RULES").length;
+      const sl = rules.filter((r) => r.source === "SHORT_LAYER_RULES").length;
+      const rows = rules.slice(0, 60).map((r) => {
+        const cls = r.source === "SHORT_LAYER_RULES" ? "badge-secondary" : "badge-primary";
+        return `<tr><td class="py-1 px-2 text-xs text-mono">${escHtml$1(r.pattern)}</td><td class="py-1 px-2 text-xs">${escHtml$1(r.entity_type)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs ${cls}">${escHtml$1(r.source)}</span></td><td class="py-1 px-2 text-xs">${escHtml$1(r.match_type)}</td></tr>`;
+      }).join("");
+      _mpSetHTML(
+        box,
+        `<div class="text-xs text-gray-400 mb-2">${rules.length} 条（LAYER_RULES: ${lr} / SHORT: ${sl}）前 60 条</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">关键字</th><th class="py-1 px-2">实体类型</th><th class="py-1 px-2">来源</th><th class="py-1 px-2">匹配方式</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      );
+    } catch (e) {
+      _mpSetError(box, e);
+    }
+  }
+  async function _mpLoadCDItems() {
+    const box = document.getElementById("mp-cd-items");
+    try {
+      const data = await apiGet("/api/v1/model-params/cd-items");
+      const items = data.data || data.items || [];
+      if (items.length === 0) {
+        _mpSetHTML(box, '<p class="text-gray-400 text-sm">无数据</p>');
+        return;
+      }
+      const lvl = { L1: 0, L2: 0, L3: 0 };
+      items.forEach((i) => {
+        if (i.level && lvl[i.level] !== void 0) lvl[i.level]++;
+      });
+      const lvls = Object.keys(lvl).map((k) => {
+        const cls = k === "L1" ? "text-red-500" : k === "L2" ? "text-orange-500" : "text-green-500";
+        return `<span class="${cls}">${k}: ${lvl[k]}</span>`;
+      }).join(" ");
+      const rows = items.slice(0, 50).map(
+        (i) => `<tr><td class="py-1 px-2 text-xs text-mono">${escHtml$1(i.item_id)}</td><td class="py-1 px-2 text-xs">${escHtml$1(i.title)}</td><td class="py-1 px-2 text-xs"><span class="badge badge-xs">${escHtml$1(i.level)}</span></td><td class="py-1 px-2 text-xs">${escHtml$1(i.major)}</td></tr>`
+      ).join("");
+      _mpSetHTML(
+        box,
+        `<div class="flex gap-3 mb-2 text-xs">${lvls}</div><div class="overflow-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="py-1 px-2">编码</th><th class="py-1 px-2">审查项</th><th class="py-1 px-2">等级</th><th class="py-1 px-2">专业</th></tr></thead><tbody>${rows}</tbody></table></div>`
+      );
+    } catch (e) {
+      _mpSetError(box, e);
+    }
+  }
+  async function _mpLoadSamples() {
+    const box = document.getElementById("mp-samples");
+    try {
+      const data = await apiGet("/api/v1/model-params/samples?limit=20");
+      const samples = data.data || data.samples || [];
+      if (samples.length === 0) {
+        _mpSetHTML(box, '<p class="text-yellow-500 text-sm">无样本数据（需有审查记录后自动生成）</p>');
+        return;
+      }
+      const cards = samples.slice(0, 10).map(
+        (s) => `<div class="card p-2 mb-2"><div class="text-xs text-gray-400">${escHtml$1(s.created_at)}</div><div class="text-sm font-medium">${escHtml$1(s.title ?? s.func_id ?? "样本")}</div><div class="text-xs text-mono">${escHtml$1(s.func_id)} | ${escHtml$1(s.dxf_file)}</div><div class="text-xs text-gray-500 mt-1">${s.query ? escHtml$1(s.query).slice(0, 200) : ""}</div></div>`
+      ).join("");
+      _mpSetHTML(box, `<div class="text-xs text-gray-400 mb-2">共 ${samples.length} 条（前 10 条）</div>` + cards);
+    } catch (e) {
+      _mpSetError(box, e);
+    }
+  }
+  function switchModelParamTab(tab) {
+    if (_mpLoading && tab !== "export") return;
+    _mpLoading = true;
+    Object.keys(MODEL_PARAMS_TABS).forEach((t) => {
+      const btn = document.getElementById(`mptab-${t}`);
+      const pane = document.getElementById(`mp-${t}`);
+      if (btn) {
+        btn.classList.toggle("active-tab", t === tab);
+      }
+      if (pane) {
+        if (t === tab) {
+          pane.classList.remove("hidden");
+          pane.style.display = "block";
+        } else {
+          pane.classList.add("hidden");
+          pane.style.display = "none";
+        }
+      }
+    });
+    if (tab === "functions") _mpLoadFunctions();
+    else if (tab === "layer-rules") _mpLoadLayerRules();
+    else if (tab === "cd-items") _mpLoadCDItems();
+    else if (tab === "samples") _mpLoadSamples();
+    else if (tab === "export") {
+      _mpLoading = false;
+      return;
+    }
+  }
+  async function downloadModelExport(format) {
+    try {
+      const url = getApiBase() + `/api/v1/model-params/export?format=${encodeURIComponent(format)}`;
+      window.open(url, "_blank");
+      showToast$1(`已开始下载 ${format} 格式`);
+    } catch (e) {
+      showToast$1(`下载失败: ${e.message}`);
+    }
+  }
+  function zoomImage(img) {
+    if (!img || !img.src || img.style.display === "none") return;
+    const old = document.getElementById("zoom-viewer");
+    if (old) old.remove();
+    const viewer = document.createElement("div");
+    viewer.id = "zoom-viewer";
+    viewer.className = "fixed inset-0 z-50 bg-black bg-opacity-90 select-none";
+    viewer.innerHTML = '<div class="absolute inset-0 flex items-center justify-center overflow-hidden" id="zoom-stage"><img id="zoom-img" src="' + img.src + '" alt="" draggable="false" style="max-width:95vw;max-height:95vh;transition:transform .12s ease-out;cursor:grab" /></div><div class="absolute top-3 left-3 flex gap-1 z-10" id="zoom-toolbar"><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet(1)">＋</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomSet(-1)">－</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomReset()" title="重置">⟲</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomFit()" title="适应窗口">⊡</button><button class="bg-white bg-opacity-80 text-gray-700 px-2.5 py-1 rounded text-sm hover:bg-opacity-100" onclick="zoomClose()" title="关闭">✕</button><span id="zoom-scale" class="bg-white bg-opacity-80 text-gray-700 px-2 py-1 rounded text-xs self-center ml-1">100%</span></div><div class="absolute bottom-3 right-3 bg-black bg-opacity-50 text-gray-300 text-xs px-2 py-1 rounded" id="zoom-hint">滚轮缩放 · 拖拽平移 · ←↑→↓ · 空格/ESC 关闭</div>';
+    document.body.appendChild(viewer);
+    const imgEl = document.getElementById("zoom-img");
+    const stage = document.getElementById("zoom-stage");
+    const scaleEl = document.getElementById("zoom-scale");
+    const state = { scale: 1, offsetX: 0, offsetY: 0, isDragging: false, lastX: 0, lastY: 0 };
+    window.__zoomState = state;
+    const apply = () => {
+      if (!imgEl || !stage || !scaleEl) return;
+      const x = state.offsetX + (stage.clientWidth - stage.clientWidth * state.scale) / 2;
+      const y = state.offsetY + (stage.clientHeight - stage.clientHeight * state.scale) / 2;
+      imgEl.style.transform = "translate(" + x.toFixed(1) + "px, " + y.toFixed(1) + "px) scale(" + state.scale.toFixed(4) + ")";
+      imgEl.style.transformOrigin = "0 0";
+      scaleEl.textContent = Math.round(state.scale * 100) + "%";
+    };
+    imgEl?.addEventListener("mousedown", (e) => {
+      state.isDragging = true;
+      state.lastX = e.clientX;
+      state.lastY = e.clientY;
+      imgEl.style.cursor = "grabbing";
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!state.isDragging) return;
+      state.offsetX += e.clientX - state.lastX;
+      state.offsetY += e.clientY - state.lastY;
+      state.lastX = e.clientX;
+      state.lastY = e.clientY;
+      apply();
+    });
+    window.addEventListener("mouseup", () => {
+      state.isDragging = false;
+      if (imgEl) imgEl.style.cursor = "grab";
+    });
+    stage?.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const delta = e.deltaY;
+      const factor = delta < 0 ? 1.12 : 1 / 1.12;
+      const newScale = Math.max(0.1, Math.min(20, state.scale * factor));
+      const rect = stage.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const oldCx = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+      const oldCy = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+      const relX = (mx - oldCx) / state.scale;
+      const relY = (my - oldCy) / state.scale;
+      state.offsetX = mx - relX * newScale - (rect.width - rect.width * newScale) / 2;
+      state.offsetY = my - relY * newScale - (rect.height - rect.height * newScale) / 2;
+      state.scale = newScale;
+      apply();
+    }, { passive: false });
+    viewer.addEventListener("click", (e) => {
+      if (e.target === viewer || e.target === stage) zoomClose();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        zoomClose();
+        return;
+      }
+      if (e.key === " ") {
+        e.preventDefault();
+        zoomClose();
+        return;
+      }
+      if (e.key === "+" || e.key === "=") {
+        zoomSet(1);
+        return;
+      }
+      if (e.key === "-") {
+        zoomSet(-1);
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        state.offsetX += 30;
+        apply();
+        e.preventDefault();
+      }
+      if (e.key === "ArrowRight") {
+        state.offsetX -= 30;
+        apply();
+        e.preventDefault();
+      }
+      if (e.key === "ArrowUp") {
+        state.offsetY += 30;
+        apply();
+        e.preventDefault();
+      }
+      if (e.key === "ArrowDown") {
+        state.offsetY -= 30;
+        apply();
+        e.preventDefault();
+      }
+    });
+    apply();
+  }
+  function zoomSet(dir) {
+    const state = window.__zoomState;
+    if (!state) return;
+    const imgEl = document.getElementById("zoom-img");
+    const stage = document.getElementById("zoom-stage");
+    if (!imgEl || !stage) return;
+    const factor = dir > 0 ? 1.25 : 0.8;
+    const newScale = Math.max(0.1, Math.min(20, state.scale * factor));
+    const rect = stage.getBoundingClientRect();
+    const oldCx = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+    const oldCy = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+    state.offsetX = oldCx - (rect.width - rect.width * newScale) / 2;
+    state.offsetY = oldCy - (rect.height - rect.height * newScale) / 2;
+    state.scale = newScale;
+    const x = state.offsetX + (rect.width - rect.width * state.scale) / 2;
+    const y = state.offsetY + (rect.height - rect.height * state.scale) / 2;
+    imgEl.style.transform = "translate(" + x.toFixed(1) + "px, " + y.toFixed(1) + "px) scale(" + state.scale.toFixed(4) + ")";
+    imgEl.style.transformOrigin = "0 0";
+    const s = document.getElementById("zoom-scale");
+    if (s) s.textContent = Math.round(state.scale * 100) + "%";
+  }
+  function zoomReset() {
+    const state = window.__zoomState;
+    const imgEl = document.getElementById("zoom-img");
+    if (!state || !imgEl) return;
+    state.scale = 1;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    imgEl.style.transform = "none";
+    const s = document.getElementById("zoom-scale");
+    if (s) s.textContent = "100%";
+  }
+  function zoomFit() {
+    zoomReset();
+  }
+  function zoomClose() {
+    window.__zoomState = null;
+    const el = document.getElementById("zoom-viewer");
+    if (el) el.remove();
+  }
+  const _msSheetData = [];
+  async function runMultiSheetReview() {
+    const fileInput = document.getElementById("ms-file-input");
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      window.showToast("请先选择 DXF/DWG 文件", "info");
+      return;
+    }
+    const btn = document.getElementById("ms-review-start-btn");
+    const loading = document.getElementById("ms-review-loading");
+    const results = document.getElementById("ms-review-results");
+    if (!btn || !loading || !results) return;
+    btn.disabled = true;
+    btn.textContent = "⏳ 审查中...";
+    loading.classList.remove("hidden");
+    results.classList.add("hidden");
+    const buildingType = document.getElementById("ms-building-type")?.value || "civil";
+    const standard = document.getElementById("ms-standard")?.value || "GB 50016-2014";
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const url = getApiBase() + `/review-multi-sheet?building_type=${encodeURIComponent(buildingType)}&standard=${encodeURIComponent(standard)}`;
+      const r = await fetch(url, { method: "POST", headers: getHeaders(), body: formData });
+      const data = await r.json();
+      if (!r.ok || data.status !== "success") {
+        throw new Error(data.detail?.message || data.message || "审查失败");
+      }
+      _msSheetData.splice(0, _msSheetData.length, ...data.sheets || []);
+      renderMultiSheetResults(data);
+      results.classList.remove("hidden");
+      loading.classList.add("hidden");
+      btn.textContent = "📑 重新审查";
+      btn.disabled = false;
+    } catch (e) {
+      loading.classList.add("hidden");
+      btn.textContent = "📑 开始多Sheet审查";
+      btn.disabled = false;
+      window.showToast(`❌ 审查失败: ${e.message}`, "error");
+    }
+  }
+  function renderMultiSheetResults(data) {
+    const ps = data.project_summary || {};
+    const sheets = data.sheets || [];
+    const summaryEl = document.getElementById("ms-project-summary");
+    if (summaryEl) {
+      const rate = ps.compliance_rate;
+      const passRate = rate !== void 0 ? (rate * 100).toFixed(1) : "--";
+      const sev = ps.violations_by_severity || {};
+      summaryEl.innerHTML = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;"><div class="card p-3 text-center"><div class="text-2xl font-bold text-indigo-600">${ps.sheet_count || 0}</div><div class="text-xs text-gray-500 mt-1">Sheet 数量</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-blue-600">${ps.total_entities || 0}</div><div class="text-xs text-gray-500 mt-1">总实体</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold text-red-600">${ps.total_violations || 0}</div><div class="text-xs text-gray-500 mt-1">总违规</div></div><div class="card p-3 text-center"><div class="text-2xl font-bold ${parseFloat(passRate) > 80 ? "text-green-600" : parseFloat(passRate) > 60 ? "text-yellow-600" : "text-red-600"}">${passRate}%</div><div class="text-xs text-gray-500 mt-1">合规率</div></div></div><div class="flex gap-4 text-xs text-gray-500"><span>🔴 严重: ${sev.critical || 0}</span><span>🟠 主要: ${sev.major || 0}</span><span>🟡 轻微: ${sev.minor || 0}</span><span>⏱ ${ps.processing_time_ms || 0}ms</span></div>`;
+    }
+    const tabsEl = document.getElementById("ms-sheet-tabs");
+    if (tabsEl) {
+      tabsEl.innerHTML = sheets.map((s, i) => {
+        const vc = s.violation_count || 0;
+        const badge = vc > 0 ? `<span class="text-red-500"> (${vc})</span>` : "";
+        return `<button class="px-3 py-1.5 rounded-lg font-medium ${i === 0 ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}" onclick="switchMultiSheetTab(${i})">${escHtml$1(s.name || "Sheet " + (i + 1))}${badge}</button>`;
+      }).join("");
+    }
+    if (sheets.length > 0) renderMultiSheetTab(0);
+  }
+  function switchMultiSheetTab(index) {
+    document.querySelectorAll("#ms-sheet-tabs button").forEach((btn, i) => {
+      btn.className = `px-3 py-1.5 rounded-lg font-medium ${i === index ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`;
+    });
+    renderMultiSheetTab(index);
+  }
+  function renderMultiSheetTab(index) {
+    const el = document.getElementById("ms-sheet-detail");
+    if (!el) return;
+    const sheet = _msSheetData[index];
+    if (!sheet) {
+      el.innerHTML = '<div class="text-gray-400">无效的 Sheet 索引</div>';
+      return;
+    }
+    const violations = sheet.violations || [];
+    const vc = violations.length;
+    if (vc === 0) {
+      el.innerHTML = '<div class="text-center text-green-500 py-4">✅ 该 Sheet 无违规</div>';
+      return;
+    }
+    const order = { critical: 0, major: 1, minor: 2 };
+    violations.sort((a, b) => order[a.severity ?? 9] - order[b.severity ?? 9]);
+    el.innerHTML = '<div class="text-xs space-y-2 max-h-96 overflow-y-auto">' + violations.map((v) => {
+      const sev = v.severity;
+      const label = sev === "critical" ? "🔴 严重" : sev === "major" ? "🟠 主要" : "🟡 轻微";
+      const color = sev === "critical" ? "border-l-red-500" : sev === "major" ? "border-l-orange-400" : "border-l-yellow-400";
+      return `<div class="border rounded p-2 ${color}" style="border-left-width:3px;"><div class="flex items-center justify-between"><span class="font-medium">${escHtml$1(v.clause_title || v.clause_id || "")}</span><span class="text-xs">${label}</span></div><div class="text-gray-500 mt-1">条款: <span class="font-mono">${escHtml$1(v.clause_id || "")}</span>${v.entity_type ? " · 实体: " + escHtml$1(v.entity_type) : ""}${v.extracted_value !== void 0 ? " · 实测: " + v.extracted_value : ""}${v.required_value !== void 0 ? " · 要求: " + v.required_value : ""}${v.difference !== void 0 ? " · 偏差: " + v.difference : ""}</div><div class="mt-1 text-xs bg-blue-50 p-1 rounded">💡 ${escHtml$1(v.correction || "")}</div></div>`;
+    }).join("") + "</div>";
+  }
+  function formatTimeAgo(isoStr) {
+    if (!isoStr) return "";
+    const date = new Date(isoStr);
+    const now = /* @__PURE__ */ new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 6e4);
+    const diffHour = Math.floor(diffMs / 36e5);
+    const diffDay = Math.floor(diffMs / 864e5);
+    if (diffMin < 1) return "刚刚";
+    if (diffMin < 60) return diffMin + "分钟前";
+    if (diffHour < 24) return diffHour + "小时前";
+    return diffDay + "天前";
+  }
+  function copyReverseDXF() {
+    const dxf = document.getElementById("reverse-dxf");
+    if (dxf) {
+      navigator.clipboard.writeText(dxf.textContent).then(() => showToast$1("DXF 已复制到剪贴板", "info"));
+    }
+  }
+  async function generateReverse() {
+    const result = document.getElementById("reverse-result");
+    const err = document.getElementById("reverse-error");
+    if (!result) return;
+    const constraints = document.getElementById("reverse-constraints");
+    const validation = document.getElementById("reverse-validation");
+    const dxfPre = document.getElementById("reverse-dxf");
+    result.classList.add("hidden");
+    err?.classList.add("hidden");
+    const body = {
+      room_type: document.getElementById("reverse-room-type")?.value || "office",
+      width_mm: parseInt(document.getElementById("reverse-width")?.value || "0") || 5e3,
+      height_mm: parseInt(document.getElementById("reverse-height")?.value || "0") || 4e3,
+      door_width_mm: parseInt(document.getElementById("reverse-door-width")?.value || "0") || null
+    };
+    try {
+      const resp = await fetch(getApiBase() + "/api/v1/reverse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (getActiveKeyValue$1() || "") },
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json();
+      if (data.status !== "ok") {
+        err.textContent = "错误: " + JSON.stringify(data);
+        err.classList.remove("hidden");
+        return;
+      }
+      const c = data.constraints;
+      if (constraints) {
+        constraints.innerHTML = '<table class="w-full text-sm"><tr><td class="py-1 text-gray-500">最小宽度</td><td class="py-1">' + c.min_width_mm + ' mm</td></tr><tr><td class="py-1 text-gray-500">最小高度</td><td class="py-1">' + c.min_height_mm + ' mm</td></tr><tr><td class="py-1 text-gray-500">最小门宽</td><td class="py-1">' + c.min_door_width_mm + ' mm</td></tr><tr><td class="py-1 text-gray-500">面积</td><td class="py-1">' + c.min_area_m2.toFixed(1) + " m²</td></tr>" + (c.notes.length ? '<tr><td class="py-1 text-gray-500">规范约束</td><td class="py-1">' + c.notes.join("<br>") + "</td></tr>" : "") + "</table>";
+      }
+      const svgContainer = document.getElementById("reverse-svg");
+      if (svgContainer && data.validation) {
+        const singleLayout = {
+          rooms: [{ type: body.room_type, x: 0, y: 0, w: body.width_mm, h: body.height_mm }],
+          corridor: null
+        };
+        svgContainer.innerHTML = renderLayoutSVG(singleLayout, data.validation);
+        window._reverseSVGLayout = singleLayout;
+        window._reverseSVGValidation = data.validation;
+      }
+      const v = data.validation || {};
+      if (validation) {
+        validation.innerHTML = '<span class="' + (v.all_pass ? "text-green-600" : "text-red-600") + '" font-bold>' + (v.all_pass ? "✅ 闭环验证通过" : "❌ " + (v.fail_count || "?") + " FAIL") + "</span>";
+      }
+      if (dxfPre) dxfPre.textContent = data.dxf;
+      result.classList.remove("hidden");
+    } catch (e) {
+      if (err) {
+        err.textContent = "请求失败: " + e.message;
+        err.classList.remove("hidden");
+      }
+    }
+  }
+  async function loadFunctions() {
+    try {
+      const resp = await fetch(getApiBase() + "/api/v1/functions", {
+        headers: { "Authorization": "Bearer " + (getActiveKeyValue$1() || "") }
+      });
+      const data = await resp.json();
+      if (data.status !== "ok") return;
+      const countEl = document.getElementById("func-count");
+      if (countEl) countEl.textContent = "共 " + data.count + " 个函数";
+      const categories = /* @__PURE__ */ new Set();
+      data.functions.forEach((f) => categories.add(f.category));
+      const filter = document.getElementById("func-category-filter");
+      if (filter) {
+        categories.forEach((cat) => {
+          const opt = document.createElement("option");
+          opt.value = String(cat);
+          opt.textContent = String(cat);
+          filter.appendChild(opt);
+        });
+      }
+      window._allFuncs = data.functions;
+      filterFunctions();
+    } catch (e) {
+      const el = document.getElementById("func-list");
+      if (el) el.innerHTML = '<div class="text-center text-red-500 py-8">加载失败: ' + e.message + "</div>";
+    }
+  }
+  function filterFunctions() {
+    const search = document.getElementById("func-search")?.value.toLowerCase() || "";
+    const category = document.getElementById("func-category-filter")?.value || "";
+    const funcs = window._allFuncs || [];
+    const list = document.getElementById("func-list");
+    if (!list) return;
+    const filtered = funcs.filter((f) => {
+      if (category && f.category !== category) return false;
+      if (search && !f.func_id.toLowerCase().includes(search) && !f.name.toLowerCase().includes(search)) return false;
+      return true;
+    });
+    list.innerHTML = filtered.map((f) => {
+      const catColors = { dim: "blue", dist: "green", count: "purple", attr: "orange", exist: "red", area: "teal", evac: "pink", access: "indigo" };
+      const color = catColors[f.category] || "gray";
+      const fid = f.func_id;
+      return '<div class="card p-3 hover:shadow-md transition cursor-pointer" onclick="toggleFuncDetail(&#39;' + fid + '&#39;)"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xs font-mono bg-' + color + "-100 text-" + color + '-700 px-2 py-0.5 rounded">' + fid + '</span><span class="font-medium">' + f.name + '</span></div><span class="text-xs text-gray-400">' + f.clause_id + '</span></div><div class="text-sm text-gray-500 mt-1">' + f.description + '</div><div id="detail-' + fid + '" class="hidden mt-2 pt-2 border-t border-gray-100"><div class="grid grid-cols-2 gap-2 text-sm"><div><span class="text-gray-500">目标实体:</span> ' + (f.target_entities || []).join(", ") + '</div><div><span class="text-gray-500">运算符:</span> ' + f.operator + '</div><div><span class="text-gray-500">阈值:</span> <input class="input w-24 inline text-sm" value="' + f.threshold + '" id="th-' + fid + '" /></div><div><span class="text-gray-500">单位:</span> <input class="input w-20 inline text-sm" value="' + f.unit + '" id="unit-' + fid + '" /></div></div><button class="btn-primary text-xs mt-2" onclick="event.stopPropagation();updateFunction(&#39;' + fid + '&#39;)">保存修改</button></div></div>';
+    }).join("");
+  }
+  function toggleFuncDetail(funcId) {
+    document.getElementById("detail-" + funcId)?.classList.toggle("hidden");
+  }
+  async function updateFunction(funcId) {
+    const th = document.getElementById("th-" + funcId);
+    const unit = document.getElementById("unit-" + funcId);
+    if (!th || !unit) return;
+    try {
+      await apiFetch("/api/v1/functions/" + funcId + "/update", {
+        method: "POST",
+        body: JSON.stringify({ threshold: parseFloat(th.value), unit: unit.value })
+      });
+      showToast$1("更新成功", "success");
+    } catch (e) {
+      showToast$1("更新失败: " + e.message, "error");
+    }
+  }
+  function switchRevTab(tab) {
+    const singlePanel = document.getElementById("rev-single-panel");
+    const multiPanel = document.getElementById("rev-multi-panel");
+    const tabSingle = document.getElementById("rev-tab-single");
+    const tabMulti = document.getElementById("rev-tab-multi");
+    if (tab === "multi") {
+      singlePanel?.classList.add("hidden");
+      multiPanel?.classList.remove("hidden");
+      tabSingle?.classList.remove("bg-white", "shadow-sm", "font-medium");
+      tabSingle?.classList.add("text-gray-600");
+      tabMulti?.classList.add("bg-white", "shadow-sm", "font-medium");
+      tabMulti?.classList.remove("text-gray-600");
+      initMultiRooms();
+    } else {
+      singlePanel?.classList.remove("hidden");
+      multiPanel?.classList.add("hidden");
+      tabSingle?.classList.add("bg-white", "shadow-sm", "font-medium");
+      tabSingle?.classList.remove("text-gray-600");
+      tabMulti?.classList.remove("bg-white", "shadow-sm", "font-medium");
+      tabMulti?.classList.add("text-gray-600");
+    }
+    document.getElementById("reverse-result")?.classList.add("hidden");
+    document.getElementById("reverse-error")?.classList.add("hidden");
+  }
+  function initMultiRooms() {
+    const list = document.getElementById("multi-room-list");
+    if (!list || list.children.length > 0) return;
+    addMultiRoom("office", 5e3, 4e3, 900);
+    addMultiRoom("equipment", 3e3, 3e3, 900);
+    addMultiRoom("accessible_toilet", 2500, 2500, 900);
+  }
+  function addMultiRoom(type, width, height, doorWidth) {
+    const list = document.getElementById("multi-room-list");
+    if (!list) return;
+    const div = document.createElement("div");
+    div.className = "multi-room-row flex items-center gap-2 mb-2 p-2 border rounded-lg bg-gray-50";
+    div.innerHTML = '<select class="multi-room-type input text-sm w-28">' + ["office|办公室", "stair|楼梯间", "corridor|走廊", "exit|安全出口", "fire_lobby|前室", "equipment|设备间", "accessible_toilet|无障碍卫生间"].map((o) => {
+      const [v, l] = o.split("|");
+      return '<option value="' + v + '" ' + (v === type ? "selected" : "") + ">" + l + "</option>";
+    }).join("") + '</select><input class="multi-room-width input text-sm w-20" value="' + width + '" placeholder="宽" /><input class="multi-room-height input text-sm w-20" value="' + height + '" placeholder="高" /><input class="multi-room-door-width input text-sm w-20" value="' + (doorWidth || "") + `" placeholder="门宽" /><span class="text-xs text-gray-400 w-16">mm</span><button class="text-red-500 hover:text-red-700 text-sm" onclick="this.closest('.multi-room-row').remove()">✕</button>`;
+    list.appendChild(div);
+  }
+  async function generateMultiReverse() {
+    const result = document.getElementById("reverse-result");
+    const err = document.getElementById("reverse-error");
+    if (!result) return;
+    const dxfPre = document.getElementById("reverse-dxf");
+    const validationDiv = document.getElementById("reverse-validation");
+    result.classList.add("hidden");
+    err?.classList.add("hidden");
+    const rooms = [];
+    document.querySelectorAll(".multi-room-row").forEach((row) => {
+      rooms.push({
+        room_type: row.querySelector(".multi-room-type")?.value || "office",
+        width_mm: parseInt(row.querySelector(".multi-room-width")?.value || "0") || 5e3,
+        height_mm: parseInt(row.querySelector(".multi-room-height")?.value || "0") || 4e3,
+        door_width_mm: parseInt(row.querySelector(".multi-room-door-width")?.value || "0") || null
+      });
+    });
+    if (rooms.length === 0) {
+      rooms.push({ room_type: "office", width_mm: 5e3, height_mm: 4e3 });
+      rooms.push({ room_type: "stair", width_mm: 3e3, height_mm: 5e3 });
+    }
+    try {
+      const resp = await fetch(getApiBase() + "/api/v1/reverse/multi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + (getActiveKeyValue$1() || "") },
+        body: JSON.stringify({ rooms, validate: true })
+      });
+      const data = await resp.json();
+      if (data.status !== "ok") {
+        err.textContent = "错误: " + JSON.stringify(data);
+        err.classList.remove("hidden");
+        return;
+      }
+      const svgContainer = document.getElementById("reverse-svg");
+      if (svgContainer) {
+        svgContainer.innerHTML = renderLayoutSVG(data.layout, data.validation);
+        window._reverseSVGLayout = data.layout;
+        window._reverseSVGValidation = data.validation;
+      }
+      const v = data.validation || {};
+      if (validationDiv) {
+        validationDiv.innerHTML = '<span class="' + (v.all_pass ? "text-green-600" : "text-gray-500") + ' font-bold">' + (v.all_pass ? "✅ 闭环验证通过" : "验证未开启") + "</span>";
+      }
+      if (dxfPre) dxfPre.textContent = data.dxf;
+      result.classList.remove("hidden");
+    } catch (e) {
+      if (err) {
+        err.textContent = "请求失败: " + e.message;
+        err.classList.remove("hidden");
+      }
+    }
+  }
+  function renderLayoutSVG(layout, validation) {
+    const rooms = layout.rooms || [];
+    const corridor = layout.corridor;
+    if (!rooms.length && !corridor) return '<div class="text-center text-gray-400 py-8">无布局数据</div>';
+    const SCALE = 0.1;
+    const MARGIN = 40;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    rooms.forEach((r) => {
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.w);
+      maxY = Math.max(maxY, r.y + r.h);
+    });
+    if (corridor) {
+      const ys = rooms.map((r) => r.y + r.h).concat(rooms.map((r) => r.y));
+      const midY = Math.min(...ys);
+      minX = Math.min(minX, 0);
+      minY = Math.min(minY, midY - corridor.h);
+      maxX = Math.max(maxX, corridor.w);
+      maxY = Math.max(maxY, midY);
+    }
+    const svgW = (maxX - minX) * SCALE + MARGIN * 2;
+    const svgH = (maxY - minY) * SCALE + MARGIN * 2;
+    const colorMap = {
+      office: "#dbeafe",
+      stair: "#bfdbfe",
+      corridor: "#e0f2fe",
+      exit: "#bbf7d0",
+      fire_lobby: "#fde68a",
+      equipment: "#fed7aa",
+      accessible_toilet: "#ddd6fe",
+      bedroom: "#fce7f3",
+      wc: "#f3e8ff",
+      toilet: "#f3e8ff",
+      hallway: "#ecfeff",
+      kitchen: "#fef9c3",
+      bathroom: "#e0e7ff"
+    };
+    const borderMap = {
+      office: "#3b82f6",
+      stair: "#2563eb",
+      corridor: "#0891b2",
+      exit: "#16a34a",
+      fire_lobby: "#d97706",
+      equipment: "#ea580c",
+      accessible_toilet: "#7c3aed",
+      bedroom: "#db2777",
+      wc: "#8b5cf6",
+      toilet: "#8b5cf6",
+      hallway: "#06b6d4",
+      kitchen: "#ca8a04",
+      bathroom: "#6366f1"
+    };
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:100%;display:block;background:#fafafa" font-family="system-ui,sans-serif">`;
+    svg += `<defs><marker id="arrow-evac" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444" stroke="#ef4444" stroke-width="0.5"/></marker></defs>`;
+    rooms.forEach((r) => {
+      const x = (r.x - minX) * SCALE + MARGIN;
+      const y = (r.y - minY) * SCALE + MARGIN;
+      const w2 = r.w * SCALE;
+      const h = r.h * SCALE;
+      const fill = colorMap[r.type] || "#e5e7eb";
+      const stroke = borderMap[r.type] || "#6b7280";
+      svg += `<rect x="${x}" y="${y}" width="${w2}" height="${h}" fill="${fill}" stroke="${stroke}" stroke-width="2" rx="2"/>`;
+      const label = r.type.charAt(0).toUpperCase() + r.type.slice(1).replace(/_/g, " ");
+      const labelFontSize = Math.max(9, Math.min(14, Math.min(w2, h) / 6));
+      svg += `<text x="${x + w2 / 2}" y="${y + h / 2 - 4}" text-anchor="middle" font-size="${labelFontSize}" font-weight="600" fill="#1f2937">${label}</text>`;
+      svg += `<text x="${x + w2 / 2}" y="${y + h / 2 + 10}" text-anchor="middle" font-size="8" fill="#6b7280">${r.w}x${r.h}mm</text>`;
+    });
+    if (corridor) {
+      const ys = rooms.map((r) => r.y + r.h).concat(rooms.map((r) => r.y));
+      const midY = Math.min(...ys);
+      const cx = (0 - minX) * SCALE + MARGIN;
+      const cy = (midY - corridor.h - minY) * SCALE + MARGIN;
+      const cw = corridor.w * SCALE;
+      const ch = corridor.h * SCALE;
+      svg += `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="#e0f2fe" stroke="#0891b2" stroke-width="2" stroke-dasharray="6,4" rx="2"/>`;
+      svg += `<text x="${cx + cw / 2}" y="${cy + ch / 2}" text-anchor="middle" font-size="11" font-weight="600" fill="#0e7490">CORRIDOR</text>`;
+    }
+    if (rooms.length > 1) {
+      rooms.forEach((r) => {
+        const doorYRoom = r.y + r.h;
+        const corridorTop = Math.min(...rooms.map((rr) => rr.y + rr.h));
+        const arrowStartX = (r.x + r.w / 2 - minX) * SCALE + MARGIN;
+        const arrowStartY = (doorYRoom - minY) * SCALE + MARGIN + 4;
+        const arrowEndX = arrowStartX;
+        const arrowEndY = (corridorTop - minY) * SCALE + MARGIN - 4;
+        if (arrowEndY > arrowStartY) {
+          svg += `<line x1="${arrowStartX}" y1="${arrowStartY}" x2="${arrowEndX}" y2="${arrowEndY}" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-evac)"/>`;
+        }
+      });
+      const corridorY2 = Math.min(...rooms.map((rr) => rr.y + rr.h));
+      const corrCX = (0 + (corridor ? corridor.w : 3e3) / 2 - minX) * SCALE + MARGIN;
+      const corrCY = (corridorY2 - minY) * SCALE + MARGIN;
+      const exitX = (corridor ? corridor.w : 3e3) * SCALE + MARGIN;
+      if (exitX > corrCX) {
+        svg += `<line x1="${corrCX}" y1="${corrCY}" x2="${exitX - 20}" y2="${corrCY}" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-evac)"/>`;
+        svg += `<text x="${exitX - 15}" y="${corrCY - 8}" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="700">出口</text>`;
+      }
+    }
+    if (validation && (validation.fail_count ?? 0) > 0) {
+      svg += `<text x="${svgW / 2}" y="${svgH - 10}" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="700">${validation.fail_count} 项违规</text>`;
+    } else if (validation && validation.all_pass) {
+      svg += `<text x="${svgW / 2}" y="${svgH - 10}" text-anchor="middle" font-size="12" fill="#16a34a" font-weight="700">闭环验证通过</text>`;
+    }
+    const scaleLen = 2e3 * SCALE;
+    const scaleY = svgH - 25;
+    svg += `<line x1="20" y1="${scaleY}" x2="${20 + scaleLen}" y2="${scaleY}" stroke="#374151" stroke-width="2"/>`;
+    svg += `<line x1="20" y1="${scaleY - 4}" x2="20" y2="${scaleY + 4}" stroke="#374151" stroke-width="1.5"/>`;
+    svg += `<line x1="${20 + scaleLen}" y1="${scaleY - 4}" x2="${20 + scaleLen}" y2="${scaleY + 4}" stroke="#374151" stroke-width="1.5"/>`;
+    svg += `<text x="${20 + scaleLen / 2}" y="${scaleY - 6}" text-anchor="middle" font-size="8" fill="#6b7280">2m</text>`;
+    svg += "</svg>";
+    return svg;
+  }
+  function expandReverseSVG() {
+    const layout = window._reverseSVGLayout;
+    if (!layout) {
+      showToast$1("先生成布局", "info");
+      return;
+    }
+    const modal = document.createElement("div");
+    modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4";
+    modal.innerHTML = `<div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><h3 class="font-bold">布局可视化</h3><button onclick="this.closest('div.fixed').remove()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><div class="flex-1 overflow-auto p-4">` + renderLayoutSVG(layout, window._reverseSVGValidation) + "</div></div>";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+  function downloadReverseSVG() {
+    const svgEl = document.querySelector("#reverse-svg svg");
+    if (!svgEl) {
+      showToast$1("先生成布局", "info");
+      return;
+    }
+    const blob = new Blob([svgEl.outerHTML], { type: "image/svg+xml" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "baa-layout.svg";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  const _casePageSize = 15;
+  async function loadCaseStats() {
+    try {
+      const r = await apiFetch("/api/v1/cases/stats");
+      if (r.status !== "ok") return;
+      const total = document.getElementById("case-total");
+      const violations = document.getElementById("case-violations");
+      const avgScore = document.getElementById("case-avg-score");
+      const tagsCount = document.getElementById("case-tags-count");
+      if (total) total.textContent = String(r.totalCases ?? "-");
+      if (violations) violations.textContent = String(r.totalViolations ?? "-");
+      if (avgScore) avgScore.textContent = String(r.avgScore ?? "-");
+      if (tagsCount) tagsCount.textContent = String(r.topTags ? Object.keys(r.topTags).length : 0);
+    } catch (e) {
+      console.error("loadCaseStats failed:", e);
+    }
+  }
+  async function loadCases(page = 0) {
+    const q = document.getElementById("case-search")?.value || "";
+    const bt = document.getElementById("case-filter-type")?.value || "";
+    const tag = document.getElementById("case-filter-tag")?.value || "";
+    const listEl = document.getElementById("case-list");
+    if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载中...</div>';
+    try {
+      let data;
+      if (q) {
+        data = await apiFetch(`/api/v1/cases/search?q=${encodeURIComponent(q)}`);
+      } else {
+        const params = new URLSearchParams({ limit: String(_casePageSize), offset: String(page * _casePageSize) });
+        if (bt) params.set("building_type", bt);
+        if (tag) params.set("tag", tag);
+        data = await apiFetch(`/api/v1/cases?${params}`);
+      }
+      if (data.status !== "ok") {
+        if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载失败</div>';
+        return;
+      }
+      const cases = data.cases || [];
+      renderCaseList(cases, data.total ?? 0);
+      renderCasePagination(data.total ?? 0, page);
+    } catch (e) {
+      console.error("loadCases failed:", e);
+      if (listEl) listEl.innerHTML = '<div class="text-center text-red-400 py-8">加载失败: ' + e.message + "</div>";
+    }
+  }
+  function renderCaseList(cases, total) {
+    const el = document.getElementById("case-list");
+    if (!el) return;
+    if (cases.length === 0) {
+      el.innerHTML = '<div class="text-center text-gray-400 py-8">暂无案例数据</div>';
+      return;
+    }
+    const tagColors = {
+      "尺寸不合规": "bg-red-100 text-red-700",
+      "距离不合规": "bg-orange-100 text-orange-700",
+      "数量不合规": "bg-yellow-100 text-yellow-700",
+      "缺失设施": "bg-red-100 text-red-700",
+      "面积不合规": "bg-blue-100 text-blue-700",
+      "属性不合规": "bg-gray-100 text-gray-700",
+      "照明不合规": "bg-yellow-100 text-yellow-700",
+      "无障碍不合规": "bg-green-100 text-green-700"
+    };
+    let html = "";
+    for (const c of cases) {
+      const score = c.score ?? 0;
+      const scoreColor = score >= 80 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
+      const violations = c.violationCount ?? 0;
+      const corrections = c.correctionCount ?? 0;
+      const tagsHtml = (c.tags || []).slice(0, 4).map(
+        (t) => `<span class="inline-block px-2 py-0.5 text-xs rounded-full ${tagColors[t] || "bg-gray-100 text-gray-600"}">${escHtml$1(t)}</span>`
+      ).join(" ");
+      html += `<div class="card p-4 hover:bg-gray-50 cursor-pointer transition" onclick="openCaseDetail('${escHtml$1(c.caseId)}')">
       <div class="flex items-center justify-between mb-2">
-        <div><h4 class="font-medium text-sm">${f(a.drawingName)}</h4>
-        <span class="text-xs text-gray-400">${f(a.buildingType||"civil")} · ${f(a.standard||"")}</span></div>
-        <div class="text-right"><span class="${l} font-bold text-lg">${i.toFixed(0)}</span><span class="text-xs text-gray-400 ml-1">分</span></div>
+        <div><h4 class="font-medium text-sm">${escHtml$1(c.drawingName)}</h4>
+        <span class="text-xs text-gray-400">${escHtml$1(c.buildingType || "civil")} · ${escHtml$1(c.standard || "")}</span></div>
+        <div class="text-right"><span class="${scoreColor} font-bold text-lg">${score.toFixed(0)}</span><span class="text-xs text-gray-400 ml-1">分</span></div>
       </div>
-      ${d?`<div class="flex flex-wrap gap-1 mb-2">${d}</div>`:""}
+      ${tagsHtml ? `<div class="flex flex-wrap gap-1 mb-2">${tagsHtml}</div>` : ""}
       <div class="flex gap-4 text-xs text-gray-400">
-        <span>图元 ${a.entityCount??"-"}</span>
-        <span class="${r>0?"text-red-500":"text-green-500"}">违规 ${r}</span>
-        <span class="text-blue-500">修正 ${c}</span>
-        <span>${ut(a.reviewedAt||"")}</span>
-      </div></div>`}n.innerHTML=s}function En(e,t){const n=document.getElementById("case-pagination");if(!n)return;const o=Math.ceil(e/mt);if(o<=1){n.innerHTML="";return}let s="";s+=`<button onclick="loadCases(${t-1})" ${t===0?"disabled":""} class="px-3 py-1 border rounded text-sm ${t===0?"opacity-40":"hover:bg-gray-100"}">← 上一页</button>`,s+=`<span class="px-2 text-sm text-gray-500">第 ${t+1} / ${o} 页</span>`,s+=`<button onclick="loadCases(${t+1})" ${t+1>=o?"disabled":""} class="px-3 py-1 border rounded text-sm ${t+1>=o?"opacity-40":"hover:bg-gray-100"}">下一页 →</button>`,n.innerHTML=s}async function No(e){const t=document.getElementById("case-detail-title"),n=document.getElementById("case-detail-content"),o=document.getElementById("case-detail-modal");if(!(!o||!t||!n)){t.textContent="案例详情",n.innerHTML='<div class="text-center text-gray-400 py-8">加载中...</div>',o.classList.remove("hidden");try{const s=await W(`/api/v1/cases/${e}`);if(s.status!=="ok"){n.innerHTML=`<div class="text-center text-red-400 py-8">${f(s.message||"加载失败")}</div>`;return}const a=s.score??0,i=a>=80?"text-green-600":a>=50?"text-yellow-600":"text-red-600",l=(s.tags||[]).map(c=>`<span class="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">${f(c)}</span>`).join(" ");let r=`<div class="mb-4">
-      <h4 class="font-bold">${f(s.drawingName)}</h4>
-      <p class="text-xs text-gray-400">${f(s.buildingType||"civil")} · ${f(s.standard||"")} · ${ut(s.reviewedAt||"")}</p>
-      <div class="mt-2 flex gap-2 flex-wrap">${l}</div></div>
+        <span>图元 ${c.entityCount ?? "-"}</span>
+        <span class="${violations > 0 ? "text-red-500" : "text-green-500"}">违规 ${violations}</span>
+        <span class="text-blue-500">修正 ${corrections}</span>
+        <span>${formatTimeAgo(c.reviewedAt || "")}</span>
+      </div></div>`;
+    }
+    el.innerHTML = html;
+  }
+  function renderCasePagination(total, page) {
+    const el = document.getElementById("case-pagination");
+    if (!el) return;
+    const totalPages = Math.ceil(total / _casePageSize);
+    if (totalPages <= 1) {
+      el.innerHTML = "";
+      return;
+    }
+    let html = "";
+    html += `<button onclick="loadCases(${page - 1})" ${page === 0 ? "disabled" : ""} class="px-3 py-1 border rounded text-sm ${page === 0 ? "opacity-40" : "hover:bg-gray-100"}">← 上一页</button>`;
+    html += `<span class="px-2 text-sm text-gray-500">第 ${page + 1} / ${totalPages} 页</span>`;
+    html += `<button onclick="loadCases(${page + 1})" ${page + 1 >= totalPages ? "disabled" : ""} class="px-3 py-1 border rounded text-sm ${page + 1 >= totalPages ? "opacity-40" : "hover:bg-gray-100"}">下一页 →</button>`;
+    el.innerHTML = html;
+  }
+  async function openCaseDetail(caseId) {
+    const titleEl = document.getElementById("case-detail-title");
+    const contentEl = document.getElementById("case-detail-content");
+    const modal = document.getElementById("case-detail-modal");
+    if (!modal || !titleEl || !contentEl) return;
+    titleEl.textContent = "案例详情";
+    contentEl.innerHTML = '<div class="text-center text-gray-400 py-8">加载中...</div>';
+    modal.classList.remove("hidden");
+    try {
+      const data = await apiFetch(`/api/v1/cases/${caseId}`);
+      if (data.status !== "ok") {
+        contentEl.innerHTML = `<div class="text-center text-red-400 py-8">${escHtml$1(data.message || "加载失败")}</div>`;
+        return;
+      }
+      const score = data.score ?? 0;
+      const scoreColor = score >= 80 ? "text-green-600" : score >= 50 ? "text-yellow-600" : "text-red-600";
+      const tagsHtml = (data.tags || []).map(
+        (t) => `<span class="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">${escHtml$1(t)}</span>`
+      ).join(" ");
+      let html = `<div class="mb-4">
+      <h4 class="font-bold">${escHtml$1(data.drawingName)}</h4>
+      <p class="text-xs text-gray-400">${escHtml$1(data.buildingType || "civil")} · ${escHtml$1(data.standard || "")} · ${formatTimeAgo(data.reviewedAt || "")}</p>
+      <div class="mt-2 flex gap-2 flex-wrap">${tagsHtml}</div></div>
       <div class="grid grid-cols-3 gap-3 mb-4">
-        <div class="card p-3 text-center"><div class="${i} font-bold text-xl">${a.toFixed(0)}</div><div class="text-xs text-gray-500">审查得分</div></div>
-        <div class="card p-3 text-center"><div class="font-bold text-xl text-red-500">${s.violationCount??"-"}</div><div class="text-xs text-gray-500">违规数</div></div>
-        <div class="card p-3 text-center"><div class="font-bold text-xl text-blue-500">${s.correctionCount??"-"}</div><div class="text-xs text-gray-500">修正建议</div></div></div>
-      <h5 class="font-medium mb-2">核心违规 TOP-5</h5><div class="space-y-2">`;for(const c of s.topViolations||[]){const d=c.confidence_tier==="高"?"text-red-600":c.confidence_tier==="中"?"text-yellow-600":"text-gray-400";r+=`<div class="border rounded p-2 text-sm">
-        <div class="font-medium">${f(c.clause_title||c.clause_id)}</div>
-        <div class="text-xs text-gray-400">${f(c.entity_type||"")} · 条款 ${f(c.clause_id||"")}</div>
-        ${c.extracted_value!==void 0?`<div class="text-xs">实测 ${c.extracted_value} · 要求 ${c.required_value} · 偏差 ${c.difference}</div>`:""}
-        ${c.confidence_tier?`<span class="${d} text-xs">${c.confidence_tier}置信</span>`:""}</div>`}(!s.topViolations||s.topViolations.length===0)&&(r+='<div class="text-center text-gray-400 text-sm py-4">无违规记录</div>'),r+="</div>",n.innerHTML=r}catch(s){n.innerHTML=`<div class="text-center text-red-400 py-8">加载失败: ${f(s.message)}</div>`}}}function In(){const e=document.getElementById("case-detail-modal");e&&e.classList.add("hidden")}typeof document<"u"&&(document.addEventListener("click",function(e){const t=document.getElementById("case-detail-modal");t&&!t.classList.contains("hidden")&&e.target===t&&In()}),setTimeout(bn,1e3));let oe=localStorage.getItem("baa_collab_token")||"",z={};try{z=JSON.parse(localStorage.getItem("baa_collab_user")||"{}")}catch{}function ue(e){if(!e)return"请求失败";if(typeof e=="string")return e;const t=e;if(typeof t.detail=="string")return t.detail;if(t.detail&&typeof t.detail=="object"){const n=t.detail;return String(n.message||n.error_code||"请求失败")}return"请求失败"}function A(e,t){const n={...t},o=k()+e,s={"Content-Type":"application/json"};if(oe&&(s.Authorization="Bearer "+oe),n.headers){const a=n.headers;for(const i in a)s[i]=a[i]}return n.headers=s,fetch(o,n).then(a=>(a.status===401&&oe&&n.autoLogout!==!1&&Re(),a.json().catch(()=>({}))))}function Ln(){const e=document.getElementById("collab-modal-overlay");e&&(e.style.display="none")}function ie(e){const t=document.getElementById("collab-modal-body");if(t){t.innerHTML=e;const n=document.getElementById("collab-modal-overlay");n&&(n.style.display="flex")}}function Bn(e){const t=document.querySelectorAll("#collab-auth-tabs button");t.length<2||(t[0].className=e?"flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white":"flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600",t[1].className=e?"flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600":"flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white")}function kn(){const e=document.getElementById("collab-login-form");e&&(e.style.display="block");const t=document.getElementById("collab-register-form");t&&(t.style.display="none"),Bn(!0)}function Fo(){const e=document.getElementById("collab-login-form");e&&(e.style.display="none");const t=document.getElementById("collab-register-form");t&&(t.style.display="block"),Bn(!1)}function Ko(){var n,o,s;const e=((o=(n=document.getElementById("collab-username"))==null?void 0:n.value)==null?void 0:o.trim())||"",t=((s=document.getElementById("collab-password"))==null?void 0:s.value)||"";if(!e||!t){const a=document.getElementById("collab-auth-msg");a&&(a.textContent="请输入用户名和密码");return}A("/collab/auth/login",{method:"POST",body:JSON.stringify({username:e,password:t}),autoLogout:!1}).then(a=>{if(a.status==="success"){oe=String(a.token||""),z=a.user||{},localStorage.setItem("baa_collab_token",oe),localStorage.setItem("baa_collab_user",JSON.stringify(z));const i=document.getElementById("collab-auth-msg");i&&(i.textContent=""),ft()}else{const i=document.getElementById("collab-auth-msg");i&&(i.textContent=ue(a))}}).catch(a=>{const i=document.getElementById("collab-auth-msg");i&&(i.textContent="网络错误: "+a.message)})}function qo(){var a,i,l,r,c,d,g;const e=((i=(a=document.getElementById("collab-reg-username"))==null?void 0:a.value)==null?void 0:i.trim())||"",t=((l=document.getElementById("collab-reg-password"))==null?void 0:l.value)||"",n=((c=(r=document.getElementById("collab-reg-email"))==null?void 0:r.value)==null?void 0:c.trim())||"",o=((g=(d=document.getElementById("collab-reg-name"))==null?void 0:d.value)==null?void 0:g.trim())||"";if(!e||!t){const m=document.getElementById("collab-reg-msg");m&&(m.textContent="用户名和密码不能为空");return}if(t.length<6){const m=document.getElementById("collab-reg-msg");m&&(m.textContent="密码至少6位");return}const s={username:e,password:t};n&&(s.email=n,s.display_name=o),A("/collab/auth/register",{method:"POST",body:JSON.stringify(s),autoLogout:!1}).then(m=>{if(m.status==="success"){const y=document.getElementById("collab-reg-msg");y&&(y.textContent="注册成功，请登录",y.style.color="#059669"),kn();const x=document.getElementById("collab-username");x&&(x.value=e)}else{const y=document.getElementById("collab-reg-msg");y&&(y.textContent=ue(m))}}).catch(m=>{const y=document.getElementById("collab-reg-msg");y&&(y.textContent="网络错误: "+m.message)})}function Re(){oe="",z={},localStorage.removeItem("baa_collab_token"),localStorage.removeItem("baa_collab_user"),De(!1);const e=document.getElementById("collab-main-section");e&&(e.style.display="none");const t=document.getElementById("collab-login-section");t&&(t.style.display="block")}function ft(){const e=document.getElementById("collab-login-section");e&&(e.style.display="none");const t=document.getElementById("collab-main-section");t&&(t.style.display="block");const n=document.getElementById("collab-user-display");n&&(n.textContent="👤 "+String(z.display_name||z.username||"")),pt(),De(!0)}function De(e){const t=document.getElementById("user-status-logged-out"),n=document.getElementById("user-status-logged-in");if(!(!t||!n)){if(e){const o=document.getElementById("user-status-name");o&&(o.textContent="👤 "+String(z.display_name||z.username||"—"));const s=document.getElementById("user-status-role");s&&(s.textContent=String(z.role||"user"))}t.style.display=e?"none":"block",n.style.display=e?"flex":"none"}}function pt(){Tn(),Cn()}function Tn(){A("/collab/stats").then(e=>{if(e.status!=="success")return;const t=e.stats,n=document.getElementById("cs-users");n&&(n.textContent=String(t.users||0));const o=document.getElementById("cs-teams");o&&(o.textContent=String(t.teams||0));const s=document.getElementById("cs-projects");s&&(s.textContent=String(t.active_projects||0));const a=document.getElementById("cs-sessions");a&&(a.textContent=String(t.review_sessions||0))})}function Cn(){A("/collab/teams").then(e=>{const t=document.getElementById("collab-teams");if(!t)return;if(e.status!=="success"){t.innerHTML="加载失败";return}const n=e.teams||[];if(!n.length){t.innerHTML="暂无团队";return}let o='<table class="collab-table"><tr><th>名称</th><th>成员</th><th>角色</th><th>时间</th><th>操作</th></tr>';for(const s of n)o+="<tr><td><strong>"+f(String(s.name))+"</strong></td><td>"+String(s.member_count??"")+'</td><td><span class="collab-badge collab-badge-'+String(s.my_role)+'">'+String(s.my_role)+"</span></td><td>"+new Date(Number(s.created_at)*1e3).toLocaleDateString()+`</td><td><button class="text-blue-600 text-xs underline" onclick="showTeamDetail('`+String(s.id)+`')">📋</button></td></tr>`;o+="</table>",t.innerHTML=o})}function Vo(){ie('<h3 class="text-lg font-bold mb-4">新建团队</h3><input id="modal-team-name" class="input w-full mb-2" placeholder="团队名称" /><textarea id="modal-team-desc" class="input w-full mb-3" placeholder="描述" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">取消</button><button class="modal-btn modal-btn-primary" onclick="createTeam()">创建</button></div>')}function zo(){var n,o,s,a;const e=((o=(n=document.getElementById("modal-team-name"))==null?void 0:n.value)==null?void 0:o.trim())||"";if(!e)return;const t=((a=(s=document.getElementById("modal-team-desc"))==null?void 0:s.value)==null?void 0:a.trim())||"";A("/collab/teams",{method:"POST",body:JSON.stringify({name:e,description:t})}).then(i=>{var l,r;i.status==="success"?((l=window.setCurrentTeamId)==null||l.call(window,String(i.team_id||i.id||"")),(r=window.setCurrentProjectId)==null||r.call(window,""),Ln(),pt()):w(ue(i),"info")})}function $n(e){var t,n;(t=window.setCurrentTeamId)==null||t.call(window,e),(n=window.setCurrentProjectId)==null||n.call(window,""),Promise.all([A("/collab/teams/"+e),A("/collab/teams/"+e+"/projects")]).then(o=>{if(o[0].status!=="success")return;const s=o[0].team||{},a=o[1].projects||[],i=s.members||[];let l='<table class="collab-table"><tr><th>用户</th><th>角色</th><th>时间</th></tr>';for(const c of i)l+="<tr><td>"+f(String(c.display_name||c.username||""))+'</td><td><span class="collab-badge collab-badge-'+String(c.role)+'">'+String(c.role)+"</span></td><td>"+new Date(Number(c.joined_at)*1e3).toLocaleDateString()+"</td></tr>";l+="</table>";let r="";if(!a.length)r='<p class="text-sm text-gray-400 py-2">暂无项目</p>';else{r='<table class="collab-table"><tr><th>项目</th><th>图纸</th><th>审查</th><th>状态</th><th>操作</th></tr>';for(const c of a)r+="<tr><td><strong>"+f(String(c.name))+"</strong></td><td>"+String(c.file_count??"")+"</td><td>"+String(c.review_count??"")+"</td><td>"+String(c.status)+`</td><td><button class="text-blue-600 text-xs underline" onclick="showProjectDetail('`+String(c.id)+`')">📝</button></td></tr>`;r+="</table>"}ie('<h3 class="text-lg font-bold mb-4">团队: '+f(String(s.name))+'</h3><div class="mb-4"><h4 class="font-medium mb-2">成员 ('+i.length+")</h4>"+l+`</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">项目</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal('`+e+`')">+ 新建项目</button></div>`+r+'</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>')})}function jn(e){var t;(t=window.setCurrentProjectId)==null||t.call(window,e),Promise.all([A("/collab/projects/"+e),A("/collab/projects/"+e+"/review-sessions")]).then(n=>{if(n[0].status!=="success")return;const o=n[0].project||{},s=n[1].review_sessions||[],a=o.members||[];let i='<table class="collab-table"><tr><th>用户</th><th>权限</th></tr>';for(const r of a)i+="<tr><td>"+f(String(r.display_name||r.username||""))+'</td><td><span class="collab-badge">'+String(r.permission)+"</span></td></tr>";i+="</table>";let l="";if(!s.length)l='<p class="text-sm text-gray-400 py-2">暂无审查会话</p>';else{l='<table class="collab-table"><tr><th>名称</th><th>状态</th><th>创建人</th><th>时间</th><th>操作</th></tr>';for(const r of s)l+="<tr><td>"+f(String(r.name))+'</td><td><span class="collab-badge collab-badge-'+String(r.status)+'">'+String(r.status)+"</span></td><td>"+f(String(r.creator_name||""))+"</td><td>"+new Date(Number(r.created_at)*1e3).toLocaleString()+`</td><td><button class="text-blue-600 text-xs underline" onclick="showReviewSessionDetail('`+String(r.id)+`')">📝</button></td></tr>`;l+="</table>"}ie('<h3 class="text-lg font-bold mb-4">项目: '+f(String(o.name))+'</h3><div class="mb-4"><h4 class="font-medium mb-2">成员</h4>'+i+`</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">审查会话</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateReviewSessionModal('`+e+`' )">+ 新建审查</button></div>`+l+'</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>')})}function Uo(e){ie(`<h3 class="text-lg font-bold mb-4">新建项目</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="项目名称" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="描述" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="建筑类型" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail('`+e+`' )">返回</button><button class="modal-btn modal-btn-primary" onclick="createProject('`+e+`' )">创建</button></div>`)}function Jo(e){var s,a,i,l,r,c;const t=((a=(s=document.getElementById("modal-proj-name"))==null?void 0:s.value)==null?void 0:a.trim())||"";if(!t)return;const n=((l=(i=document.getElementById("modal-proj-desc"))==null?void 0:i.value)==null?void 0:l.trim())||"",o=((c=(r=document.getElementById("modal-proj-type"))==null?void 0:r.value)==null?void 0:c.trim())||"";A("/collab/projects",{method:"POST",body:JSON.stringify({name:t,team_id:e,description:n,building_type:o})}).then(d=>{var g,m;d.status==="success"?((g=window.setCurrentTeamId)==null||g.call(window,e),(m=window.setCurrentProjectId)==null||m.call(window,String(d.project_id||d.id||"")),$n(e)):w(ue(d),"info")})}function Go(e){ie(`<h3 class="text-lg font-bold mb-4">新建审查会话</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="名称" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="描述" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail('`+e+`' )">返回</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession('`+e+`' )">创建</button></div>`)}function Yo(e){var o,s,a,i;const t=((s=(o=document.getElementById("modal-rs-name"))==null?void 0:o.value)==null?void 0:s.trim())||"";if(!t)return;const n=((i=(a=document.getElementById("modal-rs-desc"))==null?void 0:a.value)==null?void 0:i.trim())||"";A("/collab/review-sessions",{method:"POST",body:JSON.stringify({project_id:e,name:t,description:n})}).then(l=>{l.status==="success"?jn(e):w(ue(l),"info")})}function Xo(e){Promise.all([A("/collab/review-sessions/"+e),A("/collab/review-sessions/"+e+"/comments"),A("/collab/review-sessions/"+e+"/approval-flow")]).then(t=>{if(t[0].status!=="success")return;const n=t[0].review_session||{},o=t[1].comments||[],s=t[2].approval_flow,a='<span class="collab-badge collab-badge-'+String(n.status)+'">'+String(n.status)+"</span>";let i="";if(!o.length)i='<p class="text-sm text-gray-400 py-2">暂无评论</p>';else for(const r of o){const c=r.comment_type==="issue"?"⚠️":r.comment_type==="suggestion"?"💡":r.comment_type==="question"?"❓":"✅";i+='<div class="comment-box comment-'+String(r.comment_type)+'"><div class="flex justify-between items-start"><span class="font-medium text-sm">'+c+" "+f(String(r.author_name||""))+'</span><span class="text-xs text-gray-400">'+new Date(Number(r.created_at)*1e3).toLocaleString()+'</span></div><p class="text-sm mt-1">'+f(String(r.content||""))+"</p>",r.clause_ref&&(i+='<div class="text-xs text-gray-400 mt-1">• 条款: '+f(String(r.clause_ref))+"</div>"),r.entity_ref&&(i+='<div class="text-xs text-gray-400">• 实体: '+f(String(r.entity_ref))+"</div>"),i+="</div>"}let l="";if(s&&s.steps){l='<table class="collab-table"><tr><th>序号</th><th>审批人</th><th>状态</th><th>意见</th><th>时间</th></tr>';for(const r of s.steps){const c='<span class="collab-badge collab-badge-'+String(r.status)+'">'+String(r.status)+"</span>";l+="<tr><td>"+String(r.order)+"</td><td>"+f(String(r.reviewer_name||""))+"</td><td>"+c+"</td><td>"+f(String(r.comment||""))+"</td><td>"+(r.acted_at?new Date(Number(r.acted_at)*1e3).toLocaleString():"")+"</td></tr>"}l+="</table>"}else l='<p class="text-sm text-gray-400 py-2">暂无审批流程</p>';ie('<h3 class="text-lg font-bold mb-4">审查会话: '+f(String(n.name||""))+" "+a+'</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>'+i+'</div><div><h4 class="font-medium mb-2">审批流程</h4>'+l+'</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>')})}oe&&setTimeout(()=>{A("/collab/users/me",{autoLogout:!1}).then(e=>{if(e.status==="success"){z=e.user||{},localStorage.setItem("baa_collab_user",JSON.stringify(z)),De(!0);const t=document.getElementById("page-collab");if(t&&t.classList.contains("active"))ft();else{const n=document.getElementById("collab-main-section"),o=document.getElementById("collab-login-section");n&&o&&(n.style.display="block",o.style.display="none")}}else Re()}).catch(()=>{Re()})},500),Pn({apiBase:()=>{var e;return((e=document.getElementById("api-base"))==null?void 0:e.value)||"http://localhost:8000"},getActiveKeyValue:J,currentTeamId:()=>C.teamId,currentProjectId:()=>C.projectId}),we();const u=window;u.formatDate=X,u.maskKey=gt,u.escHtml=f,u.permissionBadge=He,u.enabledBadge=Oe,u.uid=An,u.mergeDeep=yt,u.showToast=w,u.showSkeleton=Dn,u.hideSkeleton=Hn,u.renderSkeletonContainer=On,u.renderProgress=xt,u.HEADERS=ae,u.getHeaders=N,u.adminHeaders=me,u.API_BASE=k,u.apiGet=R,u.apiPostJSON=re,u.apiPostFile=he,u.apiFetch=W,u.adminGet=le,u.adminPost=be,u.adminDelete=Fe,u.apiPost=async(e,t)=>re(e,t),u.getCurrentTeamId=()=>C.teamId,u.getCurrentProjectId=()=>C.projectId,u.setCurrentTeamId=e=>C.setTeamId(e||""),u.setCurrentProjectId=e=>C.setProjectId(e||""),u.loadApiBase=()=>C.loadApiBase(),u.saveApiBase=()=>C.saveApiBase(),u.getApiKey=()=>J(),u.getActiveKeyValue=J,u.loadApiKeys=qe,u.saveApiKeys=()=>{},u.switchApiKey=bt,u.deleteCurrentApiKey=wt,u.addApiKey=_t,u.deleteApiKey=ze,u.copyApiKey=St,u.populateTokenSelect=te,u.refreshTokenSelect=Jn,u.initAdminToken=we,u.loadAdminKeys=fe,u.openCreateKeyModal=Et,u.closeCreateKeyModal=Je,u.createAdminKey=It,u.copyCreatedKey=Lt,u.closeKeyCreatedModal=Bt,u.showKeyDetail=kt,u.showDetailRawKey=Tt,u.copyDetailRawKey=Ct,u.copyKeyFromDetail=$t,u.closeKeyDetailModal=Ge,u.confirmRevokeKey=Ye,u.confirmDeleteKey=jt,u.revokeAdminKey=Mt,u.showDrawingReviewPanel=At,u.switchDrawingTab=Rt,u.loadReviewContext=Xe,u.onReviewTeamSelect=Dt,u.onReviewProjectSelect=Ht,u.saveParsedDrawings=Ie,u.loadParsedDrawings=Jt,u.renderDrawingList=se,u.toggleDrawingSelect=Qn,u.selectAllDrawings=es,u.deselectAllDrawings=ts,u.updateBatchButton=et,u.uploadDrawing=ns,u.uploadAndReview=ss,u.batchReview=os,u.deleteDrawing=is,u.sendToReview=as,u.refreshReviewDrawingSelect=Le,u.onReviewDrawingSelect=Gt,u.loadDashboard=ge,u.renderRecentReviews=Vt,u.renderSpecFreqBars=zt,u.renderViolationTypeBars=Ut,u.loadReviewResults=Ee,u.fallbackLoadReviewResults=Qe,u.refreshCompareDrawingSelect=Zn,u.downloadReviewPdf=js,u.downloadReviewExport=Ms,u.downloadReviewJSON=As,u.loadFeedbackStats=an,u.loadFeedbacks=rn,u.submitFeedback=Rs,u._onDiffFileSelect=ot,u.runDiffComparison=Ds,u.renderDiffResults=cn,u.renderDiffItemPanel=dn,u.switchDiffTab=un,u.loadDiffVisualization=mn,u.clearDiffResults=Hs,u.onThermalCompTypeChange=Ns,u.renderThermalThresholds=Fs,u.computeThermalK=Ks,u.renderThermalViolations=qs,u.generateCorrectionSuggestions=Vs,u.confirmCorrection=zs,u.renderStructuralThresholds=Us,u.onStructuralCompTypeChange=Js,u.computeStructuralCheck=Gs,u.renderStructuralViolations=Ys,u.renderHistoryList=Te,u.deleteReviewRecord=Zs,u.viewHistoryDetail=Qs,u.closeHistoryModal=gn,u.clearReviewHistory=eo;const Mn={value:0};Object.defineProperty(u,"historyPage",{get:()=>Mn.value,set:e=>{Mn.value=e},enumerable:!0,configurable:!0}),u.loadSpecs=Yt,u.renderSpecList=Xt,u.zoomImage=Io,u.zoomSet=lt,u.zoomReset=hn,u.zoomFit=Lo,u.zoomClose=je,u.runMultiSheetReview=Bo,u.switchMultiSheetTab=To,u.renderMultiSheetTab=dt,u.formatTimeAgo=ut,u.copyReverseDXF=Co,u.generateReverse=$o,u.loadFunctions=bn,u.filterFunctions=wn,u.toggleFuncDetail=jo,u.updateFunction=Mo,u.switchRevTab=Ao,u.initMultiRooms=_n,u.addMultiRoom=Me,u.generateMultiReverse=Ro,u.renderLayoutSVG=Ae,u.expandReverseSVG=Do,u.downloadReverseSVG=Ho,u.loadCaseStats=Oo,u.loadCases=Po,u.renderCaseList=Sn,u.renderCasePagination=En,u.openCaseDetail=No,u.closeCaseDetail=In,u.loadAnalysis=co,u.renderOverviewCards=yn,u.renderAnalysisTable=uo,u.renderCategoryAnalysis=mo,u.renderTrendBars=fo,u.renderViolationDistBars=po,u.loadCDItems=xn,u._initAuditItems=Qt,u._loadAuditItemStates=st,u.renderAuditButtons=hs,u.auditAction=bs,u.renderAuditStatsBar=en,u._loadAuditStats=tn,u._refreshAuditPanel=nn,u._onAuditFilterChange=_s,u.downloadCorrectionNotice=Ss,u.MODEL_PARAMS_TABS=vn,u.switchModelParamTab=So,u.downloadModelExport=Eo,u.collabErrMsg=ue,u.collabApi=A,u.closeCollabModal=Ln,u.setModalBody=ie,u.showCollabLogin=kn,u.showCollabRegister=Fo,u.collabLogin=Ko,u.collabRegister=qo,u.collabLogout=Re,u.collabEnterMain=ft,u.updateUserStatus=De,u.collabRefresh=pt,u.loadCollabStats=Tn,u.loadCollabTeams=Cn,u.showCreateTeamModal=Vo,u.createTeam=zo,u.showTeamDetail=$n,u.showProjectDetail=jn,u.showCreateProjectModal=Uo,u.createProject=Jo,u.showCreateReviewSessionModal=Go,u.createReviewSession=Yo,u.showReviewSessionDetail=Xo,u.testConnection=vt,u.router=ht,u.importServerKey=Ot,u.importSelectedKey=Pt,u.closeImportKeyModal=_e,u.openModal=Nt,u.renderFilterBar=Zt,u.renderReviewItem=tt,u.renderReviewTable=nt,u.runReview=Es,u.renderViolationOverlay=sn,u.runBatchReviewComponent=on,console.log("[P123] Vite TS core modules loaded"),document.addEventListener("DOMContentLoaded",ds)})();
+        <div class="card p-3 text-center"><div class="${scoreColor} font-bold text-xl">${score.toFixed(0)}</div><div class="text-xs text-gray-500">审查得分</div></div>
+        <div class="card p-3 text-center"><div class="font-bold text-xl text-red-500">${data.violationCount ?? "-"}</div><div class="text-xs text-gray-500">违规数</div></div>
+        <div class="card p-3 text-center"><div class="font-bold text-xl text-blue-500">${data.correctionCount ?? "-"}</div><div class="text-xs text-gray-500">修正建议</div></div></div>
+      <h5 class="font-medium mb-2">核心违规 TOP-5</h5><div class="space-y-2">`;
+      for (const v of data.topViolations || []) {
+        const tierColor = v.confidence_tier === "高" ? "text-red-600" : v.confidence_tier === "中" ? "text-yellow-600" : "text-gray-400";
+        html += `<div class="border rounded p-2 text-sm">
+        <div class="font-medium">${escHtml$1(v.clause_title || v.clause_id)}</div>
+        <div class="text-xs text-gray-400">${escHtml$1(v.entity_type || "")} · 条款 ${escHtml$1(v.clause_id || "")}</div>
+        ${v.extracted_value !== void 0 ? `<div class="text-xs">实测 ${v.extracted_value} · 要求 ${v.required_value} · 偏差 ${v.difference}</div>` : ""}
+        ${v.confidence_tier ? `<span class="${tierColor} text-xs">${v.confidence_tier}置信</span>` : ""}</div>`;
+      }
+      if (!data.topViolations || data.topViolations.length === 0) {
+        html += '<div class="text-center text-gray-400 text-sm py-4">无违规记录</div>';
+      }
+      html += "</div>";
+      contentEl.innerHTML = html;
+    } catch (e) {
+      contentEl.innerHTML = `<div class="text-center text-red-400 py-8">加载失败: ${escHtml$1(e.message)}</div>`;
+    }
+  }
+  function closeCaseDetail() {
+    const modal = document.getElementById("case-detail-modal");
+    if (modal) modal.classList.add("hidden");
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("click", function(e) {
+      const modal = document.getElementById("case-detail-modal");
+      if (modal && !modal.classList.contains("hidden") && e.target === modal) {
+        closeCaseDetail();
+      }
+    });
+    setTimeout(loadFunctions, 1e3);
+  }
+  let _token = localStorage.getItem("baa_collab_token") || "";
+  let _user = {};
+  try {
+    _user = JSON.parse(localStorage.getItem("baa_collab_user") || "{}");
+  } catch (_) {
+  }
+  function collabErrMsg(d) {
+    if (!d) return "请求失败";
+    if (typeof d === "string") return d;
+    const obj = d;
+    if (typeof obj.detail === "string") return obj.detail;
+    if (obj.detail && typeof obj.detail === "object") {
+      const det = obj.detail;
+      return String(det.message || det.error_code || "请求失败");
+    }
+    return "请求失败";
+  }
+  function collabApi(path, options) {
+    const opts = { ...options };
+    const url = getApiBase() + path;
+    const headers = { "Content-Type": "application/json" };
+    if (_token) headers["Authorization"] = "Bearer " + _token;
+    if (opts.headers) {
+      const extra = opts.headers;
+      for (const k in extra) headers[k] = extra[k];
+    }
+    opts.headers = headers;
+    return fetch(url, opts).then((r) => {
+      if (r.status === 401 && _token && opts.autoLogout !== false) collabLogout();
+      return r.json().catch(() => ({}));
+    });
+  }
+  function closeCollabModal() {
+    const el = document.getElementById("collab-modal-overlay");
+    if (el) el.style.display = "none";
+  }
+  function setModalBody(html) {
+    const el = document.getElementById("collab-modal-body");
+    if (el) {
+      el.innerHTML = html;
+      const o = document.getElementById("collab-modal-overlay");
+      if (o) o.style.display = "flex";
+    }
+  }
+  function _tabStyle(active) {
+    const btns = document.querySelectorAll("#collab-auth-tabs button");
+    if (btns.length < 2) return;
+    btns[0].className = active ? "flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white" : "flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600";
+    btns[1].className = active ? "flex-1 px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-600" : "flex-1 px-4 py-2 rounded text-sm font-medium bg-blue-500 text-white";
+  }
+  function showCollabLogin() {
+    const f = document.getElementById("collab-login-form");
+    if (f) f.style.display = "block";
+    const r = document.getElementById("collab-register-form");
+    if (r) r.style.display = "none";
+    _tabStyle(true);
+  }
+  function showCollabRegister() {
+    const f = document.getElementById("collab-login-form");
+    if (f) f.style.display = "none";
+    const r = document.getElementById("collab-register-form");
+    if (r) r.style.display = "block";
+    _tabStyle(false);
+  }
+  function collabLogin() {
+    const u = document.getElementById("collab-username")?.value?.trim() || "";
+    const p = document.getElementById("collab-password")?.value || "";
+    if (!u || !p) {
+      const m = document.getElementById("collab-auth-msg");
+      if (m) m.textContent = "请输入用户名和密码";
+      return;
+    }
+    collabApi("/collab/auth/login", { method: "POST", body: JSON.stringify({ username: u, password: p }), autoLogout: false }).then((d) => {
+      if (d.status === "success") {
+        _token = String(d.token || "");
+        _user = d.user || {};
+        localStorage.setItem("baa_collab_token", _token);
+        localStorage.setItem("baa_collab_user", JSON.stringify(_user));
+        const m = document.getElementById("collab-auth-msg");
+        if (m) m.textContent = "";
+        collabEnterMain();
+      } else {
+        const m = document.getElementById("collab-auth-msg");
+        if (m) m.textContent = collabErrMsg(d);
+      }
+    }).catch((e) => {
+      const m = document.getElementById("collab-auth-msg");
+      if (m) m.textContent = "网络错误: " + e.message;
+    });
+  }
+  function collabRegister() {
+    const u = document.getElementById("collab-reg-username")?.value?.trim() || "";
+    const p = document.getElementById("collab-reg-password")?.value || "";
+    const e = document.getElementById("collab-reg-email")?.value?.trim() || "";
+    const dn = document.getElementById("collab-reg-name")?.value?.trim() || "";
+    if (!u || !p) {
+      const m = document.getElementById("collab-reg-msg");
+      if (m) m.textContent = "用户名和密码不能为空";
+      return;
+    }
+    if (p.length < 6) {
+      const m = document.getElementById("collab-reg-msg");
+      if (m) m.textContent = "密码至少6位";
+      return;
+    }
+    const body = { username: u, password: p };
+    if (e) {
+      body.email = e;
+      body.display_name = dn;
+    }
+    collabApi("/collab/auth/register", { method: "POST", body: JSON.stringify(body), autoLogout: false }).then((d) => {
+      if (d.status === "success") {
+        const m = document.getElementById("collab-reg-msg");
+        if (m) {
+          m.textContent = "注册成功，请登录";
+          m.style.color = "#059669";
+        }
+        showCollabLogin();
+        const un = document.getElementById("collab-username");
+        if (un) un.value = u;
+      } else {
+        const m = document.getElementById("collab-reg-msg");
+        if (m) m.textContent = collabErrMsg(d);
+      }
+    }).catch((err) => {
+      const m = document.getElementById("collab-reg-msg");
+      if (m) m.textContent = "网络错误: " + err.message;
+    });
+  }
+  function collabLogout() {
+    _token = "";
+    _user = {};
+    localStorage.removeItem("baa_collab_token");
+    localStorage.removeItem("baa_collab_user");
+    updateUserStatus(false);
+    const ms = document.getElementById("collab-main-section");
+    if (ms) ms.style.display = "none";
+    const ls = document.getElementById("collab-login-section");
+    if (ls) ls.style.display = "block";
+  }
+  function collabEnterMain() {
+    const ls = document.getElementById("collab-login-section");
+    if (ls) ls.style.display = "none";
+    const ms = document.getElementById("collab-main-section");
+    if (ms) ms.style.display = "block";
+    const d = document.getElementById("collab-user-display");
+    if (d) d.textContent = "👤 " + String(_user.display_name || _user.username || "");
+    collabRefresh();
+    updateUserStatus(true);
+  }
+  function updateUserStatus(loggedIn) {
+    const lo = document.getElementById("user-status-logged-out");
+    const li = document.getElementById("user-status-logged-in");
+    if (!lo || !li) return;
+    if (loggedIn) {
+      const ne = document.getElementById("user-status-name");
+      if (ne) ne.textContent = "👤 " + String(_user.display_name || _user.username || "—");
+      const re = document.getElementById("user-status-role");
+      if (re) re.textContent = String(_user.role || "user");
+    }
+    lo.style.display = loggedIn ? "none" : "block";
+    li.style.display = loggedIn ? "flex" : "none";
+  }
+  function collabRefresh() {
+    loadCollabStats();
+    loadCollabTeams();
+  }
+  function loadCollabStats() {
+    collabApi("/collab/stats").then((d) => {
+      if (d.status !== "success") return;
+      const s = d.stats;
+      const ue = document.getElementById("cs-users");
+      if (ue) ue.textContent = String(s.users || 0);
+      const te = document.getElementById("cs-teams");
+      if (te) te.textContent = String(s.teams || 0);
+      const pe = document.getElementById("cs-projects");
+      if (pe) pe.textContent = String(s.active_projects || 0);
+      const se = document.getElementById("cs-sessions");
+      if (se) se.textContent = String(s.review_sessions || 0);
+    });
+  }
+  function loadCollabTeams() {
+    collabApi("/collab/teams").then((d) => {
+      const el = document.getElementById("collab-teams");
+      if (!el) return;
+      if (d.status !== "success") {
+        el.innerHTML = "加载失败";
+        return;
+      }
+      const teams = d.teams || [];
+      if (!teams.length) {
+        el.innerHTML = "暂无团队";
+        return;
+      }
+      let h = '<table class="collab-table"><tr><th>名称</th><th>成员</th><th>角色</th><th>时间</th><th>操作</th></tr>';
+      for (const t of teams) {
+        h += "<tr><td><strong>" + escHtml$1(String(t.name)) + "</strong></td><td>" + String(t.member_count ?? "") + '</td><td><span class="collab-badge collab-badge-' + String(t.my_role) + '">' + String(t.my_role) + "</span></td><td>" + new Date(Number(t.created_at) * 1e3).toLocaleDateString() + `</td><td><button class="text-blue-600 text-xs underline" onclick="showTeamDetail('` + String(t.id) + `')">📋</button></td></tr>`;
+      }
+      h += "</table>";
+      el.innerHTML = h;
+    });
+  }
+  function showCreateTeamModal() {
+    setModalBody('<h3 class="text-lg font-bold mb-4">新建团队</h3><input id="modal-team-name" class="input w-full mb-2" placeholder="团队名称" /><textarea id="modal-team-desc" class="input w-full mb-3" placeholder="描述" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">取消</button><button class="modal-btn modal-btn-primary" onclick="createTeam()">创建</button></div>');
+  }
+  function createTeam() {
+    const name = document.getElementById("modal-team-name")?.value?.trim() || "";
+    if (!name) return;
+    const desc = document.getElementById("modal-team-desc")?.value?.trim() || "";
+    collabApi("/collab/teams", { method: "POST", body: JSON.stringify({ name, description: desc }) }).then((d) => {
+      if (d.status === "success") {
+        window.setCurrentTeamId?.(String(d.team_id || d.id || ""));
+        window.setCurrentProjectId?.("");
+        closeCollabModal();
+        collabRefresh();
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showTeamDetail(teamId) {
+    window.setCurrentTeamId?.(teamId);
+    window.setCurrentProjectId?.("");
+    Promise.all([collabApi("/collab/teams/" + teamId), collabApi("/collab/teams/" + teamId + "/projects")]).then((r) => {
+      if (r[0].status !== "success") return;
+      const team = r[0].team || {};
+      const projects = r[1].projects || [];
+      const members = team.members || [];
+      let mh = '<table class="collab-table"><tr><th>用户</th><th>角色</th><th>时间</th></tr>';
+      for (const m of members) {
+        mh += "<tr><td>" + escHtml$1(String(m.display_name || m.username || "")) + '</td><td><span class="collab-badge collab-badge-' + String(m.role) + '">' + String(m.role) + "</span></td><td>" + new Date(Number(m.joined_at) * 1e3).toLocaleDateString() + "</td></tr>";
+      }
+      mh += "</table>";
+      let ph = "";
+      if (!projects.length) {
+        ph = '<p class="text-sm text-gray-400 py-2">暂无项目</p>';
+      } else {
+        ph = '<table class="collab-table"><tr><th>项目</th><th>图纸</th><th>审查</th><th>状态</th><th>操作</th></tr>';
+        for (const p of projects) {
+          ph += "<tr><td><strong>" + escHtml$1(String(p.name)) + "</strong></td><td>" + String(p.file_count ?? "") + "</td><td>" + String(p.review_count ?? "") + "</td><td>" + String(p.status) + `</td><td><button class="text-blue-600 text-xs underline" onclick="showProjectDetail('` + String(p.id) + `')">📝</button></td></tr>`;
+        }
+        ph += "</table>";
+      }
+      setModalBody('<h3 class="text-lg font-bold mb-4">团队: ' + escHtml$1(String(team.name)) + '</h3><div class="mb-4"><h4 class="font-medium mb-2">成员 (' + members.length + ")</h4>" + mh + `</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">项目</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal('` + teamId + `')">+ 新建项目</button></div>` + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    });
+  }
+  function showProjectDetail(projectId) {
+    window.setCurrentProjectId?.(projectId);
+    Promise.all([collabApi("/collab/projects/" + projectId), collabApi("/collab/projects/" + projectId + "/review-sessions")]).then((r) => {
+      if (r[0].status !== "success") return;
+      const proj = r[0].project || {};
+      const sessions = r[1].review_sessions || [];
+      const members = proj.members || [];
+      let mh = '<table class="collab-table"><tr><th>用户</th><th>权限</th></tr>';
+      for (const m of members) {
+        mh += "<tr><td>" + escHtml$1(String(m.display_name || m.username || "")) + '</td><td><span class="collab-badge">' + String(m.permission) + "</span></td></tr>";
+      }
+      mh += "</table>";
+      let sh = "";
+      if (!sessions.length) {
+        sh = '<p class="text-sm text-gray-400 py-2">暂无审查会话</p>';
+      } else {
+        sh = '<table class="collab-table"><tr><th>名称</th><th>状态</th><th>创建人</th><th>时间</th><th>操作</th></tr>';
+        for (const s of sessions) {
+          sh += "<tr><td>" + escHtml$1(String(s.name)) + '</td><td><span class="collab-badge collab-badge-' + String(s.status) + '">' + String(s.status) + "</span></td><td>" + escHtml$1(String(s.creator_name || "")) + "</td><td>" + new Date(Number(s.created_at) * 1e3).toLocaleString() + `</td><td><button class="text-blue-600 text-xs underline" onclick="showReviewSessionDetail('` + String(s.id) + `')">📝</button></td></tr>`;
+        }
+        sh += "</table>";
+      }
+      setModalBody('<h3 class="text-lg font-bold mb-4">项目: ' + escHtml$1(String(proj.name)) + '</h3><div class="mb-4"><h4 class="font-medium mb-2">成员</h4>' + mh + `</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">审查会话</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateReviewSessionModal('` + projectId + `' )">+ 新建审查</button></div>` + sh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    });
+  }
+  function showCreateProjectModal(teamId) {
+    setModalBody(`<h3 class="text-lg font-bold mb-4">新建项目</h3><input id="modal-proj-name" class="input w-full mb-2" placeholder="项目名称" /><textarea id="modal-proj-desc" class="input w-full mb-2" placeholder="描述" rows="2"></textarea><input id="modal-proj-type" class="input w-full mb-2" placeholder="建筑类型" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail('` + teamId + `' )">返回</button><button class="modal-btn modal-btn-primary" onclick="createProject('` + teamId + `' )">创建</button></div>`);
+  }
+  function createProject(teamId) {
+    const name = document.getElementById("modal-proj-name")?.value?.trim() || "";
+    if (!name) return;
+    const desc = document.getElementById("modal-proj-desc")?.value?.trim() || "";
+    const btype = document.getElementById("modal-proj-type")?.value?.trim() || "";
+    collabApi("/collab/projects", { method: "POST", body: JSON.stringify({ name, team_id: teamId, description: desc, building_type: btype }) }).then((d) => {
+      if (d.status === "success") {
+        window.setCurrentTeamId?.(teamId);
+        window.setCurrentProjectId?.(String(d.project_id || d.id || ""));
+        showTeamDetail(teamId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showCreateReviewSessionModal(projectId) {
+    setModalBody(`<h3 class="text-lg font-bold mb-4">新建审查会话</h3><input id="modal-rs-name" class="input w-full mb-2" placeholder="名称" /><textarea id="modal-rs-desc" class="input w-full mb-2" placeholder="描述" rows="2"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showProjectDetail('` + projectId + `' )">返回</button><button class="modal-btn modal-btn-primary" onclick="createReviewSession('` + projectId + `' )">创建</button></div>`);
+  }
+  function createReviewSession(projectId) {
+    const name = document.getElementById("modal-rs-name")?.value?.trim() || "";
+    if (!name) return;
+    const desc = document.getElementById("modal-rs-desc")?.value?.trim() || "";
+    collabApi("/collab/review-sessions", { method: "POST", body: JSON.stringify({ project_id: projectId, name, description: desc }) }).then((d) => {
+      if (d.status === "success") {
+        showProjectDetail(projectId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showReviewSessionDetail(sessionId) {
+    Promise.all([
+      collabApi("/collab/review-sessions/" + sessionId),
+      collabApi("/collab/review-sessions/" + sessionId + "/comments"),
+      collabApi("/collab/review-sessions/" + sessionId + "/approval-flow")
+    ]).then((r) => {
+      if (r[0].status !== "success") return;
+      const rs = r[0].review_session || {};
+      const comments = r[1].comments || [];
+      const flow = r[2].approval_flow;
+      const statusBadge = '<span class="collab-badge collab-badge-' + String(rs.status) + '">' + String(rs.status) + "</span>";
+      let ch = "";
+      if (!comments.length) {
+        ch = '<p class="text-sm text-gray-400 py-2">暂无评论</p>';
+      } else {
+        for (const c of comments) {
+          const icon = c.comment_type === "issue" ? "⚠️" : c.comment_type === "suggestion" ? "💡" : c.comment_type === "question" ? "❓" : "✅";
+          ch += '<div class="comment-box comment-' + String(c.comment_type) + '"><div class="flex justify-between items-start"><span class="font-medium text-sm">' + icon + " " + escHtml$1(String(c.author_name || "")) + '</span><span class="text-xs text-gray-400">' + new Date(Number(c.created_at) * 1e3).toLocaleString() + '</span></div><p class="text-sm mt-1">' + escHtml$1(String(c.content || "")) + "</p>";
+          if (c.clause_ref) {
+            ch += '<div class="text-xs text-gray-400 mt-1">• 条款: ' + escHtml$1(String(c.clause_ref)) + "</div>";
+          }
+          if (c.entity_ref) {
+            ch += '<div class="text-xs text-gray-400">• 实体: ' + escHtml$1(String(c.entity_ref)) + "</div>";
+          }
+          ch += "</div>";
+        }
+      }
+      let fh = "";
+      if (flow && flow.steps) {
+        fh = '<table class="collab-table"><tr><th>序号</th><th>审批人</th><th>状态</th><th>意见</th><th>时间</th></tr>';
+        for (const st of flow.steps) {
+          const sb = '<span class="collab-badge collab-badge-' + String(st.status) + '">' + String(st.status) + "</span>";
+          fh += "<tr><td>" + String(st.order) + "</td><td>" + escHtml$1(String(st.reviewer_name || "")) + "</td><td>" + sb + "</td><td>" + escHtml$1(String(st.comment || "")) + "</td><td>" + (st.acted_at ? new Date(Number(st.acted_at) * 1e3).toLocaleString() : "") + "</td></tr>";
+        }
+        fh += "</table>";
+      } else {
+        fh = '<p class="text-sm text-gray-400 py-2">暂无审批流程</p>';
+      }
+      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + '</div><div><h4 class="font-medium mb-2">审批流程</h4>' + fh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    });
+  }
+  if (_token) {
+    setTimeout(() => {
+      collabApi("/collab/users/me", { autoLogout: false }).then((d) => {
+        if (d.status === "success") {
+          _user = d.user || {};
+          localStorage.setItem("baa_collab_user", JSON.stringify(_user));
+          updateUserStatus(true);
+          const page = document.getElementById("page-collab");
+          if (page && page.classList.contains("active")) {
+            collabEnterMain();
+          } else {
+            const mainSec = document.getElementById("collab-main-section");
+            const loginSec = document.getElementById("collab-login-section");
+            if (mainSec && loginSec) {
+              mainSec.style.display = "block";
+              loginSec.style.display = "none";
+            }
+          }
+        } else {
+          collabLogout();
+        }
+      }).catch(() => {
+        collabLogout();
+      });
+    }, 500);
+  }
+  initApiClient({
+    apiBase: () => document.getElementById("api-base")?.value || "http://localhost:8000",
+    getActiveKeyValue: getActiveKeyValue$1,
+    currentTeamId: () => appState.teamId,
+    currentProjectId: () => appState.projectId
+  });
+  initAdminToken();
+  const w = window;
+  w.formatDate = formatDate;
+  w.maskKey = maskKey;
+  w.escHtml = escHtml$1;
+  w.permissionBadge = permissionBadge;
+  w.enabledBadge = enabledBadge;
+  w.uid = uid;
+  w.mergeDeep = mergeDeep;
+  w.showToast = showToast$1;
+  w.showSkeleton = showSkeleton;
+  w.hideSkeleton = hideSkeleton;
+  w.renderSkeletonContainer = renderSkeletonContainer;
+  w.renderProgress = renderProgress;
+  w.HEADERS = getReviewHeaders;
+  w.getHeaders = getHeaders;
+  w.adminHeaders = getAdminHeaders;
+  w.API_BASE = getApiBase;
+  w.apiGet = apiGet;
+  w.apiPostJSON = apiPostJSON;
+  w.apiPostFile = apiPostFile;
+  w.apiFetch = apiFetch;
+  w.adminGet = adminGet;
+  w.adminPost = adminPost;
+  w.adminDelete = adminDelete;
+  w.apiPost = async (path, body) => apiPostJSON(path, body);
+  w.getCurrentTeamId = () => appState.teamId;
+  w.getCurrentProjectId = () => appState.projectId;
+  w.setCurrentTeamId = (id) => appState.setTeamId(id || "");
+  w.setCurrentProjectId = (id) => appState.setProjectId(id || "");
+  w.loadApiBase = () => appState.loadApiBase();
+  w.saveApiBase = () => appState.saveApiBase();
+  w.getApiKey = () => getActiveKeyValue$1();
+  w.getActiveKeyValue = getActiveKeyValue$1;
+  w.loadApiKeys = loadKeys;
+  w.saveApiKeys = () => {
+  };
+  w.switchApiKey = switchApiKey;
+  w.deleteCurrentApiKey = deleteCurrentApiKey;
+  w.addApiKey = addApiKey;
+  w.deleteApiKey = deleteApiKey;
+  w.copyApiKey = copyApiKey;
+  w.populateTokenSelect = populateTokenSelect;
+  w.refreshTokenSelect = refreshTokenSelect;
+  w.initAdminToken = initAdminToken;
+  w.loadAdminKeys = loadAdminKeys;
+  w.openCreateKeyModal = openCreateKeyModal;
+  w.closeCreateKeyModal = closeCreateKeyModal;
+  w.createAdminKey = createAdminKey;
+  w.copyCreatedKey = copyCreatedKey;
+  w.closeKeyCreatedModal = closeKeyCreatedModal;
+  w.showKeyDetail = showKeyDetail;
+  w.showDetailRawKey = showDetailRawKey;
+  w.copyDetailRawKey = copyDetailRawKey;
+  w.copyKeyFromDetail = copyKeyFromDetail;
+  w.closeKeyDetailModal = closeKeyDetailModal;
+  w.confirmRevokeKey = confirmRevokeKey;
+  w.confirmDeleteKey = confirmDeleteKey;
+  w.revokeAdminKey = revokeAdminKey;
+  w.showDrawingReviewPanel = showDrawingReviewPanel;
+  w.switchDrawingTab = switchDrawingTab;
+  w.loadReviewContext = loadReviewContext;
+  w.onReviewTeamSelect = onReviewTeamSelect;
+  w.onReviewProjectSelect = onReviewProjectSelect;
+  w.saveParsedDrawings = saveParsedDrawings;
+  w.loadParsedDrawings = loadParsedDrawings;
+  w.renderDrawingList = renderDrawingList;
+  w.toggleDrawingSelect = toggleDrawingSelect;
+  w.selectAllDrawings = selectAllDrawings;
+  w.deselectAllDrawings = deselectAllDrawings;
+  w.updateBatchButton = updateBatchButton;
+  w.uploadDrawing = uploadDrawing;
+  w.uploadAndReview = uploadAndReview;
+  w.batchReview = batchReview;
+  w.deleteDrawing = deleteDrawing;
+  w.sendToReview = sendToReview;
+  w.refreshReviewDrawingSelect = refreshReviewDrawingSelect;
+  w.onReviewDrawingSelect = onReviewDrawingSelect;
+  w.loadDashboard = loadDashboard;
+  w.renderRecentReviews = renderRecentReviews;
+  w.renderSpecFreqBars = renderSpecFreqBars;
+  w.renderViolationTypeBars = renderViolationTypeBars;
+  w.loadReviewResults = loadReviewResults;
+  w.fallbackLoadReviewResults = fallbackLoadReviewResults;
+  w.refreshCompareDrawingSelect = refreshCompareDrawingSelect;
+  w.downloadReviewPdf = downloadReviewPdf;
+  w.downloadReviewExport = downloadReviewExport;
+  w.downloadReviewJSON = downloadReviewJSON;
+  w.loadFeedbackStats = loadFeedbackStats;
+  w.loadFeedbacks = loadFeedbacks;
+  w.submitFeedback = submitFeedback;
+  w._onDiffFileSelect = _onDiffFileSelect;
+  w.runDiffComparison = runDiffComparison;
+  w.renderDiffResults = renderDiffResults;
+  w.renderDiffItemPanel = renderDiffItemPanel;
+  w.switchDiffTab = switchDiffTab;
+  w.loadDiffVisualization = loadDiffVisualization;
+  w.clearDiffResults = clearDiffResults;
+  w.onThermalCompTypeChange = onThermalCompTypeChange;
+  w.renderThermalThresholds = renderThermalThresholds;
+  w.computeThermalK = computeThermalK;
+  w.renderThermalViolations = renderThermalViolations;
+  w.generateCorrectionSuggestions = generateCorrectionSuggestions;
+  w.confirmCorrection = confirmCorrection;
+  w.renderStructuralThresholds = renderStructuralThresholds;
+  w.onStructuralCompTypeChange = onStructuralCompTypeChange;
+  w.computeStructuralCheck = computeStructuralCheck;
+  w.renderStructuralViolations = renderStructuralViolations;
+  w.renderHistoryList = renderHistoryList;
+  w.deleteReviewRecord = deleteReviewRecord;
+  w.viewHistoryDetail = viewHistoryDetail;
+  w.closeHistoryModal = closeHistoryModal;
+  w.clearReviewHistory = clearReviewHistory;
+  const _hp = { value: 0 };
+  Object.defineProperty(w, "historyPage", {
+    get: () => _hp.value,
+    set: (v) => {
+      _hp.value = v;
+    },
+    enumerable: true,
+    configurable: true
+  });
+  w.loadSpecs = loadSpecs;
+  w.renderSpecList = renderSpecList;
+  w.zoomImage = zoomImage;
+  w.zoomSet = zoomSet;
+  w.zoomReset = zoomReset;
+  w.zoomFit = zoomFit;
+  w.zoomClose = zoomClose;
+  w.runMultiSheetReview = runMultiSheetReview;
+  w.switchMultiSheetTab = switchMultiSheetTab;
+  w.renderMultiSheetTab = renderMultiSheetTab;
+  w.formatTimeAgo = formatTimeAgo;
+  w.copyReverseDXF = copyReverseDXF;
+  w.generateReverse = generateReverse;
+  w.loadFunctions = loadFunctions;
+  w.filterFunctions = filterFunctions;
+  w.toggleFuncDetail = toggleFuncDetail;
+  w.updateFunction = updateFunction;
+  w.switchRevTab = switchRevTab;
+  w.initMultiRooms = initMultiRooms;
+  w.addMultiRoom = addMultiRoom;
+  w.generateMultiReverse = generateMultiReverse;
+  w.renderLayoutSVG = renderLayoutSVG;
+  w.expandReverseSVG = expandReverseSVG;
+  w.downloadReverseSVG = downloadReverseSVG;
+  w.loadCaseStats = loadCaseStats;
+  w.loadCases = loadCases;
+  w.renderCaseList = renderCaseList;
+  w.renderCasePagination = renderCasePagination;
+  w.openCaseDetail = openCaseDetail;
+  w.closeCaseDetail = closeCaseDetail;
+  w.loadAnalysis = loadAnalysis;
+  w.renderOverviewCards = renderOverviewCards;
+  w.renderAnalysisTable = renderAnalysisTable;
+  w.renderCategoryAnalysis = renderCategoryAnalysis;
+  w.renderTrendBars = renderTrendBars;
+  w.renderViolationDistBars = renderViolationDistBars;
+  w.loadCDItems = loadCDItems;
+  w._initAuditItems = _initAuditItems;
+  w._loadAuditItemStates = _loadAuditItemStates;
+  w.renderAuditButtons = renderAuditButtons;
+  w.auditAction = auditAction;
+  w.renderAuditStatsBar = renderAuditStatsBar;
+  w._loadAuditStats = _loadAuditStats;
+  w._refreshAuditPanel = _refreshAuditPanel;
+  w._onAuditFilterChange = _onAuditFilterChange;
+  w.downloadCorrectionNotice = downloadCorrectionNotice;
+  w.MODEL_PARAMS_TABS = MODEL_PARAMS_TABS;
+  w.switchModelParamTab = switchModelParamTab;
+  w.downloadModelExport = downloadModelExport;
+  w.collabErrMsg = collabErrMsg;
+  w.collabApi = collabApi;
+  w.closeCollabModal = closeCollabModal;
+  w.setModalBody = setModalBody;
+  w.showCollabLogin = showCollabLogin;
+  w.showCollabRegister = showCollabRegister;
+  w.collabLogin = collabLogin;
+  w.collabRegister = collabRegister;
+  w.collabLogout = collabLogout;
+  w.collabEnterMain = collabEnterMain;
+  w.updateUserStatus = updateUserStatus;
+  w.collabRefresh = collabRefresh;
+  w.loadCollabStats = loadCollabStats;
+  w.loadCollabTeams = loadCollabTeams;
+  w.showCreateTeamModal = showCreateTeamModal;
+  w.createTeam = createTeam;
+  w.showTeamDetail = showTeamDetail;
+  w.showProjectDetail = showProjectDetail;
+  w.showCreateProjectModal = showCreateProjectModal;
+  w.createProject = createProject;
+  w.showCreateReviewSessionModal = showCreateReviewSessionModal;
+  w.createReviewSession = createReviewSession;
+  w.showReviewSessionDetail = showReviewSessionDetail;
+  w.testConnection = testConnection;
+  w.router = router;
+  w.importServerKey = importServerKey;
+  w.importSelectedKey = importSelectedKey;
+  w.closeImportKeyModal = closeImportKeyModal;
+  w.openModal = openModal;
+  w.renderFilterBar = renderFilterBar;
+  w.renderReviewItem = renderReviewItem;
+  w.renderReviewTable = renderReviewTable;
+  w.runReview = runReview;
+  w.renderViolationOverlay = renderViolationOverlay;
+  w.runBatchReviewComponent = runBatchReview;
+  console.log("[P123] Vite TS core modules loaded");
+  document.addEventListener("DOMContentLoaded", initApp);
+})();
+//# sourceMappingURL=baa-core-bundle.iife.js.map
