@@ -133,7 +133,7 @@ function _populateHistoryFilters(): void {
     const curTeam = teamSelect.value || '';
     teamSelect.innerHTML = '<option value="">📌 全部团队</option>';
     Object.keys(teams).forEach(id => {
-      teamSelect.innerHTML += '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>';
+      teamSelect.insertAdjacentHTML('beforeend', '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>');
     });
     teamSelect.value = curTeam;
   }
@@ -142,7 +142,7 @@ function _populateHistoryFilters(): void {
     const curProj = projSelect.value || '';
     projSelect.innerHTML = '<option value="">📌 全部项目</option>';
     Object.keys(projects).forEach(id => {
-      projSelect.innerHTML += '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>';
+      projSelect.insertAdjacentHTML('beforeend', '<option value="' + escHtml(id) + '">' + escHtml(id.substring(0, 12)) + '</option>');
     });
     projSelect.value = curProj;
   }
