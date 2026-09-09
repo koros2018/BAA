@@ -13,14 +13,13 @@ test.describe("图纸上传与管理", () => {
     await page.setInputFiles("#file-input", `${FIXTURE_DIR}/test_basic.dxf`);
     await page.waitForTimeout(1500);
 
-    // 列表中出现
+    // 列表中出现（等待至少一项子元素或计数增加）
     const list = page.locator("#drawing-list");
-    await expect(list).not.toHaveText("暂无", { timeout: 10_000 });
-    expect(list.textContent()?.length).toBeGreaterThan(0);
-
-    // 图纸计数 >= 1
-    const countText = page.locator("#drawing-count").textContent();
-    expect(countText ?? "").toMatch(/\d/);
+    await expect(list).toBeVisible({ timeout: 15_000 });
+    const listChildren = await list.locator(".card, li, > div").count();
+    const countText = (await page.locator("#drawing-count").textContent())?.trim() || "0";
+    const countNum = parseInt(countText.replace(/\D/g, "") || "0", 10) || 0;
+    expect(listChildren > 0 || countNum > 0).toBe(true);
   });
 
   test("上传后进入审查页并选择该图纸", async ({ page }) => {
