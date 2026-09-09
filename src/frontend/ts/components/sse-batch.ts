@@ -313,7 +313,7 @@ function renderBatchResults(
       </div>`;
     });
     fileHtml += '</div>';
-    details.innerHTML += fileHtml;
+    details.insertAdjacentHTML('beforeend', fileHtml);
   }
 
   if (loading) {

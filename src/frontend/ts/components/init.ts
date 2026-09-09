@@ -11,8 +11,8 @@ import { loadSpecs } from './specs';
 
 // ── 全局共享状态（旧 JS 依赖） ──────────────────────────
 declare global {
-  var reviewResults: Array<Record<string, unknown>>;
-  var SPEC_DATA: Array<Record<string, unknown>>;
+  let reviewResults: Array<Record<string, unknown>>;
+  let SPEC_DATA: Array<Record<string, unknown>>;
 }
 
 if (!window.reviewResults) {

@@ -94,7 +94,7 @@ export async function runReview() {
             '</div>'
           );
         }
-        summary.innerHTML += summaryExtras.join('');
+        summary.insertAdjacentHTML('beforeend', summaryExtras.join(''));
       }
 
       const details = document.getElementById('review-details');
@@ -122,7 +122,7 @@ export async function runReview() {
             '<div class="w-full bg-gray-100 rounded-full h-1.5 mt-1"><div class="' + (sevColors[sev] || 'bg-gray-400') + ' h-1.5 rounded-full" style="width:' + pct + '%"></div></div>' +
             '</div>';
         });
-        details.innerHTML += '<div class="grid grid-cols-3 gap-2 mb-3">' + sevGrid.join('') + '</div>';
+        details.insertAdjacentHTML('beforeend', '<div class="grid grid-cols-3 gap-2 mb-3">' + sevGrid.join('') + '</div>');
       }
 
       let violations: ReviewFinding[] = [];
@@ -569,7 +569,7 @@ export async function runBatchReview(): Promise<void> {
         '</div>';
     });
     fileHtml += '</div>';
-    details.innerHTML += fileHtml;
+    details.insertAdjacentHTML('beforeend', fileHtml);
 
     loading.classList.add('hidden');
   } catch (err: unknown) {
