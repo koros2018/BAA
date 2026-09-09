@@ -29,7 +29,8 @@ export async function runReview(): Promise<void> {
   }
 
   const bt = (drawing.building_type as string) || '';
-  const entities = ((drawing.entities || drawing.raw?.entities) as unknown[]) || [];
+  // P125 strict：显式标注 entities 为数组，避免 || 让 TS 推断为 {}
+  const entities: unknown[] = (drawing.entities as unknown[]) || (drawing.raw as { entities?: unknown[] } | undefined)?.entities || [];
   if (entities.length === 0) {
     (window as any).showToast?.('该图纸没有解析出实体数据，请重新上传解析', 'info');
     return;
@@ -116,11 +117,14 @@ function renderReviewSummary(container: HTMLElement | null, result: Record<strin
 
   // 实体类型分布 + 导出按钮
   const reviewId = (result.queue_info as any)?.task_id || result.task_id || '';
-  if (result.summary?.entity_types || reviewId) {
+  // P125 strict：抽 summary，避免可选链后 TS 将分支推断为 {}
+  const summaryObj = (result.summary || {}) as Record<string, unknown>;
+  const entityTypes = (summaryObj.entity_types || {}) as Record<string, unknown>;
+  if (Object.keys(entityTypes).length > 0 || reviewId) {
     const extras: string[] = [];
-    if (result.summary?.entity_types) {
+    if (Object.keys(entityTypes).length > 0) {
       const parts: string[] = [];
-      for (const [type, count] of Object.entries(result.summary.entity_types as Record<string, unknown>)) {
+      for (const [type, count] of Object.entries(entityTypes)) {
         parts.push('<span class="px-2 py-0.5 bg-gray-100 rounded text-xs">' + type + ': ' + count + '</span>');
       }
       extras.push('<p class="text-xs text-gray-400 mb-2">构件分布:</p><div class="flex flex-wrap gap-1 mb-3">' + parts.join('') + '</div>');

@@ -10,9 +10,12 @@ import { loadDashboard } from './dashboard';
 import { loadSpecs } from './specs';
 
 // ── 全局共享状态（旧 JS 依赖） ──────────────────────────
+// P125: 用 interface Window 声明，而非 declare global let（后者无法挂到 window）
 declare global {
-  let reviewResults: Array<Record<string, unknown>>;
-  let SPEC_DATA: Array<Record<string, unknown>>;
+  interface Window {
+    reviewResults?: Array<Record<string, unknown>>;
+    SPEC_DATA?: Array<Record<string, unknown>>;
+  }
 }
 
 if (!window.reviewResults) {
