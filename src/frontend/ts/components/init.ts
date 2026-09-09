@@ -41,6 +41,55 @@ function renderEngineStatus(): void {
   }
 }
 
+// ── P124-A Phase 1: 内联 onclick → data-action 委托 ────────
+// 全局 document click 委托：读取 [data-action][data-args]
+// 从 window 上解析函数（支持 a.b.c 形式），调用并传入参数
+function resolveAction(name: string): ((...a: unknown[]) => unknown) | undefined {
+  const parts = name.split('.');
+  let cur: unknown = window;
+  for (const p of parts) {
+    if (!cur || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string, unknown>)[p];
+  }
+  return typeof cur === 'function' ? (cur as (...a: unknown[]) => unknown) : undefined;
+}
+
+let _delegatedBound = false;
+function bindActionDelegation(): void {
+  if (_delegatedBound) return;
+  _delegatedBound = true;
+  document.addEventListener('click', (ev: MouseEvent) => {
+    const el = (ev.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+    if (!el) return;
+    const name = el.getAttribute('data-action');
+    if (!name) return;
+    // 解析 args；@this@ → ev.target
+    let args: unknown[] = [];
+    try {
+      const raw = el.getAttribute('data-args') || '[]';
+      args = JSON.parse(raw) as unknown[];
+      args = args.map((a) => (a === '@this@' ? ev.target : a));
+    } catch {
+      args = [];
+    }
+    const fn = resolveAction(name);
+    if (!fn) {
+      console.warn('[delegation] 未挂载的 action:', name, 'on', el);
+      return;
+    }
+    // 拦截默认行为，避免重复提交
+    ev.preventDefault();
+    try {
+      const ret = fn(...args);
+      if (ret && typeof (ret as Promise<unknown>).then === 'function') {
+        (ret as Promise<unknown>).catch((e) => console.error('[delegation] action error:', name, e));
+      }
+    } catch (e) {
+      console.error('[delegation] action error:', name, e);
+    }
+  }, true);
+}
+
 export function initApp(): void {
   appState.loadApiBase();
   initAdminToken();
@@ -57,6 +106,9 @@ export function initApp(): void {
 
   const apiBase = document.getElementById('api-base');
   apiBase?.addEventListener('change', () => appState.saveApiBase());
+
+  // P124-A Phase 1: 全局 action 委托
+  bindActionDelegation();
 
   renderEngineStatus();
 }
