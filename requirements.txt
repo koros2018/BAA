@@ -17,6 +17,8 @@ cryptography>=41.0.0  # API key 加密
 psutil>=5.9.0  # 系统资源监控
 sqlalchemy>=2.0.0  # 数据库 ORM
 reportlab>=4.0.0  # PDF 报告生成（report_generator）
+PyMuPDF>=1.23.0  # 矢量 PDF 解析（parsers/pdf_parser.py，import fitz）
+pytesseract>=0.3.10  # OCR 包装器（P128 Phase 2，需系统 tesseract + chi_sim）
 
 # 测试
 pytest>=8.0.0

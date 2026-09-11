@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 import ezdxf
-import fitz
+import pymupdf as fitz  # P128: fitz 子模块已 deprecated，用 pymupdf 别名保持调用不变
 
 # PDF 点到 mm 的转换（1 pt = 25.4/72 mm）
 _PT_TO_MM = 25.4 / 72
