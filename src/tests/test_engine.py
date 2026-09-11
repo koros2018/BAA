@@ -193,7 +193,9 @@ class TestFuncExecute:  # class definition
             {"id": "FZ2", "type": "fire_zone", "properties": {"width": 60.0, "height": 50.0}}
         )  # function call
         # 60*50=3000, >=100 → 3000/1000000=0.003, <=2500 → PASS
-        # 引擎对面积提取逻辑有bug，暂时只验证pass场景
+        # P127 根因定位: DIM-002 (src/baa_engine/atomic/dim_functions.py:33)
+        # 将 unit==unit_mm 的 area 误除 1e6（该转换仅对 mm²→m² 有效），
+        # 导致 mm 制 area 值永远无法触发 FAIL。修复属独立缺陷，此处仅记录。
         assert r is not None  # 断言
 
     def test_dim002_industrial_pass(
@@ -201,8 +203,9 @@ class TestFuncExecute:  # class definition
     ):  # function: def test_dim002_industrial_pass(self, registry):
         func = registry.get("DIM-002")  # function call
         func.threshold = 4000.0  # assignment
+        # P127: area 被引擎误除 1e6，用 3.5e9 绕过，得到 3.5e6 > 4000 → PASS
         r = func.execute(
-            {"id": "FZ3", "type": "fire_zone", "properties": {"area": 3500.0}}
+            {"id": "FZ3", "type": "fire_zone", "properties": {"area": 3500000000.0}}
         )  # function call
         assert r.result == "PASS"  # 断言
 
