@@ -51,13 +51,19 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             logger.debug("[P120] ARC bbox 失败: %s: %s", type(_e).__name__, _e)
 
     # ── 4. TEXT: 插入点 ± 文字高度 ──
-    if dxf_type == "TEXT":
+    # ── 4b. MTEXT: 插入点 ± 字高（ezdxf MTEXT 无 bbox() 方法，需估算）
+    #      P128: MTEXT 字高属性名为 char_height（无 height）；plain_text() 去格式
+    if dxf_type in ("TEXT", "MTEXT"):
         try:
             p = Vec2(entity.dxf.insert)
-            h = float(entity.dxf.height)
-            return {"x": p.x, "y": p.y, "width": h * 1.5, "height": h}
+            h = float(entity.dxf.height if dxf_type == "TEXT" else entity.dxf.char_height)
+            # MTEXT 可能多行，宽度按 4 字高估算（TEXT 单行按 1.5 字高）
+            width_factor = 4.0 if dxf_type == "MTEXT" else 1.5
+            return {"x": p.x, "y": p.y, "width": h * width_factor, "height": h}
         except Exception as _e:
-            logger.debug("[P120] TEXT bbox 失败: %s: %s", type(_e).__name__, _e)
+            logger.debug(
+                "[P120] %s bbox 失败: %s: %s", dxf_type, type(_e).__name__, _e
+            )
 
     # ── 5. LWPOLYLINE / POLYLINE / SPLINE: 从 vertices() 聚合 ──
     if dxf_type in ("LWPOLYLINE", "POLYLINE", "SPLINE"):
@@ -177,9 +183,17 @@ def extract_properties(entity) -> Dict[str, Any]:
             props["start_angle"] = entity.dxf.start_angle
             props["end_angle"] = entity.dxf.end_angle
 
-        elif entity.dxftype() == "TEXT":
-            props["text"] = entity.dxf.text
-            props["height"] = entity.dxf.height
+        elif entity.dxftype() in ("TEXT", "MTEXT"):
+            # P128: MTEXT 用 plain_text() 去格式符（如 %%P→±），字高属性名为 char_height
+            if entity.dxftype() == "MTEXT":
+                try:
+                    props["text"] = entity.plain_text()
+                except Exception:
+                    props["text"] = entity.dxf.text
+                props["height"] = entity.dxf.char_height
+            else:
+                props["text"] = entity.dxf.text
+                props["height"] = entity.dxf.height
 
         elif entity.dxftype() == "INSERT":
             try:
