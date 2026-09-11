@@ -7,6 +7,10 @@ P119 违规审核工作流 — 前端测试
     3. renderAuditButtons 四种状态渲染正确
     4. auditAction 调用正确 API 端点
     5. XSS 防护（用户输入全部 escHtml 转义）
+
+注: P125 Phase 2（f068fe6）已将前端 js/ 目录迁入 ts/components/，
+审计逻辑现位于 ts/components/audit.ts；review.ts 仅保留调用侧。
+本测试断言以 audit.ts 为主，跨文件断言显式声明。
 """
 
 import re
@@ -14,9 +18,22 @@ from pathlib import Path
 
 import pytest
 
-JS_PATH = Path(__file__).parent.parent.parent / "src" / "frontend" / "js" / "baa-review.ts"
+JS_PATH = Path(__file__).parent.parent.parent / "src" / "frontend" / "ts" / "components" / "audit.ts"
 
 JAVASCRIPT = JS_PATH.read_text(encoding="utf-8")
+
+# 调用侧（审查完成后自动初始化），位于 review.ts，跨文件断言使用
+REVIEW_PATH = (
+    Path(__file__).parent.parent.parent / "src" / "frontend" / "ts" / "components" / "review.ts"
+)
+REVIEW_JAVASCRIPT = REVIEW_PATH.read_text(encoding="utf-8")
+
+# P119 模块起始 marker（旧代码为 "// ── P45"，P119 重构后已改名）
+_AUDIT_SECTION_END = "// ── P119 审核统计面板"
+
+# P125 Phase 2 迁入 TS 后，window 属性访问统一走 (window as any).<name>
+# 断言不能直接找 "window._xxx" 字面量，否则全红
+WIN = "(window as any)."
 
 
 # ───────────────────────────────────────────
@@ -50,12 +67,12 @@ class TestInitAuditItems:
         assert "details.length === 0" in JAVASCRIPT
 
     def test_mapping_stored_in_window(self):
-        """映射存到 window._reviewAuditMapping"""
-        assert "window._reviewAuditMapping" in JAVASCRIPT
+        """映射存到 (window as any)._reviewAuditMapping"""
+        assert WIN + "_reviewAuditMapping" in JAVASCRIPT
 
     def test_detail_list_stored_in_window(self):
-        """FAIL 详情列表存到 window._reviewAuditDetailList"""
-        assert "window._reviewAuditDetailList" in JAVASCRIPT
+        """FAIL 详情列表存到 (window as any)._reviewAuditDetailList"""
+        assert WIN + "_reviewAuditDetailList" in JAVASCRIPT
 
 
 # ───────────────────────────────────────────
@@ -72,8 +89,8 @@ class TestLoadAuditItemStates:
         assert "audit/items?review_id=" in JAVASCRIPT
 
     def test_caches_states_in_window(self):
-        """状态缓存到 window._reviewAuditStates"""
-        assert "window._reviewAuditStates" in JAVASCRIPT
+        """状态缓存到 (window as any)._reviewAuditStates"""
+        assert WIN + "_reviewAuditStates" in JAVASCRIPT
 
     def test_iterates_items(self):
         """遍历 resp.items 构建状态映射"""
@@ -218,12 +235,12 @@ class TestViolationListAuditButtons:
         assert "renderAuditButtons" in JAVASCRIPT
 
     def test_uses_audit_mapping(self):
-        """使用 window._reviewAuditMapping 做映射"""
-        assert "window._reviewAuditMapping" in JAVASCRIPT
+        """使用 (window as any)._reviewAuditMapping 做映射"""
+        assert WIN + "_reviewAuditMapping" in JAVASCRIPT
 
     def test_uses_audit_states(self):
-        """使用 window._reviewAuditStates 获取状态"""
-        assert "window._reviewAuditStates" in JAVASCRIPT
+        """使用 (window as any)._reviewAuditStates 获取状态"""
+        assert WIN + "_reviewAuditStates" in JAVASCRIPT
 
     def test_state_fallback_to_unreviewed(self):
         """未加载状态时回退到 unreviewed"""
@@ -237,8 +254,8 @@ class TestAutoInitOnReview:
     """验证审查完成后自动调用 _initAuditItems"""
 
     def test_called_in_run_review(self):
-        """_initAuditItems 在审查成功分支中调用"""
-        assert "_initAuditItems(result)" in JAVASCRIPT
+        """_initAuditItems 在审查成功分支中调用（P125 Phase 2 后位于 review.ts）"""
+        assert "_initAuditItems(result)" in REVIEW_JAVASCRIPT
 
 
 # ───────────────────────────────────────────
@@ -250,7 +267,7 @@ class TestXSSProtection:
     def test_all_audit_toast_inputs_escaped(self):
         """auditAction toast 中 clauseId 经过 _escHtml 转义"""
         audit_start = JAVASCRIPT.index("async function auditAction")
-        audit_end = JAVASCRIPT.index("// ── P45", audit_start)
+        audit_end = JAVASCRIPT.index(_AUDIT_SECTION_END, audit_start)
         audit_section = JAVASCRIPT[audit_start:audit_end]
         # showToast 调用中存在 _escHtml(clauseId
         # TS 版本: (window._escHtml || _escHtml)(clauseId || '')
