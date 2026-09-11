@@ -16,6 +16,7 @@ httpx>=0.27.0  # 测试用 HTTP 客户端
 cryptography>=41.0.0  # API key 加密
 psutil>=5.9.0  # 系统资源监控
 sqlalchemy>=2.0.0  # 数据库 ORM
+reportlab>=4.0.0  # PDF 报告生成（report_generator）
 
 # 测试
 pytest>=8.0.0
