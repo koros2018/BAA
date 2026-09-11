@@ -1,15 +1,16 @@
 # BAA 版本记录
 
 ## v2.5.79-stable (2026-09-11) — 当前
-- HEAD: 54a8038
+- HEAD: 9f480ef
 - P127: 天正 T3 降级管线主模块 + 42 单测 + 端到端扫描脚本
 - P126: 前端单测落地（Vitest + utils.ts 27 用例）
 - P128 Phase 1: TEXT/MTEXT 提取补齐（geometry.py extract_properties + compute_bbox）
 - 修复: pdf_parser.py fitz 依赖声明（P99 矢量 PDF 管线此前无法运行 → 19 passed）
 - 修复: requirements.txt 补 reportlab 运行时依赖（此前 6 个 test_p119 失败）
 - 修复: DIM-002 测试误绕过撤回（3e79bf6 的错误诊断修正）
+- 修复: test_p119_audit 路径迁移至 ts/components/audit.ts（f068fe6 删除 js/ 后长期 collection error）
 - ROADMAP: 新增 P135（T3 识别率验收闭环）、P136（扫描件 OCR，⛔ 阻塞）
-- 测试: 2178 passed, 3 skipped, 0 failed（排除 test_p119_audit 文件缺失）
+- 测试: 2224 passed, 3 skipped, 0 failed（零排除）
 
 ## v2.5.78-stable (2026-09-09) — 回退版
 - HEAD: be3052d
