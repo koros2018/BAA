@@ -166,7 +166,10 @@ class TestFuncExecute:  # class definition
         assert r is None  # 断言
 
     # DIM-002: 防火分区面积 (<= 2500)
-    # 引擎对DIM-002的area值做mm²→m²转换：area >= 100 时 ÷1000000
+    # 单位转换策略（atomic_functions._extract_value）：
+    #   显式 unit=mm2 → area ÷ 1e6；显式 unit=m2 → 原值
+    #   无 unit 启发式：area > 10000 视为 mm² 并 ÷ 1e6，否则视为 m²
+    # 实测验证（2026-09-11）：area=3500(无unit)→FAIL，area=2.6e9 unit=mm2(=2600m²)→FAIL
     def test_dim002_civil_pass(
         self, registry
     ):  # function: def test_dim002_civil_pass(self, registry):
@@ -182,32 +185,62 @@ class TestFuncExecute:  # class definition
     ):  # function: def test_dim002_civil_fail(self, registry):
         func = registry.get("DIM-002")  # function call
         func.threshold = 2500.0  # assignment
-        # area=2600 >= 100 → 引擎转为 0.0026, 0.0026 <= 2500 → PASS
-        # 这是引擎的单位转换bug，用大值绕过：让引擎不触发mm²转换
         r = func.execute(
-            {"id": "FZ2", "type": "fire_zone", "properties": {"area": 50.0}}
+            {"id": "FZ2", "type": "fire_zone", "properties": {"area": 2600.0}}
         )  # function call
-        # 50 < 100 不转换，50 <= 2500 → PASS，不触发FAIL
-        # 改用超过阈值的方式：通过width*height计算
+        # 2600 <= 10000 视为 m²，2600 > 2500 → FAIL
+        assert r.result == "FAIL"  # 断言
+
+    def test_dim002_civil_fail_mm2_unit(
+        self, registry
+    ):  # function: def test_dim002_civil_fail_mm2_unit(self, registry):
+        """显式 unit=mm2 的面积换算后也能触发 FAIL。
+
+        2.6e9 mm² = 2600 m² > 2500 → FAIL。
+        回归保护：确保 mm2 分支不会把超标面积误判为 PASS。
+        """
+        func = registry.get("DIM-002")  # function call
+        func.threshold = 2500.0  # assignment
         r = func.execute(
-            {"id": "FZ2", "type": "fire_zone", "properties": {"width": 60.0, "height": 50.0}}
+            {
+                "id": "FZ2B",
+                "type": "fire_zone",
+                "properties": {"area": 2600000000.0, "unit": "mm2"},
+            }
         )  # function call
-        # 60*50=3000, >=100 → 3000/1000000=0.003, <=2500 → PASS
-        # P127 根因定位: DIM-002 (src/baa_engine/atomic/dim_functions.py:33)
-        # 将 unit==unit_mm 的 area 误除 1e6（该转换仅对 mm²→m² 有效），
-        # 导致 mm 制 area 值永远无法触发 FAIL。修复属独立缺陷，此处仅记录。
-        assert r is not None  # 断言
+        assert r.result == "FAIL"  # 断言
+
+    def test_dim002_boundary_equal(
+        self, registry
+    ):  # function: def test_dim002_boundary_equal(self, registry):
+        """面积等于阈值：<= 操作符下边界值 PASS"""
+        func = registry.get("DIM-002")  # function call
+        func.threshold = 2500.0  # assignment
+        r = func.execute(
+            {"id": "FZ2C", "type": "fire_zone", "properties": {"area": 2500.0}}
+        )  # function call
+        assert r.result == "PASS"  # 断言
 
     def test_dim002_industrial_pass(
         self, registry
     ):  # function: def test_dim002_industrial_pass(self, registry):
         func = registry.get("DIM-002")  # function call
         func.threshold = 4000.0  # assignment
-        # P127: area 被引擎误除 1e6，用 3.5e9 绕过，得到 3.5e6 > 4000 → PASS
         r = func.execute(
-            {"id": "FZ3", "type": "fire_zone", "properties": {"area": 3500000000.0}}
+            {"id": "FZ3", "type": "fire_zone", "properties": {"area": 3500.0}}
         )  # function call
         assert r.result == "PASS"  # 断言
+
+    def test_dim002_industrial_fail(
+        self, registry
+    ):  # function: def test_dim002_industrial_fail(self, registry):
+        """工业场景（阈值4000）超标面积触发 FAIL"""
+        func = registry.get("DIM-002")  # function call
+        func.threshold = 4000.0  # assignment
+        r = func.execute(
+            {"id": "FZ3B", "type": "fire_zone", "properties": {"area": 4200.0}}
+        )  # function call
+        assert r.result == "FAIL"  # 断言
 
     # DIM-003: 消防车道宽度 (>= 4.0)
     def test_dim003_pass(self, registry):  # function: def test_dim003_pass(self, registry):
