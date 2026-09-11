@@ -117,8 +117,8 @@
 | ~~P123~~ | ~~前端架构重构（Vite+TS+组件化）~~ | ✅ **2026-08-24 完成**（30+ TS 组件 + 13 core 模块，104 var / 72 onclick 归零） |
 | ~~P124~~ | ~~前端遗留清理 + E2E 补全~~ | ✅ **2026-09-09 完成**（`b77c69b`，onclick 87→0 / innerHTML+= 6→0 / var 2→0 / E2E 4→8 spec 全量回归通过） |
 | ~~P125~~ | ~~前端 Vite 构建产物收敛 + 单入口清理~~ | ✅ **2026-09-09 完成**（`be3052d`，Vite build:check 脚本 + 删 1589 行死代码 + TS strict + bundle 可读化） |
-| P126 | 前端组件单测 + Vitest 接入 | 🆕 待启动（已有 vitest 依赖未使用，为关键组件补测试） |
-| P127 | 天正 T3 降级管线（L1 补齐） | 🆕 新增（图层映射 + XData 探测 + 几何模式匹配，墙识别≥80% / 门窗≥75%） |
+| P126 | 前端组件单测 + Vitest 接入 | ✅ 2026-09-11 完成（`0e782d4`，vitest.config.ts 独立配置 + utils.ts 27 用例全绿，tsc --noEmit 0 error；组件级测试依赖 jsdom 另立任务） |
+| P127 | 天正 T3 降级管线（L1 补齐） | ✅ 2026-09-11 完成（`3e79bf6`，三层降级分类管线 + 42 单测全绿 + 端到端扫描脚本；东莞通 DXF 实测 34748 构件 wall/door/window/column/text 分类正确；T3 加密文件 0 图元已加 parse_status 诊断，识别率验收需先用 AutoCAD T3→T0 转存） |
 | P128 | OCR 集成（L2 补齐） | 🆕 新增（DXF TEXT 直取 + 扫描 PDF PaddleOCR，矢量 100% / 扫描件≥85%） |
 | P129 | YOLOv11 迁移学习（L2） | 🆕 新增（ArchCAD-400K 微调 10 类，mAP50≥0.75，替代 P111 路线） |
 | P130 | 拓扑图 NetworkX 显式化（L3） | 🆕 新增（把 `_build_planar_graph` 转为 NetworkX + `/api/v1/topology` 导出） |
