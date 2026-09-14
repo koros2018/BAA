@@ -133,6 +133,14 @@ def write_labels(label_path: Path, boxes: list):
     label_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
+def _goto(key: str, delta: int, total: int):
+    """上一张/下一张：在 [0, total-1] 范围内移动样本索引。
+    on_click 回调，在 rerun 前生效。
+    """
+    cur = st.session_state.get(key, 0)
+    st.session_state[key] = max(0, min(total - 1, cur + delta))
+
+
 def draw_preview(img_path: Path, boxes: list, classes: list, box_idx: int = -1) -> "Image.Image":
     """画框叠加预览，高亮第 box_idx 个框"""
     img = Image.open(img_path).convert("RGB")
@@ -218,7 +226,13 @@ def main():
     total = len(samples)
     st.write(f"📊 **{dataset_name}** / {split} — {total} 样本")
 
-    idx = st.number_input("样本序号", 0, total - 1, 0)
+    # 样本索引持久化：key 绑定 session_state，dataset/split 切换时自动重置，
+    # prev/next 通过 _goto 改同一个 key。
+    _key = f"idx::{dataset_name}::{split}"
+    idx = st.number_input(
+        "样本序号", 0, total - 1, key=_key,
+        help="手动跳转会重置当前未保存的修改",
+    )
     img_path, label_path = samples[idx]
 
     if not img_path.exists():
@@ -296,10 +310,8 @@ def main():
     st.divider()
     col_l, col_c, col_r = st.columns(3)
     with col_l:
-        if st.button("◀ 上一张", key="prev"):
-            if idx > 0:
-                st.session_state["loaded_idx"] = None  # 强制重载
-                st.rerun()
+        st.button(f"◀ 上一张 ({idx}→{max(0, idx-1)})", key="prev",
+                  on_click=lambda: _goto(_key, -1, total), disabled=idx == 0)
     with col_c:
         dirty = st.session_state["dirty"]
         st.write(f"{'🔴 未保存修改' if dirty else '✅ 已保存'}")
@@ -309,9 +321,8 @@ def main():
             st.success(f"已保存: {label_path}")
             st.rerun()
     with col_r:
-        if st.button("下一张 ▶", key="next"):
-            st.session_state["loaded_idx"] = None
-            st.rerun()
+        st.button(f"下一张 ({idx}→{min(total-1, idx+1)}) ▶", key="next",
+                  on_click=lambda: _goto(_key, 1, total), disabled=idx == total - 1)
 
 
 if __name__ == "__main__":
