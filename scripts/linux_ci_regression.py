@@ -10,7 +10,8 @@
   3. F2 语义检查: reverse_engine 必须用 shutil.which（禁止 subprocess ["which"]），
      且 LibreOffice 缺席时 _export_via_libreoffice 优雅降级返回 False
   4. 全量回归: pytest -m "not slow and not real_drawing"（任一失败即 FAIL）
-  5. real_drawing 基线: pytest -m real_drawing（data/ 缺失时 SKIP）
+  5. real_drawing 基线: pytest -m real_drawing（6 张固定基线图纸缺失时 SKIP，
+     不能用 data/files 的 DXF 数量判定 —— API 上传测试会写入合成 DXF 造成假阳性）
 
 用法:
   python scripts/linux_ci_regression.py               # 全阶段
@@ -46,9 +47,12 @@ _EXPECTED_WINDOWS_CANDIDATES = [
     "C:/Windows/Fonts/simsun.ttc",
 ]
 _EXPECTED_MACOS_CANDIDATES = [
+    "/System/Library/Fonts/Supplemental/Songti.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/PingFang.ttc",
     "/System/Library/Fonts/Hiragino Sans GB.ttc",
-    "/System/Library/Fonts/Supplemental/Songti.ttc",
 ]
 
 # Windows 参考基线（2026-10-15 全量回归实测），仅用于漂移提示，不作硬性判定
@@ -199,14 +203,23 @@ def stage_full_suite():
 
 def stage_real_drawing():
     print("\n===== 阶段 5: real_drawing 真实图纸基线 =====")
-    files_dir = ROOT / "data" / "files"
-    real_dir = ROOT / "data" / "drawings" / "real"
-    has_data = (files_dir.exists() and any(files_dir.glob("*.dxf"))) or (
-        real_dir.exists() and any(real_dir.glob("*.dxf"))
-    )
-    if not has_data:
+    # 门槛 = 6 张固定基线图纸全部在场（5 张 baa-file-* + 东莞通）。
+    # 注意不能用 data/files/*.dxf 数量判定: 全量套件中的 API 上传测试会向
+    # data/files/ 写入合成 DXF（baa-file-<uuid>.dxf），CI 上会形成假阳性。
+    # 大体积 DXF 被 .gitignore 排除在仓库外，CI 缺图时 SKIP 并提示配置数据源。
+    required = [
+        ROOT / "data/files/baa-file-00582518a28e.dxf",
+        ROOT / "data/files/baa-file-00b3795cf6c2.dxf",
+        ROOT / "data/files/baa-file-016c23eb4018.dxf",
+        ROOT / "data/files/baa-file-007a2fa192ad.dxf",
+        ROOT / "data/files/baa-file-019ec606295e.dxf",
+        ROOT / "data/drawings/real/东莞通-建筑-外部参照（不打印）.dxf",
+    ]
+    missing = [str(p.relative_to(ROOT)) for p in required if not p.exists()]
+    if missing:
         record("5-基线", "real_drawing 基线", "SKIP",
-               "data/ 下无 DXF 图纸（CI 需配置图纸数据源）")
+               f"固定基线图纸未入库（.gitignore 排除大体积 DXF），缺 {len(missing)} 张"
+               "—— CI 需配置图纸数据源: " + ", ".join(missing[:3]) + (" ..." if len(missing) > 3 else ""))
         return
     rc, passed, tail = run_pytest(["-m", "real_drawing", "src/tests/test_real_drawings.py"],
                                   timeout=1800)

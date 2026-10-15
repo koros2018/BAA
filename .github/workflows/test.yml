@@ -70,9 +70,32 @@ jobs:
           pip install -r requirements.txt
           pip install ezdxf
 
+      - name: Guard - baseline drawings availability
+        id: data_guard
+        run: |
+          ok=true
+          names=(
+            "baa-file-00582518a28e.dxf"
+            "baa-file-00b3795cf6c2.dxf"
+            "baa-file-016c23eb4018.dxf"
+            "baa-file-007a2fa192ad.dxf"
+            "baa-file-019ec606295e.dxf"
+            "东莞通-建筑-外部参照（不打印）.dxf"
+          )
+          for name in "${names[@]}"; do
+            [ -n "$(find data -name "$name" -print -quit 2>/dev/null)" ] || { ok=false; echo "missing: $name"; }
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
       - name: Run real drawing tests
+        if: steps.data_guard.outputs.ok == 'true'
         run: |
           pytest -m real_drawing -v --tb=short src/tests/test_real_drawings.py
+
+      - name: Notice - baseline drawings not in repo
+        if: steps.data_guard.outputs.ok != 'true'
+        run: |
+          echo "::notice::固定基线图纸未入库（.gitignore 排除大体积 DXF），跳过 real_drawing 基线。需配置图纸数据源后补跑。"
 
   cross_platform_regression:
     name: "Cross-Platform Regression (checklist 20261015)"
@@ -142,9 +165,32 @@ jobs:
           pip install -r requirements.txt
           pip install ezdxf
 
+      - name: Guard - baseline drawings availability
+        id: data_guard
+        run: |
+          ok=true
+          names=(
+            "A1云计算中心平面图0405_t3.dxf"
+            "20210409-3#泵房_t3.dxf"
+            "202109409-2#配电房_t3.dxf"
+            "6.火灾自动报警 （报审）_t3.dxf"
+            "9.气体灭火（唯美图框）_t3.dxf"
+            "A1云计算中心_水消防2017.03.31_t3.dxf"
+          )
+          for name in "${names[@]}"; do
+            [ -n "$(find data -name "$name" -print -quit 2>/dev/null)" ] || { ok=false; echo "missing: $name"; }
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
       - name: Run baseline verification
+        if: steps.data_guard.outputs.ok == 'true'
         run: |
           python scripts/validate_real_drawings_baseline.py -j data/real_drawing_baseline_report.json
+
+      - name: Notice - baseline drawings not in repo
+        if: steps.data_guard.outputs.ok != 'true'
+        run: |
+          echo "::notice::P81 固定基线图纸（6 张 _t3）未入库（.gitignore 排除数据目录），跳过基线验证。需配置图纸数据源后补跑。"
 
       - name: Upload baseline report
         uses: actions/upload-artifact@v4

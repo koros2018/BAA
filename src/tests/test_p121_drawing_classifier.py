@@ -130,8 +130,16 @@ class TestIntegration:
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from src.baa_engine.drawing_parser import DrawingParser
 
+        repo_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        dxf_path = os.path.join(
+            repo_root, "data", "drawings", "real", "test_floorplan.pdf2dxf.dxf"
+        )
+        # test_floorplan 未入库（.gitignore 排除数据目录），CI 上跳过而非误报
+        if not os.path.exists(dxf_path):
+            pytest.skip("data/drawings/real/test_floorplan.pdf2dxf.dxf 未入库（需配置图纸数据源）")
         parser = DrawingParser()
-        dxf_path = "data/drawings/real/test_floorplan.pdf2dxf.dxf"
         result = parser.parse(dxf_path)
         assert result.success
         assert "drawing_type" in result.__dict__
