@@ -19,6 +19,8 @@ import subprocess
 import tempfile
 import logging
 
+import ezdxf  # 模块级导入：本模块 9 处 ezdxf.* 使用原先全部依赖调用方的命名空间（潜伏 NameError）
+
 logger = logging.getLogger(__name__)
 
 # ── ezdwg fallback（系统级安装，venv 可能不可见） ──────
@@ -212,7 +214,7 @@ sys.exit(2)
     return None
 
 
-def _try_ezdwg_export_dxf(self, path: Path) -> Optional[Any]:
+def _try_ezdwg_export_dxf(path: Path) -> Optional[Any]:  # 独立函数（原签名残留 self）
     """第 1 级：ezdwg.read() + export_dxf() 直转"""
     try:  # try block
         import ezdwg as _ezdwg  # import
@@ -632,7 +634,7 @@ def _try_manual_convert(
         if total > 10:  # check: numeric comparison
             return dxf_doc  # return
     except Exception as _e:  # catch exception
-        logger.warning("[P120] xref 流程外层异常: %s: %s", type(e).__name__, e)
+        logger.warning("[P120] xref 流程外层异常: %s: %s", type(_e).__name__, _e)
     return None  # return: None
 
 
@@ -777,11 +779,11 @@ def _try_raw_decode(
         if total > 10:  # check: numeric comparison
             return dxf_doc  # return
     except Exception as _e:  # catch exception
-        logger.warning("[P120] xref 流程外层异常: %s: %s", type(e).__name__, e)
+        logger.warning("[P120] xref 流程外层异常: %s: %s", type(_e).__name__, _e)
     return None  # return: None
 
 
-def _parse_dwg(self, path: Path):  # method: def _parse_dwg(self, path: Path):
+def _parse_dwg(path: Path):  # 独立函数（drawing_parser 按函数导入调用；原签名残留 self 导致 TypeError）
     """解析 DWG 文件，六级兜底策略
 
     级别（优先级从高到低）：
@@ -1010,4 +1012,4 @@ def _insert_block_expand(
             except Exception as _e:  # catch exception
                 logger.warning("[P120] 单个 SPLINE 实体展开失败: %s: %s", type(_e).__name__, _e)
     except Exception as _e:  # catch exception
-        logger.warning("[P120] 块展开流程外层异常: %s: %s", type(e).__name__, e)
+        logger.warning("[P120] 块展开流程外层异常: %s: %s", type(_e).__name__, _e)
