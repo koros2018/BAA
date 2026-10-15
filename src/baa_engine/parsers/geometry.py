@@ -61,9 +61,7 @@ def compute_bbox(entity) -> Optional[Dict[str, float]]:
             width_factor = 4.0 if dxf_type == "MTEXT" else 1.5
             return {"x": p.x, "y": p.y, "width": h * width_factor, "height": h}
         except Exception as _e:
-            logger.debug(
-                "[P120] %s bbox 失败: %s: %s", dxf_type, type(_e).__name__, _e
-            )
+            logger.debug("[P120] %s bbox 失败: %s: %s", dxf_type, type(_e).__name__, _e)
 
     # ── 5. LWPOLYLINE / POLYLINE / SPLINE: 从 vertices() 聚合 ──
     if dxf_type in ("LWPOLYLINE", "POLYLINE", "SPLINE"):

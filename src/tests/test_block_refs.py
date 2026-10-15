@@ -26,8 +26,8 @@ from src.baa_engine.parsers.block_refs import (
 )
 from src.baa_engine.drawing_parser import DrawingParser
 
-
 # ── 辅助：构造含块定义的 doc ──────────────────────────────────────────
+
 
 def _make_doc() -> "ezdxf.document.Drawing":
     doc = ezdxf.new("R2010")
@@ -39,6 +39,7 @@ def _make_doc() -> "ezdxf.document.Drawing":
 
 
 # ── read_block_ref 测试 ──────────────────────────────────────────────
+
 
 class TestReadBlockRef:
     def test_basic_fields(self):
@@ -122,6 +123,7 @@ class TestReadBlockRef:
 
 # ── extract_attribs 测试 ─────────────────────────────────────────────
 
+
 class TestExtractAttribs:
     def test_no_attrib_attr_returns_empty(self):
         class _Bare:
@@ -137,6 +139,7 @@ class TestExtractAttribs:
 
 
 # ── extract_block_refs 测试 ──────────────────────────────────────────
+
 
 class TestExtractBlockRefs:
     def test_collect_multiple_in_order(self):
@@ -177,6 +180,7 @@ class TestExtractBlockRefs:
 
 
 # ── summarize_block_refs 测试 ────────────────────────────────────────
+
 
 class TestSummarizeBlockRefs:
     def _ref(self, name, attribs=None):
@@ -221,13 +225,15 @@ def test_tz_block_prefixes_present():
 
 # ── DrawingParser 集成测试 ───────────────────────────────────────────
 
+
 class TestDrawingParserIntegration:
     def _write_dxf(self, tmp_path) -> str:
         doc = _make_doc()
         msp = doc.modelspace()
         msp.add_line((0, 0), (5000, 0))  # 额外图元
         ins1 = msp.add_blockref(
-            "DOOR_900", (1000, 2000),
+            "DOOR_900",
+            (1000, 2000),
             dxfattribs={"rotation": 90, "xscale": 1.2, "layer": "DOOR"},
         )
         ins1.add_attrib("TAG", "M-1")

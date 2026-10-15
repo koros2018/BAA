@@ -783,7 +783,9 @@ def _try_raw_decode(
     return None  # return: None
 
 
-def _parse_dwg(path: Path):  # 独立函数（drawing_parser 按函数导入调用；原签名残留 self 导致 TypeError）
+def _parse_dwg(
+    path: Path,
+):  # 独立函数（drawing_parser 按函数导入调用；原签名残留 self 导致 TypeError）
     """解析 DWG 文件，六级兜底策略
 
     级别（优先级从高到低）：

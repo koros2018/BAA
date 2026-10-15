@@ -356,7 +356,9 @@ class TianzhengT3:
 
         if self.verbose:
             s = build_summary(components)
-            print(f"[P127] {Path(dxf_path).name}: 总构件={s['total']}, 平均置信度={s['avg_confidence']}")
+            print(
+                f"[P127] {Path(dxf_path).name}: 总构件={s['total']}, 平均置信度={s['avg_confidence']}"
+            )
 
         return components
 

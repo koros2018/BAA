@@ -156,27 +156,37 @@ class TestClassifyEntity:
 
     def test_layer_exact_wins_over_geometry(self):
         # 图层 WALL 精确匹配，即使几何也像门
-        ctype, conf, evidence = self._tz().classify_entity("LWPOLYLINE", "WALL", {"width": 900, "height": 600})
+        ctype, conf, evidence = self._tz().classify_entity(
+            "LWPOLYLINE", "WALL", {"width": 900, "height": 600}
+        )
         assert ctype == C_WALL
         assert evidence == "layer_exact"
 
     def test_layer_keyword(self):
-        ctype, conf, evidence = self._tz().classify_entity("LWPOLYLINE", "my-door-layer", {"width": 900, "height": 600})
+        ctype, conf, evidence = self._tz().classify_entity(
+            "LWPOLYLINE", "my-door-layer", {"width": 900, "height": 600}
+        )
         assert ctype == C_DOOR
         assert evidence == "layer_keyword"
 
     def test_geometry_fallback(self):
-        ctype, conf, evidence = self._tz().classify_entity("LWPOLYLINE", "unrelated", {"width": 900, "height": 600})
+        ctype, conf, evidence = self._tz().classify_entity(
+            "LWPOLYLINE", "unrelated", {"width": 900, "height": 600}
+        )
         assert ctype == C_DOOR
         assert evidence == "geometry"
 
     def test_unspecified_fallback(self):
-        ctype, conf, evidence = self._tz().classify_entity("ARC", "unrelated", {"width": 100, "height": 100})
+        ctype, conf, evidence = self._tz().classify_entity(
+            "ARC", "unrelated", {"width": 100, "height": 100}
+        )
         assert ctype == C_UNSPECIFIED
         assert evidence == "unspecified"
 
     def test_dimension_by_geometry(self):
-        ctype, conf, evidence = self._tz().classify_entity("DIMENSION", "unrelated", {"width": 100, "height": 10})
+        ctype, conf, evidence = self._tz().classify_entity(
+            "DIMENSION", "unrelated", {"width": 100, "height": 10}
+        )
         assert ctype == C_DIMENSION
         assert evidence == "geometry"
 

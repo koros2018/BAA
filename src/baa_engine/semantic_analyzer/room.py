@@ -793,9 +793,7 @@ def _dedup_coords(values: List[float], tol: float) -> List[float]:
     return out
 
 
-def _cluster_by_length(
-    segs: List[_Seg], tol_rel: float
-) -> List[List[_Seg]]:
+def _cluster_by_length(segs: List[_Seg], tol_rel: float) -> List[List[_Seg]]:
     """按线段长度聚类：排序后线性扫描，桶内 max/min <= 1 + tol_rel。"""
     ordered = sorted(segs, key=lambda s: s[5])
     clusters: List[List[_Seg]] = []
@@ -951,9 +949,7 @@ def _detect_frame_rects(all_prims: List[RawPrimitive], segs: List[_Seg]) -> List
             continue
         if max(w, h) < _FRAME_MIN_SIDE_MM:  # 只取足够大的外框
             continue
-        rects.append(
-            {"x": b.get("x", 0.0), "y": b.get("y", 0.0), "width": w, "height": h}
-        )
+        rects.append({"x": b.get("x", 0.0), "y": b.get("y", 0.0), "width": w, "height": h})
     return rects
 
 
@@ -970,8 +966,7 @@ def _prim_on_rect_border(prim: RawPrimitive, rects: List[dict]) -> bool:
         x0, y0 = r["x"], r["y"]
         x1, y1 = x0 + r["width"], y0 + r["height"]
         if all(
-            min(abs(px - x0), abs(px - x1), abs(py - y0), abs(py - y1)) <= pad
-            for px, py in pts
+            min(abs(px - x0), abs(px - x1), abs(py - y0), abs(py - y1)) <= pad for px, py in pts
         ):
             return True
     return False
