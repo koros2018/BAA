@@ -34,6 +34,9 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-xdist
 
+      - name: Install CJK fonts (PDF test group)
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+
       - name: Run tests (skip slow + real_drawing)
         run: |
           pytest -m "not slow and not real_drawing" \
