@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 BAA 标注审核/修正 UI（Streamlit，P137 数据能力建设核心）
 
@@ -23,8 +23,13 @@ WSL 注意：streamlit 默认绑 0.0.0.0:8501，浏览器访问 http://localhost
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
+import time
 from pathlib import Path
+
+# 仓库根目录：本文件位于 <repo>/src/tools/annotate_ui.py，向上 3 层
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 try:
     from PIL import Image, ImageDraw
@@ -106,6 +111,56 @@ def find_samples(dataset_cfg: dict, split: str) -> list:
         lab = lab_dir / (img.stem + ".txt")
         samples.append((img, lab))
     return samples
+
+
+def diagnose_sample(img_path: Path, label_path: Path, classes: list, min_area: float = 0.0005):
+    """诊断单个样本的标注质量问题，返回 (问题描述, 修正后 boxes, 是否变更)。
+
+    检测：标签缺失、空标签、类 ID 越界、坐标越界、面积过小、重叠框。
+    """
+    issues = []
+    boxes = read_labels(label_path)
+
+    if not label_path.exists():
+        return ["无标签文件（孤儿图像）"], [], False
+
+    if not boxes:
+        return ["空标签（0 个框）"], [], False
+
+    valid_boxes = []
+    for i, (cls, cx, cy, w, h) in enumerate(boxes):
+        out = []
+        if cls < 0 or cls >= len(classes):
+            out.append(f"框{i+1} 类ID={cls} 越界")
+            continue
+        for val, name in ((cx, "cx"), (cy, "cy"), (w, "w"), (h, "h")):
+            if val < 0 or val > 1:
+                out.append(f"框{i+1} {name}={val:.4f} 越界")
+        if out:
+            issues.append("; ".join(out))
+            continue
+        if w * h < min_area:
+            issues.append(f"框{i+1} {classes[cls]} 面积过小 ({w*h:.5f})")
+            continue
+        valid_boxes.append((cls, round(cx, 6), round(cy, 6), round(w, 6), round(h, 6)))
+
+    # 重叠检测：两个框中心重合 + 宽高接近视为重复
+    kept_boxes = []
+    for i, box in enumerate(valid_boxes):
+        is_duplicate = False
+        for j, prev in enumerate(kept_boxes):
+            if box[0] != prev[0]:
+                continue
+            dcx, dcy = abs(box[1] - prev[1]), abs(box[2] - prev[2])
+            dw, dh = abs(box[3] - prev[3]), abs(box[4] - prev[4])
+            if dcx < 0.005 and dcy < 0.005 and dw < 0.005 and dh < 0.005:
+                issues.append(f"框{i+1} 与 框{j+1} 疑似重复")
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            kept_boxes.append(box)
+
+    return issues, kept_boxes, len(kept_boxes) != len(boxes)
 
 
 def read_labels(label_path: Path) -> list:
@@ -226,6 +281,49 @@ def main():
     total = len(samples)
     st.write(f"📊 **{dataset_name}** / {split} — {total} 样本")
 
+    # 批量清理：先统计影响面，确认后写入，写入前备份到 data/models/batch_clean/backups/
+    with st.expander("🧹 批量清理（去噪框 / 越界框 / 重复框）"):
+        batch_key = f"batch::{dataset_name}::{split}"
+        if batch_key not in st.session_state:
+            stats = {"clean": 0, "issue_samples": 0, "fix_samples": 0, "removed_boxes": 0, "missing_labels": 0}
+            for im, lb in samples:
+                iss, fx, ch = diagnose_sample(im, lb, classes)
+                if not lb.exists():
+                    stats["missing_labels"] += 1
+                    continue
+                if ch:
+                    stats["fix_samples"] += 1
+                    stats["removed_boxes"] += max(0, len(read_labels(lb)) - len(fx))
+                elif not iss:
+                    stats["clean"] += 1
+                else:
+                    stats["issue_samples"] += 1
+            st.session_state[batch_key] = stats
+        bs = st.session_state[batch_key]
+        st.write(
+            f"共 {total} 样本：{bs['clean']} 干净 · {bs['fix_samples']} 可自动修复 · "
+            f"{bs['issue_samples']} 仅提示 · {bs['missing_labels']} 无标签"
+        )
+        st.caption(f"预计移除 {bs['removed_boxes']} 个噪声/越界/重复框（阈值：面积 ≥ 0.0005，坐标∈[0,1]，去近重复）")
+        if bs["fix_samples"] > 0:
+            if st.button(f"⚡ 备份并批量清理 {bs['fix_samples']} 个样本", type="primary"):
+                ts = time.strftime("%Y%m%d_%H%M%S")
+                backup_dir = ROOT / "data" / "models" / "batch_clean" / "backups" / f"{dataset_name}_{split}_{ts}"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                applied = 0
+                for im, lb in samples:
+                    if not lb.exists():
+                        continue
+                    iss, fx, ch = diagnose_sample(im, lb, classes)
+                    if not ch:
+                        continue
+                    shutil.copy2(lb, backup_dir / lb.name)
+                    write_labels(lb, fx)
+                    applied += 1
+                st.success(f"已清理 {applied} 个样本，备份: {backup_dir.relative_to(ROOT)}")
+                st.session_state[batch_key] = {"clean": bs["clean"] + bs["fix_samples"], "issue_samples": bs["issue_samples"], "fix_samples": 0, "removed_boxes": 0, "missing_labels": bs["missing_labels"]}
+                st.rerun()
+
     # 样本索引持久化：key 绑定 session_state，dataset/split 切换时自动重置，
     # prev/next 通过 _goto 改同一个 key。
     _key = f"idx::{dataset_name}::{split}"
@@ -256,13 +354,32 @@ def main():
 
     boxes = st.session_state["boxes"]
 
-    # 主视图：图像 + 高亮框
+    # 问题诊断（自动检测标注质量）
+    issues, fixed_boxes, changed = diagnose_sample(img_path, label_path, classes)
+    diag_key = f"diag::{idx}::{dataset_name}"
+    if diag_key not in st.session_state:
+        st.session_state[diag_key] = (issues, changed)
+    diag_issues, diag_changed = st.session_state[diag_key]
+
     col_img, col_edit = st.columns([2, 1])
     with col_img:
         st.subheader(f"🖼️ 样本 {idx+1}/{total}")
         preview = draw_preview(img_path, boxes, classes, box_idx=st.session_state["cur_idx"])
         st.image(preview, use_container_width=True)
-        st.write(f"图像尺寸: {img_path.stat().st_size/1024:.1f} KB · 标注框: {len(boxes)}")
+        st.write(f"图像: {img_path.stat().st_size/1024:.1f} KB · 框: {len(boxes)}")
+
+        # 一键应用修复
+        if diag_changed:
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button(f"⚡ 应用修复 ({len(boxes)}→{len(fixed_boxes)} 框)", type="primary"):
+                    st.session_state["boxes"] = fixed_boxes
+                    st.session_state["dirty"] = True
+                    st.session_state["cur_idx"] = -1
+                    st.session_state[diag_key] = ([], False)
+                    st.rerun()
+            with c2:
+                st.caption(f"检出 {len(diag_issues)} 项问题")
 
     with col_edit:
         st.subheader("✏️ 标注编辑")
