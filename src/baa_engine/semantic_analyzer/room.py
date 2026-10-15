@@ -17,6 +17,7 @@ import math
 
 from .models import SemanticEntity
 from ..drawing_parser import RawPrimitive
+from .layer_rules import LAYER_RULES
 
 _NON_ROOM_LAYER_KW: Tuple[str, ...] = (
     "COLU",
@@ -93,6 +94,11 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     支持 LINE 和 LWPOLYLINE 墙线：先收集墙线原始图元，再展开为线段。
     """
     wall_prims = _collect_wall_lines(primitives)
+    if len(wall_prims) < 3:
+        return []
+    # P130: 排除图框与表格区域——必须在 _extract_closed_polyline_rooms /
+    # _collect_wall_segments / _axis_align_merge 之前，此时 layer 尚未被清空。
+    wall_prims = _exclude_table_and_frame_prims(wall_prims, primitives)
     if len(wall_prims) < 3:
         return []
 
@@ -350,6 +356,24 @@ _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊短边下限（<2000mm 为门洞/�
 _DOORWAY_GAP_MIN_MM = 700.0  # 门洞最小间隙
 _DOORWAY_GAP_MAX_MM = 2500.0  # 门洞最大间隙
 _MIN_AREA_TO_BBOX_RATIO = 0.3  # 面实际面积/包围盒面积最小比（过滤外框面）
+
+# ── P130: 图框/表格区域排除 ──
+_TABLE_AXIS_TOL_DEG = 3.0  # 判定近轴段的角度容差（度）
+_TABLE_LEN_TOL_REL = 0.05  # 同一族内线段长度相对容差（分桶用）
+_TABLE_LEN_CV_MAX = 0.05  # 族内长度变异系数上限（长度一律）
+_TABLE_MIN_LINES_PER_FAMILY = 4  # 每族最少线段数
+_TABLE_MIN_LINE_COVER_RATIO = 0.90  # 贯穿整区的线段占比下限
+_TABLE_LINE_COVER_TOL = 0.90  # 线段长度 / 区域对应边长 下限
+_TABLE_MIN_INTERSECTION_RATIO = 0.85  # 实际交点数 / (#H * #V) 下限（网格密闭）
+_TABLE_MIN_CELLS = 50  # 网格单元数下限（区分"密集表格"与"少量房间阵列"）
+_TABLE_COORD_DEDUP_MM = 200.0  # 线坐标去重容差（mm）
+# 单元格中位短边上限：真实房间短边 >= _MIN_SHORT_EDGE_MM，
+# 表格单元格短边（本例 1366mm）远小于此，故用它作为"不是房间"的判据
+_TABLE_CELL_SHORT_EDGE_MAX_MM = _MIN_SHORT_EDGE_MM
+_TABLE_MIN_AREA_MM2 = 1_000_000  # 表格区域面积下限 1m²
+_TABLE_MAX_AREA_MM2 = 10_000_000_000  # 表格区域面积上限 10000m²
+_TABLE_REGION_PAD_MM = 200.0  # 区域边界容差（mm）
+_FRAME_MIN_SIDE_MM = 50_000.0  # 图框最小边长（50m）
 
 
 # ═══════════════════════════════════════════
@@ -668,6 +692,9 @@ def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
         # 1. 明确非建筑图层：排除
         if any(kw in layer for kw in non_wall_layer_kw):
             continue
+        # P130: titleblock 图层排除（图框/图签/标题栏，独立判据，可单独单测）
+        if _is_titleblock_layer(prim.layer or ""):
+            continue
         # 2. 已知墙/结构图层：保留
         if any(kw in layer for kw in wall_layer_kw):
             lines.append(prim)
@@ -675,6 +702,304 @@ def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
         # 3. 未分类图层（数字、单字母等）：宽松保留
         lines.append(prim)
     return lines
+
+
+# ═══════════════════════════════════════════
+#  P130: 图框/表格区域排除
+# ═══════════════════════════════════════════
+
+
+def _is_titleblock_layer(layer: str) -> bool:
+    """图层是否映射为 titleblock（图框/图签/标题栏）。
+
+    只取 LAYER_RULES 中值为 "titleblock" 的键；子串匹配方式与 classify 一致。
+    注意：P-KX1 / PP-COM / VDWG / BORDER 在规则中映射为 "other"，不参与排除。
+    """
+    u = (layer or "").upper()
+    if not u:
+        return False
+    for kw, t in LAYER_RULES.items():
+        if t == "titleblock" and kw.upper() in u:
+            return True
+    return False
+
+
+def _prim_endpoints(prim: RawPrimitive) -> List[Tuple[float, float]]:
+    """取图元的关键点：LINE 取起终点；LWPOLYLINE 取全部顶点。"""
+    if prim.dxf_type == "LINE":
+        sp = prim.properties.get("start_point", {}) or {}
+        ep = prim.properties.get("end_point", {}) or {}
+        if not sp or not ep:
+            return []
+        return [
+            (float(sp.get("x", 0.0)), float(sp.get("y", 0.0))),
+            (float(ep.get("x", 0.0)), float(ep.get("y", 0.0))),
+        ]
+    if prim.dxf_type == "LWPOLYLINE":
+        pts = prim.properties.get("points", []) or []
+        return [(float(p[0]), float(p[1])) for p in pts]
+    return []
+
+
+def _prim_within_regions(prim: RawPrimitive, regions: List[dict]) -> bool:
+    """判断图元是否整体落在任一区域 bbox 内（含 _TABLE_REGION_PAD_MM 容差）。
+
+    要求"全部关键点均在区域内"，避免误排跨越表格边界的墙线。
+    """
+    pts = _prim_endpoints(prim)
+    if not pts:
+        return False
+    for r in regions:
+        x0, y0 = r["x"], r["y"]
+        x1, y1 = x0 + r["width"], y0 + r["height"]
+        if all(
+            x0 - _TABLE_REGION_PAD_MM <= px <= x1 + _TABLE_REGION_PAD_MM
+            and y0 - _TABLE_REGION_PAD_MM <= py <= y1 + _TABLE_REGION_PAD_MM
+            for px, py in pts
+        ):
+            return True
+    return False
+
+
+def _cv(values: List[float]) -> float:
+    """变异系数 = 标准差 / 均值；样本 < 2 或均值 <= 0 时返回 0.0。"""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean = sum(values) / n
+    if mean <= 0:
+        return 0.0
+    var = sum((v - mean) ** 2 for v in values) / n
+    return math.sqrt(var) / mean
+
+
+def _median(values: List[float]) -> float:
+    """中位数；空列表返回 0.0。"""
+    if not values:
+        return 0.0
+    s = sorted(values)
+    mid = len(s) // 2
+    if len(s) % 2:
+        return s[mid]
+    return (s[mid - 1] + s[mid]) / 2.0
+
+
+def _dedup_coords(values: List[float], tol: float) -> List[float]:
+    """坐标去重（合并间隔 <= tol 的重复值），返回升序列表。"""
+    out: List[float] = []
+    for v in sorted(values):
+        if not out or v - out[-1] > tol:
+            out.append(v)
+    return out
+
+
+def _cluster_by_length(
+    segs: List[_Seg], tol_rel: float
+) -> List[List[_Seg]]:
+    """按线段长度聚类：排序后线性扫描，桶内 max/min <= 1 + tol_rel。"""
+    ordered = sorted(segs, key=lambda s: s[5])
+    clusters: List[List[_Seg]] = []
+    cur: List[_Seg] = []
+    cur_lo = 0.0
+    for s in ordered:
+        ln = s[5]
+        if not cur:
+            cur = [s]
+            cur_lo = ln
+            continue
+        if cur_lo > 0 and ln / cur_lo <= 1.0 + tol_rel:
+            cur.append(s)
+        else:
+            clusters.append(cur)
+            cur = [s]
+            cur_lo = ln
+    if cur:
+        clusters.append(cur)
+    return clusters
+
+
+def _axis_split(segs: List[_Seg]) -> Tuple[List[_Seg], List[_Seg]]:
+    """按 _TABLE_AXIS_TOL_DEG 把线段分为水平族 H 与垂直族 V，其余丢弃。"""
+    tol = math.tan(math.radians(_TABLE_AXIS_TOL_DEG))
+    h: List[_Seg] = []
+    v: List[_Seg] = []
+    for s in segs:
+        x0, y0, x1, y1, _, _ = s
+        dx, dy = abs(x1 - x0), abs(y1 - y0)
+        if dx <= 0 and dy <= 0:
+            continue
+        if dy <= tol * dx:
+            h.append(s)
+        elif dx <= tol * dy:
+            v.append(s)
+    return h, v
+
+
+def _count_grid_intersections(h: List[_Seg], v: List[_Seg]) -> int:
+    """统计 H 段与 V 段实际相交的对数（交点须落在线段范围内）。"""
+    count = 0
+    for hs in h:
+        hx0, hy, hx1, _, _, _ = hs
+        lo_x, hi_x = min(hx0, hx1) - _TABLE_REGION_PAD_MM, max(hx0, hx1) + _TABLE_REGION_PAD_MM
+        for vs in v:
+            vx, vy0, _, vy1, _, _ = vs
+            lo_y, hi_y = min(vy0, vy1) - _TABLE_REGION_PAD_MM, max(vy0, vy1) + _TABLE_REGION_PAD_MM
+            if lo_x <= vx <= hi_x and lo_y <= hy <= hi_y:
+                count += 1
+    return count
+
+
+def _try_detect_table(h: List[_Seg], v: List[_Seg]) -> Optional[dict]:
+    """对一对 (H 族, V 族) 做判据；全部满足返回区域 bbox，否则 None。"""
+    if len(h) < _TABLE_MIN_LINES_PER_FAMILY or len(v) < _TABLE_MIN_LINES_PER_FAMILY:
+        return None
+
+    # 判据 1：族内长度一律
+    if _cv([s[5] for s in h]) > _TABLE_LEN_CV_MAX:
+        return None
+    if _cv([s[5] for s in v]) > _TABLE_LEN_CV_MAX:
+        return None
+
+    # 区域 bbox
+    xs: List[float] = []
+    ys: List[float] = []
+    for s in h + v:
+        xs.extend((s[0], s[2]))
+        ys.extend((s[1], s[3]))
+    rx0, rx1 = min(xs), max(xs)
+    ry0, ry1 = min(ys), max(ys)
+    rw, rh = rx1 - rx0, ry1 - ry0
+    if rw <= 0 or rh <= 0:
+        return None
+
+    # 判据 2：区域面积区间
+    if not (_TABLE_MIN_AREA_MM2 <= rw * rh <= _TABLE_MAX_AREA_MM2):
+        return None
+
+    # 判据 3：贯穿整区（水平段长 >= 0.9*区域宽，垂直段长 >= 0.9*区域高）
+    h_covered = sum(1 for s in h if s[5] >= _TABLE_LINE_COVER_TOL * rw)
+    v_covered = sum(1 for s in v if s[5] >= _TABLE_LINE_COVER_TOL * rh)
+    if h_covered / len(h) < _TABLE_MIN_LINE_COVER_RATIO:
+        return None
+    if v_covered / len(v) < _TABLE_MIN_LINE_COVER_RATIO:
+        return None
+
+    # 判据 4：网格密闭（线段实际相交比例）
+    intersections = _count_grid_intersections(h, v)
+    if intersections / (len(h) * len(v)) < _TABLE_MIN_INTERSECTION_RATIO:
+        return None
+
+    # 判据 5：密集网格（单元数 = (列数)*(行数)）
+    h_coords = _dedup_coords([(s[1] + s[3]) / 2 for s in h], _TABLE_COORD_DEDUP_MM)
+    v_coords = _dedup_coords([(s[0] + s[2]) / 2 for s in v], _TABLE_COORD_DEDUP_MM)
+    n_rows = len(h_coords) - 1
+    n_cols = len(v_coords) - 1
+    if n_rows < 1 or n_cols < 1 or n_rows * n_cols < _TABLE_MIN_CELLS:
+        return None
+
+    # 判据 6：单元格尺度远小于房间最小短边（排除"成排真实房间"）
+    row_pitch = _median([b - a for a, b in zip(h_coords, h_coords[1:])])
+    col_pitch = _median([b - a for a, b in zip(v_coords, v_coords[1:])])
+    if min(row_pitch, col_pitch) >= _TABLE_CELL_SHORT_EDGE_MAX_MM:
+        return None
+
+    return {"x": rx0, "y": ry0, "width": rw, "height": rh}
+
+
+def _detect_table_regions(segs: List[_Seg]) -> List[dict]:
+    """P130: 几何识别"规则网格表格"区域，返回 bbox 列表。
+
+    判据（全部满足才判定为表格，宁可漏排不误排）：
+      1. 同长度族内 H/V 线段数 >= _TABLE_MIN_LINES_PER_FAMILY，且族内长度 CV <= _TABLE_LEN_CV_MAX
+      2. 区域面积落在 [_TABLE_MIN_AREA_MM2, _TABLE_MAX_AREA_MM2]
+      3. 族内 >= _TABLE_MIN_LINE_COVER_RATIO 的线段长度 >= _TABLE_LINE_COVER_TOL×区域对应边长（贯穿整区）
+      4. 实际交点数 / (#H*#V) >= _TABLE_MIN_INTERSECTION_RATIO（网格密闭）
+      5. 网格单元数 >= _TABLE_MIN_CELLS（密集阵列）
+      6. 单元格中位行/列间距的最小值 < _TABLE_CELL_SHORT_EDGE_MAX_MM（不是房间尺度）
+
+    说明：真实图纸中的图例表格可能是多个子表拼接（行距不均匀、部分线不贯穿），
+    因此不要求"等距"，改用"密集 + 密闭 + 房间尺度以下"来判定；
+    真实房间阵列达不到判据 3/4/5。
+    """
+    h_all, v_all = _axis_split(segs)
+    if not h_all or not v_all:
+        return []
+
+    regions: List[dict] = []
+    for h in _cluster_by_length(h_all, _TABLE_LEN_TOL_REL):
+        for v in _cluster_by_length(v_all, _TABLE_LEN_TOL_REL):
+            cand = _try_detect_table(h, v)
+            if cand is not None:
+                regions.append(cand)
+    return regions
+
+
+def _detect_frame_rects(all_prims: List[RawPrimitive], segs: List[_Seg]) -> List[dict]:
+    """P130: 识别图框边框区域（titleblock 图层上的大尺度图元 bbox）。
+
+    说明：图框内部整幅面 84100×59400 = 4.998e9 mm² 已超 _MAX_ROOM_AREA_MM2
+    (2e9) 被成面后的 gate0 剔除，因此本函数的主要价值是降低扫线开销，
+    并为图框内的表格/标题栏子区域提供外层保护。
+    """
+    rects: List[dict] = []
+    for p in all_prims:
+        if not _is_titleblock_layer(p.layer or ""):
+            continue
+        b = p.bbox or {}
+        w, h = b.get("width", 0), b.get("height", 0)
+        if w <= 0 or h <= 0:
+            continue
+        if max(w, h) < _FRAME_MIN_SIDE_MM:  # 只取足够大的外框
+            continue
+        rects.append(
+            {"x": b.get("x", 0.0), "y": b.get("y", 0.0), "width": w, "height": h}
+        )
+    return rects
+
+
+def _prim_on_rect_border(prim: RawPrimitive, rects: List[dict]) -> bool:
+    """判断图元的全部关键点是否都贴在某个矩形边框上（"图框边框"判据）。
+
+    只排除边框线本身，不排除边框内部的图元——否则整幅图框内的墙线都会被误排。
+    """
+    pts = _prim_endpoints(prim)
+    if not pts:
+        return False
+    pad = _TABLE_REGION_PAD_MM
+    for r in rects:
+        x0, y0 = r["x"], r["y"]
+        x1, y1 = x0 + r["width"], y0 + r["height"]
+        if all(
+            min(abs(px - x0), abs(px - x1), abs(py - y0), abs(py - y1)) <= pad
+            for px, py in pts
+        ):
+            return True
+    return False
+
+
+def _exclude_table_and_frame_prims(
+    prims: List[RawPrimitive], all_prims: List[RawPrimitive]
+) -> List[RawPrimitive]:
+    """P130: 从墙线候选中剔除表格网格、titleblock 图层与图框边框图元。
+
+    参数:
+        prims:     _collect_wall_lines 的输出（墙线候选）
+        all_prims: 解析出来的全量图元（用于取图框图元的 bbox）
+    """
+    segs = _collect_wall_segments(prims)
+    table_regions = _detect_table_regions(segs)
+    frame_rects = _detect_frame_rects(all_prims, segs)
+
+    kept: List[RawPrimitive] = []
+    for p in prims:
+        if _is_titleblock_layer(p.layer or ""):
+            continue
+        if table_regions and _prim_within_regions(p, table_regions):
+            continue
+        if frame_rects and _prim_on_rect_border(p, frame_rects):
+            continue
+        kept.append(p)
+    return kept
 
 
 def _collect_wall_segments(

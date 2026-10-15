@@ -24,6 +24,13 @@ from .geometry import (
     compute_polygon_area,
     transform_point,
 )
+from .block_refs import (
+    BlockRef,
+    extract_attribs,
+    read_block_ref,
+    extract_block_refs,
+    summarize_block_refs,
+)
 
 __all__ = [
     # DWG
@@ -43,4 +50,10 @@ __all__ = [
     "extract_properties",
     "compute_polygon_area",
     "transform_point",
+    # block refs (P127-S1)
+    "BlockRef",
+    "extract_attribs",
+    "read_block_ref",
+    "extract_block_refs",
+    "summarize_block_refs",
 ]

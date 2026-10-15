@@ -90,6 +90,7 @@ class DrawingResult:  # class definition
         sheets: List[Dict] = None,  # P73: 多Sheet 分区解析
         drawing_type: Optional[Dict] = None,  # P121: 图纸类型分类
         corrupt: Optional[Dict] = None,  # P121: 损坏检测
+        block_refs: List[Dict] = None,  # P127-S1: 块引用（块名/ATTRIB/位置）
     ):  # 操作
         """初始化实例。"""
         self.file_path = file_path  # assignment
@@ -102,6 +103,7 @@ class DrawingResult:  # class definition
         self.sheets = sheets or []  # P73: 每个 sheet 为 {name, primitives, dimensions}
         self.drawing_type = drawing_type or {}  # P121: {type, confidence, reason, suggested_action}
         self.corrupt = corrupt or {}  # P121: {corrupt, reason, recoverable}
+        self.block_refs = block_refs or []  # P127-S1: 块引用列表
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -121,6 +123,7 @@ from src.baa_engine.parsers.geometry import (
     extract_properties,
     compute_polygon_area,
 )
+from src.baa_engine.parsers.block_refs import read_block_ref
 
 
 class DrawingParser:
@@ -269,7 +272,7 @@ class DrawingParser:
                 error=f"DXF 解析失败: {str(e)}",  # str conversion
             )  # code
 
-        primitives, dimensions, page_warning = self._extract_primitives_paged(
+        primitives, dimensions, block_refs, page_warning = self._extract_primitives_paged(
             use_paging if ext == ".dxf" else False
         )  # function call
 
@@ -319,6 +322,7 @@ class DrawingParser:
             dimensions=dimensions,
             drawing_type=drawing_type,
             corrupt=corrupt,
+            block_refs=block_refs,
         )  # code
 
         # ── P73: 多Sheet 分区检测 ────────────────────────
@@ -382,10 +386,11 @@ class DrawingParser:
             use_paging: 是否启用分页模式
 
         返回:
-            (primitives, dimensions, warning)
+            (primitives, dimensions, block_refs, warning)
         """
         all_primitives = []  # assignment
         all_dimensions = []  # assignment
+        all_block_refs = []  # P127-S1: 块引用
         warning = None  # assignment
 
         msp = self._doc.modelspace()  # function call
@@ -408,6 +413,10 @@ class DrawingParser:
 
                 for entity in page_entities:  # loop: iterate
                     dxf_type = entity.dxftype()  # function call
+                    if dxf_type == "INSERT":  # P127-S1: 块引用不展平，单独收集
+                        bref = self._extract_block_ref(entity)
+                        if bref is not None:
+                            all_block_refs.append(bref)
                     if dxf_type == "DIMENSION":  # condition: dxf_type == 'DIMENSION':
                         dim = self._extract_single_dimension(entity)  # function call
                         if dim is not None:  # check: value is not None
@@ -446,6 +455,10 @@ class DrawingParser:
             # ── 常规模式（不分页） ──────────────────────
             for entity in all_entities:  # loop: iterate
                 dxf_type = entity.dxftype()  # function call
+                if dxf_type == "INSERT":  # P127-S1: 块引用不展平，单独收集
+                    bref = self._extract_block_ref(entity)
+                    if bref is not None:
+                        all_block_refs.append(bref)
                 if dxf_type == "DIMENSION":  # condition: dxf_type == 'DIMENSION':
                     dim = self._extract_single_dimension(entity)  # function call
                     if dim is not None:  # check: value is not None
@@ -456,7 +469,7 @@ class DrawingParser:
                         all_primitives.append(primitive)  # append to list
 
         del all_entities  # code
-        return all_primitives, all_dimensions, warning  # return
+        return all_primitives, all_dimensions, all_block_refs, warning  # return
 
     def _extract_single_primitive(
         self, entity
@@ -486,6 +499,11 @@ class DrawingParser:
             bbox=bbox,  # assignment
             properties=props,  # assignment
         )  # code
+
+    def _extract_block_ref(self, entity) -> Optional[Dict]:  # P127-S1: 块引用提取
+        """提取单个块引用（INSERT）为结构化 Dict；非 INSERT 或失败返回 None。"""
+        ref = read_block_ref(entity)
+        return ref.to_dict() if ref is not None else None
 
     def _extract_single_dimension(
         self, entity
