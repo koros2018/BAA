@@ -66,7 +66,7 @@ def draw_annotations(img_path, label_path, output_path, scale=1.0):
 
     try:
         with open(label_path) as f:
-            lines = [l.strip() for l in f if l.strip()]
+            lines = [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         return
 
@@ -146,7 +146,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     labels = sorted(data_dir.glob("*.txt"))
-    labels = [l for l in labels if "data.yaml" not in l.name]
+    labels = [lb for lb in labels if "data.yaml" not in lb.name]
     print(f"Total labels: {len(labels)}")
 
     if args.sample > 0 and args.sample < len(labels):

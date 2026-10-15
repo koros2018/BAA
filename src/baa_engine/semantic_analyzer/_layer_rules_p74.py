@@ -65,7 +65,6 @@ LAYER_RULES_P74 = {
     # 管道井/电梯井（补充变体）
     "SHAFT": "shaft",  # 管道井
     "竖井": "shaft",
-    "电井": "shaft",
     "水井": "shaft",
     # 屋面/结构
     "ROOF_": "roof",  # 屋面

@@ -59,8 +59,8 @@ def test_pdf_semantic_analysis():
     entities = semantic.get("entities", [])
     assert len(entities) > 50, f"实体过少: {len(entities)}"
     type_counts = Counter(e["type"] for e in entities)
-    assert type_counts.get("door", 0) > 50, f"door 过少: {type_counts.get('door',0)}"
-    assert type_counts.get("wall", 0) > 10, f"wall 过少: {type_counts.get('wall',0)}"
+    assert type_counts.get("door", 0) > 50, f"door 过少: {type_counts.get('door', 0)}"
+    assert type_counts.get("wall", 0) > 10, f"wall 过少: {type_counts.get('wall', 0)}"
     print(f"PASS PDF 语义分析: {len(entities)} entities, {dict(type_counts.most_common(5))}")
 
 
@@ -113,10 +113,10 @@ def test_pdf_p101_filters():
     from collections import Counter
 
     dist = Counter(e["type"] for e in entities)
-    assert dist.get("wall", 0) >= 30, f"wall 过少: {dist.get('wall',0)}"
+    assert dist.get("wall", 0) >= 30, f"wall 过少: {dist.get('wall', 0)}"
     # P101: LINE 链闭合检测应产生 room
     rooms = [e for e in entities if e["type"] == "room"]
-    print(f"PASS P101: {len(entities)} entities, wall={dist.get('wall',0)}, room={len(rooms)}")
+    print(f"PASS P101: {len(entities)} entities, wall={dist.get('wall', 0)}, room={len(rooms)}")
 
 
 @LOCAL_PDF_MARK
