@@ -25,11 +25,7 @@ jobs:
 
       - name: JSHint — src/frontend/*.js
         run: |
-          # 使用 relaxed 配置兼容 BAA 内联 event handler / DOM 属性访问
-          jshint src/frontend/*.js --config-  \
-            -e 'W017,W019,W024,W025,W051,W060,W102,W104' \
-            --extra-ext=  \
-            --verbose 2>&1 | tee /tmp/jshint.log
+          jshint src/frontend/*.js --config .jshintrc --verbose 2>&1 | tee /tmp/jshint.log
 
           # 检查是否有 ERROR 行（WARNING 不阻断）
           if grep -q "^[^ ]*:[0-9]*:[0-9]*.*Error" /tmp/jshint.log 2>/dev/null; then
@@ -56,10 +52,13 @@ jobs:
                   self.stack = []
                   self.errors = []
               def handle_starttag(self, tag, attrs):
-                  void = {'br','hr','img','input','meta','link','source'}
+                  void = {'br','hr','img','input','meta','link','source','area','base','col','embed','track','wbr'}
                   if tag not in void:
                       self.stack.append(tag)
               def handle_endtag(self, tag):
+                  void = {'br','hr','img','input','meta','link','source','area','base','col','embed','track','wbr'}
+                  if tag in void:
+                      return  # void 元素无闭合标签，HTMLParser 容错会报 endtag，跳过
                   if self.stack and self.stack[-1] == tag:
                       self.stack.pop()
                   else:

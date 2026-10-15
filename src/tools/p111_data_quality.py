@@ -116,7 +116,7 @@ def load_txt_list(filepath):
     if not os.path.exists(filepath):
         return []
     with open(filepath) as f:
-        return [l.strip() for l in f if l.strip()]
+        return [line.strip() for line in f if line.strip()]
 
 
 def is_non_floor(name: str) -> bool:
@@ -206,7 +206,7 @@ def diagnose():
     report.append(f"| 指标 | 数值 |")
     report.append(f"|------|------|")
     report.append(f"| 可疑非平面图 | {len(non_floor)} | 系统图/计算表/目录/图例等 |")
-    report.append(f"| 可疑占比 | {len(non_floor)/max(len(all_stems),1)*100:.1f}% |")
+    report.append(f"| 可疑占比 | {len(non_floor) / max(len(all_stems), 1) * 100:.1f}% |")
     if non_floor:
         report.append(f"\n示例（前 20）：")
         for s in sorted(non_floor)[:20]:

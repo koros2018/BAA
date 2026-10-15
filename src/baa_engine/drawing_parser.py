@@ -303,7 +303,7 @@ class DrawingParser:
             layer_names = []
             if self._doc is not None:
                 try:
-                    layer_names = [l.name for l in self._doc.layers]
+                    layer_names = [layer.name for layer in self._doc.layers]
                 except Exception:
                     pass  # 忽略图层读取错误
 

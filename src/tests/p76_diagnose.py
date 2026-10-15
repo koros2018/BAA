@@ -1,6 +1,8 @@
 """P76 诊断：6 张黄金标准图纸逐项分析"""
 
-import sys, os, json
+import json
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
