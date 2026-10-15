@@ -66,7 +66,7 @@ ezdwg 0.16.0 安装后首次真正执行 DWG 链路，暴露 4 个被"ezdwg 未�
 |---|---|---|
 | Windows 本机 | **已就绪** | ezdwg 0.16.0（win_amd64 wheel）+ 4 缺陷修复；服务启动日志零 P120 警告 |
 | Linux CI | **已就绪（随 requirements 分发）** | CI 全量与新 `cross_platform_regression` job 自动安装；仓库无 DWG 数据，CI 仅验证导入与降级路径 |
-| macOS | 待验证 | 需确认 ezdwg 是否发布 macOS wheel；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
+| macOS | **静态已确认，CI 实测中** | PyPI 确认 universal2 wheel（Intel x86_64 + Apple Silicon arm64，abi3 覆盖 3.10+）、零强制依赖；新增 `macos_compatibility` job（macos-latest）实测安装/导入/探针；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
 
 **端到端验证**（`data/files` 真实 DWG，Windows 本机）：AC1018 → 48376 图元、AC1015 → 4182、
 AC1021 → 41368，全部解析成功；全量回归 2246 passed 不变。
