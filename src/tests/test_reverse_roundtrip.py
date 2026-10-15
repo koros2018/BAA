@@ -10,6 +10,8 @@ P88: 反向重构闭环测试
 """
 
 import os
+import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -200,6 +202,23 @@ class TestMultiRoomEngine:
 # ════════════════════════════════════════════════════════════
 
 
+def _soffice_available() -> bool:
+    """与 reverse_engine 探测口径一致的三级判断（供 skipif 装饰器使用）"""
+    env_path = os.environ.get("BAA_SOFFICE_PATH")
+    if env_path and os.path.exists(env_path):
+        return True
+    if shutil.which("soffice") or shutil.which("libreoffice"):
+        return True
+    if os.name == "nt":  # Windows 默认安装路径
+        pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+        pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        return any(
+            os.path.exists(os.path.join(base, "LibreOffice", "program", "soffice.exe"))
+            for base in (pf, pf86)
+        )
+    return False
+
+
 class TestExportDwg:
     """验证 DXF→DWG 导出（LibreOffice 不可用时降级返回 DXF）"""
 
@@ -220,6 +239,146 @@ class TestExportDwg:
             os.unlink(tmp_dwg.name)
         if result != tmp_dwg.name and os.path.exists(result):
             os.unlink(result)
+
+    @pytest.mark.skipif(
+        not _soffice_available(),
+        reason="需要 LibreOffice（BAA_SOFFICE_PATH / PATH / Windows 默认安装路径任一命中）",
+    )
+    def test_export_dwg_with_libreoffice(self, tmp_path):
+        """有 LibreOffice 时的转换冒烟（覆盖 shutil.copy2 成功路径）
+
+        契约：要么产出非空 .dwg（转换成功），要么优雅降级返回 .dxf；
+        任何崩溃 / 空文件均不合格。空白 B 的分支 A/B 判定依此测试结果落定。
+        """
+        engine = ReverseEngine()
+        spec = RoomSpec(room_type=RoomType.OFFICE, width_mm=5000, height_mm=4000)
+        dxf_path = str(tmp_path / "room.dxf")
+        dwg_path = str(tmp_path / "room.dwg")
+        engine.generate_dxf(spec, dxf_path)
+
+        result = engine.export_dwg(dxf_path, dwg_path)
+        assert os.path.exists(result)
+        if result.endswith(".dwg"):
+            # 成功路径：LibreOffice 确有 DWG 导出 filter，copy2 产物非空
+            assert os.path.getsize(result) > 0
+        else:
+            # 降级路径：无 DWG filter（空白 B 分支 B1 现场证据）
+            assert result.endswith(".dxf")
+
+
+# ════════════════════════════════════════════════════════════
+# 4b. soffice 路径探测（BAA_SOFFICE_PATH → PATH → Windows 默认安装路径）
+# ════════════════════════════════════════════════════════════
+
+
+class TestSofficeDetection:
+    """验证 _export_via_libreoffice 的三级探测优先级与平台门控
+
+    手法：patch subprocess.run 捕获实际下发的 cmd[0]（即被选中的 soffice），
+    并抛 TimeoutExpired 使转换提前终止——只测探测，不测转换。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated(self, monkeypatch, tmp_path):
+        """隔离外部环境：清理 env、把 ProgramFiles 重定向到空目录、捕获转换命令"""
+        self.picked = None  # 被选中的 soffice 路径
+        self.subprocess_called = False
+        monkeypatch.delenv("BAA_SOFFICE_PATH", raising=False)
+        # ProgramFiles 重定向到空目录，保证"默认安装路径"在任何机器上都不存在
+        monkeypatch.setenv("ProgramFiles", str(tmp_path / "pf-empty"))
+        monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path / "pf86-empty"))
+
+        import shutil
+        import subprocess
+
+        def fake_run(cmd, **kwargs):
+            self.subprocess_called = True
+            self.picked = cmd[0]
+            raise subprocess.TimeoutExpired(cmd, 60)
+
+        self._which_calls = []
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(shutil, "which", self._fake_which)
+
+    def _fake_which(self, name):
+        """可编程的 shutil.which 替身：按 self.which_result 字典返回"""
+        self._which_calls.append(name)
+        return self.which_result.get(name)
+
+    which_result = {}  # 测试用例按需覆盖: {"soffice": "/fake/path"}
+
+    # ── 优先级 1: BAA_SOFFICE_PATH 环境变量 ──
+
+    def test_env_var_priority_over_path_lookup(self, tmp_path, monkeypatch):
+        """env 指向真实文件时应优先于 PATH 探测结果"""
+        fake_soffice = tmp_path / "my-soffice.exe"
+        fake_soffice.write_bytes(b"")
+        monkeypatch.setenv("BAA_SOFFICE_PATH", str(fake_soffice))
+        # PATH 探测有结果，也不应被采用
+        self.which_result = {"soffice": "C:/elsewhere/soffice.exe"}
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked == str(fake_soffice)
+
+    def test_env_var_invalid_path_falls_through(self, monkeypatch):
+        """env 指向不存在路径时应静默回退到 PATH 探测"""
+        monkeypatch.setenv("BAA_SOFFICE_PATH", "C:/notexist/soffice.exe")
+        self.which_result = {"soffice": sys.executable}
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked == sys.executable
+
+    # ── 优先级 2: shutil.which（PATH） ──
+
+    def test_path_lookup_result_used(self):
+        """无 env 时采用 PATH 探测到的可执行文件"""
+        self.which_result = {"soffice": sys.executable}
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked == sys.executable
+        assert self.subprocess_called is True
+
+    # ── 优先级 3: Windows 默认安装路径（仅 os.name == "nt"） ──
+
+    def test_windows_default_install_path_detected(self, tmp_path, monkeypatch):
+        """PATH 无结果时，Windows 默认安装路径应被探测到"""
+        monkeypatch.setattr(os, "name", "nt")
+        self.which_result = {}
+        installed = tmp_path / "pf-empty" / "LibreOffice" / "program"
+        installed.mkdir(parents=True)
+        soffice_exe = installed / "soffice.exe"
+        soffice_exe.write_bytes(b"")
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked == str(soffice_exe)
+
+    def test_posix_skips_windows_default_paths(self, tmp_path, monkeypatch):
+        """非 Windows 平台不应探测默认安装路径（即使路径存在）"""
+        monkeypatch.setattr(os, "name", "posix")
+        self.which_result = {}
+        installed = tmp_path / "pf-empty" / "LibreOffice" / "program"
+        installed.mkdir(parents=True)
+        (installed / "soffice.exe").write_bytes(b"")
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked is None
+        assert self.subprocess_called is False
+
+    # ── 兜底: 全部未命中 → 优雅降级 ──
+
+    def test_nothing_found_returns_false(self):
+        """三级探测全部未命中时返回 False 且不触发转换"""
+        self.which_result = {}
+
+        engine = ReverseEngine()
+        assert engine._export_via_libreoffice("in.dxf", "out.dwg") is False
+        assert self.picked is None
+        assert self.subprocess_called is False
 
 
 # ════════════════════════════════════════════════════════════

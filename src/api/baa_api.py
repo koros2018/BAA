@@ -608,6 +608,7 @@ async def deconstruct(  # code
 
     # Step 2.5: YOLO 图元检测增强（可选）
     # 使用 CV 模型辅助识别规则解析遗漏的实体
+    yolo_entities: list = []  # 预绑定：YOLO 加载/推理失败时后续统计不抛 UnboundLocalError
     if use_yolo:  # condition: use_yolo:
         try:  # 尝试
             from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import

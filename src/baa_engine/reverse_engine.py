@@ -226,13 +226,27 @@ class ReverseEngine:
         import subprocess
         import os
         import tempfile
+        import shutil  # which() 探测 + copy2() 拷贝输出
 
         soffice = None
-        for candidate in ["soffice", "libreoffice"]:
-            p = subprocess.run(["which", candidate], capture_output=True, text=True)
-            if p.returncode == 0:
-                soffice = candidate
-                break
+        # BAA_SOFFICE_PATH 环境变量显式指定优先
+        env_path = os.environ.get("BAA_SOFFICE_PATH")
+        if env_path and os.path.exists(env_path):
+            soffice = env_path
+        if not soffice:
+            exe_candidates = ["soffice", "libreoffice"]  # shutil.which 查 PATH
+            if os.name == "nt":  # Windows: 补常见安装路径（PATH 外）
+                pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+                pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+                exe_candidates += [
+                    os.path.join(pf, "LibreOffice", "program", "soffice.exe"),
+                    os.path.join(pf86, "LibreOffice", "program", "soffice.exe"),
+                ]
+            for cand in exe_candidates:
+                found = cand if os.path.isabs(cand) else shutil.which(cand)
+                if found and os.path.exists(found):
+                    soffice = found
+                    break
 
         if not soffice:
             logger.debug("P67: LibreOffice 不可用")
