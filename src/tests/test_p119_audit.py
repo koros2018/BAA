@@ -18,7 +18,9 @@ from pathlib import Path
 
 import pytest
 
-JS_PATH = Path(__file__).parent.parent.parent / "src" / "frontend" / "ts" / "components" / "audit.ts"
+JS_PATH = (
+    Path(__file__).parent.parent.parent / "src" / "frontend" / "ts" / "components" / "audit.ts"
+)
 
 JAVASCRIPT = JS_PATH.read_text(encoding="utf-8")
 

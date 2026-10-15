@@ -29,7 +29,6 @@ from src.baa_engine.semantic_analyzer.room import (
     _is_titleblock_layer,
 )
 
-
 # ── 构造工具 ──
 
 
