@@ -48,17 +48,46 @@ except ImportError:
 
 # 标准 18 类（与 src/baa_engine/yolo_integrator.py:24-43 一致）
 STANDARD_CLASSES = [
-    "wall", "door", "window", "staircase", "corridor", "fire_door",
-    "exit", "fire_lane", "fire_zone", "fire_window", "shaft", "room",
-    "exit_sign", "sprinkler_system", "fire_alarm", "insulation",
-    "evacuation_lighting", "refuge_floor",
+    "wall",
+    "door",
+    "window",
+    "staircase",
+    "corridor",
+    "fire_door",
+    "exit",
+    "fire_lane",
+    "fire_zone",
+    "fire_window",
+    "shaft",
+    "room",
+    "exit_sign",
+    "sprinkler_system",
+    "fire_alarm",
+    "insulation",
+    "evacuation_lighting",
+    "refuge_floor",
 ]
 
 # 类→颜色（用于预览画框）
 CLASS_COLORS = [
-    "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD",
-    "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9", "#F8C471", "#82E0AA",
-    "#F1948A", "#AED6F1", "#A3E4D7", "#D7BDE2", "#F9E79F", "#F5CBA7",
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#96CEB4",
+    "#FFEAA7",
+    "#DDA0DD",
+    "#98D8C8",
+    "#F7DC6F",
+    "#BB8FCE",
+    "#85C1E9",
+    "#F8C471",
+    "#82E0AA",
+    "#F1948A",
+    "#AED6F1",
+    "#A3E4D7",
+    "#D7BDE2",
+    "#F9E79F",
+    "#F5CBA7",
 ]
 
 DEFAULT_DATASETS = {
@@ -249,8 +278,11 @@ def main():
         ds_choice = st.selectbox(
             "选择数据集",
             list(DEFAULT_DATASETS.keys()) + ["自定义..."],
-            index=list(DEFAULT_DATASETS.keys()).index(dataset_name)
-            if dataset_name in DEFAULT_DATASETS else len(DEFAULT_DATASETS),
+            index=(
+                list(DEFAULT_DATASETS.keys()).index(dataset_name)
+                if dataset_name in DEFAULT_DATASETS
+                else len(DEFAULT_DATASETS)
+            ),
         )
         if ds_choice == "自定义...":
             custom_root = st.text_input("自定义根目录", dataset_cfg["root"])
@@ -285,7 +317,13 @@ def main():
     with st.expander("🧹 批量清理（去噪框 / 越界框 / 重复框）"):
         batch_key = f"batch::{dataset_name}::{split}"
         if batch_key not in st.session_state:
-            stats = {"clean": 0, "issue_samples": 0, "fix_samples": 0, "removed_boxes": 0, "missing_labels": 0}
+            stats = {
+                "clean": 0,
+                "issue_samples": 0,
+                "fix_samples": 0,
+                "removed_boxes": 0,
+                "missing_labels": 0,
+            }
             for im, lb in samples:
                 iss, fx, ch = diagnose_sample(im, lb, classes)
                 if not lb.exists():
@@ -304,11 +342,20 @@ def main():
             f"共 {total} 样本：{bs['clean']} 干净 · {bs['fix_samples']} 可自动修复 · "
             f"{bs['issue_samples']} 仅提示 · {bs['missing_labels']} 无标签"
         )
-        st.caption(f"预计移除 {bs['removed_boxes']} 个噪声/越界/重复框（阈值：面积 ≥ 0.0005，坐标∈[0,1]，去近重复）")
+        st.caption(
+            f"预计移除 {bs['removed_boxes']} 个噪声/越界/重复框（阈值：面积 ≥ 0.0005，坐标∈[0,1]，去近重复）"
+        )
         if bs["fix_samples"] > 0:
             if st.button(f"⚡ 备份并批量清理 {bs['fix_samples']} 个样本", type="primary"):
                 ts = time.strftime("%Y%m%d_%H%M%S")
-                backup_dir = ROOT / "data" / "models" / "batch_clean" / "backups" / f"{dataset_name}_{split}_{ts}"
+                backup_dir = (
+                    ROOT
+                    / "data"
+                    / "models"
+                    / "batch_clean"
+                    / "backups"
+                    / f"{dataset_name}_{split}_{ts}"
+                )
                 backup_dir.mkdir(parents=True, exist_ok=True)
                 applied = 0
                 for im, lb in samples:
@@ -321,14 +368,23 @@ def main():
                     write_labels(lb, fx)
                     applied += 1
                 st.success(f"已清理 {applied} 个样本，备份: {backup_dir.relative_to(ROOT)}")
-                st.session_state[batch_key] = {"clean": bs["clean"] + bs["fix_samples"], "issue_samples": bs["issue_samples"], "fix_samples": 0, "removed_boxes": 0, "missing_labels": bs["missing_labels"]}
+                st.session_state[batch_key] = {
+                    "clean": bs["clean"] + bs["fix_samples"],
+                    "issue_samples": bs["issue_samples"],
+                    "fix_samples": 0,
+                    "removed_boxes": 0,
+                    "missing_labels": bs["missing_labels"],
+                }
                 st.rerun()
 
     # 样本索引持久化：key 绑定 session_state，dataset/split 切换时自动重置，
     # prev/next 通过 _goto 改同一个 key。
     _key = f"idx::{dataset_name}::{split}"
     idx = st.number_input(
-        "样本序号", 0, total - 1, key=_key,
+        "样本序号",
+        0,
+        total - 1,
+        key=_key,
         help="手动跳转会重置当前未保存的修改",
     )
     img_path, label_path = samples[idx]
@@ -415,8 +471,12 @@ def main():
         with col_y:
             w_new = st.number_input("w", 0.0, 1.0, 0.1, step=0.01, key="new_w")
             h_new = st.number_input("h", 0.0, 1.0, 0.1, step=0.01, key="new_h")
-        cls_new = st.selectbox("新框类别", list(range(len(classes))),
-                                format_func=lambda i: f"{i}: {classes[i]}", key="new_cls")
+        cls_new = st.selectbox(
+            "新框类别",
+            list(range(len(classes))),
+            format_func=lambda i: f"{i}: {classes[i]}",
+            key="new_cls",
+        )
         if st.button("➕ 添加", type="primary", key="add_box"):
             boxes.append((cls_new, cx_new, cy_new, w_new, h_new))
             st.session_state["dirty"] = True
@@ -427,8 +487,12 @@ def main():
     st.divider()
     col_l, col_c, col_r = st.columns(3)
     with col_l:
-        st.button(f"◀ 上一张 ({idx}→{max(0, idx-1)})", key="prev",
-                  on_click=lambda: _goto(_key, -1, total), disabled=idx == 0)
+        st.button(
+            f"◀ 上一张 ({idx}→{max(0, idx-1)})",
+            key="prev",
+            on_click=lambda: _goto(_key, -1, total),
+            disabled=idx == 0,
+        )
     with col_c:
         dirty = st.session_state["dirty"]
         st.write(f"{'🔴 未保存修改' if dirty else '✅ 已保存'}")
@@ -438,8 +502,12 @@ def main():
             st.success(f"已保存: {label_path}")
             st.rerun()
     with col_r:
-        st.button(f"下一张 ({idx}→{min(total-1, idx+1)}) ▶", key="next",
-                  on_click=lambda: _goto(_key, 1, total), disabled=idx == total - 1)
+        st.button(
+            f"下一张 ({idx}→{min(total-1, idx+1)}) ▶",
+            key="next",
+            on_click=lambda: _goto(_key, 1, total),
+            disabled=idx == total - 1,
+        )
 
 
 if __name__ == "__main__":
