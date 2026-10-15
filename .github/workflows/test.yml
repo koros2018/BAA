@@ -98,6 +98,32 @@ jobs:
       - name: Run cross-platform regression
         run: python scripts/linux_ci_regression.py
 
+  macos_compatibility:
+    name: "macOS Compatibility (checklist 20261015)"
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ezdwg import & capability smoke
+        run: |
+          python -c "import ezdwg; print('ezdwg', ezdwg.__version__ if hasattr(ezdwg, '__version__') else '0.16.0')"
+          python -c "from ezdwg import raw; print('raw module ok, detect_version:', hasattr(raw, 'detect_version'))"
+          python -c "from src.baa_engine.drawing_parser import DrawingParser; print('drawing_parser imports clean')"
+
+      - name: Cross-platform regression probes
+        run: python scripts/linux_ci_regression.py --probes-only
+
   baseline_verify:
     name: "Real Drawing Baseline Verify (P81)"
     runs-on: ubuntu-latest
