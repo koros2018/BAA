@@ -43,7 +43,7 @@ _FONT_REGISTERED = False
 
 
 def ensure_font() -> None:
-    """注册 CJK 字体（幂等）"""
+    """注册 CJK 字体（幂等；候选字体不可用时自动尝试下一个）"""
     global _FONT_REGISTERED
     if _FONT_REGISTERED:
         return
@@ -58,21 +58,37 @@ def ensure_font() -> None:
         "C:/Windows/Fonts/msyh.ttc",
         "C:/Windows/Fonts/simhei.ttf",
         "C:/Windows/Fonts/simsun.ttc",
-        # macOS 系统中文字体（苹方 / 冬青黑体 / 宋体-简）
+        # macOS 系统中文字体（TrueType 轮廓优先: reportlab TTFont 不支持
+        # CFF/PostScript 轮廓，苹方/冬青黑体均为 CFF，只能作末位候选）
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
         "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/Hiragino Sans GB.ttc",
-        "/System/Library/Fonts/Supplemental/Songti.ttc",
     ]
-    if not ttf_path:
+    if ttf_path:
+        # 环境变量显式指定: 路径不存在直接报错，不回退候选列表
+        if not os.path.exists(ttf_path):
+            raise RuntimeError(
+                f"CJK font not found at {ttf_path}. Install WenQuanYi or set BAA_PDF_FONT."
+            )
+        pdfmetrics.registerFont(TTFont("WQY", ttf_path))
+    else:
         for p in candidates:
-            if os.path.exists(p):
+            if not os.path.exists(p):
+                continue
+            try:
+                pdfmetrics.registerFont(TTFont("WQY", p))
                 ttf_path = p
                 break
-    if not ttf_path or not os.path.exists(ttf_path):
-        raise RuntimeError(
-            f"CJK font not found at {ttf_path}. Install WenQuanYi or set BAA_PDF_FONT."
-        )
-    pdfmetrics.registerFont(TTFont("WQY", ttf_path))
+            except Exception as exc:  # noqa: BLE001 — CFF 轮廓/损坏字体等一律跳过
+                print(f"[ensure_font] 字体不可用，跳过 {p}: {exc}")
+        if not ttf_path:
+            raise RuntimeError(
+                "CJK font not found (all candidates missing or unusable). "
+                "Install WenQuanYi or set BAA_PDF_FONT."
+            )
     pdfmetrics.registerFont(TTFont("WQY-Bold", ttf_path))
     _FONT_REGISTERED = True
 
