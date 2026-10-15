@@ -9,6 +9,8 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 > pytest-asyncio 装回的 22 个异步用例已含在 2240 内）→ 当前全量基线
 > **2246 passed / 14 skipped / 0 failed**。
 > Linux CI 统一走验证脚本：`python scripts/linux_ci_regression.py`（详见下方"回归命令"）。
+> **DWG 解析就绪（同日）**：ezdwg 0.16.0 装入 + DWG 链路 4 缺陷修复，
+> `requirements.txt` 已纳入 ezdwg（详见下方"DWG 原生解析就绪状态"）。
 
 ## 修复点一览
 
@@ -47,6 +49,27 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 | `use_yolo=True` 且 YOLO 模型/依赖缺失 | 端点 200，`yolo_entities=0`、`yolo_enabled=true`，主流程不受影响 | `pytest src/tests/test_review_routes.py -q` | 已验证（2026-10-15） |
 | `use_yolo=True` 且 `load_model()` 返回 False | 同上（同一未绑定路径） | 同上 | 已验证 |
 | YOLO 正常出结果 | `yolo_entities` 反映实际合并数 | 需 YOLO 模型权重环境 | 待验证 |
+
+## DWG 原生解析就绪状态（2026-10-15）
+
+ezdwg 0.16.0 安装后首次真正执行 DWG 链路，暴露 4 个被"ezdwg 未安装"警告长期掩盖的
+潜伏缺陷，已全部修复（commit `a329209`，均在 `parsers/dwg_convert.py`）：
+
+| # | 缺陷 | 后果 |
+|---|---|---|
+| D1 | `_parse_dwg(self, path)` / `_try_ezdwg_export_dxf(self, path)` 签名残留 `self`（方法化拆分遗留） | `drawing_parser` 按独立函数调用必 TypeError，**DWG 解析此前完全不可用** |
+| D2 | 3 处 `except as _e` 日志误引用未绑定 `e`（xref ×2 + 块展开） | 异常时 NameError 掩盖真实错误 |
+| D3 | 模块无 `import ezdxf`，9 处 `ezdxf.*` 依赖调用方命名空间 | 独立调用必 NameError，第 5 级 raw 解码全灭 |
+| D4 | — | 依赖声明缺失：`ezdwg>=0.16.0` 已加入 `requirements.txt` 核心依赖组 |
+
+| 环境 | 状态 | 说明 |
+|---|---|---|
+| Windows 本机 | **已就绪** | ezdwg 0.16.0（win_amd64 wheel）+ 4 缺陷修复；服务启动日志零 P120 警告 |
+| Linux CI | **已就绪（随 requirements 分发）** | CI 全量与新 `cross_platform_regression` job 自动安装；仓库无 DWG 数据，CI 仅验证导入与降级路径 |
+| macOS | 待验证 | 需确认 ezdwg 是否发布 macOS wheel；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
+
+**端到端验证**（`data/files` 真实 DWG，Windows 本机）：AC1018 → 48376 图元、AC1015 → 4182、
+AC1021 → 41368，全部解析成功；全量回归 2246 passed 不变。
 
 ## 回归命令
 

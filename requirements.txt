@@ -3,6 +3,7 @@
 
 # 核心
 ezdxf>=1.3.0
+ezdwg>=0.16.0  # DWG 原生解析（parsers/dwg_convert.py 六级兜底；缺失时降级并提示）
 pydantic>=2.0.0
 numpy>=1.24.0
 
