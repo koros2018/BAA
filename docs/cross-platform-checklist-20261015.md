@@ -11,14 +11,18 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 > Linux CI 统一走验证脚本：`python scripts/linux_ci_regression.py`（详见下方"回归命令"）。
 > **DWG 解析就绪（同日）**：ezdwg 0.16.0 装入 + DWG 链路 4 缺陷修复，
 > `requirements.txt` 已纳入 ezdwg（详见下方"DWG 原生解析就绪状态"）。
-> **CI 实测闭环（同日，run 38734363153）**：macos_compatibility job 验证 ezdwg
-> 安装/导入/降级探针全过（macOS 兼容性成立），同时暴露 3 个预存问题并修复——
-> ① macOS PDF 字体：PingFang/Hiragino 为 CFF 轮廓，reportlab TTFont 不支持，
-> ensure_font 改为 TrueType 优先（Songti/STHeiti/Arial Unicode）+ 逐候选容错；
-> ② test_p121 端到端用例依赖未入库数据 → 数据缺失时 pytest.skip；
-> ③ real_drawing/baseline_verify job 与回归脚本阶段 5 补数据门槛（CI 缺图 SKIP +
-> notice，不再常红；注意不能用 data/files 的 DXF 数量判定——API 上传测试会写入
-> 合成 DXF 造成假阳性）。audit.yml 经核实仅审计 git 跟踪文件，CI 天然一致，无需改动。
+> **CI 实测闭环（同日，run 38734363153 → 复跑 38737893xxx 转绿）**：
+> macos_compatibility job 验证 ezdwg 安装/导入/降级探针全过（**macOS 兼容性成立**），
+> 同时暴露 3 个预存问题并修复——① macOS PDF 字体：PingFang/Hiragino 为 CFF 轮廓，
+> reportlab TTFont 不支持，ensure_font 改为 TrueType 优先（Songti/STHeiti/Arial
+> Unicode）+ 逐候选容错；② test_p121 端到端用例依赖未入库数据 → 数据缺失时
+> pytest.skip；③ real_drawing/baseline_verify job 与回归脚本阶段 5 补数据门槛
+> （CI 缺图 SKIP + notice，不再常红；不能用 data/files 的 DXF 数量判定——API 上传
+> 测试会写入合成 DXF 造成假阳性）。audit.yml 经核实仅审计 git 跟踪文件，CI 天然
+> 一致，无需改动。**复跑结果（commit 5258d0e）**：macOS Compatibility / Cross-
+> Platform Regression / Real Drawing Baseline / Baseline Verify / Real Drawing Audit
+> 全部 success。Test Suite 因缺 CJK 字体仍红（job 未装 fonts-wqy-zenhei，与本次
+> 改动无关，需补 step），Lint/JS 检查为预存版本漂移与未提交改动，均与本次无关。
 
 ## 修复点一览
 
@@ -37,7 +41,7 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 | Windows | `BAA_PDF_FONT` 指向有效 ttf/ttc | 环境变量优先，不扫候选列表 | 同上，env 设为 `simhei.ttf` | 已验证（1 passed，2026-10-15） |
 | Windows | `BAA_PDF_FONT` 指向不存在路径 | **直接 RuntimeError，不回退候选列表**（`if not ttf_path` 才扫描） | 同上，env 设为不存在路径 | 已验证（RuntimeError 复现，2026-10-15） |
 | Linux | 有 wqy-zenhei / NotoCJK | 候选列表前 5 项不变，行为与修复前一致 | Linux CI 全量 `pytest -q` | 待验证（CI 回归）；脚本阶段 1/2 已就绪 |
-| macOS | 默认 | ~~候选列表无 macOS 字体~~ CI 实测再暴露：PingFang/Hiragino 为 CFF（PostScript）轮廓，reportlab `TTFont` 抛 `TTFError: postscript outlines are not supported` → 已改 TrueType 优先（Songti / STHeiti / Arial Unicode）+ 逐候选 try/except 容错，CFF 字体降为末位候选 | `macos_compatibility` job（阶段 2 PDF 测试组）；macOS 实机 `pytest test_pdf_report.py test_p119_correction_notice.py -q` | 已实施；macOS CI 复跑确认中，实机回归待做 |
+| macOS | 默认 | ~~候选列表无 macOS 字体~~ CI 实测再暴露：PingFang/Hiragino 为 CFF（PostScript）轮廓，reportlab `TTFont` 抛 `TTFError: postscript outlines are not supported` → 已改 TrueType 优先（Songti / STHeiti / Arial Unicode）+ 逐候选 try/except 容错，CFF 字体降为末位候选 | `macos_compatibility` job（阶段 2 PDF 测试组）；macOS 实机 `pytest test_pdf_report.py test_p119_correction_notice.py -q` | **已验证（CI 复跑 success，5258d0e）** |
 | 全平台 | TTC 注册 | reportlab `TTFont` 读 TTC 首个子字体；`WQY` 与 `WQY-Bold` 注册同一文件，粗体为伪粗体 | 视觉抽检 PDF 中文粗体 | 已知既有行为，非回归项 |
 
 ## F2+F3 LibreOffice 探测与 DWG 导出
@@ -74,7 +78,7 @@ ezdwg 0.16.0 安装后首次真正执行 DWG 链路，暴露 4 个被"ezdwg 未�
 |---|---|---|
 | Windows 本机 | **已就绪** | ezdwg 0.16.0（win_amd64 wheel）+ 4 缺陷修复；服务启动日志零 P120 警告 |
 | Linux CI | **已就绪（随 requirements 分发）** | CI 全量与新 `cross_platform_regression` job 自动安装；仓库无 DWG 数据，CI 仅验证导入与降级路径 |
-| macOS | **已就绪（CI 实测通过）** | `macos_compatibility` job（macos-latest, run 38734363153）：universal2 wheel 安装 + `raw.detect_version` 能力冒烟 + drawing_parser 导入探针全过；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
+| macOS | **已就绪（CI 实测通过，5258d0e）** | `macos_compatibility` job（macos-latest, run 38734363153 定位问题 → 复跑 38737893xxx 全绿）：universal2 wheel 安装 + `raw.detect_version` 能力冒烟 + drawing_parser 导入探针全过；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
 
 **端到端验证**（`data/files` 真实 DWG，Windows 本机）：AC1018 → 48376 图元、AC1015 → 4182、
 AC1021 → 41368，全部解析成功；全量回归 2246 passed 不变。
@@ -112,7 +116,8 @@ python scripts/linux_ci_regression.py --probes-only
 #                          （门槛 = 6 张基线图纸在场，不能数 data/files 的 DXF——
 #                            API 上传测试会写入合成 DXF 造成假阳性）
 # Windows 本机试运行: 8/8 PASS（2026-10-15，探针跨平台有效，可作非 Linux 平台的漂移自检）
-# CI 实测: run 38734363153 定位 3 个预存问题并修复（见文首"CI 实测闭环"），复跑确认中
+# CI 实测: run 38734363153 定位 3 个预存问题并修复（见文首"CI 实测闭环"），
+#          复跑 38737893xxx（commit 5258d0e）Cross-Platform Regression 已转绿
 ```
 
 ## 已知空白处置方案
