@@ -17,6 +17,9 @@ import os
 import sys
 import subprocess
 import tempfile
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ── ezdwg fallback（系统级安装，venv 可能不可见） ──────
 _ezdwg_raw = None

@@ -14,6 +14,24 @@ BAA 真实图纸测试基线
   - data/drawings/real/ 下 7 个 _t3.dxf 文件为天正 T3 空壳 (14KB, 0 entities)
   - 改用 data/files/ 下真实解析后的 DXF（含实际实体数据）+ 东莞通建筑图
   - 基线覆盖 6 张图纸，含 343 rooms 最大图 + 东莞通 148 rooms
+  2026-10-15 基线刷新（room 计数过期）
+  - room 基线系 P104/P105 面过滤之前的过计数（外框面剔除 + 双线墙间隙短边
+    <2000mm 过滤 + bbox 重叠>80% 去重 + corridor/room 面分类），均已过期
+  - 抽验 room.py 扫线法过滤行为：00582518a28e 原始面 703，其中 672 个是被
+    短边<2000mm 剔除的 10×34 规则网格同尺寸矩形（6060×1366mm，宽仅 1.37m），
+    属表格/图案伪影而非房间（真实房间不会尺寸一律）；存活 11 面 11.8–39.2m²，
+    即 room=9 + corridor=2，与实测吻合
+  - 019ec606295e 为筏板基础图：剔除面为 ~0.9m² 退化面、1–4m² 小面与
+    29786×811mm 细条，存活 1 面 247.6m²
+  - 除 room 外，12 类实体与旧基线逐项相等，确认本次漂移仅限 room
+  2026-10-15 基线刷新（P130 图框/表格区域排除）
+  - room.py 扫线法新增表格网格 + titleblock 图层 + 图框边框排除
+  - 00582518a28e 为图例（符号表）图：表格区 x[1097,62811] y[138776,187373]
+    (61714×48597 units)，扫线法原始面 703 → 过滤后 4 面 → 面积/短边链再剔除 → 0
+  - 抽验证明 P130 前存活的 11 面（room=9 + corridor=2）质心全部落在表格区内，
+    且 bbox 为 6060×2138 / 7174×5466 的整行单元格（含 3 个 5503 宽合并格），
+    系图例表格合并单元格伪影而非真实房间；故 room 由 9 修正为 0
+  - 其余 5 张图纸未检出表格区（table_regions=[]），room 与 12 类实体逐项不变
 """
 
 import sys  # import
@@ -71,7 +89,7 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 # ── 实体类型分布基线 ──
 # 格式: {文件名: {实体类型: 数量}}
 # 允许 ±30% 浮动（真实图纸解析有自然漂移，parser/语义规则升级后需更新基线）
-# 基线日期: 2026-08-12 v2.5.33 (P101 扫线法房间检测)
+# 基线日期: 2026-10-15 (room 刷新; P104/P105 面过滤后的 room 语义)
 ENTITY_BASELINE = {  # assignment
     # ── 东莞通建筑图（唯一在 drawings/real/ 中有真实数据的图纸） ──
     "东莞通-建筑-外部参照（不打印）.dxf": {  # code
@@ -79,7 +97,7 @@ ENTITY_BASELINE = {  # assignment
         "door": 2644,
         "window": 265,
         "column": 172,
-        "room": 148,
+        "room": 127,
         "text": 638,
         "other": 4439,
         "antechamber": 15,
@@ -88,7 +106,7 @@ ENTITY_BASELINE = {  # assignment
     },  # code
     # ── 建筑/结构图纸 (data/files/) ──
     "baa-file-00582518a28e.dxf": {  # code
-        "room": 343,
+        "room": 0,  # P130: 表格/图框区域排除后，原 9 个为图例表格单元格伪影
         "dimension": 543,
         "text": 320,
         "door": 231,
@@ -107,7 +125,7 @@ ENTITY_BASELINE = {  # assignment
         "wall": 180,
         "dimension": 124,
         "window": 107,
-        "room": 106,
+        "room": 7,
         "column": 57,
         "stair": 3,
     },  # code
@@ -121,7 +139,7 @@ ENTITY_BASELINE = {  # assignment
         "window": 80,
         "other": 49,
         "equipment": 23,
-        "room": 22,
+        "room": 6,
         "floor": 21,
     },  # code
     "baa-file-007a2fa192ad.dxf": {  # code
@@ -129,7 +147,7 @@ ENTITY_BASELINE = {  # assignment
         "text": 148,
         "slab": 125,
         "footing": 81,
-        "room": 28,
+        "room": 4,
         "door": 15,
         "column": 7,
         "water_reservoir": 3,
@@ -137,7 +155,7 @@ ENTITY_BASELINE = {  # assignment
     "baa-file-019ec606295e.dxf": {  # code
         "foundation": 145,
         "text": 105,
-        "room": 72,
+        "room": 1,
         "footing": 49,
         "wall": 40,
         "column": 13,
