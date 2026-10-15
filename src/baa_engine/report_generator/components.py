@@ -54,6 +54,14 @@ def ensure_font() -> None:
         "/usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
         "/tmp/wqy-zenhei.ttf",
+        # Windows 系统中文字体（微软雅黑 / 黑体 / 宋体）
+        "C:/Windows/Fonts/msyh.ttc",
+        "C:/Windows/Fonts/simhei.ttf",
+        "C:/Windows/Fonts/simsun.ttc",
+        # macOS 系统中文字体（苹方 / 冬青黑体 / 宋体-简）
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
     ]
     if not ttf_path:
         for p in candidates:
