@@ -164,18 +164,18 @@ LAYER_RULES = _merge_dicts(
 
 | 分片文件 | 行数 | 键数 | 合并顺序 | 覆盖主题 |
 | --- | --- | --- | --- | --- |
-| `_layer_rules_core.py`（`LAYER_RULES_CORE`） | 43 | 37 | 1 | 墙/门/窗/楼梯/走廊/防火分区/尺寸/出口/防火门/消防电梯/设备（含 BEAM/COLUMN→wall） |
-| `_layer_rules_fire.py`（`LAYER_RULES_FIRE`） | 26 | 20 | 2 | 真实图纸消防设施层：消火栓、喷淋阀、FAS-、VESDA、消防泵、启泵、水泵接合器等 |
-| `_layer_rules_p70_freq.py`（`LAYER_RULES_P70_FREQ`） | 155 | 138 | 3 | P70 高频缺口 1–4 批：探测器、楼层、泵房、防火卷帘、避难层/区/间、风管、幕墙、电梯等 |
-| `_layer_rules_p74.py`（`LAYER_RULES_P74`） | 102 | 78 | 4 | P74 准确率专项（16 图审计）：英文缩写变体（HYDR/SPRK/SMOKE_DET）、天正/南方 CAX 前室变体、无障碍门/电梯、停车位等 |
-| `_layer_rules_p70_b5.py`（`LAYER_RULES_P70_B5`） | 130 | 124 | 5 | P70 缺口第 5 批 + 最终批：无障碍房间、疏散门/标志、救援口、布线、发电机、幕墙玻璃、防火单元/分隔等 |
-| `_layer_rules_p70_tail.py`（`LAYER_RULES_P70_TAIL`） | 235 | 222 | 6 | P70 尾批（2-ref 类型）：房间功能（病房/教室/KTV/舞厅）、结构（承台/桩/楼板）、无障碍设施、疏散设施、给排水等 |
-| `_layer_rules_struct.py`（`LAYER_RULES_STRUCT`） | 45 | 39 | 7 | 结构基础（BASE→foundation）+ 非建筑实体（HATCH/AXIS/钢筋→other）+ 电气设备 + 消防设施 |
-| `_layer_rules_p79.py`（`LAYER_RULES_P79`） | 157 | 146 | 8 | P79 真实图纸补全：暖通 HVAC 分层、图框/标题块、规划/绿化、轴网、P47 无障碍、坐标/面积标注等 |
-| `_layer_rules_short.py`（`SHORT_LAYER_RULES`，独立不合并） | 100 | 90 | — | 短关键字（1–2 字符）全词匹配：W/D/M/C/ST/FZ/FD/FE/T + P34 电气扩展 + P70 Final 低频项（ACCESS_ROAD/NOZZLE/…） |
+| `_layer_rules_core.py`（`LAYER_RULES_CORE`） | 42 | 37 | 1 | 墙/门/窗/楼梯/走廊/防火分区/尺寸/出口/防火门/消防电梯/设备（含 BEAM/COLUMN→wall） |
+| `_layer_rules_fire.py`（`LAYER_RULES_FIRE`） | 25 | 20 | 2 | 真实图纸消防设施层：消火栓、喷淋阀、FAS-、VESDA、消防泵、启泵、水泵接合器等 |
+| `_layer_rules_p70_freq.py`（`LAYER_RULES_P70_FREQ`） | 154 | 138 | 3 | P70 高频缺口 1–4 批：探测器、楼层、泵房、防火卷帘、避难层/区/间、风管、幕墙、电梯等 |
+| `_layer_rules_p74.py`（`LAYER_RULES_P74`） | 101 | 80 | 4 | P74 准确率专项（16 图审计）：英文缩写变体（HYDR/SPRK/SMOKE_DET）、天正/南方 CAX 前室变体、无障碍门/电梯、停车位等 |
+| `_layer_rules_p70_b5.py`（`LAYER_RULES_P70_B5`） | 129 | 124 | 5 | P70 缺口第 5 批 + 最终批：无障碍房间、疏散门/标志、救援口、布线、发电机、幕墙玻璃、防火单元/分隔等 |
+| `_layer_rules_p70_tail.py`（`LAYER_RULES_P70_TAIL`） | 234 | 229 | 6 | P70 尾批（2-ref 类型）：房间功能（病房/教室/KTV/舞厅）、结构（承台/桩/楼板）、无障碍设施、疏散设施、给排水等 |
+| `_layer_rules_struct.py`（`LAYER_RULES_STRUCT`） | 44 | 39 | 7 | 结构基础（BASE→foundation）+ 非建筑实体（HATCH/AXIS/钢筋→other）+ 电气设备 + 消防设施 |
+| `_layer_rules_p79.py`（`LAYER_RULES_P79`） | 156 | 149 | 8 | P79 真实图纸补全：暖通 HVAC 分层、图框/标题块、规划/绿化、轴网、P47 无障碍、坐标/面积标注等 |
+| `_layer_rules_short.py`（`SHORT_LAYER_RULES`，独立不合并） | 99 | 90 | — | 短关键字（1–2 字符）全词匹配：W/D/M/C/ST/FZ/FD/FE/T + P34 电气扩展 + P70 Final 低频项（ACCESS_ROAD/NOZZLE/…） |
 
-> **规模与去重**：8 个长关键字分片键数之和为 **804**，经 `_merge_dicts` 覆盖去重后
-> `LAYER_RULES` 实测 **748** 个键（约 56 个键被后置分片覆盖）；
+> **规模与去重**：8 个长关键字分片键数之和为 **816**，经 `_merge_dicts` 覆盖去重后
+> `LAYER_RULES` 实测 **748** 个键（约 68 个键被后置分片覆盖）；
 > `SHORT_LAYER_RULES` 为独立字典，实测 **90** 个键，不参与上述合并。
 
 #### 2.4.4 与既有分片的衔接与扩充约定
