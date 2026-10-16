@@ -160,22 +160,35 @@ LAYER_RULES = _merge_dicts(
 
 #### 2.4.3 分片职责与规模
 
-| 分片文件 | 行数 | 条目 | 覆盖主题 |
-| --- | --- | --- | --- |
-| `_layer_rules_core.py` | 42 | 39 | 墙/门/窗/楼梯/走廊/防火分区/尺寸/出口/防火门/消防电梯/设备（含 BEAM/COLUMN→wall） |
-| `_layer_rules_fire.py` | 25 | 22 | 真实图纸消防设施层：消火栓、喷淋阀、FAS-、VESDA、消防泵、启泵、水泵接合器等 |
-| `_layer_rules_p70_freq.py` | 154 | 140 | P70 高频缺口 1–4 批：探测器、楼层、泵房、防火卷帘、避难层/区/间、风管、幕墙、电梯等 |
-| `_layer_rules_p74.py` | 101 | 82 | P74 准确率专项（16 图审计）：英文缩写变体（HYDR/SPRK/SMOKE_DET）、天正/南方 CAX 前室变体、无障碍门/电梯、停车位等 |
-| `_layer_rules_p70_b5.py` | 129 | 126 | P70 缺口第 5 批 + 最终批：无障碍房间、疏散门/标志、救援口、布线、发电机、幕墙玻璃、防火单元/分隔等 |
-| `_layer_rules_p70_tail.py` | 234 | 231 | P70 尾批（2-ref 类型）：房间功能（病房/教室/KTV/舞厅）、结构（承台/桩/楼板）、无障碍设施、疏散设施、给排水等 |
-| `_layer_rules_struct.py` | 44 | 41 | 结构基础（BASE→foundation）+ 非建筑实体（HATCH/AXIS/钢筋→other）+ 电气设备 + 消防设施 |
-| `_layer_rules_p79.py` | 156 | 151 | P79 真实图纸补全：暖通 HVAC 分层、图框/标题块、规划/绿化、轴网、P47 无障碍、坐标/面积标注等 |
-| `_layer_rules_short.py` | 99 | 92 | 短关键字（1–2 字符）全词匹配：W/D/M/C/ST/FZ/FD/FE/T + P34 电气扩展 + P70 Final 62 低频项（ACCESS_ROAD/NOZZLE/…） |
+下表为实测数据：**行数**为该分片源文件行数，**键数**为该分片字典的唯一键数量。
 
-> 条目数为映射行的原始计数（含少量跨分片重复键）；合并后 `LAYER_RULES` 约 830 个键、
-> `SHORT_LAYER_RULES` 92 个键。分片按语义主题切分，便于按需扩充而不触碰其他主题。
+| 分片文件 | 行数 | 键数 | 合并顺序 | 覆盖主题 |
+| --- | --- | --- | --- | --- |
+| `_layer_rules_core.py`（`LAYER_RULES_CORE`） | 42 | 37 | 1 | 墙/门/窗/楼梯/走廊/防火分区/尺寸/出口/防火门/消防电梯/设备（含 BEAM/COLUMN→wall） |
+| `_layer_rules_fire.py`（`LAYER_RULES_FIRE`） | 25 | 20 | 2 | 真实图纸消防设施层：消火栓、喷淋阀、FAS-、VESDA、消防泵、启泵、水泵接合器等 |
+| `_layer_rules_p70_freq.py`（`LAYER_RULES_P70_FREQ`） | 154 | 138 | 3 | P70 高频缺口 1–4 批：探测器、楼层、泵房、防火卷帘、避难层/区/间、风管、幕墙、电梯等 |
+| `_layer_rules_p74.py`（`LAYER_RULES_P74`） | 101 | 80 | 4 | P74 准确率专项（16 图审计）：英文缩写变体（HYDR/SPRK/SMOKE_DET）、天正/南方 CAX 前室变体、无障碍门/电梯、停车位等 |
+| `_layer_rules_p70_b5.py`（`LAYER_RULES_P70_B5`） | 129 | 124 | 5 | P70 缺口第 5 批 + 最终批：无障碍房间、疏散门/标志、救援口、布线、发电机、幕墙玻璃、防火单元/分隔等 |
+| `_layer_rules_p70_tail.py`（`LAYER_RULES_P70_TAIL`） | 234 | 229 | 6 | P70 尾批（2-ref 类型）：房间功能（病房/教室/KTV/舞厅）、结构（承台/桩/楼板）、无障碍设施、疏散设施、给排水等 |
+| `_layer_rules_struct.py`（`LAYER_RULES_STRUCT`） | 44 | 39 | 7 | 结构基础（BASE→foundation）+ 非建筑实体（HATCH/AXIS/钢筋→other）+ 电气设备 + 消防设施 |
+| `_layer_rules_p79.py`（`LAYER_RULES_P79`） | 156 | 149 | 8 | P79 真实图纸补全：暖通 HVAC 分层、图框/标题块、规划/绿化、轴网、P47 无障碍、坐标/面积标注等 |
+| `_layer_rules_short.py`（`SHORT_LAYER_RULES`，独立不合并） | 99 | 90 | — | 短关键字（1–2 字符）全词匹配：W/D/M/C/ST/FZ/FD/FE/T + P34 电气扩展 + P70 Final 低频项（ACCESS_ROAD/NOZZLE/…） |
 
-#### 2.4.4 与其他模块的衔接
+> **规模与去重**：8 个长关键字分片键数之和为 **816**，经 `_merge_dicts` 覆盖去重后
+> `LAYER_RULES` 实测 **748** 个键（约 68 个键被后置分片覆盖）；
+> `SHORT_LAYER_RULES` 为独立字典，实测 **90** 个键，不参与上述合并。
+
+#### 2.4.4 与既有分片的衔接与扩充约定
+
+- **只加不改**：新增图层映射应写入**当前活跃批次对应的分片**（如真实图纸补全写入 `_layer_rules_p79.py`），
+  避免触碰其他主题分片而引入回归。
+- **新增分片**：若需另起主题分片，须在 `_layer_rules_core.py` 同级的 `layer_rules.py` 中 import 该分片，
+  并追加到 `_merge_dicts(...)` 参数列表末尾——**位置决定优先级**，越靠后优先级越高。
+- **短关键字单列**：1–2 字符规则必须写入 `SHORT_LAYER_RULES`（走全词匹配），
+  不得混入长分片（长分片一律子串匹配，会造成大面积误命中）。
+- **冲突排查**：定位某图层类型的来源时，可按分片合并顺序自后向前查找，命中位置即当前生效分片。
+
+#### 2.4.5 与其他模块的衔接
 
 - 规则只负责**图层名 → 类型**；几何形状判据（闭合多边形/圆弧/半径阈值）在 `classify.py::_classify_by_geometry`，
   文字关键词（TEXT）与块名（INSERT）映射同样在 `classify.py`。
