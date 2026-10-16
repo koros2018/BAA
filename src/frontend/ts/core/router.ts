@@ -71,6 +71,10 @@ class Router {
 
   /** 编程式导航 */
   go(page: PageName): void {
+    if (!this || !this._current) {
+      console.warn('[router] go() called before init');
+      return;
+    }
     if (page === this._current) return;
     const route = ROUTES.find((r) => r.page === page);
     if (!route) {
