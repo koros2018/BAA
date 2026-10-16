@@ -433,6 +433,10 @@
     }
     /** 编程式导航 */
     go(page) {
+      if (!this || !this._current) {
+        console.warn("[router] go() called before init");
+        return;
+      }
       if (page === this._current) return;
       const route = ROUTES.find((r) => r.page === page);
       if (!route) {
@@ -1644,11 +1648,13 @@
   function resolveAction(name) {
     const parts = name.split(".");
     let cur = window;
+    let last = window;
     for (const p of parts) {
       if (!cur || typeof cur !== "object") return void 0;
+      last = cur;
       cur = cur[p];
     }
-    return typeof cur === "function" ? cur : void 0;
+    return typeof cur === "function" ? [last, cur] : void 0;
   }
   let _delegatedBound = false;
   function bindActionDelegation() {
@@ -1667,14 +1673,15 @@
       } catch {
         args = [];
       }
-      const fn = resolveAction(name);
-      if (!fn) {
+      const action = resolveAction(name);
+      if (!action) {
         console.warn("[delegation] 未挂载的 action:", name, "on", el);
         return;
       }
+      const [owner, fn] = action;
       ev.preventDefault();
       try {
-        const ret = fn(...args);
+        const ret = owner && typeof owner === "object" ? fn.call(owner, ...args) : fn(...args);
         if (ret && typeof ret.then === "function") {
           ret.catch((e) => console.error("[delegation] action error:", name, e));
         }

@@ -47,14 +47,16 @@ function renderEngineStatus(): void {
 // ── P124-A Phase 1: 内联 onclick → data-action 委托 ────────
 // 全局 document click 委托：读取 [data-action][data-args]
 // 从 window 上解析函数（支持 a.b.c 形式），调用并传入参数
-function resolveAction(name: string): ((...a: unknown[]) => unknown) | undefined {
+function resolveAction(name: string): [unknown, (...a: unknown[]) => unknown] | undefined {
   const parts = name.split('.');
   let cur: unknown = window;
+  let last: unknown = window;
   for (const p of parts) {
     if (!cur || typeof cur !== 'object') return undefined;
+    last = cur;
     cur = (cur as Record<string, unknown>)[p];
   }
-  return typeof cur === 'function' ? (cur as (...a: unknown[]) => unknown) : undefined;
+  return typeof cur === 'function' ? [last, cur as (...a: unknown[]) => unknown] : undefined;
 }
 
 let _delegatedBound = false;
@@ -75,15 +77,16 @@ function bindActionDelegation(): void {
     } catch {
       args = [];
     }
-    const fn = resolveAction(name);
-    if (!fn) {
+    const action = resolveAction(name);
+    if (!action) {
       console.warn('[delegation] 未挂载的 action:', name, 'on', el);
       return;
     }
+    const [owner, fn] = action;
     // 拦截默认行为，避免重复提交
     ev.preventDefault();
     try {
-      const ret = fn(...args);
+      const ret = owner && typeof owner === 'object' ? fn.call(owner, ...args) : fn(...args);
       if (ret && typeof (ret as Promise<unknown>).then === 'function') {
         (ret as Promise<unknown>).catch((e) => console.error('[delegation] action error:', name, e));
       }
