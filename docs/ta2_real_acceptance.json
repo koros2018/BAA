@@ -1,0 +1,3835 @@
+{
+  "directory": "D:\\BaiduNetdiskDownload\\测试图纸",
+  "evaluated": 40,
+  "skipped": 0,
+  "aggregate": {
+    "total": 33887,
+    "base_effective_rate": 0.0563,
+    "current_effective_rate": 0.0478,
+    "effective_drop": 0.151,
+    "block_default_base": 728,
+    "block_default_current": 440,
+    "reclassified_blocks": 288,
+    "regressions": 0,
+    "guard_removed": 0,
+    "changes": 0
+  },
+  "verdict": {
+    "回归控制": "PASS",
+    "未分类率下降": "FAIL"
+  },
+  "per_drawing": [
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\内蒙古巴彦淖尔神华干熄焦热力系统项目\\243352-杭州西子能源 锅炉安装图纸\\243352JS8(A).pdf2dxf.dxf",
+      "total": 117,
+      "base": {
+        "unclassified": 32,
+        "block_default": 0,
+        "effective_rate": 0.2735
+      },
+      "current": {
+        "unclassified": 32,
+        "block_default": 0,
+        "effective_rate": 0.2735
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {},
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\内蒙古巴彦淖尔神华干熄焦热力系统项目\\243352-杭州西子能源 锅炉安装图纸\\243352JS1(A).pdf2dxf.dxf",
+      "total": 116,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {},
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\内蒙古巴彦淖尔神华干熄焦热力系统项目\\243352-杭州西子能源 锅炉安装图纸\\243352SM(A).pdf2dxf.dxf",
+      "total": 672,
+      "base": {
+        "unclassified": 6,
+        "block_default": 0,
+        "effective_rate": 0.0089
+      },
+      "current": {
+        "unclassified": 6,
+        "block_default": 0,
+        "effective_rate": 0.0089
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {},
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-26屋架层板配筋平面图.dxf",
+      "total": 214,
+      "base": {
+        "unclassified": 14,
+        "block_default": 2,
+        "effective_rate": 0.0748
+      },
+      "current": {
+        "unclassified": 14,
+        "block_default": 2,
+        "effective_rate": 0.0748
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "屋架层模板图": 1,
+        "屋架层板配筋说明（525）": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A1\\02结构22\\G-19楼梯表.dxf",
+      "total": 1056,
+      "base": {
+        "unclassified": 124,
+        "block_default": 1,
+        "effective_rate": 0.1184
+      },
+      "current": {
+        "unclassified": 124,
+        "block_default": 1,
+        "effective_rate": 0.1184
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A2": 1,
+        "A2-MC": 1,
+        "A3-MC": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\01电气\\00-智能照明系统拓扑图.dxf",
+      "total": 134,
+      "base": {
+        "unclassified": 3,
+        "block_default": 22,
+        "effective_rate": 0.1866
+      },
+      "current": {
+        "unclassified": 3,
+        "block_default": 11,
+        "effective_rate": 0.1045
+      },
+      "effective_drop": 0.44,
+      "reclassified_blocks": [
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        },
+        {
+          "block_name": "智能照明控制面板",
+          "attribs": [],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "符号"
+        }
+      ],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "智能照明控制面板": 11,
+        "_TK-A1": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\01电气\\00-主要房间平均照度计算表_t6.dxf",
+      "total": 20,
+      "base": {
+        "unclassified": 3,
+        "block_default": 11,
+        "effective_rate": 0.7
+      },
+      "current": {
+        "unclassified": 3,
+        "block_default": 11,
+        "effective_rate": 0.7
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "_TK-A1": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\西安特发西港数据中心\\电气\\电气CAD\\1.供电系统总体架构图.dxf",
+      "total": 423,
+      "base": {
+        "unclassified": 0,
+        "block_default": 14,
+        "effective_rate": 0.0331
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 1,
+        "effective_rate": 0.0024
+      },
+      "effective_drop": 0.9275,
+      "reclassified_blocks": [
+        {
+          "block_name": "发电机",
+          "attribs": [
+            "",
+            "G",
+            "",
+            "",
+            "",
+            ""
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2000kVA",
+            "A-TR01"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "发电机",
+          "attribs": [
+            "",
+            "G",
+            "",
+            "",
+            "",
+            ""
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "发电机",
+          "attribs": [
+            "柴油发电机组",
+            "G",
+            "4+1",
+            "",
+            "",
+            "PRP 1800kW"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "发电机",
+          "attribs": [
+            "",
+            "G",
+            "",
+            "",
+            "",
+            ""
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "发电机",
+          "attribs": [
+            "",
+            "G",
+            "",
+            "",
+            "",
+            ""
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2000kVA",
+            "B-TR01"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "1600kVA",
+            "A-TR02"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "1600kVA",
+            "B-TR02"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2500kVA",
+            "A-TR03"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2500kVA",
+            "B-TR03"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2500kVA",
+            "A-TR04"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": [
+            "",
+            "10/0.4kV Uk=6%",
+            "2500kVA",
+            "B-TR04"
+          ],
+          "from": "wall",
+          "to": "equipment",
+          "layer": "ELEMENT"
+        }
+      ],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "发电机": 5,
+        "两绕组变压器": 8,
+        "Title-block-A1": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "发电机",
+          "attribs": {
+            "名称": "",
+            "G": "G",
+            "XD″": "",
+            "X2": "",
+            "X0": "",
+            "容量": ""
+          }
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": {
+            "方式": "",
+            "UD": "10/0.4kV Uk=6%",
+            "容量": "2000kVA",
+            "名称": "A-TR01"
+          }
+        },
+        {
+          "block_name": "发电机",
+          "attribs": {
+            "名称": "",
+            "G": "G",
+            "XD″": "",
+            "X2": "",
+            "X0": "",
+            "容量": ""
+          }
+        },
+        {
+          "block_name": "发电机",
+          "attribs": {
+            "名称": "柴油发电机组",
+            "G": "G",
+            "XD″": "4+1",
+            "X2": "",
+            "X0": "",
+            "容量": "PRP 1800kW"
+          }
+        },
+        {
+          "block_name": "发电机",
+          "attribs": {
+            "名称": "",
+            "G": "G",
+            "XD″": "",
+            "X2": "",
+            "X0": "",
+            "容量": ""
+          }
+        },
+        {
+          "block_name": "发电机",
+          "attribs": {
+            "名称": "",
+            "G": "G",
+            "XD″": "",
+            "X2": "",
+            "X0": "",
+            "容量": ""
+          }
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": {
+            "方式": "",
+            "UD": "10/0.4kV Uk=6%",
+            "容量": "2000kVA",
+            "名称": "B-TR01"
+          }
+        },
+        {
+          "block_name": "两绕组变压器",
+          "attribs": {
+            "方式": "",
+            "UD": "10/0.4kV Uk=6%",
+            "容量": "1600kVA",
+            "名称": "A-TR02"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\动力\\DWG\\D-0-03-01-动力设备订购或材料表.dxf",
+      "total": 1244,
+      "base": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.008
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.008
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\03弱电\\6.运维网综合布线平面图_t3_t3.dxf",
+      "total": 607,
+      "base": {
+        "unclassified": 0,
+        "block_default": 279,
+        "effective_rate": 0.4596
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 15,
+        "effective_rate": 0.0247
+      },
+      "effective_drop": 0.9463,
+      "reclassified_blocks": [
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "办公网网络点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        },
+        {
+          "block_name": "语音点",
+          "attribs": [],
+          "from": "wall",
+          "to": "telecom_point",
+          "layer": "OS-PDS-E"
+        }
+      ],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "办公网网络点": 132,
+        "语音点": 132,
+        "无线AP": 51,
+        "运维网桥架平面图": 1,
+        "_TK-A1+0.5": 4
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\景观\\20210408景观\\CAD\\L-0-60-01景观电气图_t3.dxf",
+      "total": 542,
+      "base": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0055
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0055
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "20210223中原人工智能计算中心base": 2,
+        "高杆灯-": 13,
+        "园林灯": 10,
+        "挂灯、柱灯": 29,
+        "$equip_U$00000080(DESKTOP-174DOCU)": 1,
+        "jxt": 8,
+        "动力配电系统图$0$DLQV": 7,
+        "kkk": 1,
+        "xs": 1,
+        "dlq": 1,
+        "SPD": 1,
+        "CT-1": 1,
+        "接触器": 1,
+        "SOD": 1,
+        "$equip_U$00000303(DESKTOP-174DOCU)": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "$equip_U$00000080(DESKTOP-174DOCU)",
+          "attribs": {
+            "A": "普通照明配电箱",
+            "REMARK": "",
+            "$TEXT$": "REMARK"
+          }
+        },
+        {
+          "block_name": "$equip_U$00000303(DESKTOP-174DOCU)",
+          "attribs": {
+            "A": "照明配电箱"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\弱电\\02-2#配电房\\2#配电房 弱电平面图（安防）_t3.dxf",
+      "total": 134,
+      "base": {
+        "unclassified": 3,
+        "block_default": 5,
+        "effective_rate": 0.0597
+      },
+      "current": {
+        "unclassified": 3,
+        "block_default": 5,
+        "effective_rate": 0.0597
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "雨水立管01": 4,
+        "EERERWEW": 2,
+        "手提式灭火器－2": 8,
+        "A$C72c7b5e3": 1,
+        "2017_11-sheet-R": 1,
+        "2017_11-sheet-R2": 1,
+        "$equip$00001465": 1,
+        "彩色半球摄像机": 5
+      },
+      "attrib_samples": [
+        {
+          "block_name": "$equip$00001465",
+          "attribs": {
+            "A": "彩色电视摄像机"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\弱电\\02-2#配电房\\2#配电房 弱电平面图（电力监控）_t3.dxf",
+      "total": 281,
+      "base": {
+        "unclassified": 1,
+        "block_default": 5,
+        "effective_rate": 0.0214
+      },
+      "current": {
+        "unclassified": 1,
+        "block_default": 5,
+        "effective_rate": 0.0214
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "雨水立管01": 4,
+        "EERERWEW": 2,
+        "手提式灭火器－2": 8,
+        "A$C72c7b5e3": 1,
+        "2017_11-sheet-R": 1,
+        "2017_11-sheet-R2": 1,
+        "机柜": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A2A3\\02结构\\G-22楼梯表.dxf",
+      "total": 1284,
+      "base": {
+        "unclassified": 251,
+        "block_default": 1,
+        "effective_rate": 0.1963
+      },
+      "current": {
+        "unclassified": 251,
+        "block_default": 1,
+        "effective_rate": 0.1963
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A2": 1,
+        "A2-MC": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\建筑\\1-1#数据中心机房\\0409-1#数据中心建筑施工图\\t3\\门窗表及门窗详图_t3.dxf",
+      "total": 636,
+      "base": {
+        "unclassified": 5,
+        "block_default": 0,
+        "effective_rate": 0.0079
+      },
+      "current": {
+        "unclassified": 5,
+        "block_default": 0,
+        "effective_rate": 0.0079
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "a1": 1,
+        "除台阶$0$KJHG": 10,
+        "jyc": 3,
+        "A$C64F119EA": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-10-07 低压配电干线系统图.dxf",
+      "total": 793,
+      "base": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0126
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0126
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "01-POD机房楼-图签": 1,
+        "AISA-A1": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\西安特发西港数据中心\\给排水\\西安嘉昱-给排水-2系统图0416_t3.dxf",
+      "total": 872,
+      "base": {
+        "unclassified": 38,
+        "block_default": 231,
+        "effective_rate": 0.3085
+      },
+      "current": {
+        "unclassified": 38,
+        "block_default": 231,
+        "effective_rate": 0.3085
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "s-水表": 1,
+        "A$C09A26527": 2,
+        "A$C42D84DA2": 43,
+        "A$C310C7B1D": 6,
+        "A$C5B4E72C3": 2,
+        "A$C0D975A9F": 4,
+        "A$C71EA7EBD": 8,
+        "A$C65CE2F07": 4,
+        "A$C5D3A7940": 4,
+        "A$C1C1063BD": 4,
+        "A$C6C0B3E4E": 8,
+        "s-截止阀": 9,
+        "A$C092857D1": 3,
+        "A$C52F44FD5": 1,
+        "s-自动排气阀": 3,
+        "A$C6AA76CAB": 5,
+        "A$C4FFB744D": 2,
+        "A$C33AD6157": 1,
+        "$TwtSys$00000132": 25,
+        "A$C77E5088A": 7,
+        "A$C48CE4232": 44,
+        "$ATTACHMENT$00000196": 35,
+        "A$C15A75CD5": 16,
+        "A$C3D60778C": 5,
+        "$TwtSys$00000137": 3,
+        "图框-A2": 2
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\给排水\\CAD\\01-1#数据中心机房\\给排水及消防系统展开原理图.dxf",
+      "total": 1454,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A$C59C06758": 4,
+        "fm-check": 4,
+        "$ATTACHMENT$00000223": 4,
+        "FM_P-1": 8,
+        "软接头-水路-0": 4,
+        "集水井01": 2,
+        "标高符号100": 65,
+        "标高符": 15,
+        "污水井1": 3,
+        "通气帽系统-（升顶型）": 11,
+        "断管界面线": 28,
+        "检查口系统-0": 11,
+        "A$C69e937c9": 6,
+        "水表-1111": 2,
+        "自动排气阀-0": 6,
+        "*U31": 12,
+        "A$C4a83140f": 3,
+        "2017_11-sheet-L2": 1,
+        "2017_11-sheet-LOGO": 1,
+        "*U32": 2,
+        "水流指示器-0": 2,
+        "通用阀门-0": 2,
+        "压力表-1": 4,
+        "信号阀-0": 4,
+        "喷淋喷头": 16,
+        "防虫网罩": 3,
+        "*U40": 1,
+        "*U41": 1,
+        "室内消火拴（单栓出口方向）-自救卷盘-45-1": 13,
+        "消火栓阀门": 17,
+        "侧墙雨水斗": 1,
+        "A$C54a20867": 20,
+        "345768": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "FM_P-1",
+          "attribs": {
+            "SN": "阀门",
+            "TY": "",
+            "UN": "个"
+          }
+        },
+        {
+          "block_name": "FM_P-1",
+          "attribs": {
+            "SN": "阀门",
+            "TY": "",
+            "UN": "个"
+          }
+        },
+        {
+          "block_name": "集水井01",
+          "attribs": {
+            "3": "3",
+            "尺寸：2000×1500×1500（H）": "尺寸：1800×1500×1500（H）mm",
+            "B2-A01集水井，池底标高-15.60": "基坑集水井，池底标高-4.000m",
+            "内配两台潜水排污泵，一用一备": "内配两台潜水排污泵，两用一备",
+            "Q=15M/H，H=15M，N=2.2KW": "Q=40m /h，H=10m，N=3.0kw"
+          }
+        },
+        {
+          "block_name": "污水井1",
+          "attribs": {
+            "1": "1",
+            "污": "污"
+          }
+        },
+        {
+          "block_name": "FM_P-1",
+          "attribs": {
+            "SN": "阀门",
+            "TY": "",
+            "UN": "个"
+          }
+        },
+        {
+          "block_name": "FM_P-1",
+          "attribs": {
+            "SN": "阀门",
+            "TY": "",
+            "UN": "个"
+          }
+        },
+        {
+          "block_name": "污水井1",
+          "attribs": {
+            "1": "2",
+            "污": "污"
+          }
+        },
+        {
+          "block_name": "污水井1",
+          "attribs": {
+            "1": "3",
+            "污": "污"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-10-01~02 中压配电系统图.dxf",
+      "total": 1069,
+      "base": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0094
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0094
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "01-POD机房楼-图签": 2,
+        "M_M7": 6,
+        "M_M31VDI": 14,
+        "M_M34LAM": 18,
+        "M_M43DAC": 6,
+        "A$C0a7097a3": 2,
+        "AISA-A1": 2
+      },
+      "attrib_samples": [
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M31VDI",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M31VDI",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M34LAM",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M34LAM",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M34LAM",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M31VDI",
+          "attribs": {
+            "S": ""
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\给排水\\CAD\\02-2#配电房\\2#配电房.dxf",
+      "total": 137,
+      "base": {
+        "unclassified": 1,
+        "block_default": 5,
+        "effective_rate": 0.0438
+      },
+      "current": {
+        "unclassified": 1,
+        "block_default": 5,
+        "effective_rate": 0.0438
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "tukuang": 1,
+        "雨水立管01": 4,
+        "EERERWEW": 2,
+        "手提式灭火器－2": 8,
+        "A$C731568fb": 1,
+        "A$C72c7b5e3": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\弱电\\03-3#泵房\\3#泵房 弱电平面图（安防）_t3.dxf",
+      "total": 547,
+      "base": {
+        "unclassified": 2,
+        "block_default": 0,
+        "effective_rate": 0.0037
+      },
+      "current": {
+        "unclassified": 2,
+        "block_default": 0,
+        "effective_rate": 0.0037
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A$C2A0D4F99": 1,
+        "$DorLib2D$00000002": 2,
+        "_FZH": 15,
+        "1209-3#泵房001（水反资1210）$0$立式泵（平面）": 2,
+        "1209-3#泵房001（水反资1210）$0$re": 5,
+        "1209-3#泵房001（水反资1210）$0$软接头-水路-0": 10,
+        "1209-3#泵房001（水反资1210）$0$异径管-0": 5,
+        "1209-3#泵房001（水反资1210）$0$A$C6f13ccd9": 2,
+        "2017_11-sheet-R": 1,
+        "2017_11-sheet-R2": 1,
+        "$equip$00001465": 1,
+        "彩色半球摄像机": 3
+      },
+      "attrib_samples": [
+        {
+          "block_name": "$equip$00001465",
+          "attribs": {
+            "A": "彩色电视摄像机"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\03弱电\\运维网桥架平面图.dxf",
+      "total": 3003,
+      "base": {
+        "unclassified": 0,
+        "block_default": 11,
+        "effective_rate": 0.0037
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 11,
+        "effective_rate": 0.0037
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "弱电机柜": 13,
+        "平面布置底图0712(1)": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\03弱电\\5.运维网桥架平面图_t3.dxf",
+      "total": 3227,
+      "base": {
+        "unclassified": 0,
+        "block_default": 15,
+        "effective_rate": 0.0046
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 15,
+        "effective_rate": 0.0046
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "弱电机柜": 13,
+        "运维网桥架平面图": 1,
+        "_TK-A1+0.5": 4
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-00 总体\\E-00-11-01电力配电箱系统图.dxf",
+      "total": 334,
+      "base": {
+        "unclassified": 0,
+        "block_default": 2,
+        "effective_rate": 0.006
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 2,
+        "effective_rate": 0.006
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "M_M7": 19,
+        "M_M17": 2,
+        "$Element$00000587": 2,
+        "AISA-A1": 1,
+        "E-00 总体-图签": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M17",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M7",
+          "attribs": {
+            "S": ""
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-14-02 消防应急照明疏散指示系统图.dxf",
+      "total": 281,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "$equip$00001776": 3,
+        "$equip$00001687": 2,
+        "$equip$00001685": 1,
+        "$equip$00002533": 1,
+        "$equip$00002532": 2,
+        "$equip$00002530": 3,
+        "$equip$00002523": 2,
+        "AISA-A1": 1,
+        "01-POD机房楼-图签": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "$equip$00001776",
+          "attribs": {
+            "A": "安全出口标志灯",
+            "$TEXT$": "E"
+          }
+        },
+        {
+          "block_name": "$equip$00001687",
+          "attribs": {
+            "A": "单向疏散指示灯"
+          }
+        },
+        {
+          "block_name": "$equip$00001776",
+          "attribs": {
+            "A": "安全出口标志灯",
+            "$TEXT$": "F"
+          }
+        },
+        {
+          "block_name": "$equip$00001685",
+          "attribs": {
+            "A": "双向疏散指示灯"
+          }
+        },
+        {
+          "block_name": "$equip$00001687",
+          "attribs": {
+            "A": "单向疏散指示灯"
+          }
+        },
+        {
+          "block_name": "$equip$00002533",
+          "attribs": {
+            "A": "消防应急照明灯具3W",
+            "$TEXT$": "E3"
+          }
+        },
+        {
+          "block_name": "$equip$00002532",
+          "attribs": {
+            "A": "消防应急照明灯具6W",
+            "$TEXT$": "E6"
+          }
+        },
+        {
+          "block_name": "$equip$00002530",
+          "attribs": {
+            "A": "消防应急照明灯具壁灯3W",
+            "$TEXT$": "E3"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-14-01 电气火灾监控 消防电源监控.dxf",
+      "total": 480,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AISA-A1": 1,
+        "01-POD机房楼-图签": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\建筑\\2-2#配电房\\202109409-2#配电房_t3.dxf",
+      "total": 1466,
+      "base": {
+        "unclassified": 0,
+        "block_default": 2,
+        "effective_rate": 0.0014
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 2,
+        "effective_rate": 0.0014
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "tukuang": 3,
+        "A$C4C080C87": 1,
+        "A$C3421568B": 1,
+        "_INDEX2": 2,
+        "ewr": 3,
+        "_FZHK": 9,
+        "$DorLib2D$00000002": 4,
+        "_AXISO": 24
+      },
+      "attrib_samples": [
+        {
+          "block_name": "_INDEX2",
+          "attribs": {
+            "1": "5",
+            "-": "5"
+          }
+        },
+        {
+          "block_name": "_INDEX2",
+          "attribs": {
+            "1": "2B",
+            "-": "7"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "A"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "A"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "B"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "B"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "C"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "C"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-03-01 主要设备材料.dxf",
+      "total": 273,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AISA-A2": 1,
+        "01-POD机房楼-图签": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\宿舍\\5.梁配筋图\\屋架层梁配筋平面图.dxf",
+      "total": 94,
+      "base": {
+        "unclassified": 0,
+        "block_default": 1,
+        "effective_rate": 0.0106
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 1,
+        "effective_rate": 0.0106
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "屋架层模板图": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-04负一层墙柱平面定位图 .dxf",
+      "total": 42,
+      "base": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0714
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0714
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "负一层轴网": 1,
+        "负一层墙柱": 1,
+        "层高表": 1,
+        "A$C6FBB6DC9": 1,
+        "A2 1：100": 1,
+        "A$C1C0F4098": 2,
+        "A$C786A35C0": 2,
+        "A$C3F491036": 1,
+        "A$C08DD4583": 1,
+        "A$C684757D2": 1,
+        "A$C60F860A6": 2,
+        "A$C66BD48A5": 3,
+        "A$C389F0488": 2
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\宿舍\\4.板配筋图\\屋架层结构平面图.dxf",
+      "total": 125,
+      "base": {
+        "unclassified": 19,
+        "block_default": 1,
+        "effective_rate": 0.16
+      },
+      "current": {
+        "unclassified": 19,
+        "block_default": 1,
+        "effective_rate": 0.16
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "屋架层模板图": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-13-01~02 精密配电系统图.dxf",
+      "total": 1655,
+      "base": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 0,
+        "effective_rate": 0.0
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "01-POD机房楼-图签": 2,
+        "D3机房IT配电系统图$0$M_M7": 82,
+        "M_M17": 6,
+        "$Element$00000587": 6,
+        "AISA-A1": 2
+      },
+      "attrib_samples": [
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D3机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-09天面层墙柱平面定位图.dxf",
+      "total": 74,
+      "base": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0405
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0405
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A1 1：100": 1,
+        "层高表": 1,
+        "四层~天面层轴网": 1,
+        "A$C6ECD701F": 1,
+        "天面层墙柱": 1,
+        "A$C60815F47": 2,
+        "A$C7E223B17": 1,
+        "A$C1B0211C6": 2,
+        "A$C1C0F4098": 2,
+        "A$C0A625503": 1,
+        "A$C08DD4583": 1,
+        "A$C684757D2": 1,
+        "A$C60F860A6": 2,
+        "A$C786A35C0": 2,
+        "A$C66BD48A5": 3
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-27屋架层梁配筋平面图.dxf",
+      "total": 412,
+      "base": {
+        "unclassified": 3,
+        "block_default": 5,
+        "effective_rate": 0.0194
+      },
+      "current": {
+        "unclassified": 3,
+        "block_default": 5,
+        "effective_rate": 0.0194
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "梁配筋说明": 1,
+        "梁配筋表一": 1,
+        "屋架层模板图": 1,
+        "A$C57337A09": 1,
+        "索引详图1": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "索引详图1",
+          "attribs": {
+            "1": "1"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\山东斐讯云翔大数据中心二期项目图纸（打印版）\\03弱电\\9.极早期报警平面图_t3.dxf",
+      "total": 1229,
+      "base": {
+        "unclassified": 59,
+        "block_default": 56,
+        "effective_rate": 0.0936
+      },
+      "current": {
+        "unclassified": 59,
+        "block_default": 56,
+        "effective_rate": 0.0936
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "数据中心设备平面图": 1,
+        "fgsdf": 19,
+        "qfwef": 19,
+        "wefeg": 19,
+        "装修图纸_t3_t3": 1,
+        "20210709机柜布置图纸_t3": 1,
+        "平面布置底图0712(1)": 1,
+        "_TK-A1+0.5": 4
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\宿舍\\6.墙身大样+柱表+楼梯\\墙身大样图.dxf",
+      "total": 432,
+      "base": {
+        "unclassified": 176,
+        "block_default": 1,
+        "effective_rate": 0.4097
+      },
+      "current": {
+        "unclassified": 176,
+        "block_default": 1,
+        "effective_rate": 0.4097
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A2 1：100": 1,
+        "_AXISO": 4
+      },
+      "attrib_samples": [
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "4-A"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "1/4-A"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "1/4-A"
+          }
+        },
+        {
+          "block_name": "_AXISO",
+          "attribs": {
+            "A": "1/4-A"
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-08四~八层墙柱平面定位图.dxf",
+      "total": 104,
+      "base": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0288
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 3,
+        "effective_rate": 0.0288
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A1 1：100": 1,
+        "层高表": 1,
+        "四层~天面层轴网": 1,
+        "三层~八层墙柱": 1,
+        "A$C60815F47": 2,
+        "A$C7E223B17": 1,
+        "A$C1B0211C6": 2,
+        "A$C174808BE": 1,
+        "A$C1C0F4098": 2,
+        "A$C0A625503": 1,
+        "A$C786A35C0": 2,
+        "A$C3F491036": 2,
+        "A$C08DD4583": 1,
+        "A$C684757D2": 1,
+        "A$C60F860A6": 2,
+        "A$C66BD48A5": 3,
+        "A$C389F0488": 2
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\20210409-许昌数据中心施工图汇总\\土建\\电气\\DWG\\E-01 1#机房楼\\E-01-10-00 供电系统框架示意图.dxf",
+      "total": 2242,
+      "base": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0045
+      },
+      "current": {
+        "unclassified": 0,
+        "block_default": 10,
+        "effective_rate": 0.0045
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "AR3_INFO": 1,
+        "AVE_RENDER": 8,
+        "AVE_GLOBAL": 1,
+        "01-POD机房楼-图签": 1,
+        "M_M43DAC": 38,
+        "M_M24": 2,
+        "A$C72b799cd": 2,
+        "M_M31VDI": 16,
+        "M_M7": 6,
+        "零序电流互感器": 1,
+        "M_M34LAM": 21,
+        "AISA-A0": 1
+      },
+      "attrib_samples": [
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "M_M43DAC",
+          "attribs": {
+            "S": ""
+          }
+        }
+      ]
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\02结构\\办公楼\\G-31 LT-3、LT-4楼梯表.dxf",
+      "total": 1368,
+      "base": {
+        "unclassified": 344,
+        "block_default": 1,
+        "effective_rate": 0.2522
+      },
+      "current": {
+        "unclassified": 344,
+        "block_default": 1,
+        "effective_rate": 0.2522
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "A1 1：100": 1
+      },
+      "attrib_samples": []
+    },
+    {
+      "drawing_id": "D:\\BaiduNetdiskDownload\\测试图纸\\西安特发西港数据中心\\电气\\电气CAD\\6.电源列头柜及电池柜系统图.dxf",
+      "total": 4694,
+      "base": {
+        "unclassified": 95,
+        "block_default": 5,
+        "effective_rate": 0.0213
+      },
+      "current": {
+        "unclassified": 95,
+        "block_default": 5,
+        "effective_rate": 0.0213
+      },
+      "effective_drop": 0.0,
+      "reclassified_blocks": [],
+      "regressions": [],
+      "guard_removed": [],
+      "changes": [],
+      "block_names": {
+        "CN3-ICBC-E-PB01$0$K1": 261,
+        "CN3-ICBC-E-PB01$0$TA": 279,
+        "D1机房IT配电系统图$0$M_M7": 9,
+        "Title-block-A1": 5
+      },
+      "attrib_samples": [
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        },
+        {
+          "block_name": "D1机房IT配电系统图$0$M_M7",
+          "attribs": {
+            "S": ""
+          }
+        }
+      ]
+    }
+  ]
+}

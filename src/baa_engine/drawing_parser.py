@@ -91,6 +91,8 @@ class DrawingResult:  # class definition
         drawing_type: Optional[Dict] = None,  # P121: 图纸类型分类
         corrupt: Optional[Dict] = None,  # P121: 损坏检测
         block_refs: List[Dict] = None,  # P127-S1: 块引用（块名/ATTRIB/位置）
+        parse_status: Optional[Dict] = None,  # P127-T3: 解析状态诊断（T3 加密/代理/零图元不静默）
+        t3_components: Optional[Dict] = None,  # P127-T3: 天正原生识别构件（墙/门/窗/柱实例）
     ):  # 操作
         """初始化实例。"""
         self.file_path = file_path  # assignment
@@ -104,6 +106,9 @@ class DrawingResult:  # class definition
         self.drawing_type = drawing_type or {}  # P121: {type, confidence, reason, suggested_action}
         self.corrupt = corrupt or {}  # P121: {corrupt, reason, recoverable}
         self.block_refs = block_refs or []  # P127-S1: 块引用列表
+        # P127-T3: 天正 T3 解析状态与原生构件（非 T3 图纸为 None）
+        self.parse_status = parse_status
+        self.t3_components = t3_components
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -238,10 +243,25 @@ class DrawingParser:
                             "请用 LibreCAD (开源免费) 打开后另存为 DXF 格式再上传。"
                         )  # append to list
 
+                    encrypted_status = None
+                    if format_hint == "天正 T3 加密格式":
+                        encrypted_status = {
+                            "is_t3": True,
+                            "storage_form": "encrypted_t3_dwg",
+                            "proxy_count": 0,
+                            "component_counts": {
+                                "walls": 0,
+                                "doors": 0,
+                                "windows": 0,
+                                "columns": 0,
+                            },
+                            "diagnostic": "".join(diag_parts),
+                        }
                     return DrawingResult(  # return
                         file_path=file_path,  # assignment
                         file_id=file_id or f"baa-file-{path.stem}",  # assignment
                         error="".join(diag_parts),  # function call
+                        parse_status=encrypted_status,  # P127-T3: 加密 T3 诊断不静默
                     )  # code
                 self._doc = dxf_doc  # assignment
             elif ext == ".pdf":  # condition: ext == ".pdf" — P100 PDF 直接接入
@@ -315,6 +335,36 @@ class DrawingParser:
         except Exception:
             pass  # 分类失败不影响解析结果
 
+        # ── P127-T3: 天正 T3 原生识别（特征探测廉价，命中才跑全量识别）──
+        # 铁律：T3 特征命中但解出 0 构件必须输出 parse_status 诊断，不得静默。
+        parse_status = None
+        t3_components = None
+        if self._doc is not None:
+            try:
+                from src.baa_engine.parsers.t3_native import (
+                    attach_t3_markers,
+                    detect_t3_signature,
+                    extract_t3,
+                )
+
+                signature = detect_t3_signature(self._doc)
+                if signature.get("is_t3"):
+                    t3_components = extract_t3(self._doc)
+                    parse_status = t3_components.get("status")
+                    # 门窗/柱语义按 handle 落到图元 properties，供分类覆盖图层误判
+                    attach_t3_markers(primitives, t3_components)
+            except Exception as t3_err:  # T3 识别失败不得影响主解析链路
+                logger.warning(
+                    "[P127-T3] 天正识别异常（已降级为普通图层管线）: %s: %s",
+                    type(t3_err).__name__,
+                    t3_err,
+                )
+                parse_status = {
+                    "is_t3": True,
+                    "storage_form": "recognizer_error",
+                    "diagnostic": f"天正识别器异常: {type(t3_err).__name__}: {t3_err}",
+                }
+
         result = DrawingResult(
             file_path=file_path,
             file_id=file_id or f"baa-file-{path.stem}",
@@ -323,6 +373,8 @@ class DrawingParser:
             drawing_type=drawing_type,
             corrupt=corrupt,
             block_refs=block_refs,
+            parse_status=parse_status,
+            t3_components=t3_components,
         )  # code
 
         # ── P73: 多Sheet 分区检测 ────────────────────────

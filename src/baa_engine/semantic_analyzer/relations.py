@@ -1,6 +1,6 @@
 """Spatial relations + dimension binding + attribute inference."""
 
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set
 from .models import SemanticEntity, SpatialRelation
 from .geometry import (
     min_edge_distance,
@@ -287,34 +287,146 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     return relations
 
 
+def _dim_reference_point(dim: Dict) -> Dict:
+    """尺寸标注参考点：优先 text_midpoint，回退 position(defpoint)。"""
+    for key in ("text_midpoint", "position"):
+        pt = dim.get(key)
+        if pt and (pt.get("x") is not None or pt.get("y") is not None):
+            return pt
+    return {}
+
+
+def _dim_orientation(dim: Dict) -> str:
+    """由 defpoint2→defpoint3 向量判断标注方向：'h' 水平 / 'v' 垂直 / '' 斜向。
+
+    系数 2 为经验值，允许标注线与轴线有小角度偏差。
+    """
+    dp2 = dim.get("defpoint2") or {}
+    dp3 = dim.get("defpoint3") or {}
+    dx = abs(dp3.get("x", 0) - dp2.get("x", 0))
+    dy = abs(dp3.get("y", 0) - dp2.get("y", 0))
+    if dx > dy * 2:
+        return "h"
+    if dy > dx * 2:
+        return "v"
+    return ""
+
+
+def _dim_projection_ratio(dim: Dict, bbox: Dict, orientation: str) -> float:
+    """标注线段与实体沿「测量轴」的重叠比例（0~1）。
+
+    水平标注的测量轴为 X（defpoint2/3 的 x 区间应与实体 x 范围重叠），
+    垂直标注的测量轴为 Y。斜向标注返回 0。
+    注意：水平标注两个 defpoint 的 y 相同（y 区间退化），若沿 y 比较则恒为 0，
+    故必须沿测量轴比较，该评分才能把大尺寸标注优先匹配到真正被测量的实体。
+    """
+    dp2 = dim.get("defpoint2") or {}
+    dp3 = dim.get("defpoint3") or {}
+    if orientation == "h":
+        d_min = min(dp2.get("x", 0), dp3.get("x", 0))
+        d_max = max(dp2.get("x", 0), dp3.get("x", 0))
+        e1 = bbox.get("x", 0)
+        e2 = e1 + bbox.get("width", 0)
+    elif orientation == "v":
+        d_min = min(dp2.get("y", 0), dp3.get("y", 0))
+        d_max = max(dp2.get("y", 0), dp3.get("y", 0))
+        e1 = bbox.get("y", 0)
+        e2 = e1 + bbox.get("height", 0)
+    else:
+        return 0.0
+    span = e2 - e1
+    if span <= 0:
+        return 0.0
+    overlap = max(0.0, min(e2, d_max) - max(e1, d_min))
+    return min(1.0, overlap / span)
+
+
+_DIM_MATCH_MAX_DIST = 10000.0  # 尺寸标注到实体中心的最大匹配距离(mm)
+# 真实图纸的标注文字常距实体中心较远（尤其房间/走廊），沿用 dimension_parser 的
+# 宽松阈值（max_distance*2000=10000mm），配合投影评分消歧，避免就近匹配漏配。
+_DIM_MM_TO_M_THRESHOLD = 100.0  # 原始值 >100 且 /1000 落入建筑构件区间时判为 mm
+_DIM_MM_TO_M_MIN = 0.3
+_DIM_MM_TO_M_MAX = 30.0
+
+
+def _measurement_to_meters(meas) -> Optional[float]:
+    """DIMENSION 测量值单位归一为米。
+
+    沿用既有判据：原始值 >100 且 /1000 后落在 0.3~30m 时视为 mm→m。
+    measurement<=0 或无法解析时返回 None，调用方据此跳过注入（避免写入 0）。
+    """
+    if meas is None:
+        return None
+    try:
+        meas = float(meas)
+    except (TypeError, ValueError):
+        return None
+    if meas <= 0:
+        return None
+    if meas > _DIM_MM_TO_M_THRESHOLD and _DIM_MM_TO_M_MIN < meas / 1000.0 < _DIM_MM_TO_M_MAX:
+        return meas / 1000.0
+    return meas
+
+
+def _dim_match_score(dist: float, proj_ratio: float) -> float:
+    """组合评分：score = dist * (1.5 - proj_ratio)。
+
+    投影完全重叠时距离权重降至 0.5，无重叠时不降权，从而优先选中
+    被标注线穿过/正对的实体。
+    """
+    return dist * (1.5 - min(max(proj_ratio, 0.0), 1.0))
+
+
 def _bind_dimensions(
     self,
     entities: List[SemanticEntity],
     dimensions: List[Dict],
 ) -> Dict[str, Dict]:  # 操作
-    """尺寸标注绑定到实体"""
+    """尺寸标注绑定到实体，返回以实体 id 为键的属性绑定。
+
+    匹配策略：几何距离 + defpoint 投影重叠度联合评分（投影重叠度越高越优先），
+    取代原先仅「就近中心距离」的匹配。测量值统一按 mm→m 判据归一为米，
+    measurement<=0/缺失的标注直接跳过（不注入 0）。
+    """
     bindings = {}
+    if not entities:
+        return bindings
 
     for dim in dimensions:  # 循环
-        dim_pos = dim.get("position", {})
-        if not dim_pos:  # check: negated condition
+        ref = _dim_reference_point(dim)
+        if not ref:  # check: negated condition
             continue  # 继续循环
 
+        meas_m = _measurement_to_meters(dim.get("measurement"))
+        if meas_m is None:  # 0/缺失标注不注入
+            continue  # 继续循环
+
+        orientation = _dim_orientation(dim)
+
         nearest = None
-        nearest_dist = float("inf")
+        best_score = float("inf")
+        best_ratio = -1.0
 
         for entity in entities:  # 循环
             center = bbox_center(entity.bbox)
-            dist = point_distance(dim_pos, center)
-            if dist < nearest_dist and dist < 500:  # check: numeric comparison
+            dist = point_distance(ref, center)
+            if dist >= _DIM_MATCH_MAX_DIST:  # check: numeric comparison
+                continue  # 继续循环
+            ratio = _dim_projection_ratio(dim, entity.bbox, orientation)
+            score = _dim_match_score(dist, ratio)
+            # 评分接近（差 <1）时选投影重叠度更高的实体
+            if score < best_score or (abs(score - best_score) < 1 and ratio > best_ratio):
                 nearest = entity
-                nearest_dist = dist
+                best_score = score
+                best_ratio = ratio
 
         if nearest:  # condition: nearest:
-            if nearest.id not in bindings:  # check: membership test
-                bindings[nearest.id] = {}  # 操作
             attr_name = _infer_attribute_name(dim, nearest)
-            bindings[nearest.id][attr_name] = dim.get("measurement", 0)  # 操作
+            entry = bindings.setdefault(nearest.id, {})
+            entry[attr_name] = meas_m
+            entry["_dimension_raw"] = dim.get("measurement")
+            # 同时落一份原始值到实体，便于下游追溯单位换算前的标注值
+            nearest.properties["_dimension_raw"] = dim.get("measurement")
 
     return bindings
 
