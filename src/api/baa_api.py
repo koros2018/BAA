@@ -299,6 +299,14 @@ async def lifespan(app: FastAPI):  # function call
     """
     # 启动时：等待引擎预热完成
     _engine_thread.join(timeout=120)  # function call
+    # Roadmap v4 T-A1 启动校验：视觉/感知层默认关闭，防止误启用光栅主干
+    if VISION_ENABLED:  # condition: 显式开启
+        logger.warning(
+            "[BAA][警告] 视觉/感知层已启用（BAA_VISION_ENABLED=true）："
+            "仅限研究/专项验证，不建议生产使用"
+        )
+    else:  # 默认关闭
+        print("[BAA] 视觉/感知层已禁用（默认）：主干为矢量原生解析")  # print output
     yield  # 生成
     # 关闭时：清理线程池
     ENGINE_THREAD_POOL.shutdown(wait=False)  # function call
@@ -455,17 +463,22 @@ async def health():  # function call
     engine_ok = _func_registry is not None  # assignment
     spec_ok = _spec_repo is not None  # assignment
     parser_ok = _engine_ready  # assignment
+    # Roadmap v4 T-A1：视觉层默认关闭，健康检查不再主动加载 YOLO 模型。
     yolo_ok = False  # assignment
-    yolo_info = "未加载"  # assignment
-    try:  # 尝试
-        from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import
+    if not VISION_ENABLED:  # condition: 视觉层已禁用
+        yolo_info = "已禁用（视觉层默认关闭，BAA_VISION_ENABLED=false）"  # assignment
+    else:  # 仅显式开启视觉层时才探测模型
+        try:  # 尝试
+            from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import
 
-        yolo = YOLODetectionIntegrator()  # function call
-        if yolo.load_model():  # condition: yolo.load_model():
-            yolo_ok = True  # assignment
-            yolo_info = "就绪"  # assignment
-    except Exception:  # 捕获异常
-        yolo_info = "不可用"  # assignment
+            yolo = YOLODetectionIntegrator()  # function call
+            if yolo.load_model():  # condition: yolo.load_model():
+                yolo_ok = True  # assignment
+                yolo_info = "就绪"  # assignment
+            else:  # 无可用模型权重
+                yolo_info = "未加载"  # assignment
+        except Exception:  # 捕获异常
+            yolo_info = "不可用"  # assignment
 
     import psutil  # psutil: system memory
 
@@ -485,7 +498,11 @@ async def health():  # function call
             "spec_repository": {"status": "ok" if spec_ok else "down"},  # 字段
             "drawing_parser": {"status": "ok" if parser_ok else "down"},  # 字段
             "yolo_integrator": {
-                "status": "ok" if yolo_ok else "unavailable",
+                "status": (
+                    "disabled"
+                    if not VISION_ENABLED
+                    else ("ok" if yolo_ok else "unavailable")
+                ),
                 "info": yolo_info,
             },  # 字段
         },  # code
@@ -510,7 +527,10 @@ async def deconstruct(  # code
     standard: str = Query(
         "GB 50016-2014", description="规范标准: GB 50016-2014 / NFPA 101-2021 / NFPA 5000-2021"
     ),  # function call
-    use_yolo: bool = Query(True, description="是否使用 YOLO 图元检测增强"),  # function call
+    use_yolo: bool = Query(
+        False,
+        description="是否使用 YOLO 图元检测增强（需同时设置 BAA_VISION_ENABLED=true）",
+    ),  # function call
     yolo_device: str = Query(
         "cpu", description="YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"
     ),  # function call
@@ -606,10 +626,11 @@ async def deconstruct(  # code
     entities = semantic["entities"]  # assignment
     relations = semantic["relations"]  # assignment
 
-    # Step 2.5: YOLO 图元检测增强（可选）
-    # 使用 CV 模型辅助识别规则解析遗漏的实体
+    # Step 2.5: YOLO 图元检测增强（可选；Roadmap v4 T-A1 默认关闭视觉层）
+    # 使用 CV 模型辅助识别规则解析遗漏的实体；仅当显式传入 use_yolo 且
+    # 全局视觉开关 VISION_ENABLED 开启时才会真正触发光栅推理。
     yolo_entities: list = []  # 预绑定：YOLO 加载/推理失败时后续统计不抛 UnboundLocalError
-    if use_yolo:  # condition: use_yolo:
+    if use_yolo and VISION_ENABLED:  # condition: use_yolo and VISION_ENABLED:
         try:  # 尝试
             from src.baa_engine.yolo_integrator import YOLODetectionIntegrator  # import
 

@@ -19,6 +19,7 @@ from .classify import (
     _classify_by_layer,
     _classify_by_geometry,
 )
+from .block_semantics import attach_block_refs
 from .meta import _parse_meta_entities
 from .room import _is_near_closed, _sweep_line_detect_rooms
 from .merge import _merge_overlapping
@@ -27,6 +28,7 @@ from .relations import (
     _bind_dimensions,
     _infer_attribute_name,
 )
+from .text_attributes import _inject_text_attributes
 from .room_type_infer import infer_room_type
 
 
@@ -38,6 +40,13 @@ class SemanticAnalyzer:
         self._entity_counter = 0  # assign: self attribute
         self._analyze_cache: Dict[str, Dict[str, Any]] = {}  # hash -> result
         self._cache_max = 50  # assign: self attribute
+        # 未分类率统计（analyze 开头清零）
+        self._classify_total = 0
+        self._classify_unclassified = 0
+        self._classify_block_default = 0
+        self._t3_window_seen = set()
+        self._t3_wall_seen = set()
+        self._t3_wall_segs = {}
 
     def analyze(
         self,
@@ -46,6 +55,7 @@ class SemanticAnalyzer:
         max_entities: int = 10000,  # 性能优化后默认提升到 10000
         building_type: str = "civil",  # assign
         dxf_path: Optional[str] = None,
+        block_refs: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:  # init: set to None
         """
         执行语义分析
@@ -55,10 +65,18 @@ class SemanticAnalyzer:
             dimensions: 尺寸标注列表
             max_entities: 最大处理实体数（超过则采样，防OOM）
             dxf_path: DXF 文件路径（可选），提供后启用 YOLO 检测增强
+            block_refs: P127-S1 块引用列表（Dict），提供后把 ATTRIB/旋转/缩放
+                落库到 INSERT 图元，用于块名未命中时的图例兜底分类
 
         输出: 结构化语义数据（entities + relations + attributes）
         """
         self._entity_counter = 0  # assign: self attribute
+        self._classify_total = 0
+        self._classify_unclassified = 0
+        self._classify_block_default = 0
+        self._t3_window_seen = set()  # P127-T3: 每次分析重置窗线合并 gid
+        self._t3_wall_seen = set()  # P127-T3: 每次分析重置墙实例合并 gid
+        self._t3_wall_segs = {}  # P127-T3: 每次分析重置共享面线墙实例回填表
 
         # ── 缓存检查：相同 primitives hash 秒级返回 ──────
         try:  # try: operation block
@@ -76,6 +94,11 @@ class SemanticAnalyzer:
                 return cached  # return
         except Exception:  # catch: exception handler
             fingerprint = None  # init: set to None
+
+        # Step 0: 块引用语义落库（ATTRIB/旋转/缩放 → INSERT 图元 properties）
+        # 必须在采样之前 enrich 原列表，保证采样/全量两份视图都带 block_attribs。
+        if block_refs:
+            attach_block_refs(primitives, block_refs)
 
         # 采样限制，防止全量关系构建OOM
         # 保留原始 primitives 供扫线法使用（扫线只消费 LINE/LWPOLYLINE）
@@ -175,6 +198,35 @@ class SemanticAnalyzer:
         # Step 3: 尺寸标注语义化
         attributes = self._bind_dimensions(entities, dimensions or [])  # assign
 
+        # Step 3.5: 尺寸绑定结果注入实体属性（T-A4 / 缺口 G9 修复）
+        # 根因：_bind_dimensions 仅产出 result["attributes"]（以 entity.id 为键的 dict），
+        # 从未回写 ent.properties，导致 DIMENSION 反推的 width/height/length 在实体上不可见，
+        # 下游原子函数读到 0 / 缺失。此处打通注入链路（单位已归一为米）。
+        entity_by_id = {e.id: e for e in entities}  # init: empty dict
+        for _eid, _dim_attrs in attributes.items():  # 循环
+            _ent = entity_by_id.get(_eid)  # assign
+            if _ent is None:  # check: value is None
+                continue  # 继续循环
+            for _attr_name, _attr_val in _dim_attrs.items():  # 循环
+                if _attr_name == "_dimension_raw":  # 追溯用原始标注值
+                    _ent.properties["_dimension_raw"] = _attr_val  # 操作
+                    continue  # 继续循环
+                # 0/缺失不注入
+                if not (isinstance(_attr_val, (int, float)) and _attr_val > 0):  # check: numeric comparison
+                    continue  # 继续循环
+                # 不覆盖已有更可信来源：YOLO 检测宽度，或已存在的非零 width/height/length
+                _existing = _ent.properties.get(_attr_name)  # assign
+                if isinstance(_existing, (int, float)) and _existing > 0:  # check: numeric comparison
+                    continue  # 继续循环
+                _ent.properties[_attr_name] = _attr_val  # 操作
+                _ent.properties["_dimension_source"] = "relations_bind"  # 操作
+
+        # Step 3.6: TEXT/MTEXT 标注属性注入（T-A4 / G9 补齐）
+        # 尺寸链路无法覆盖的退化实体（bbox 宽高为 0、无 DIMENSION 可达）：
+        # 从标注文本反推墙/板厚度、门窗编号宽高。置于 Step 3.5 之后，
+        # 不覆盖既有非零值，因此不会推翻尺寸绑定结果。
+        entities = self._inject_text_attributes(entities, full_primitives)  # assign
+
         # Step 4: 走廊拓扑网络（V2新增）
         corridor_topology = self.build_corridor_topology(entities, relations)  # assign
 
@@ -235,6 +287,27 @@ class SemanticAnalyzer:
             "evacuation_connectivity": connectivity,  # 字段
             "floor_levels": floor_levels,  # 字段
             "floor_assignments": floor_assignments,  # 字段
+            "classification_stats": {  # 未分类率统计（T-A2）
+                "total": self._classify_total,
+                "unclassified": self._classify_unclassified,
+                "block_default": self._classify_block_default,
+                "rate": (
+                    round(self._classify_unclassified / self._classify_total, 4)
+                    if self._classify_total
+                    else 0.0
+                ),
+                # 有效未分类率：把「块语义未覆盖回退 wall」一并计入，
+                # 才是块语义（T-A2/G7）可直接影响的度量口径。
+                "effective_rate": (
+                    round(
+                        (self._classify_unclassified + self._classify_block_default)
+                        / self._classify_total,
+                        4,
+                    )
+                    if self._classify_total
+                    else 0.0
+                ),
+            },  # 字段
         }  # code
 
         # ── 写入缓存 ──────────────────────────────────────
@@ -992,6 +1065,10 @@ class SemanticAnalyzer:
     def _bind_dimensions(self, entities, dimensions):
         """将尺寸标注绑定到对应实体。"""
         return _bind_dimensions(self, entities, dimensions)
+
+    def _inject_text_attributes(self, entities, primitives):
+        """从 TEXT/MTEXT 标注反推厚度/门窗编号并注入就近实体属性。"""
+        return _inject_text_attributes(self, entities, primitives)
 
     def _infer_attribute_name(self, dim, entity):
         """从尺寸标注推断实体属性名称。"""

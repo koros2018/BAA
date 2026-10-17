@@ -7,7 +7,7 @@ LAYER_RULES_CORE = {
     "墙体": "wall",
     "墙": "wall",  # 字段
     "BEAM": "wall",  # 结构梁图层（real: BEAM, BEAM_SE, beam-line）
-    "COLUMN": "wall",  # 柱子（real: column-line, COLUMN-hatch）
+    "COLUMN": "column",  # 柱图层（real: column-line, COLUMN-hatch；T-A3 前误映为 wall，柱网被并入墙）
     "DOOR": "door",
     "门": "door",  # 字段
     "SB": "door",  # 水消防设备层门标记
