@@ -22,7 +22,7 @@ d3 全图含 6 个平面区域，识别器共输出 1165 墙 / 236 门 / 95 窗 
 
 - **门/窗/柱**：金标准点与预测点一对一最近邻贪心匹配，容差门 600mm、窗 800mm、柱 350mm；未匹配预测计误报（假阳），未匹配金标准计漏报（假阴）。
 - **墙**：沿墙段每 250mm 采样中心线点，双向覆盖率（金标准采样→预测为 recall，预测采样→金标准为 precision），容差 200mm，得覆盖式 F1。
-- **baseline**：剥离 `_t3_*` 标记后跑改造前 `SemanticAnalyzer`（图层规则 + 几何启发）；墙预测为 `WALL` 图层原始双线图元。
+- **baseline**：剥离 `_t3_*` 标记后跑改造前 `SemanticAnalyzer`（图层规则 + 几何启发），并把 `LAYER_RULES["COLUMN"]` 临时钉回 `wall` 以还原 T-A3 修复前口径（否则修复后的 COLUMN→column 规则会泄漏进对照组，柱改进幅度被高估）；墙预测为 `WALL` 图层原始双线图元。
 - **native**：门/窗取 `parsers/t3_native.py` 原生识别实例；**柱/墙取集成 analyze 输出**（带 T3 标记跑完整 `SemanticAnalyzer`，柱为 `_t3_native=column` 覆盖实体、墙为 `_t3_wall_gid` 合并实例），端到端验证 标记→分类覆盖 生产链路。
 
 ## 3. 汇总结果（micro 汇总，3 张）
@@ -73,15 +73,25 @@ d3 全图含 6 个平面区域，识别器共输出 1165 墙 / 236 门 / 95 窗 
 |------|------|------|
 | `exploded_native_layers` | T3 特征层 + `_TCH` AppID，0 PROXY（本次 3 张） | 正常原生识别 |
 | `t3_signature_empty` | 命中 T3 特征但 0 构件 | `diagnostic` 非空，不静默 |
-| `proxy_entity` | 存在 PROXY_ENTITY（未转 T3 的高版本天正） | 诊断要求 T3 分解转换 |
+| `proxy_entity` | 存在代理实体（PROXY_ENTITY / AC1024+ 的 ACAD_PROXY_ENTITY，未转 T3 的高版本天正） | 诊断要求 T3 分解转换，已解出的分解态构件不丢弃 |
 | `encrypted_t3_dwg` | 天正加密 DWG 直读失败 | parse_status 带诊断与零构件计数 |
 | `recognizer_error` | 识别器异常 | try/except 降级 + warning，不阻断主管线 |
 
 ## 6. 回归与后续动作
 
-- 回归：`pytest src/tests -q` → **2348 passed / 17 skipped / 0 failed**（含新增 9 个 `test_t3_native.py`）；P127 旧测试 `test_tianzheng_t3.py` 42 passed。`real_drawing` 标记在本机因 `data/files/` 为 mock 占位（文件内容为 "mock dxf content"，7 个用例报"找不到测试图纸"）无法运行，与本次改动无关。
+- 回归：`pytest src/tests -q` → **2357 passed / 17 skipped / 0 failed**（`test_t3_native.py` 18 个）；P127 旧测试 `test_tianzheng_t3.py` 42 passed。`real_drawing` 标记在本机因 `data/files/` 为 mock 占位（文件内容为 "mock dxf content"，7 个用例报"找不到测试图纸"）无法运行，与本次改动无关。
+- 验收门槛：墙 F1=1.0（≥0.80 ✅），门窗合并 F1=1.0（≥0.75 ✅），逐类失配原因与后续动作见本报告第 4、6 节。
+
+### 6.1 第二轮稳健性修复（真实图纸库 252 张 DXF 扫描后）
+
+扩大样本扫描发现并修复两个根因（合成测试覆盖，d1/d2/d3 验收不回归）：
+
+1. **ACAD_PROXY_ENTITY 漏数（proxy_entity 形态在高版本 DXF 永不触发）**：识别器只数旧版 `PROXY_ENTITY`，AC1024(R2010)+ 的代理实体 dxftype 为 `ACAD_PROXY_ENTITY`。样本 `节能专篇（一）.dxf`、`节能专篇(二)_t3.dxf` 各 2 个代理实体此前全部漏报；修复后两张均正确进入 `proxy_entity` 并带分解转换诊断（`节能专篇（一）` 同时保留 230 墙/18 门/14 窗/67 柱的分解态识别结果）。
+2. **分解态矩形柱不识别**：`A23云计算中心平面图20170321x.dxf`（28 个平面区域）的柱是 COLUMN 层 8 顶点、closed 位未置但首尾点重合的矩形 LWPOLYLINE（378/300/120mm），此前柱识别只支持 `_FZH/_FZK` 块与 CIRCLE，全图柱数为 0。新增 polyline 轮廓判据（边长 80~1200mm、长宽比 ≤4、精确匹配 COLUMN 尾段层名，排除 column-line 引出线与长墙形多段线），A23 识别出 7 个平面内分解态柱；平面判定的柱计数同步纳入 polyline，无门块图纸也能选为平面。柱标记覆盖块/圆/多段线三种来源（此前圆截面柱未挂 `_t3_native` 标记，仅靠图层规则兜底）。
+
 - 后续动作（不阻塞 T-A3 验收）：
-  1. T-A4 属性注入时把墙厚度/长度、门窗宽度写入图元属性（native 实例字段已就绪）。
-  2. 扩大标注集：补充柱网密集公共建筑、弧形/斜墙平面、含大样索引的复杂平面各 ≥1 张，验证区域选择与窗线聚类的稳健阈值。
-  3. 取得真实加密 DWG 与高版本 PROXY 样本各 1 张，联测转换前置链路与 parse_status 透传。
-  4. API 层如需对用户暴露 `parse_status`（加密/空识别诊断），在审查出参中增加可选字段（当前 38 个 analyze 调用点零改动受益于标记下沉，暂不需要出参变更）。
+  1. T-A4 属性注入时把墙厚度/长度、门窗宽度、分解态柱宽高写入图元属性（native 实例字段已就绪）。
+  2. 扩大标注集：候选已就位（A23 云计算中心 28 区域大平面含分解态柱、`华为（深汕）A4建筑图纸z.dxf` 18 区域、`A123大样详图` 41 区域）；需人工审计将其转金标准，并补充弧形/斜墙平面各 ≥1 张，验证区域选择与窗线聚类的稳健阈值。LINE 拼装柱（COLUMN 层 4 根独立直线、无闭合多段线）暂未支持，待新金标准确认形态后再定是否做端点拼装。
+  3. ~~取得高版本 PROXY 样本~~：已取得 2 张并联测通过；仍需取得真实**加密 DWG** 1 张，联测加密转换前置链路与 `encrypted_t3_dwg` parse_status 透传。
+  4. API 层如需对用户暴露 `parse_status`（加密/空识别/代理实体诊断），在审查出参中增加可选字段（当前 38 个 analyze 调用点零改动受益于标记下沉，暂不需要出参变更）。
+  5. 真实图纸锁定基线（`test_real_drawings.ENTITY_BASELINE`）下次在真实数据环境运行时按既有流程刷新（规则升级致 COLUMN 层实体由 wall 改计 column）。
