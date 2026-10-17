@@ -30,6 +30,8 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         self._t3_window_seen = set()
     if not hasattr(self, "_t3_wall_seen"):
         self._t3_wall_seen = set()
+    if not hasattr(self, "_t3_wall_segs"):
+        self._t3_wall_segs = {}
 
     for prim in primitives:
         self._classify_total += 1
@@ -55,6 +57,10 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         t3_native = prim.properties.get("_t3_native")
         t3_gid = prim.properties.get("_t3_window_gid")
         t3_wall_gid = prim.properties.get("_t3_wall_gid")
+        # 全量墙实例 seg（含共享面线的其他共线实例），供循环后回填
+        t3_wall_segs = prim.properties.get("_t3_wall_segs")
+        if t3_wall_segs:
+            self._t3_wall_segs.update(t3_wall_segs)
         bbox_override = None
         if t3_wall_gid is not None:
             if t3_wall_gid in self._t3_wall_seen:
@@ -127,6 +133,32 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             properties=cleaned_props,
         )  # code
         entities.append(entity)  # append: add to list
+
+    # P127-T3 墙实例回填：一根面线被多个共线墙实例复用时（二次配对长面复用），
+    # 图元只携带主 gid 走上述循环；其余共享面线的实例 gid 在此补齐为独立墙实体，
+    # 否则「面线全部被共享」的墙段（如 d3 x=7031540 中段 5.4m）在输出中整段丢失。
+    for wgid, seg in self._t3_wall_segs.items():  # 循环
+        if wgid in self._t3_wall_seen:  # condition: membership test
+            continue  # 已有实体（主 gid 路径产出）
+        self._t3_wall_seen.add(wgid)
+        t = seg.get("thickness") or 0.0
+        s = min(seg["start"], seg["end"])
+        e = max(seg["start"], seg["end"])
+        if seg.get("orientation") == "h":  # condition: 水平墙
+            bbox = {"x": s, "y": seg["pos"] - t / 2.0,
+                    "width": e - s, "height": max(t, 1.0)}
+        else:  # 垂直墙
+            bbox = {"x": seg["pos"] - t / 2.0, "y": s,
+                    "width": max(t, 1.0), "height": e - s}
+        self._entity_counter += 1
+        entities.append(SemanticEntity(
+            entity_id=f"WALL_{self._entity_counter:03d}",
+            entity_type="wall",
+            bbox=bbox,
+            layer="WALL",
+            confidence=0.9,
+            properties={"_t3_wall_gid": wgid, "_t3_wall_seg": seg, "_t3_backfill": True},
+        ))
 
     # 归并同类重叠图元
     entities = _merge_overlapping(self, entities)

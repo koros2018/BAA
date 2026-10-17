@@ -28,6 +28,7 @@ import math
 import os
 import sys
 from typing import Dict, List, Optional, Tuple
+from unittest.mock import patch
 
 from src.baa_engine.drawing_parser import DrawingParser, RawPrimitive
 from src.baa_engine.parsers.t3_native import layer_tail
@@ -192,9 +193,15 @@ def baseline_predictions(result, box: List[float]) -> Dict[str, list]:
     for q in result.primitives:
         props = {k: v for k, v in q.properties.items() if not str(k).startswith("_t3")}
         stripped.append(RawPrimitive(q.dxf_type, q.layer, q.handle, q.bbox, props))
-    out = SemanticAnalyzer().analyze(
-        stripped, result.dimensions, block_refs=result.block_refs, max_entities=1000000
-    )
+    # 柱基线口径：T-A3 根因修复把核心图层规则 COLUMN: wall→column。
+    # baseline 代表「改造前」对照组，必须钉回 COLUMN→wall，否则修复泄漏进
+    # 对照组，柱改进幅度被低估（baseline F1 由真实的 ~0.07 虚高到 ~0.89）。
+    with patch.dict(
+        "src.baa_engine.semantic_analyzer.classify.LAYER_RULES", {"COLUMN": "wall"}
+    ):
+        out = SemanticAnalyzer().analyze(
+            stripped, result.dimensions, block_refs=result.block_refs, max_entities=1000000
+        )
     preds = {"door": [], "window": [], "column": []}
     for e in out["entities"]:
         etype = e.get("type") or e.get("entity_type")

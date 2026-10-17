@@ -46,6 +46,7 @@ class SemanticAnalyzer:
         self._classify_block_default = 0
         self._t3_window_seen = set()
         self._t3_wall_seen = set()
+        self._t3_wall_segs = {}
 
     def analyze(
         self,
@@ -75,6 +76,7 @@ class SemanticAnalyzer:
         self._classify_block_default = 0
         self._t3_window_seen = set()  # P127-T3: 每次分析重置窗线合并 gid
         self._t3_wall_seen = set()  # P127-T3: 每次分析重置墙实例合并 gid
+        self._t3_wall_segs = {}  # P127-T3: 每次分析重置共享面线墙实例回填表
 
         # ── 缓存检查：相同 primitives hash 秒级返回 ──────
         try:  # try: operation block

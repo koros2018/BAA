@@ -198,6 +198,40 @@ class TestT3ClassifyOverride:
         assert abs(seg["thickness"] - 200) < 1
         assert abs(walls[0]["bbox"]["height"] - 200) < 1
 
+    def test_shared_face_lines_keep_all_wall_instances(self):
+        """共线相邻墙段复用同一根长面线（二次配对长面复用）：面线 handle 被多个
+        墙实例共享时，每个实例都必须产出独立墙实体。
+        修复前 handle→gid 单值覆盖，「面线全部被共享」的中间墙段整段丢失
+        （d3 x=7031540 中段 5.4m 漏识别根因）。"""
+        t3 = {
+            "walls": [
+                # 中段墙：两根面线 A/B 分别被下段/上段墙共享，自身无独占面线
+                {"orientation": "v", "pos": 100.0, "start": 2000.0, "end": 4000.0,
+                 "thickness": 200.0, "single": False, "handles": ["A", "B"]},
+                {"orientation": "v", "pos": 100.0, "start": 0.0, "end": 1800.0,
+                 "thickness": 200.0, "single": False, "handles": ["C", "A"]},
+                {"orientation": "v", "pos": 100.0, "start": 4200.0, "end": 6000.0,
+                 "thickness": 200.0, "single": False, "handles": ["D", "B"]},
+            ],
+            "doors": [], "windows": [], "columns": [],
+        }
+        prims = [
+            _prim("LINE", "WALL", "A", {"x": 0, "y": 0, "width": 0, "height": 5400}),
+            _prim("LINE", "WALL", "B", {"x": 200, "y": 0, "width": 0, "height": 6000}),
+            _prim("LINE", "WALL", "C", {"x": 200, "y": 0, "width": 0, "height": 1800}),
+            _prim("LINE", "WALL", "D", {"x": 200, "y": 4200, "width": 0, "height": 1800}),
+        ]
+        attach_t3_markers(prims, t3)
+        # 共享面线必须携带全部 gid
+        assert prims[0].properties["_t3_wall_gids"] == [0, 1]
+        assert prims[1].properties["_t3_wall_gids"] == [0, 2]
+
+        out = SemanticAnalyzer().analyze(prims, [], max_entities=100000)
+        segs = [e["properties"]["_t3_wall_seg"] for e in out["entities"]
+                if e["type"] == "wall" and e.get("properties", {}).get("_t3_wall_seg")]
+        spans = sorted((s["start"], s["end"]) for s in segs)
+        assert spans == [(0.0, 1800.0), (2000.0, 4000.0), (4200.0, 6000.0)]
+
     def test_layer_rule_without_t3_markers(self):
         """无 T3 标记时：门块仍按 WINDOW 层错分为 window（块名语义未接入的已知缺陷）；
         COLUMN 层经 T-A3 根因修复后正确归为 column（原误映为 wall）。"""
