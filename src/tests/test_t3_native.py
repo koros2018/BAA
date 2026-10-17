@@ -1,7 +1,9 @@
 """P127-T3 天正 T3 原生识别器与分类覆盖测试（合成 DXF，不依赖真实图纸）。"""
 
 import ezdxf
+import pytest
 
+from src.baa_engine.parsers import t3_native
 from src.baa_engine.parsers.t3_native import (
     attach_t3_markers,
     detect_t3_signature,
@@ -128,6 +130,128 @@ class TestT3NativeRecognizer:
         t3 = extract_t3(doc)
         assert t3["status"]["is_t3"] is False
         assert t3["walls"] == [] and t3["doors"] == []
+
+
+# ── 分解态矩形柱（LWPOLYLINE）──────────────────────────────
+
+
+def _make_exploded_column_room(width=300.0, *, closed=False, col_layer="COLUMN"):
+    """6000x4200 双线墙房间（无门块/柱块），COLUMN 层放一个未闭合的 8 点矩形柱。
+
+    平面判定仅能靠分解态柱（col_blocks 统计 poly 条目）通过——同时回归
+    「无门库块图纸也能选为平面」的覆盖缺口。
+    """
+    doc = ezdxf.new("R2010")
+    _add_layers(doc)
+    msp = doc.modelspace()
+
+    def wall(x1, y1, x2, y2):
+        msp.add_line((x1, y1), (x2, y2), dxfattribs={"layer": "WALL"})
+
+    for y in (0, 200, 4000, 4200):
+        wall(0, y, 6000, y)
+    for x in (0, 200, 5800, 6000):
+        wall(x, 0, x, 4200)
+
+    x0, y0, s = 400.0, 3400.0, width
+    pts = [(x0, y0), (x0, y0), (x0 + s, y0), (x0 + s, y0),
+           (x0 + s, y0 + s), (x0 + s, y0 + s), (x0, y0 + s), (x0, y0)]
+    msp.add_lwpolyline(pts, close=closed, dxfattribs={"layer": col_layer})
+    return doc
+
+
+class TestExplodedPolylineColumns:
+    def test_unclosed_8pt_rectangle_recognized(self):
+        """A23 真实形态：closed 位未置、首尾点重合的 8 点矩形多段线。"""
+        doc = _make_exploded_column_room(300.0)
+        t3 = extract_t3(doc)
+        assert len(t3["regions"]) == 1  # 无门块，靠 poly 柱通过平面判定
+        cols = t3["columns"]
+        assert len(cols) == 1
+        col = cols[0]
+        assert col["source"] == "polyline"
+        assert abs(col["x"] - 550) < 1 and abs(col["y"] - 3550) < 1
+        assert abs(col["width"] - 300) < 1 and abs(col["height"] - 300) < 1
+
+    def test_closed_rectangle_recognized(self):
+        doc = _make_exploded_column_room(378.0, closed=True)
+        t3 = extract_t3(doc)
+        cols = [c for c in t3["columns"] if c["source"] == "polyline"]
+        assert len(cols) == 1
+        assert abs(cols[0]["width"] - 378) < 1
+
+    def test_non_column_outlines_rejected(self):
+        """2 点引出线、过小柱、细长墙形多段线、column-line 层均不得识别为柱。"""
+        doc = ezdxf.new("R2010")
+        _add_layers(doc)
+        msp = doc.modelspace()
+        # 2 点"多段线"（引出线）
+        msp.add_lwpolyline([(0, 0), (1000, 0)], dxfattribs={"layer": "COLUMN"})
+        # 60x60 过小
+        msp.add_lwpolyline([(0, 0), (60, 0), (60, 60), (0, 0)],
+                           close=True, dxfattribs={"layer": "COLUMN"})
+        # 3000x200 细长（长宽比 15）
+        msp.add_lwpolyline([(0, 0), (3000, 0), (3000, 200), (0, 0)],
+                           close=True, dxfattribs={"layer": "COLUMN"})
+        # 300x300 但在 COLUMN-LINE 层（尾段名不精确匹配）
+        msp.add_lwpolyline([(0, 0), (300, 0), (300, 300), (0, 0)],
+                           close=True, dxfattribs={"layer": "COLUMN-LINE"})
+        t3 = extract_t3(doc, force=True)
+        assert t3["columns"] == []
+
+    def test_polyline_column_marker_and_classify(self):
+        doc = _make_exploded_column_room(300.0)
+        t3 = extract_t3(doc)
+        col = t3["columns"][0]
+        prims = [
+            _prim("LWPOLYLINE", "COLUMN", col["handle"],
+                  {"x": 400, "y": 3400, "width": 300, "height": 300})
+        ]
+        attach_t3_markers(prims, t3)
+        assert prims[0].properties["_t3_native"] == "column"
+
+        out = SemanticAnalyzer().analyze(prims, [], max_entities=100000)
+        types = [e["type"] for e in out["entities"]]
+        assert types.count("column") == 1
+
+
+# ── 代理实体诊断 ────────────────────────────────────────────
+
+
+class _FakeEnt:
+    def __init__(self, t):
+        self._t = t
+
+    def dxftype(self):
+        return self._t
+
+
+class TestProxyEntityDiagnosis:
+    def test_counter_covers_both_dxftypes(self):
+        msp = [_FakeEnt("LINE"), _FakeEnt("PROXY_ENTITY"),
+               _FakeEnt("ACAD_PROXY_ENTITY"), _FakeEnt("LWPOLYLINE")]
+        assert t3_native._count_proxy_entities(msp) == 2
+
+    def test_counter_swallows_iter_errors(self):
+        class BadMsp:
+            def __iter__(self):
+                raise RuntimeError("boom")
+
+        assert t3_native._count_proxy_entities(BadMsp()) == 0
+
+    def test_extract_flags_proxy_form_alongside_components(self, monkeypatch):
+        """真实形态（节能专篇）：2 个 ACAD_PROXY_ENTITY 与分解态构件共存，
+        storage_form 必须进 proxy_entity 且保留诊断，同时不丢弃已解出构件。"""
+        doc = _make_t3_doc()
+        monkeypatch.setattr(t3_native, "_count_proxy_entities", lambda msp: 2)
+        t3 = extract_t3(doc)
+        st = t3["status"]
+        assert st["proxy_count"] == 2
+        assert st["storage_form"] == "proxy_entity"
+        assert st["diagnostic"]
+        # 已解出的构件不受影响
+        assert len(t3["doors"]) == 1
+        assert len(t3["columns"]) >= 1
 
 
 # ── 标记落库与分类覆盖 ─────────────────────────────────────

@@ -51,6 +51,10 @@ WINDOW_MAX_SHORT = 800.0     # 窗符号最大短边
 WINDOW_WALL_NEAR = 600.0     # 窗中心到墙面的最大距离
 COLUMN_MIN_R = 50.0
 COLUMN_MAX_R = 1000.0
+# 分解态矩形柱（LWPOLYLINE 轮廓，天正导出时柱被分解）的判据
+COLUMN_MIN_EDGE = 80.0     # 柱轮廓最短边（mm）
+COLUMN_MAX_EDGE = 1200.0   # 柱轮廓最长边（mm）
+COLUMN_MAX_ASPECT = 4.0    # 柱轮廓长宽比上限（墙柱也允许，但排除长墙误纳）
 
 REGION_MIN_AREA = 8.0         # m²
 REGION_MAX_AREA = 50000.0
@@ -169,6 +173,56 @@ def _point_seg_dist(px: float, py: float, x1: float, y1: float, x2: float, y2: f
 # ── 实体采集 ────────────────────────────────────────────────
 
 
+def _polyline_points(entity) -> Optional[List[Tuple[float, float]]]:
+    """取 LWPOLYLINE/POLYLINE 的 2D 顶点；失败返回 None。"""
+    t = entity.dxftype()
+    try:
+        if t == "LWPOLYLINE":
+            return [(float(x), float(y)) for x, y, *_ in entity.get_points("xy")]
+        if t == "POLYLINE":
+            return [(float(v.dxf.location.x), float(v.dxf.location.y)) for v in entity.vertices]
+    except Exception:
+        return None
+    return None
+
+
+def _column_outline(entity) -> Optional[Dict[str, Any]]:
+    """识别分解态矩形柱轮廓（天正导出时柱被分解为 COLUMN 层 LWPOLYLINE）。
+
+    真实形态：8 顶点近闭合矩形（角点重复/未置 closed 位），边长 120~1200mm，
+    如 A23 云计算中心平面的 378×378 / 300×300 / 120×120 柱。
+    排除：column-line 层 2 点引出线、填充边界长多边形。
+    """
+    if layer_tail(entity.dxf.layer) != LAYER_COLUMN:
+        return None
+    pts = _polyline_points(entity)
+    if not pts or len(pts) < 4:
+        return None
+    # 闭合判定：closed 位或首尾点重合（导出器常不置 closed 位但顶点回到起点）
+    closed = bool(getattr(entity, "closed", False) or getattr(entity, "is_closed", False))
+    if not closed:
+        fx, fy = pts[0]
+        lx, ly = pts[-1]
+        if math.hypot(fx - lx, fy - ly) > 1.0:
+            return None
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    w, h = x1 - x0, y1 - y0
+    short, long = min(w, h), max(w, h)
+    if short < COLUMN_MIN_EDGE or long > COLUMN_MAX_EDGE:
+        return None
+    if long / max(short, 1e-6) > COLUMN_MAX_ASPECT:
+        return None
+    return {
+        "bbox": (x0, y0, x1, y1),
+        "x": (x0 + x1) / 2.0,
+        "y": (y0 + y1) / 2.0,
+        "width": w,
+        "height": h,
+    }
+
+
 def _collect_items(msp) -> List[dict]:
     """遍历模型空间一次，采集聚类/构件所需的轻量条目。
 
@@ -177,6 +231,8 @@ def _collect_items(msp) -> List[dict]:
                "axis":0|1|-1}
       insert: {"kind":"insert","bbox":点 bbox,"layer","handle","block","x","y","rot"}
       circle: {"kind":"circle","bbox","layer","handle","x","y","r"}
+      poly:   {"kind":"poly","bbox","layer","handle","x","y","width","height"}
+              （分解态矩形柱轮廓）
     """
     items: List[dict] = []
     for e in msp:
@@ -197,6 +253,21 @@ def _collect_items(msp) -> List[dict]:
                             "axis": _axis_aligned(x1, y1, x2, y2),
                         }
                     )
+                if t in ("LWPOLYLINE", "POLYLINE"):
+                    outline = _column_outline(e)
+                    if outline:
+                        items.append(
+                            {
+                                "kind": "poly",
+                                "bbox": outline["bbox"],
+                                "layer": LAYER_COLUMN,
+                                "handle": handle,
+                                "x": outline["x"],
+                                "y": outline["y"],
+                                "width": outline["width"],
+                                "height": outline["height"],
+                            }
+                        )
             elif t == "INSERT":
                 p = e.dxf.insert
                 items.append(
@@ -319,7 +390,10 @@ def _select_plan_regions(items: Sequence[dict]) -> List[dict]:
             if it["kind"] == "insert" and it["block"].upper().startswith(DOOR_BLOCK_PREFIX)
         )
         col_blocks = sum(
-            1 for it in group if it["kind"] == "insert" and it["layer"] == LAYER_COLUMN
+            1
+            for it in group
+            if (it["kind"] == "insert" and it["layer"] == LAYER_COLUMN)
+            or it.get("kind") == "poly"
         )
         win_ents = sum(1 for it in group if it["kind"] != "insert" and it["layer"] == LAYER_WINDOW)
         is_plan = (
@@ -676,10 +750,36 @@ def _columns_for_region(region_items: Sequence[dict], region_idx: int) -> List[d
                         "region": region_idx,
                     }
                 )
+        elif it["kind"] == "poly":
+            cols.append(
+                {
+                    "kind": "column",
+                    "x": it["x"],
+                    "y": it["y"],
+                    "width": round(it["width"], 1),
+                    "height": round(it["height"], 1),
+                    "block": None,
+                    "handle": it["handle"],
+                    "source": "polyline",
+                    "region": region_idx,
+                }
+            )
     return cols
 
 
 # ── 主入口 ──────────────────────────────────────────────────
+
+
+# 代理实体 dxftype：R2007 及更早为 PROXY_ENTITY，AC1024(R2010)+ 为 ACAD_PROXY_ENTITY。
+# 只认旧名会让高版本天正导出 DXF 的代理实体漏报，storage_form 永不进 proxy_entity。
+PROXY_ENTITY_TYPES = ("PROXY_ENTITY", "ACAD_PROXY_ENTITY")
+
+
+def _count_proxy_entities(msp) -> int:
+    try:
+        return sum(1 for e in msp if e.dxftype() in PROXY_ENTITY_TYPES)
+    except Exception:
+        return 0
 
 
 def extract_t3(doc, *, force: bool = False) -> Dict[str, Any]:
@@ -702,11 +802,7 @@ def extract_t3(doc, *, force: bool = False) -> Dict[str, Any]:
 
     msp = doc.modelspace()
     items = _collect_items(msp)
-    proxy_count = 0
-    try:
-        proxy_count = sum(1 for e in msp if e.dxftype() == "PROXY_ENTITY")
-    except Exception:
-        proxy_count = 0
+    proxy_count = _count_proxy_entities(msp)
 
     regions = _select_plan_regions(items)
 
@@ -770,7 +866,8 @@ def extract_t3(doc, *, force: bool = False) -> Dict[str, Any]:
 def attach_t3_markers(primitives: Iterable, t3_components: Optional[Dict[str, Any]]) -> Iterable:
     """把 T3 识别结果按 handle 落到 RawPrimitive.properties（原地修改）。
 
-    - 门/柱 INSERT：``_t3_native = "door"|"column"``，分类时覆盖图层误判；
+    - 门/柱：``_t3_native = "door"|"column"``，分类时覆盖图层误判；柱覆盖
+      块（_FZH/_FZK）、圆与分解态矩形多段线三种来源；
     - 窗线：``_t3_native="window"`` + ``_t3_window_gid`` + ``_t3_window_bbox``，
       分类循环每个 gid 仅产出一个窗实体（四线符号合并为单实例）；
     - 窗库块 INSERT：``_t3_native="window"``（单图元即单实例）；
@@ -800,7 +897,9 @@ def attach_t3_markers(primitives: Iterable, t3_components: Optional[Dict[str, An
             gid_by_handle[str(hh)] = gid
     for col in t3_components.get("columns", []):
         h = col.get("handle")
-        if h and col.get("source") == "block":
+        if h:
+            # 三种来源都挂标记：块柱（_FZH）、圆截面柱、分解态矩形多段线柱；
+            # 此前仅块柱挂标记，圆/多段线柱只能靠图层规则兜底，非标图层会漏。
             handle_kind[str(h)] = "column"
     # 一根面线可被同中心线的多个共线墙实例复用（二次配对长面复用补交接缺口），
     # handle → 墙 gid 是一对多：必须全部保留。单值覆盖会让「面线全部被共享」的
