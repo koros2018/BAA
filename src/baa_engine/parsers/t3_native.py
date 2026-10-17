@@ -802,7 +802,11 @@ def attach_t3_markers(primitives: Iterable, t3_components: Optional[Dict[str, An
         h = col.get("handle")
         if h and col.get("source") == "block":
             handle_kind[str(h)] = "column"
-    wall_gid_by_handle: Dict[str, int] = {}
+    # 一根面线可被同中心线的多个共线墙实例复用（二次配对长面复用补交接缺口），
+    # handle → 墙 gid 是一对多：必须全部保留。单值覆盖会让「面线全部被共享」的
+    # 墙实例（如 d3 x=7031540 中段 5.4m，4 根面线均被上下相邻段复用）在标记中
+    # 彻底消失，分类输出丢整段墙。
+    wall_gids_by_handle: Dict[str, List[int]] = {}
     wall_seg: Dict[int, Dict[str, Any]] = {}
     for wgid, wall in enumerate(t3_components.get("walls", [])):
         seg = {
@@ -813,9 +817,9 @@ def attach_t3_markers(primitives: Iterable, t3_components: Optional[Dict[str, An
             "thickness": wall.get("thickness"),
             "single": bool(wall.get("single")),
         }
+        wall_seg[wgid] = seg
         for h in wall.get("handles") or []:
-            wall_gid_by_handle[str(h)] = wgid
-            wall_seg[wgid] = seg
+            wall_gids_by_handle.setdefault(str(h), []).append(wgid)
 
     for prim in primitives:
         handle = str(getattr(prim, "handle", "") or "")
@@ -834,8 +838,12 @@ def attach_t3_markers(primitives: Iterable, t3_components: Optional[Dict[str, An
                 "width": bx1 - bx0,
                 "height": by1 - by0,
             }
-        wgid = wall_gid_by_handle.get(handle)
-        if wgid is not None:
-            prim.properties["_t3_wall_gid"] = wgid
-            prim.properties["_t3_wall_seg"] = wall_seg[wgid]
+        wgids = wall_gids_by_handle.get(handle)
+        if wgids:
+            # 多实例共享面线：全量 gid/seg 落库（分类回填保证每个实例都产实体）；
+            # 兼容字段 _t3_wall_gid/_t3_wall_seg 取首个（gid 最小的）实例。
+            prim.properties["_t3_wall_gids"] = list(wgids)
+            prim.properties["_t3_wall_segs"] = {g: wall_seg[g] for g in wgids}
+            prim.properties["_t3_wall_gid"] = wgids[0]
+            prim.properties["_t3_wall_seg"] = wall_seg[wgids[0]]
     return primitives
