@@ -6,6 +6,8 @@ from .models import SemanticEntity
 from .merge import _merge_overlapping
 from .meta import _parse_meta_entities
 from .room import _is_near_closed
+from .block_semantics import BLOCK_FALLBACK_TYPE, classify_block_name
+from .legend_rules import lookup_legend
 from ..drawing_parser import RawPrimitive
 
 
@@ -18,7 +20,19 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
 
     entities = []
 
+    # 未分类率统计：total 为进入循环的图元数。
+    # unclassified = 被丢弃的 unknown；block_default = INSERT 块语义未覆盖回退 wall。
+    if not hasattr(self, "_classify_total"):
+        self._classify_total = 0
+        self._classify_unclassified = 0
+        self._classify_block_default = 0
+    if not hasattr(self, "_t3_window_seen"):
+        self._t3_window_seen = set()
+    if not hasattr(self, "_t3_wall_seen"):
+        self._t3_wall_seen = set()
+
     for prim in primitives:
+        self._classify_total += 1
         # P101: PDF 源数据预过滤——来自 pdf_parser 的线条全在 "lines" 层，
         # 大量短装饰线（<300mm）和短斜线（标注线/文字笔画）混入。
         # 这些线段对建筑审查无意义，直接跳过可消除 60% 噪声。
@@ -33,8 +47,43 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 if 5 < angle < 85 or 95 < angle < 175:
                     continue
 
-        # 图层规则匹配
-        entity_type = _classify_by_layer(self, prim.layer)
+        # P127-T3: 天正原生识别结果覆盖图层规则。
+        # 真实 T3 形态：门 = WINDOW 层上的 $DorLib2D 库块（图层规则会错分为 window）；
+        # 柱 = COLUMN 层上的 _FZH 块；窗 = 四线符号或 WINLIB 块，四线需按 gid 合并；
+        # 墙 = WALL 层双线，按识别器实例 gid 合并为单墙（中心线+厚度），
+        # 否则两个面各产一个墙实体、无厚度/长度实例语义。
+        t3_native = prim.properties.get("_t3_native")
+        t3_gid = prim.properties.get("_t3_window_gid")
+        t3_wall_gid = prim.properties.get("_t3_wall_gid")
+        bbox_override = None
+        if t3_wall_gid is not None:
+            if t3_wall_gid in self._t3_wall_seen:
+                continue
+            self._t3_wall_seen.add(t3_wall_gid)
+            entity_type = "wall"
+            seg = prim.properties.get("_t3_wall_seg")
+            if seg:
+                t = seg.get("thickness") or 0.0
+                s = min(seg["start"], seg["end"])
+                e = max(seg["start"], seg["end"])
+                if seg.get("orientation") == "h":
+                    bbox_override = {"x": s, "y": seg["pos"] - t / 2.0,
+                                     "width": e - s, "height": max(t, 1.0)}
+                else:
+                    bbox_override = {"x": seg["pos"] - t / 2.0, "y": s,
+                                     "width": max(t, 1.0), "height": e - s}
+        elif t3_native in ("door", "column", "window"):
+            if t3_gid is not None:
+                if t3_gid in self._t3_window_seen:
+                    continue
+                self._t3_window_seen.add(t3_gid)
+                bbox_override = prim.properties.get("_t3_window_bbox")
+            entity_type = t3_native if t3_gid is None else "window"
+        else:
+            entity_type = None
+
+        if entity_type is None:
+            entity_type = _classify_by_layer(self, prim.layer)
         # P80+P82 修复：图层规则返回"other"时，让几何分类兜底为wall，
         # 否则闭合多边形（如 DOTE 层实线围合区域）被误判为非建筑实体，
         # 导致 _merge_line_chains_to_rooms 无法找到 room，疏散分析返回空。
@@ -51,7 +100,11 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 # 真实 DOOR_FIRE/SLAB/窗图层返回 "unknown" 走几何兜底保留 door/window
                 entity_type = geo_type
 
+        if prim.properties.get("_block_default"):
+            self._classify_block_default += 1
+
         if entity_type == "unknown":  # condition: entity_type == "unknown":
+            self._classify_unclassified += 1
             continue  # 继续循环
 
         self._entity_counter += 1
@@ -68,7 +121,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         entity = SemanticEntity(
             entity_id=f"{entity_type.upper()}_{self._entity_counter:03d}",
             entity_type=entity_type,
-            bbox=prim.bbox,
+            bbox=bbox_override or prim.bbox,  # P127-T3: 窗线合并后用整窗 bbox
             layer=prim.layer,
             confidence=0.9 if entity_type != "unknown" else 0.5,  # compare: inequality
             properties=cleaned_props,
@@ -488,153 +541,20 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "accessible_path"
         return "text"
 
-    # INSERT 块：从块名推断实体类型（完整映射表）
+    # INSERT 块：从块名推断实体类型（规则表见 block_semantics）
     if dxf_type == "INSERT":  # condition: dxf_type == "INSERT":
-        block_name = props.get("block_name", "").upper()
-        # ── 防火门/防火窗 ──
-        if "FIRE_DOOR" in block_name or "防火门" in block_name:  # check: membership test
-            return "fire_door"
-        if "FIRE_WINDOW" in block_name or "防火窗" in block_name:  # check: membership test
-            return "fire_window"
-        # ── 建筑构件 ──
-        if "DOOR" in block_name or "门" in block_name:  # check: membership test
-            return "door"
-        if "WINDOW" in block_name or "窗" in block_name:  # check: membership test
-            return "window"
-        if "STAIR" in block_name or "ST" in block_name:  # check: membership test
-            return "stair"
-        if "COLUMN" in block_name or "柱" in block_name:  # check: membership test
-            return "column"
-        # ── 出口/疏散指示 ──
-        if "EXIT" in block_name or "出口" in block_name:  # check: membership test
-            return "exit"
-        if (
-            "EXIT_SIGN" in block_name or "SIGN" in block_name or "疏散指示" in block_name
-        ):  # check: membership test
-            return "exit_sign"
-        # ── 消防设施 ──
-        if "HYDRANT" in block_name or "消火栓" in block_name:  # check: membership test
-            return "fire_hydrant"
-        if (
-            "SPRINKLER" in block_name or "喷淋" in block_name or "洒水" in block_name
-        ):  # check: membership test
-            return "sprinkler"
-        if (
-            "FIRE_EXT" in block_name or "灭火器" in block_name or "灭火" in block_name
-        ):  # check: membership test
-            return "fire_extinguisher"
-        if "SMOKE_DETECTOR" in block_name or "烟感" in block_name:  # check: membership test
-            return "smoke_detector"
-        if "FIRE_ALARM" in block_name or "报警" in block_name:  # check: membership test
-            return "fire_alarm"
-        if "WATER_TANK" in block_name or "水箱" in block_name:  # check: membership test
-            return "water_tank"
-        if (
-            "WATER_RESERVOIR" in block_name or "消防水池" in block_name or "水池" in block_name
-        ):  # check: membership test
-            return "water_reservoir"
-        if "FIRE_ELEV" in block_name or "消防电梯" in block_name:  # check: membership test
-            return "fire_elevator"
-        if (
-            "SPEAKER" in block_name or "广播" in block_name or "应急广播" in block_name
-        ):  # check: membership test
-            return "emergency_broadcast"
-        if "EVAC_LIGHT" in block_name or "应急照明" in block_name:  # check: membership test
-            return "evacuation_lighting"
-        if "CURTAIN" in block_name or "卷帘" in block_name:  # check: membership test
-            return "fire_curtain"
-        # ── 电气设备（新增） ──
-        if (
-            "DISTRIBUTION_BOX" in block_name or "配电箱" in block_name or "配电" in block_name
-        ):  # check: membership test
-            return "distribution_box"
-        if (
-            "EMERGENCY_LIGHT" in block_name or "应急照明" in block_name or "应急灯" in block_name
-        ):  # check: membership test
-            return "emergency_lighting"
-        if (
-            "SMOKE_DETECTOR" in block_name or "烟感" in block_name or "烟探测器" in block_name
-        ):  # check: membership test
-            return "smoke_detector"
-        if (
-            "HEAT_DETECTOR" in block_name or "温感" in block_name or "温探测器" in block_name
-        ):  # check: membership test
-            return "heat_detector"
-        if (
-            "ALARM_BUTTON" in block_name or "报警按钮" in block_name or "手报" in block_name
-        ):  # check: membership test
-            return "alarm_button"
-        if (
-            "GAS_SUPPRESSION" in block_name or "气体灭火" in block_name or "气灭" in block_name
-        ):  # check: membership test
-            return "gas_suppression"
-        if (
-            "BELL" in block_name or "警铃" in block_name or "声光" in block_name
-        ):  # check: membership test
-            return "fire_bell"
-        # ── P70 泵控制柜（必须在通用 PUMP 之前，避免误匹配） ──
-        if (
-            "PUMP_CONTROLLER" in block_name
-            or "PUMP_CTRL" in block_name
-            or "PUMPCTRL" in block_name
-            or "泵控" in block_name
-            or "启泵柜" in block_name
-            or "水泵控制柜" in block_name
-        ):
-            return "pump_controller"
-        # ── P70 消防泵/水泵接合器/启泵按钮 ──
-        if (
-            "FIRE_PUMP" in block_name
-            or "SPRINKLER_PUMP" in block_name
-            or "STABLE_PRESSURE_PUMP" in block_name
-            or "消防泵" in block_name
-            or "喷淋泵" in block_name
-            or "稳压泵" in block_name
-            or "消火栓泵" in block_name
-            or "水泵" in block_name
-            or "PUMP" in block_name
-        ):  # check: membership test
-            return "fire_pump"
-        if (
-            "SIAMESE" in block_name
-            or "FIRE_DEPT_CONN" in block_name
-            or "SIAMESE_CONN" in block_name
-            or "水泵接合器" in block_name
-            or "接合器" in block_name
-        ):  # check: membership test
-            return "siamese_connection"
-        if (
-            "CALL_POINT" in block_name or "消火栓按钮" in block_name or "栓" in block_name
-        ):  # check: membership test
-            return "hydrant_call_button"
-        if (
-            "VESDA" in block_name or "极早期" in block_name or "吸气式" in block_name
-        ):  # check: membership test
-            return "vesda_detector"
-        if (
-            "EMERGENCY_POWER" in block_name or "应急电源" in block_name or "EPS" in block_name
-        ):  # check: membership test
-            return "emergency_power"
-        # ── 其他楼层/空间 ──
-        if (
-            "ROOM" in block_name or "房间" in block_name or "室" in block_name
-        ):  # check: membership test
-            return "room"
-        if (
-            "CORRIDOR" in block_name or "走廊" in block_name or "走道" in block_name
-        ):  # check: membership test
-            return "corridor"
-        if (
-            "SHAFT" in block_name or "井道" in block_name or "竖井" in block_name
-        ):  # check: membership test
-            return "shaft"
-        if "ELEVATOR" in block_name or "电梯" in block_name:  # check: membership test
-            return "elevator"
-        if "LOBBY" in block_name or "前室" in block_name:  # check: membership test
-            return "lobby"
-        if "FIRE_ZONE" in block_name or "防火分区" in block_name:  # check: membership test
-            return "fire_zone"
-        # ── 未知块名 → 回退到 wall ──
-        return "wall"
+        block_name = props.get("block_name", "")
+        hit = classify_block_name(block_name)
+        if hit:
+            return hit
+        # 图例兜底：块属性（ATTRIB）文本命中图例表
+        for v in (props.get("block_attribs") or {}).values():
+            lg = lookup_legend(str(v))
+            if lg:
+                return lg
+        # 块名/图例均未命中 → 语义回退。标记供未分类率统计（T-A2）单独计量：
+        # INSERT 兜底为 wall 属于「块语义未覆盖」，不应计入已分类。
+        props["_block_default"] = True
+        return BLOCK_FALLBACK_TYPE
 
     return "unknown"

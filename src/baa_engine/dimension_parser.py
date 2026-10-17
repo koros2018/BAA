@@ -24,6 +24,15 @@ logger = logging.getLogger(__name__)
 from typing import List, Dict
 from pathlib import Path
 
+# 评分/投影/单位换算与语义分析主干共用同一套实现（relations.py），
+# 避免 dimension_parser 与 relations._bind_dimensions 出现两套并行逻辑。
+from .semantic_analyzer.relations import (
+    _dim_orientation,
+    _dim_projection_ratio,
+    _dim_match_score,
+    _measurement_to_meters,
+)
+
 
 class DimensionParser:
     """尺寸标注解析器
@@ -277,6 +286,7 @@ class DimensionParser:
                     "y1": y1,
                     "x2": x2,
                     "y2": y2,
+                    "bbox": bbox,
                 }
             )
 
@@ -290,22 +300,10 @@ class DimensionParser:
         for dim in dimensions:
             tmid = dim.get("text_midpoint", {})
             dmx, dmy = tmid.get("x", 0), tmid.get("y", 0)
-            dp2 = dim.get("defpoint2", {})
-            dp3 = dim.get("defpoint3", {})
 
-            # 通过 defpoint 向量判断标注方向，与 classify_dimensions 保持逻辑一致
-            # 系数 2 是经验值，允许小角度偏差
-            dx_vec = abs(dp3.get("x", 0) - dp2.get("x", 0))
-            dy_vec = abs(dp3.get("y", 0) - dp2.get("y", 0))
-            is_horizontal = dx_vec > dy_vec * 2
-            is_vertical = dy_vec > dx_vec * 2
-
-            # defpoint 的投影范围：标注线段在 X/Y 轴上的覆盖区间
-            # 用于判断标注是否"跨过"了某个实体（如门被水平标注线穿过）
-            d2x, d2y = dp2.get("x", 0), dp2.get("y", 0)
-            d3x, d3y = dp3.get("x", 0), dp3.get("y", 0)
-            dp_xmin, dp_xmax = min(d2x, d3x), max(d2x, d3x)
-            dp_ymin, dp_ymax = min(d2y, d3y), max(d2y, d3y)
+            # 标注方向与 defpoint 投影重叠度：复用 relations 共享实现，
+            # 与 relations._bind_dimensions 保持单一逻辑源（消除并行实现）
+            orientation = _dim_orientation(dim)
 
             best_dist = float("inf")
             best_idx = None
@@ -319,35 +317,10 @@ class DimensionParser:
                 if dist > max_distance * 2000:
                     continue
 
-                # 投影约束：DIM 的 defpoint 在实体 bbox 垂直/水平方向的重叠比例
-                # 这是 V2 策略的核心改进：水平标注的 y 方向必须与实体的 y 范围有重叠
-                # 垂直标注的 x 方向必须与实体的 x 范围有重叠
-                if is_horizontal:
-                    # 水平标注：检查 y 方向投影重叠（标注线应与实体的 y 高度有交集）
-                    proj_overlap = max(0, min(info["y2"], dp_ymax) - max(info["y1"], dp_ymin))
-                    ent_h = info["y2"] - info["y1"]
-                    if ent_h > 0:
-                        proj_ratio = proj_overlap / ent_h
-                    else:
-                        proj_ratio = 0
-                elif is_vertical:
-                    # 垂直标注：检查 x 方向投影重叠
-                    proj_overlap = max(0, min(info["x2"], dp_xmax) - max(info["x1"], dp_xmin))
-                    ent_w = info["x2"] - info["x1"]
-                    if ent_w > 0:
-                        proj_ratio = proj_overlap / ent_w
-                    else:
-                        proj_ratio = 0
-                else:
-                    # 斜向标注无法用轴对齐投影约束，置零评分
-                    proj_overlap = 0
-                    proj_ratio = 0
-
-                # 组合评分公式：score = distance * (1.5 - proj_ratio)
-                # 1.5 是常数偏移，确保 proj_ratio=0 时不降权，proj_ratio=1 时权重降至 0.5
-                # 即投影完全重叠时距离影响减半，投影无重叠时距离影响不变
-                # 这优先选择投影重叠度高的实体作为最佳匹配
-                score = dist * (1.5 - min(proj_ratio, 1.0))
+                # 投影约束 + 组合评分：score = dist * (1.5 - proj_ratio)
+                # 投影重叠度越高距离权重越低，优先选中被标注线穿过/正对的实体
+                proj_ratio = _dim_projection_ratio(dim, info["bbox"], orientation)
+                score = _dim_match_score(dist, proj_ratio)
 
                 # 评分接近（差 < 1）时选投影重叠度更高的实体
                 if score < best_dist or (
@@ -359,43 +332,35 @@ class DimensionParser:
 
             if best_idx is not None:
                 meas = dim.get("measurement", 0)
+                # 单位换算：复用 relations 共享实现，mm→m 判据单一来源
+                meas_m = _measurement_to_meters(meas)
+                if meas_m is None:
+                    # 0/缺失标注不注入
+                    continue
 
                 if "properties" not in entities[best_idx]:
                     entities[best_idx]["properties"] = {}
 
                 props = entities[best_idx]["properties"]
 
-                # 单位转换策略（V2 优化）：
-                # 建筑图纸的单位混乱是常见问题——有的用 mm（如中国建筑标准），有的用 m（如城市规划）
-                # 原始测量值 > 100 且除以 1000 后落在 0.3~30m（建筑构件合理范围）时，推测为 mm→m 转换
-                # 阈值 100 的意义：门宽 100mm 不合理（实际 900mm），但除以 1000=0.9m 合理
-                # 阈值 10000 的意义：走廊 12000mm 不合理，但 12m 合理
-                # 0.3~30m 范围涵盖门（0.8-1.5m）、窗（1-3m）、走廊（1.2-3m）、楼梯（2-8m）
-                if meas > 100 and 0.3 < meas / 1000 < 30:
-                    meas_m = meas / 1000.0
-                elif meas > 10000 and 0.3 < meas / 1000 < 30:
-                    meas_m = meas / 1000.0
-                else:
-                    meas_m = meas
-
-                # 根据方向注入属性
-                # is_horizontal→width：建筑平面图中水平尺寸标注对应门/窗的宽度
-                # is_vertical→height：垂直尺寸标注对应门/窗的高度（层高方向）
-                # 但 YOLO 检测的宽度优先保留（props.get("detection_source") == "yolo"），
+                # 根据方向注入属性（orientation 由共享实现给出）
+                # 'h'→width：水平尺寸标注对应门/窗宽度
+                # 'v'→height：垂直尺寸标注对应高度（层高方向）
+                # 其他（斜向）→length：楼梯斜长/坡道长度等
+                # YOLO 检测的宽度优先保留（props.get("detection_source") == "yolo"），
                 # 因为 YOLO 的宽高比更准确，DIMENSION 只补充 YOLO 没有的维度
-                if is_horizontal:
+                if orientation == "h":
                     if "width" not in props or props.get("detection_source") != "yolo":
                         props["width"] = meas_m
                         props["clear_width"] = meas_m
                         props["_dimension_source"] = "dimension"
                         props["_dimension_raw"] = meas
-                elif is_vertical:
+                elif orientation == "v":
                     if "height" not in props:
                         props["height"] = meas_m
                         props["_dimension_source"] = "dimension"
                         props["_dimension_raw"] = meas
                 else:
-                    # 斜向标注注入 length，用于楼梯斜长/坡道长度等场景
                     props["length"] = meas_m
                     props["_dimension_source"] = "dimension"
                     props["_dimension_raw"] = meas

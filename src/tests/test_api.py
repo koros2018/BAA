@@ -40,6 +40,29 @@ def test_health():  # function: def test_health():
     assert data["version"]  # 断言
 
 
+def test_vision_layer_disabled_by_default():  # function: def test_vision_layer_disabled_by_default():
+    """Roadmap v4 T-A1：视觉/感知层默认关闭
+
+    - VISION_ENABLED 默认 False（主干为矢量原生解析）
+    - /health 上报 yolo_integrator 状态为 disabled
+    - /deconstruct 的 use_yolo 默认值为 False（不再默认触发光栅推理）
+    """
+    from src.api.api_globals import VISION_ENABLED  # import
+
+    assert VISION_ENABLED is False  # 默认关闭
+
+    response = client.get("/health")  # function call
+    assert response.status_code == 200  # equality check
+    subsystem = response.json()["subsystems"]["yolo_integrator"]  # 视觉子系统状态
+    assert subsystem["status"] == "disabled"  # 默认禁用
+
+    # 校验 /deconstruct 的 use_yolo 默认值（OpenAPI 参数 schema）
+    schema = client.get("/openapi.json").json()  # function call
+    params = schema["paths"]["/deconstruct"]["post"].get("parameters", [])  # 参数列表
+    use_yolo = next(p for p in params if p["name"] == "use_yolo")  # function call
+    assert use_yolo["schema"]["default"] is False  # 默认不启用 YOLO
+
+
 def test_deconstruct_unauthorized():  # function: def test_deconstruct_unauthorized():
     """测试未认证"""
     response = client.post("/deconstruct")  # function call

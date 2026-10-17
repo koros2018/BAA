@@ -26,6 +26,7 @@ __all__ = [
     "SUPPORTED_FORMATS",
     "MAX_FILE_SIZE_MB",
     "MAX_FILE_SIZE",
+    "VISION_ENABLED",
     "_api_key",
     "API_KEYS",
     "AUTH_SECRETS",
@@ -76,6 +77,17 @@ _REVIEW_CACHE_MAX = 100
 SUPPORTED_FORMATS: Set[str] = {"dxf", "dwg"}
 MAX_FILE_SIZE_MB = 50
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
+
+# ── 视觉/感知层开关（Roadmap v4 T-A1：默认关闭，止损感知路线） ──
+# YOLO/分割等光栅视觉方案在真实图纸上 mAP≈0（P84 已确认不可行），生产主干
+# 已改走矢量原生解析。此开关默认 False，仅在研究/专项验证时通过环境变量
+# BAA_VISION_ENABLED=true 临时开启。
+VISION_ENABLED: bool = os.getenv("BAA_VISION_ENABLED", "false").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # ── API 密钥 ──────────────────────────────────────────────
 API_KEYS: Set[str] = set()
