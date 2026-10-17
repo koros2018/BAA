@@ -1,0 +1,151 @@
+{
+ "drawing": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A4\\01建筑\\华为（深汕）云计算服务基地A4建筑图纸z.dxf",
+ "region_index": 15,
+ "region_bbox": [
+  2404538.197643362,
+  216786.2172564443,
+  2409538.19764327,
+  221786.2172562163
+ ],
+ "audit_box": [
+  2404538.197643362,
+  216786.2172564443,
+  2409538.19764327,
+  221786.2172562163
+ ],
+ "status": {
+  "is_t3": true,
+  "appid_tch": true,
+  "signature_layers": {
+   "WALL": 1,
+   "WINDOW": 1,
+   "COLUMN": 1,
+   "AXIS": 1,
+   "STAIR": 1
+  },
+  "signature_layer_count": 5,
+  "storage_form": "exploded_native_layers",
+  "proxy_count": 0,
+  "plan_region_count": 18,
+  "component_counts": {
+   "walls": 1188,
+   "doors": 224,
+   "windows": 93,
+   "columns": 12
+  },
+  "diagnostic": null
+ },
+ "counts": {
+  "doors": 0,
+  "windows": 0,
+  "columns": 2,
+  "walls": 6
+ },
+ "doors": [],
+ "windows": [],
+ "columns": [
+  {
+   "kind": "column",
+   "x": 2409338.19764327,
+   "y": 221586.2172562192,
+   "rotation": 0.0,
+   "block": "_FZH",
+   "handle": "11FF1",
+   "source": "block",
+   "region": 15
+  },
+  {
+   "kind": "column",
+   "x": 2409338.19764327,
+   "y": 219986.2172562162,
+   "rotation": 270.0,
+   "block": "_FZH",
+   "handle": "11FF2",
+   "source": "block",
+   "region": 15
+  }
+ ],
+ "walls": [
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 217040.0,
+   "start": 2404538.197643362,
+   "end": 2406538.197643397,
+   "thickness": 500.0,
+   "single": false,
+   "handles": [
+    "191B",
+    "191B"
+   ],
+   "region": 15
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 217040.0,
+   "start": 2404638.197643362,
+   "end": 2406438.197643397,
+   "thickness": 300.0,
+   "single": false,
+   "handles": [
+    "191C",
+    "191C"
+   ],
+   "region": 15
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 219790.0,
+   "start": 2409138.19764327,
+   "end": 2409538.19764327,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "18CE"
+   ],
+   "region": 15
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 2409340.0,
+   "start": 219786.2172562162,
+   "end": 221786.2172562163,
+   "thickness": 400.0,
+   "single": false,
+   "handles": [
+    "18CE",
+    "18CE"
+   ],
+   "region": 15
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 2406540.0,
+   "start": 216786.2172564443,
+   "end": 217286.2172562219,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "191B"
+   ],
+   "region": 15
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 2404540.0,
+   "start": 216786.2172564443,
+   "end": 217286.2172562219,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "191B"
+   ],
+   "region": 15
+  }
+ ]
+}

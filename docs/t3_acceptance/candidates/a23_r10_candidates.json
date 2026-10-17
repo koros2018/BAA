@@ -1,0 +1,564 @@
+{
+ "drawing": "D:\\BaiduNetdiskDownload\\测试图纸\\深汕云服务基地土建施工图纸1\\A2A3\\01建筑\\A23云计算中心平面图20170321x.dxf",
+ "region_index": 10,
+ "region_bbox": [
+  523792.1669198943,
+  72763.21771787643,
+  545894.742019912,
+  78842.69013943966
+ ],
+ "audit_box": [
+  523792.1669198943,
+  72763.21771787643,
+  545894.742019912,
+  78842.69013943966
+ ],
+ "status": {
+  "is_t3": true,
+  "appid_tch": true,
+  "signature_layers": {
+   "WALL": 1,
+   "WINDOW": 1,
+   "COLUMN": 1,
+   "AXIS": 1,
+   "STAIR": 1
+  },
+  "signature_layer_count": 5,
+  "storage_form": "exploded_native_layers",
+  "proxy_count": 0,
+  "plan_region_count": 28,
+  "component_counts": {
+   "walls": 2656,
+   "doors": 568,
+   "windows": 350,
+   "columns": 7
+  },
+  "diagnostic": null
+ },
+ "counts": {
+  "doors": 0,
+  "windows": 0,
+  "columns": 7,
+  "walls": 30
+ },
+ "doors": [],
+ "windows": [],
+ "columns": [
+  {
+   "kind": "column",
+   "x": 543500.1778136359,
+   "y": 73316.91066819592,
+   "width": 378.0,
+   "height": 378.0,
+   "block": null,
+   "handle": "7E9B",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 543827.177813634,
+   "y": 73133.91066819546,
+   "width": 300.0,
+   "height": 300.0,
+   "block": null,
+   "handle": "7EA6",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 540022.4443145522,
+   "y": 78566.16654026858,
+   "width": 120.0,
+   "height": 120.0,
+   "block": null,
+   "handle": "7ED7",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 538426.978262495,
+   "y": 78566.16654026858,
+   "width": 120.0,
+   "height": 120.0,
+   "block": null,
+   "handle": "7EE1",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 539010.3275823125,
+   "y": 72906.06129044597,
+   "width": 120.0,
+   "height": 120.0,
+   "block": null,
+   "handle": "8E76",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 539826.9687535593,
+   "y": 72906.06129044597,
+   "width": 120.0,
+   "height": 120.0,
+   "block": null,
+   "handle": "8E79",
+   "source": "polyline",
+   "region": 10
+  },
+  {
+   "kind": "column",
+   "x": 539010.3275823125,
+   "y": 72906.06129044597,
+   "width": 120.0,
+   "height": 120.0,
+   "block": null,
+   "handle": "8E8E",
+   "source": "polyline",
+   "region": 10
+  }
+ ],
+ "walls": [
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 72835.0,
+   "start": 523792.1669198943,
+   "end": 532257.8609207419,
+   "thickness": 150.0,
+   "single": false,
+   "handles": [
+    "8DA0",
+    "8DCD",
+    "8DA0",
+    "8DA0"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 75460.0,
+   "start": 524796.717479916,
+   "end": 528276.717479916,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "8DCB",
+    "8DCB"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 77730.0,
+   "start": 542247.8207732157,
+   "end": 543821.115919735,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "7E1A",
+    "7E1C",
+    "7E1D"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78000.0,
+   "start": 542247.8207732157,
+   "end": 543818.4816628953,
+   "thickness": 400.0,
+   "single": false,
+   "handles": [
+    "7E19",
+    "7E2D",
+    "7E1B"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78035.0,
+   "start": 534384.3698942454,
+   "end": 535931.7955425826,
+   "thickness": 450.0,
+   "single": false,
+   "handles": [
+    "7F2F",
+    "7F33"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 77040.0,
+   "start": 538474.978262495,
+   "end": 539974.978262495,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "7F01",
+    "7F05"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 76160.0,
+   "start": 528476.7174786588,
+   "end": 529526.717479916,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "8DCB",
+    "8DCB"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 73160.0,
+   "start": 534466.7282446565,
+   "end": 535466.7282446565,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98C0",
+    "98C1"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 76160.0,
+   "start": 531326.7174802718,
+   "end": 532257.8609207419,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "8DDF",
+    "8DDF"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78300.0,
+   "start": 543032.7725860716,
+   "end": 543818.4816628953,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "7E11",
+    "7E18"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 75190.0,
+   "start": 545173.1958509961,
+   "end": 545894.742019912,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "2BD37",
+    "2BD38"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 74740.0,
+   "start": 545173.1958509961,
+   "end": 545894.742019912,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "2BD3B",
+    "2BD3C"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 74300.0,
+   "start": 545173.1958509961,
+   "end": 545894.742019912,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "2BD42",
+    "2BD43"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 73850.0,
+   "start": 545173.1958509961,
+   "end": 545894.742019912,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "2BD48",
+    "2BD49"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78540.0,
+   "start": 537576.9252842141,
+   "end": 538274.978262495,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "7F03",
+    "7F05"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78540.0,
+   "start": 540174.978262495,
+   "end": 540727.344523845,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "7EFF",
+    "7F05"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78300.0,
+   "start": 542247.8207732157,
+   "end": 542749.8570530971,
+   "thickness": 100.0,
+   "single": false,
+   "handles": [
+    "7E25",
+    "7E24"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 73660.0,
+   "start": 535666.7282446565,
+   "end": 536073.18838617,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98C0",
+    "98C1"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 73660.0,
+   "start": 533866.7282446565,
+   "end": 534066.7282446565,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98BF",
+    "98C1"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "h",
+   "pos": 78840.0,
+   "start": 524146.7174799161,
+   "end": 524796.717479916,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "8DCD"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 530830.0,
+   "start": 72913.21771787643,
+   "end": 78842.69013943966,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "8DA5",
+    "8DA5"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 529430.0,
+   "start": 72913.21771787643,
+   "end": 76113.21771787736,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "8DA2",
+    "8DA2"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 531430.0,
+   "start": 76213.21771787736,
+   "end": 78842.69013943966,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "8DDC",
+    "8DDC"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 540070.0,
+   "start": 77143.74295997736,
+   "end": 78443.74295997736,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "7F00",
+    "7F05"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 538370.0,
+   "start": 77143.74295997736,
+   "end": 78443.74295997736,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "7F02",
+    "7F05"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 528380.0,
+   "start": 75513.21771787689,
+   "end": 76113.21771787736,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "8DCB",
+    "8DCB"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 534370.0,
+   "start": 73763.58039727225,
+   "end": 74295.22056167456,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98BF",
+    "98C0",
+    "98C0"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 535570.0,
+   "start": 73263.58039727225,
+   "end": 73563.58039727225,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98C0",
+    "98C1"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 534370.0,
+   "start": 73263.58039727225,
+   "end": 73563.58039727225,
+   "thickness": 200.0,
+   "single": false,
+   "handles": [
+    "98C1",
+    "98C0",
+    "98C0"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 524800.0,
+   "start": 72913.21771787643,
+   "end": 78842.69013943966,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "8DCD"
+   ],
+   "region": 10
+  },
+  {
+   "kind": "wall",
+   "orientation": "v",
+   "pos": 524150.0,
+   "start": 72913.21771787643,
+   "end": 78842.69013943966,
+   "thickness": null,
+   "single": true,
+   "handles": [
+    "8DCD"
+   ],
+   "region": 10
+  }
+ ]
+}
