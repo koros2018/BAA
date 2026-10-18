@@ -29,6 +29,8 @@ from .relations import (
     _infer_attribute_name,
 )
 from .text_attributes import _inject_text_attributes
+from .geometry_attributes import _inject_geometry_attributes
+from .pairing_attributes import _inject_paired_attributes
 from .room_type_infer import infer_room_type
 
 
@@ -136,6 +138,16 @@ class SemanticAnalyzer:
         if new_rooms:  # condition: new_rooms:
             entities = entities + new_rooms  # assign
 
+        # Step 3.7（前移）: T3 native 实例字段 + 线元几何长度注入（T-A4 / G9 收尾）
+        # 必须先于 _infer_corridor_widths / Step 1.6 / Step 3.5/3.6 执行：
+        # T3 墙实体 bbox 按 seg 重建（短边=厚度），bbox 短边策略会抢先写入
+        # width/clear_width，导致 native 注入因「不覆盖既有非零值」被跳过、
+        # _attribute_source 无法盖章。注入顺序即权威顺序：
+        # T3 native（对象真实数据） > 尺寸/TEXT 标注 > bbox 几何推断（兜底）。
+        # 窗 _t3_window_bbox 同理：先注入可避免四线符号 bbox 短边（符号深度）
+        # 被误当窗宽。
+        entities = self._inject_geometry_attributes(entities, full_primitives)  # assign
+
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)  # assign
 
@@ -226,6 +238,13 @@ class SemanticAnalyzer:
         # 从标注文本反推墙/板厚度、门窗编号宽高。置于 Step 3.5 之后，
         # 不覆盖既有非零值，因此不会推翻尺寸绑定结果。
         entities = self._inject_text_attributes(entities, full_primitives)  # assign
+
+        # Step 3.8: 拓扑配对补齐（阶段 B M1：双线墙厚度配对）
+        # 墙厚是两条平行线元的间距（图元间对偶量），尺寸/TEXT 链路（3.5/3.6）
+        # 与 T3 native（3.7）都无法覆盖无标注的普通双线墙。此处仅对 3.5~3.7
+        # 后仍缺 width 的墙族退化线元注入，不覆盖既有值——权威序：
+        # T3 native > 尺寸/TEXT 标注 > 拓扑配对 > bbox 几何兜底。
+        entities = self._inject_paired_attributes(entities, full_primitives)  # assign
 
         # Step 4: 走廊拓扑网络（V2新增）
         corridor_topology = self.build_corridor_topology(entities, relations)  # assign
@@ -1069,6 +1088,14 @@ class SemanticAnalyzer:
     def _inject_text_attributes(self, entities, primitives):
         """从 TEXT/MTEXT 标注反推厚度/门窗编号并注入就近实体属性。"""
         return _inject_text_attributes(self, entities, primitives)
+
+    def _inject_geometry_attributes(self, entities, primitives):
+        """提升 T3 native 实例字段并注入退化线元真实跨度（T-A4 Step 3.7）。"""
+        return _inject_geometry_attributes(self, entities, primitives)
+
+    def _inject_paired_attributes(self, entities, primitives):
+        """拓扑配对补齐（Step 3.8）：双线墙厚度配对注入（阶段 B M1）。"""
+        return _inject_paired_attributes(self, entities, primitives)
 
     def _infer_attribute_name(self, dim, entity):
         """从尺寸标注推断实体属性名称。"""

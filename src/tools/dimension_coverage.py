@@ -5,12 +5,20 @@
 「尺寸/长度全 0 / 缺失」缺口的改前/改后对比。
 
 用法:
-    python src/tools/dimension_coverage.py <file.dxf|dir> [--limit N]
+    python src/tools/dimension_coverage.py <file.dxf|dir> [--limit N] [--json out.json]
+
+--json 输出验收证据链（逐文件统计 + 聚合 + 属性来源直方图）：
+  aggregate.rates              覆盖率/缺失率
+  aggregate.source_histograms  _attribute_source / _dimension_source / _width_source
+  files[]                      每张图的实体数、命中数与缺失类型分布
 """
 
 import argparse
+import gc
+import json
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -20,6 +28,10 @@ from src.baa_engine.drawing_parser import DrawingParser  # noqa: E402
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer  # noqa: E402
 
 KEY_PROPS = ("width", "clear_width", "height", "length")
+
+# 属性来源追溯字段（T-A4 注入链路盖章：t3_native / text_code / relations_bind /
+# geometry_length / bbox_short_edge 等），用于证据链区分权威来源与几何兜底
+SOURCE_KEYS = ("_attribute_source", "_dimension_source", "_width_source")
 
 # 尺寸标注应覆盖的关键实体类型（与 DimensionParser.DIMENSIONABLE_TYPES 对齐）
 DIMENSIONABLE_TYPES = {
@@ -53,6 +65,10 @@ def _non_zero(v):
     return isinstance(v, (int, float)) and v > 0
 
 
+def _rate(num, den):
+    return round(num / den, 4) if den else 0.0
+
+
 def _measure(files):
     parser = DrawingParser()
     agg = {
@@ -67,9 +83,13 @@ def _measure(files):
         "attrs_entities": 0,
         "attrs_missing": 0,
         "dim_source_entities": 0,
+        "analyze_failed": 0,
         "missing_by_type": Counter(),
         "dimable_missing_by_type": Counter(),
+        "per_file": [],
     }
+    for sk in SOURCE_KEYS:
+        agg[f"hist{sk}"] = Counter()
     for f in files:
         agg["files"] += 1
         try:
@@ -84,15 +104,29 @@ def _measure(files):
         agg["dim_total"] += len(result.dimensions or [])
 
         analyzer = SemanticAnalyzer()
-        out = analyzer.analyze(
-            result.primitives,
-            result.dimensions,
-            block_refs=result.block_refs,
-        )
+        try:
+            out = analyzer.analyze(
+                result.primitives,
+                result.dimensions,
+                block_refs=result.block_refs,
+            )
+        except Exception as e:  # 分析异常（含大图 MemoryError）不影响整体统计
+            print(f"  {f.name}: 分析异常 - {type(e).__name__}: {str(e)[:120]}")
+            agg["analyze_failed"] += 1
+            continue
         ents = out.get("entities", [])
         attrs = out.get("attributes", {}) or {}
         agg["ent_total"] += len(ents)
         agg["attrs_entities"] += len(attrs)
+
+        file_stat = {
+            "file": f.name,
+            "entities": len(ents),
+            "dimable_total": 0,
+            "dimable_hit": 0,
+            "missing_by_type": Counter(),
+            "source_histograms": {sk: Counter() for sk in SOURCE_KEYS},
+        }
 
         # 尺寸关联实体口径：被 _bind_dimensions 匹配到的实体，其属性是否真正落库
         ent_by_id = {e.get("id"): e for e in ents}
@@ -113,26 +147,39 @@ def _measure(files):
             props = e.get("properties", {}) or {}
             if props.get("_dimension_source"):
                 agg["dim_source_entities"] += 1
+            for sk in SOURCE_KEYS:
+                sv = props.get(sk)
+                if sv:
+                    agg[f"hist{sk}"][str(sv)] += 1
+                    file_stat["source_histograms"][sk][str(sv)] += 1
             etype = e.get("type")
             hit = any(_non_zero(props.get(k)) for k in KEY_PROPS)
             if hit:
                 agg["ent_key_hit"] += 1
             else:
                 agg["missing_by_type"][etype] += 1
+                file_stat["missing_by_type"][etype] += 1
             if etype in DIMENSIONABLE_TYPES:
                 agg["dimable_total"] += 1
+                file_stat["dimable_total"] += 1
                 if hit:
                     agg["dimable_hit"] += 1
+                    file_stat["dimable_hit"] += 1
                 else:
                     agg["dimable_missing_by_type"][etype] += 1
+
+        file_stat["missing_by_type"] = dict(file_stat["missing_by_type"])
+        file_stat["source_histograms"] = {
+            sk: dict(c) for sk, c in file_stat["source_histograms"].items()
+        }
+        agg["per_file"].append(file_stat)
+        del result, out, ents  # 大图逐份释放，降低峰值内存
+        gc.collect()
 
     return agg
 
 
 def _report(agg, label):
-    def _rate(num, den):
-        return round(num / den, 4) if den else 0.0
-
     ent_key_rate = _rate(agg["ent_key_hit"], agg["ent_total"])
     dimable_rate = _rate(agg["dimable_hit"], agg["dimable_total"])
     print(
@@ -177,17 +224,54 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="DIMENSION→属性覆盖率统计（T-A4）")
     ap.add_argument("paths", nargs="+", help="一个或多个 .dxf 文件/目录")
     ap.add_argument("--limit", type=int, default=0, help="每批仅取前 N 个文件（0=全部）")
+    ap.add_argument("--skip", type=int, default=0, help="跳过前 N 个文件（分块运行用）")
+    ap.add_argument("--json", default="", help="证据链输出 JSON 路径（逐文件+聚合+来源直方图）")
     args = ap.parse_args(argv)
 
     files = collect_dxf(args.paths)
     if not files:
         print("未找到任何 .dxf 文件，请检查路径。")
         return 1
+    if args.skip and args.skip > 0:
+        files = files[args.skip:]
     if args.limit and args.limit > 0:
         files = files[: args.limit]
 
     agg = _measure(files)
     _report(agg, "current")
+
+    if args.json:
+        histograms = {sk: dict(agg[f"hist{sk}"]) for sk in SOURCE_KEYS}
+        payload = {
+            "tool": "src/tools/dimension_coverage.py",
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "paths": [str(p) for p in args.paths],
+            "file_count": agg["files"],
+            "aggregate": {
+                "parsed": agg["parsed"],
+                "analyze_failed": agg["analyze_failed"],
+                "dims": agg["dim_total"],
+                "entities": agg["ent_total"],
+                "ent_key_hit": agg["ent_key_hit"],
+                "ent_key_rate": _rate(agg["ent_key_hit"], agg["ent_total"]),
+                "dimable_total": agg["dimable_total"],
+                "dimable_hit": agg["dimable_hit"],
+                "dimable_rate": _rate(agg["dimable_hit"], agg["dimable_total"]),
+                "attrs_entities": agg["attrs_entities"],
+                "attrs_missing": agg["attrs_missing"],
+                "dim_source_entities": agg["dim_source_entities"],
+                "missing_by_type": dict(agg["missing_by_type"]),
+                "dimable_missing_by_type": dict(agg["dimable_missing_by_type"]),
+                "source_histograms": histograms,
+            },
+            "files": agg["per_file"],
+        }
+        out_path = Path(args.json)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(f"证据链 JSON 已写入: {out_path}")
     return 0
 
 

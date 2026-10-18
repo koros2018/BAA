@@ -11,6 +11,36 @@ from .legend_rules import lookup_legend
 from ..drawing_parser import RawPrimitive
 
 
+# 景观/绿化图层守卫（阶段 B M1 收口 · 分类治理）。
+# 真实图纸库 252 张实测：LA-* 景观图层的 INSERT 块（苗木/灯具/铺装小品）
+# 块名无模式可穷举（k300/zt1 代号、苗木名、天正库块混杂），未命中规则表
+# 即被 wall 兜底污染墙实例——缺失墙 70% 来源。按图层定性归 other。
+_LANDSCAPE_LAYER_PREFIXES = ("LA-",)
+_LANDSCAPE_LAYER_KEYWORDS = (
+    "绿化",
+    "园林",
+    "景观",
+    "种植",
+    "苗木",
+    "乔木",
+    "灌木",
+    "铺装",
+    # M3 扩面：电气系统图/图框/标注图层的未识别块非建筑构件
+    "电气",
+    "配电",
+    "系统图",
+    "图框",
+    "标注",
+)
+
+
+def _is_landscape_layer(layer: str) -> bool:
+    u = (layer or "").upper()
+    return u.startswith(_LANDSCAPE_LAYER_PREFIXES) or any(
+        k in (layer or "") for k in _LANDSCAPE_LAYER_KEYWORDS
+    )
+
+
 def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """图元分类归并"""
     # 优先解析 META 图层（合成图纸结构化数据）
@@ -584,6 +614,10 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             lg = lookup_legend(str(v))
             if lg:
                 return lg
+        # 景观/绿化图层的未识别块不是建筑构件（苗木/灯具/铺装小品），
+        # 归 other，不走 wall 兜底（防墙实例污染，见文件头守卫说明）。
+        if _is_landscape_layer(prim.layer):
+            return "other"
         # 块名/图例均未命中 → 语义回退。标记供未分类率统计（T-A2）单独计量：
         # INSERT 兜底为 wall 属于「块语义未覆盖」，不应计入已分类。
         props["_block_default"] = True

@@ -356,7 +356,9 @@ class AtomicFunction:  # class definition
         unit = props.get("unit", "")  # function call
 
         # 宽度类：优先用width/clear_width
-        if func_id in ("DIM-001", "DIM-003", "DIM-004"):  # check: membership test
+        # T-A4: DIM-113（房间疏散门净宽 ≥0.9m）此前无提取分支，永远返回 None
+        # （死函数）——Step 3.5/3.6/3.7 注入的 door width 无法被消费，补齐。
+        if func_id in ("DIM-001", "DIM-003", "DIM-004", "DIM-113"):  # check: membership test
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定
@@ -364,6 +366,12 @@ class AtomicFunction:  # class definition
             # DIM-004 边界容差：<2% 偏差视为测量误差，不报违规
             if func_id == "DIM-004" and 0.98 <= (val / 1.1) < 1.0:  # check: numeric comparison
                 return None  # 边界走廊，跳过判定
+            # DIM-113 边界容差：与 DIM-004/DIM-006 同口径（用阈值而非硬编码，兼容
+            # API 层按建筑类型改写阈值的场景）
+            if (
+                func_id == "DIM-113" and self.threshold > 0 and 0.98 <= (val / self.threshold) < 1.0
+            ):  # check: numeric comparison
+                return None  # 边界门宽，跳过判定
             if unit == "mm":  # condition: unit == "mm":
                 converted = val / 1000.0  # assignment
                 # DIM-004 走廊宽度合理性检查：转换后 <0.5m 视为异常（YOLO 误检）
