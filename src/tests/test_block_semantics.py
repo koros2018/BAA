@@ -30,7 +30,7 @@ from src.baa_engine.semantic_analyzer.block_semantics import (
 from src.baa_engine.semantic_analyzer.legend_rules import lookup_legend
 
 
-def _make_insert_prim(block_name, handle="", insert_xy=None, extra_props=None):
+def _make_insert_prim(block_name, handle="", insert_xy=None, extra_props=None, layer="0"):
     props = {"block_name": block_name}
     if insert_xy is not None:
         props["insert_x"] = insert_xy[0]
@@ -39,7 +39,7 @@ def _make_insert_prim(block_name, handle="", insert_xy=None, extra_props=None):
         props.update(extra_props)
     return RawPrimitive(
         dxf_type="INSERT",
-        layer="0",
+        layer=layer,
         handle=handle,
         bbox={"x": 0.0, "y": 0.0, "width": 0.0, "height": 0.0},
         properties=props,
@@ -111,6 +111,20 @@ class TestClassifyBlockName:
     def test_empty_and_none_return_none(self):
         assert classify_block_name("") is None
         assert classify_block_name(None) is None
+
+    # M3 扩面：天正电气/系统库块与电气符号守卫
+    def test_t3_system_lib_prefixes_are_other(self):
+        assert classify_block_name("$TelecSys$00000080") == "other"
+        assert classify_block_name("$TCHSYS$WIN2D") == "other"
+        assert classify_block_name("$DorLib2D$00000002") == "other"
+
+    def test_electrical_keywords_are_other(self):
+        assert classify_block_name("断路器") == "other"
+        assert classify_block_name("熔断器_10A") == "other"
+
+    def test_known_block_not_affected_by_m3(self):
+        assert classify_block_name("DOOR_900") == "door"
+        assert classify_block_name("FIRE_DOOR") == "fire_door"
 
     def test_rules_are_ordered_tuples(self):
         assert isinstance(BLOCK_NAME_RULES, tuple)
@@ -200,6 +214,52 @@ class TestLegendFallback:
     def test_no_attrib_falls_back_to_wall(self):
         prim = _make_insert_prim("UNKNOWN_BLOCK_XYZ")
         assert SemanticAnalyzer()._classify_by_geometry(prim) == BLOCK_FALLBACK_TYPE
+
+
+# ── 景观/绿化图层守卫（阶段 B 分类治理） ─────────────────────────────
+
+
+class TestLandscapeLayerGuard:
+    def test_la_prefix_layer_insert_is_other(self):
+        # 真实图纸库：LA-小铺装 图层 k300/zt1 等未识别块曾被 wall 兜底污染
+        prim = _make_insert_prim("k300", layer="LA-小铺装")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "other"
+
+    def test_landscape_keyword_layer_insert_is_other(self):
+        prim = _make_insert_prim("TREE_01", layer="绿化-乔木")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "other"
+
+    def test_normal_layer_insert_still_falls_back_to_wall(self):
+        # 不误伤：非景观图层未识别块仍走 wall 兜底
+        prim = _make_insert_prim("UNKNOWN_BLOCK_XYZ", layer="0")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == BLOCK_FALLBACK_TYPE
+
+    def test_landscape_layer_known_block_still_classified(self):
+        # 景观图层上块名可识别的门块不受守卫影响
+        prim = _make_insert_prim("DOOR_900", layer="LA-景观边线")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "door"
+
+    def test_landscape_layer_legend_hit_wins(self):
+        # 图例命中优先级高于图层守卫
+        prim = _make_insert_prim(
+            "UNKNOWN_X", layer="LA-小铺装",
+            extra_props={"block_attribs": {"TAG": "消火栓"}},
+        )
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "fire_hydrant"
+
+    # M3 扩面：电气系统图/图框/标注图层守卫
+    def test_electrical_layer_insert_is_other(self):
+        prim = _make_insert_prim("GHJKBVV", layer="配电干线")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "other"
+
+    def test_frame_layer_insert_is_other(self):
+        prim = _make_insert_prim("_ArchTick", layer="图框_01")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "other"
+
+    def test_electrical_layer_known_block_still_classified(self):
+        # 电气图层上块名可识别的门块不受守卫影响
+        prim = _make_insert_prim("DOOR_900", layer="电气")
+        assert SemanticAnalyzer()._classify_by_geometry(prim) == "door"
 
 
 # ── attach_block_refs ───────────────────────────────────────────────
@@ -389,3 +449,47 @@ class TestUnclassifiedRateEvidence:
         assert base_wall == 3
         assert cur_wall < base_wall
         assert any(e["type"] == "fire_hydrant" for e in cur["entities"])
+
+
+# ── 非建筑构件块守卫（T-A4 / G7：填充线型/五金/定位点不走 wall 兜底）──
+
+
+@pytest.mark.parametrize(
+    "block_name",
+    [
+        "$LinePat$岩棉板",  # 填充线型块（真实图纸单图 1900+ 实例的污染源）
+        "$LINEPAT$STEEL",
+        "GB12618-90-4×11铆厚6",  # 铆钉
+        "M12膨胀螺栓",  # 螺栓
+        "自攻螺钉",
+        "定位点",
+    ],
+)
+def test_non_arch_block_classified_other(block_name):
+    """填充线型/五金紧固件/定位点块 → "other"，不再兜底为 wall。"""
+    assert classify_block_name(block_name) == "other"
+
+
+@pytest.mark.parametrize(
+    "block_name",
+    ["防火门FM1", "M0921", "窗C1200", "消火栓箱"],
+)
+def test_arch_block_rules_unaffected(block_name):
+    """守卫不影响正常构件块分类。"""
+    assert classify_block_name(block_name) != "other"
+
+
+def test_non_arch_block_not_wall_in_pipeline():
+    """端到端：$LinePat$ 块 INSERT 产出 other 实体而非 wall，不计 block_default。"""
+    prim = RawPrimitive(
+        dxf_type="INSERT",
+        layer="0",
+        handle="NOP",
+        bbox={"x": 0.0, "y": 0.0, "width": 0.0, "height": 0.0},
+        properties={"block_name": "$LinePat$岩棉板", "insert_x": 1.0, "insert_y": 1.0},
+    )
+    out = SemanticAnalyzer().analyze([prim], [], block_refs=None)
+    assert len(out["entities"]) == 1
+    ent = out["entities"][0]
+    assert ent["type"] == "other"
+    assert not ent["properties"].get("_block_default")

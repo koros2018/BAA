@@ -232,6 +232,33 @@ _SHEET_NAME_MARKERS = (
     "TITLEBLOCK",
 )
 
+# 非建筑构件块守卫（T-A4 落地时发现的最大污染源，关联 G7）。
+# 真实图纸库实测：`$LinePat$岩棉板` 等填充线型块单图可达 1900+ 实例，
+# 五金紧固件（铆钉/螺栓）、定位标记也被块名兜底误判为 wall，既污染墙实例
+# 又拉低属性覆盖率。命中以下模式直接判 "other"（非构件），不走 wall 兜底。
+_NON_ARCH_BLOCK_PREFIXES = (
+    "$LINEPAT$",  # AutoCAD 填充线型定义块（$LinePat$<图案名>）
+    # 天正电气/系统库块（M3 扩面：治理后诊断显示 $TelecSys$/$TCHSYS$/$DorLib2D$
+    # 系列是剩余缺失墙主要来源之一，均为电气系统/门窗库符号，非建筑构件）
+    "$TELECSYS$",
+    "$TCHSYS$",
+    "$DORLIB2D$",
+)
+_NON_ARCH_BLOCK_KEYWORDS = (
+    "铆",  # 铆钉/铆厚/铆接（五金紧固件）
+    "螺栓",
+    "螺钉",
+    "螺丝",
+    "销钉",
+    "膨胀栓",
+    "定位点",
+    # 电气系统图符号（M3 扩面：断路器/熔断器等出现在电气图中被 wall 兜底污染）
+    "断路器",
+    "熔断器",
+    "互感器",
+    "继电器",
+)
+
 
 def classify_block_name(block_name: str) -> Optional[str]:
     """按 BLOCK_NAME_RULES 对块名分类。
@@ -246,6 +273,11 @@ def classify_block_name(block_name: str) -> Optional[str]:
     # 命中标记直接返回 None，避免误报（如「运维网桥架平面图」含"桥架"）。
     if any(m in name for m in _SHEET_NAME_MARKERS):
         return None
+    # 非建筑构件块（填充线型/五金紧固件/定位标记）→ "other"，不走 wall 兜底。
+    if name.startswith(_NON_ARCH_BLOCK_PREFIXES) or any(
+        k in name for k in _NON_ARCH_BLOCK_KEYWORDS
+    ):
+        return "other"
     for keyword, entity_type in BLOCK_NAME_RULES:
         if keyword in name:
             return entity_type
