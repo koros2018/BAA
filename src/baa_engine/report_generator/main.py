@@ -80,4 +80,18 @@ class ReviewReport:
         build_violation_pages(buf, self.styles, details, corrections, lang)
         build_correction_pages(buf, self.styles, corrections, lang)
 
+        # T-B4 报告产品化补页：条款索引 / 审查结论 / 签署归档
+        from .product_pages import (
+            build_conclusion_page,
+            build_signature_page,
+            build_toc_page,
+        )
+        buf.append(PageBreak())
+        build_toc_page(buf, self.styles, self.page_w, self.margin, details, lang)
+        buf.append(PageBreak())
+        build_conclusion_page(
+            buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
+        )
+        build_signature_page(buf, self.styles, self.page_w, self.margin, summary, lang)
+
         return build_doc(self.page_w, self.page_h, self.margin, output_path, buf)

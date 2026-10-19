@@ -1122,6 +1122,28 @@ async def export_review_export(
             headers={"Content-Disposition": f'attachment; filename="{review_id}_export.csv"'},
         )
 
+    if format == "html":
+        from .html_report import build_review_html
+
+        html = build_review_html(review_id, filename, summary, details)
+        return Response(
+            content=html.encode("utf-8"),
+            media_type="text/html",
+            headers={"Content-Disposition": f'attachment; filename="{review_id}_report.html"'},
+        )
+
+    if format == "xlsx":
+        from .xlsx_report import build_review_xlsx
+
+        xbytes = build_review_xlsx(review_id, filename, summary, details)
+        return Response(
+            content=xbytes,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
+            headers={"Content-Disposition": f'attachment; filename="{review_id}_report.xlsx"'},
+        )
+
     raise HTTPException(status_code=400, detail={"message": f"不支持的格式: {format}"})
 
 
