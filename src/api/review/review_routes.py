@@ -547,6 +547,16 @@ async def review(  # code
         # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
         # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
         # 如果图纸类型完全不包含该函数关心的实体类型（如泵房图纸不含汽车库），跳过
+        # T-B2: 整图二值 → 作用域内聚合（scope_aggregator）。
+        # 语义保证：partial 在旧逻辑（any() 为 False）下同样 FAIL，仅 explanation
+        # 更精确；pass 不产生 finding（误报收敛点）；missing 与旧 FAIL 等价——
+        # 无新增 FAIL 场景，漏报不上升。
+        from src.baa_engine.scope_aggregator import (
+            _COMPARTMENT_TYPES,
+            aggregate_exist_in_scopes,
+            build_scopes,
+        )
+
         entity_types_in_drawing = set(e.get("type", "") for e in entities)
         for func in registry_funcs:
             if func.category.value != "exist":
@@ -555,7 +565,28 @@ async def review(  # code
             func_targets = set(func.target_entities) if func.target_entities else set()
             if func_targets and not func_targets.intersection(entity_types_in_drawing):
                 continue
-            has_match = any(func.matches(e) for e in entities)
+            scope_info = ""
+            severity = "critical"
+            if func_targets:
+                # 网格基准用全实体（空间结构铺格），目标实体仅作归属统计——
+                # 若用 targets 自身铺格则每格天然命中，聚合恒 pass 形同虚设
+                sc = build_scopes(entities)
+                agg = aggregate_exist_in_scopes(
+                    func.func_id, list(func_targets), entities, sc
+                )
+                if agg["overall"] == "pass":
+                    continue  # 所有作用域均命中：不产生缺失 finding
+                if agg["overall"] == "partial":
+                    # 分布不均（网格≠防火分区，降级为区域提示，不算误报 FAIL 也不漏）
+                    severity = "low"
+                    scope_info = (
+                        f"；以下区域未检出({len(agg['missing_scopes'])}"
+                        f"/{len(agg['scope_results'])} 个作用域)"
+                    )
+                # missing → critical（全图确缺，真缺失语义不变）
+                has_match = False  # pass 已 continue；partial/missing 均产生 finding
+            else:
+                has_match = any(func.matches(e) for e in entities)
             if not has_match:
                 r = _get_fr().execute_with_timeout(func, None)
                 if r is not None and r.result != "PASS":
@@ -578,8 +609,8 @@ async def review(  # code
                             "extracted_value": 0.0,
                             "required_value": f.extracted_params.get("required_value", 1.0),
                             "difference": -f.extracted_params.get("required_value", 1.0),
-                            "explanation": f.explanation[:120],
-                            "severity": "critical",
+                            "explanation": (f.explanation + scope_info)[:160],
+                            "severity": severity,
                             "confidence": r.confidence,
                             "confidence_tier": _confidence_tier(r.confidence),
                         }

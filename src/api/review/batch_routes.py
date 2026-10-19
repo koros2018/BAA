@@ -38,6 +38,53 @@ _BATCH_SEMAPHORE = asyncio.Semaphore(4)  # 最多 4 个文件同时处理
 _FILE_TIMEOUT_S = 120
 
 
+def _run_exist_scope_batch(entities, registry_funcs):
+    """T-B2: EXIST 缺失检查的作用域聚合批量执行。
+
+    替代 execute_missing_batch 的整图二值：作用域内聚合判定。
+    - pass（所有作用域命中）→ 不产生 finding（误报收敛点）
+    - partial（部分作用域命中）→ 仍产生 finding，scope_info 带缺失区域计数
+    - missing（全部未命中）→ 与旧行为等价
+    返回 [(func, FuncResult, scope_info), ...]，仅含非 PASS 结果。
+    """
+    from src.baa_engine.scope_aggregator import (
+        _COMPARTMENT_TYPES,
+        aggregate_exist_in_scopes,
+        build_scopes,
+    )
+
+    entity_types_in_drawing = set(e.get("type", "") for e in entities)
+    results = []
+    for func in registry_funcs:
+        if func.category.value != "exist":
+            continue
+        targets = set(func.target_entities) if func.target_entities else set()
+        if targets and not targets.intersection(entity_types_in_drawing):
+            continue
+        scope_info = ""
+        severity = "critical"
+        if targets:
+            # 网格基准用全实体（空间结构铺格），目标实体仅归属统计（防恒 pass）
+            sc = build_scopes(entities)
+            agg = aggregate_exist_in_scopes(func.func_id, list(targets), entities, sc)
+            if agg["overall"] == "pass":
+                continue
+            if agg["overall"] == "partial":
+                # 分布不均 → 区域提示级（不算误报 FAIL 也不漏）
+                severity = "low"
+                scope_info = (
+                    f"；以下区域未检出({len(agg['missing_scopes'])}"
+                    f"/{len(agg['scope_results'])} 个作用域)"
+                )
+        try:
+            r = _get_fr().execute_with_timeout(func, None)
+        except Exception:
+            continue
+        if r is not None:
+            results.append((func, r, scope_info, severity))
+    return results
+
+
 async def _run_with_semaphore_and_timeout(coro_func, *args, timeout=_FILE_TIMEOUT_S):
     """P87: 带并发限制的超时执行包装器"""
     async with _BATCH_SEMAPHORE:
@@ -184,9 +231,10 @@ async def batch_review(
                     )
 
             # 缺失检查：仅当函数目标实体类型与图纸实体类型有交集时才执行
-            entity_types_in_drawing = set(e.get("type", "") for e in entities)
-            missing_batch = _get_fr().execute_missing_batch(entity_types_in_drawing, registry_funcs)
-            for r in missing_batch.values():
+            # T-B2: 整图二值 → 作用域内聚合（partial 同样 FAIL 但带区域信息，
+            # pass 不产生 finding——误报收敛；missing 与旧行为等价，漏报不升）
+            scoped = _run_exist_scope_batch(entities, registry_funcs)
+            for func, r, scope_info, severity in scoped:
                 if r.result == "PASS":
                     continue
                 clause = {
@@ -208,8 +256,8 @@ async def batch_review(
                         "extracted_value": 0.0,
                         "required_value": r.threshold,
                         "difference": -r.threshold,
-                        "explanation": r.params.get("note", "")[:120],
-                        "severity": "critical",
+                        "explanation": (r.params.get("note", "") + scope_info)[:160],
+                        "severity": severity,
                         "confidence": r.confidence,
                     }
                 )
@@ -484,8 +532,8 @@ async def batch_review_stream(
                     details.append(_make_finding_detail(r, clause, e))
 
             entity_types_set = set(e.get("type", "") for e in entities)
-            missing_batch = _get_fr().execute_missing_batch(entity_types_set, registry_funcs)
-            for r in missing_batch.values():
+            scoped = _run_exist_scope_batch(entities, registry_funcs)
+            for func, r, scope_info, severity in scoped:
                 if r.result == "PASS":
                     continue
                 clause = {
@@ -495,7 +543,12 @@ async def batch_review_stream(
                     "text": "",
                     "category": "",
                 }
-                details.append(_make_finding_detail(r, clause, {}, "missing"))
+                detail = _make_finding_detail(r, clause, {}, "missing")
+                if scope_info:
+                    detail["explanation"] = (detail.get("explanation", "") + scope_info)[:160]
+                if severity != "critical":
+                    detail["severity"] = severity
+                details.append(detail)
 
             entity_types = Counter(e["type"] for e in entities)
             violation_count = Counter(d["clause_id"] for d in details)
