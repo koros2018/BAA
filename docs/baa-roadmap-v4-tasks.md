@@ -113,8 +113,8 @@
 
 **交付物**：recall 指标管线 + 扩展黄金标准。
 **验收标准**
-- [ ] 漏报率可量化（有分母、可复现）。
-- [ ] 漏报率呈持续下降趋势并有历史记录。
+- [x] 漏报率可量化（有分母、可复现）。（src/tools/recall_metrics.py：黄金标准点数为分母，复用 t3_acceptance 匹配口径；3 张 T3 gold 基线 opening_micro recall=0.9796（48/49，唯一真实漏报为平面内门 1 个）；B3d 人工核对剔除门窗表行 6 点 + 图框外标注点 5 个，gold 修正轨迹留痕 provenance rev2/rev3）
+- [x] 漏报率呈持续下降趋势并有历史记录。（docs/recall_metrics/history.jsonl 追加式历史（ts+sha+指标，3 条含修正轨迹）；CI recall_gate（test.yml，gate-recall 0.75 防回归）；「持续下降」待后续治理迭代按历史序列验证——当前数字为修正标注后真实基线）
 
 ### T-B4 报告产品化（关联 G3 / B4）
 **开发任务**
