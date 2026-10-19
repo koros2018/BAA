@@ -54,7 +54,7 @@
 
 - **Playwright 1.52.0 test runner 与本机 Node 24.14.1 不兼容**：`@playwright/test` runner 启动即挂死——无任何输出、进程 CPU≈0；`--list` 与实跑均挂，而 `--help`/`--version` 正常。已通过差分实验排除浏览器缺失、config 内容、spec 文件、输出目录、stdio 未关闭、IPC 等因素，定位为 Node 版本兼容问题。
   - **绕过方案（已落地）**：以 Node 20.18.0 运行 runner：`& 'D:\tmp\node20\node-v20.18.0-win-x64\node.exe' 'D:\OpenClawData\BAA\node_modules\@playwright\test\cli.js' test -c tests/e2e/playwright.config.ts <spec>` → 正常跑出。
-  - 本机唯一系统 Node 为 `D:\hclaw\node` v24.14.1（无 nvm/fnm）。**该约束需写入本地/CI 跑测文档**（见七）。
+  - 本机 Node 现状（2026-10-19 全盘检索）：`D:\hclaw\node` v24.14.1（系统装）、`C:\Users\26988\.trae-cn\binaries\node\versions\24.21.0`（Trae 自带）、`D:\tmp\node20\node-v20.18.0-win-x64` v20.18.0（临时下载）；Node 26 本机未安装；无 nvm/fnm。**该约束需写入本地/CI 跑测文档**（见七）。
 - **存量 E2E 失败**：登记时 7 例（见三）；截至 2026-10-19 已修复 5 例（TD-E2E-003 的 4 例 + TD-E2E-004 的 1 例），剩余 2 例（TD-E2E-001/002）仍开放，已列技术债。
 
 ## 六、回归
