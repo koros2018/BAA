@@ -61,23 +61,32 @@ class TestLearnLegendBlocks:
     def test_low_confidence_not_learned(self):
         # 同块名与两个不同类型竞争（各 2 次，50% < 60%）→ 不学习
         prims = [
-            _insert("kD", 0, 0), _text("消火栓", 800, 0),
-            _insert("kD", 100, 2000), _text("灭火器", 900, 2000),
-            _insert("kD", 200, 4000), _text("消火栓", 1000, 4000),
-            _insert("kD", 300, 6000), _text("灭火器", 1100, 6000),
+            _insert("kD", 0, 0),
+            _text("消火栓", 800, 0),
+            _insert("kD", 100, 2000),
+            _text("灭火器", 900, 2000),
+            _insert("kD", 200, 4000),
+            _text("消火栓", 1000, 4000),
+            _insert("kD", 300, 6000),
+            _text("灭火器", 1100, 6000),
         ]
         assert _learn_legend_blocks(prims) == {}
 
     def test_single_sample_uncontested_learned(self):
         # 单一类型无竞争：图例行结构即强证据，共现 1 次即学习
-        assert _learn_legend_blocks([_insert("kE", 0, 0), _text("喷淋", 500, 0)]) == {"kE": "sprinkler"}
+        assert _learn_legend_blocks([_insert("kE", 0, 0), _text("喷淋", 500, 0)]) == {
+            "kE": "sprinkler"
+        }
 
     def test_majority_wins_when_confident(self):
         # 3 次共现中 2 次喷淋 1 次烟感 → 67% ≥ 60%，取最高频 sprinkler
         prims = [
-            _insert("kF", 0, 0), _text("喷淋", 500, 0),
-            _insert("kF", 0, 1000), _text("洒水", 500, 1000),
-            _insert("kF", 0, 2000), _text("烟感", 500, 2000),
+            _insert("kF", 0, 0),
+            _text("喷淋", 500, 0),
+            _insert("kF", 0, 1000),
+            _text("洒水", 500, 1000),
+            _insert("kF", 0, 2000),
+            _text("烟感", 500, 2000),
         ]
         assert _learn_legend_blocks(prims) == {"kF": "sprinkler"}
 

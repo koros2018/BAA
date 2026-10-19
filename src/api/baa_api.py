@@ -503,9 +503,7 @@ async def health():  # function call
             "drawing_parser": {"status": "ok" if parser_ok else "down"},  # 字段
             "yolo_integrator": {
                 "status": (
-                    "disabled"
-                    if not VISION_ENABLED
-                    else ("ok" if yolo_ok else "unavailable")
+                    "disabled" if not VISION_ENABLED else ("ok" if yolo_ok else "unavailable")
                 ),
                 "info": yolo_info,
             },  # 字段

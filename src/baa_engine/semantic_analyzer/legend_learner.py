@@ -75,7 +75,7 @@ def _learn_legend_blocks(primitives: List) -> Dict[str, str]:
     返回 {block_name: entity_type}；无可学习样本返回空表。
     """
     inserts: List[tuple] = []  # (cx, cy, block_name)
-    texts: List[tuple] = []    # (cx, cy, entity_type)
+    texts: List[tuple] = []  # (cx, cy, entity_type)
     for p in primitives:
         dxf = getattr(p, "dxf_type", "")
         if dxf == "INSERT":
@@ -105,7 +105,7 @@ def _learn_legend_blocks(primitives: List) -> Dict[str, str]:
     learned: Dict[str, str] = {}
     for name, counter in co.items():
         total = sum(counter.values())
-        (top_type, top_n), = counter.most_common(1)
+        ((top_type, top_n),) = counter.most_common(1)
         if len(counter) == 1:
             # 单一类型无竞争：图例行「符号+名称」结构本身即强证据
             learned[name] = top_type

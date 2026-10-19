@@ -88,15 +88,37 @@ def build_review_xlsx(
 
     # Sheet3 违规明细
     ws3 = wb.create_sheet("违规明细")
-    ws3.append(["条款编号", "标题", "严重度", "状态", "实体ID", "实体类型", "当前值", "要求值", "偏差", "置信度", "说明"])
+    ws3.append(
+        [
+            "条款编号",
+            "标题",
+            "严重度",
+            "状态",
+            "实体ID",
+            "实体类型",
+            "当前值",
+            "要求值",
+            "偏差",
+            "置信度",
+            "说明",
+        ]
+    )
     for d in details:
-        ws3.append([
-            d.get("clause_id", ""), d.get("title", ""), d.get("severity", ""),
-            d.get("status", ""), d.get("entity_id", ""), d.get("entity_type", ""),
-            str(d.get("current_value", "")), str(d.get("required_value", "")),
-            str(d.get("delta", "")), str(d.get("confidence", "")),
-            d.get("explanation", d.get("description", "")),
-        ])
+        ws3.append(
+            [
+                d.get("clause_id", ""),
+                d.get("title", ""),
+                d.get("severity", ""),
+                d.get("status", ""),
+                d.get("entity_id", ""),
+                d.get("entity_type", ""),
+                str(d.get("current_value", "")),
+                str(d.get("required_value", "")),
+                str(d.get("delta", "")),
+                str(d.get("confidence", "")),
+                d.get("explanation", d.get("description", "")),
+            ]
+        )
     for cell in ws3[1]:
         cell.fill, cell.font, cell.alignment = head_fill, head_font, center
     widths = (12, 30, 10, 8, 16, 12, 10, 10, 10, 8, 50)

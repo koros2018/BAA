@@ -248,7 +248,6 @@ def _evaluate_file(path: Path, parser: DrawingParser) -> Optional[dict]:
                 }
             )
 
-
     rel = str(path)
     try:
         rel = str(path.relative_to(Path.cwd()))

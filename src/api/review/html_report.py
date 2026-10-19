@@ -38,7 +38,9 @@ def build_review_html(
     if total == 0:
         verdict = "经审查，未发现违反现行规范条款的情形，图纸审查通过。"
     elif critical == 0:
-        verdict = f"经审查，发现 {total} 项提示类问题（无强制性条款违规），建议按提示逐项复核后通过。"
+        verdict = (
+            f"经审查，发现 {total} 项提示类问题（无强制性条款违规），建议按提示逐项复核后通过。"
+        )
     else:
         verdict = (
             f"经审查，发现 {total} 项违规（其中强制性 {critical} 项），"
@@ -51,26 +53,36 @@ def build_review_html(
     for d in details:
         cid = str(d.get("clause_id", "-"))
         if cid not in clauses:
-            clauses[cid] = {"title": d.get("clause_title") or d.get("title", ""), "count": 0, "sev": d.get("severity", "")}
+            clauses[cid] = {
+                "title": d.get("clause_title") or d.get("title", ""),
+                "count": 0,
+                "sev": d.get("severity", ""),
+            }
             order.append(cid)
         clauses[cid]["count"] += 1
-    toc_rows = "".join(
-        f'<tr><td><a href="#clause-{escape(cid)}" style="color:#1a3a6b">{escape(cid)}</a></td>'
-        f'<td>{escape(str(clauses[cid]["title"])[:40])}</td>'
-        f'<td>{_sev_badge(str(clauses[cid]["sev"]))}</td><td>{clauses[cid]["count"]}</td></tr>'
-        for cid in sorted(order)
-    ) or '<tr><td colspan="4">无违规条款</td></tr>'
+    toc_rows = (
+        "".join(
+            f'<tr><td><a href="#clause-{escape(cid)}" style="color:#1a3a6b">{escape(cid)}</a></td>'
+            f'<td>{escape(str(clauses[cid]["title"])[:40])}</td>'
+            f'<td>{_sev_badge(str(clauses[cid]["sev"]))}</td><td>{clauses[cid]["count"]}</td></tr>'
+            for cid in sorted(order)
+        )
+        or '<tr><td colspan="4">无违规条款</td></tr>'
+    )
 
     # 违规明细（含锚点）
-    detail_rows = "".join(
-        f'<tr id="clause-{escape(str(d.get("clause_id", "")))}-{i}">'
-        f"<td>{escape(str(d.get('clause_id', '')))}</td>"
-        f"<td>{escape(str(d.get('title', '')))}</td>"
-        f"<td>{_sev_badge(str(d.get('severity', '')))}</td>"
-        f"<td>{escape(str(d.get('entity_type', '')))}</td>"
-        f"<td>{escape(str(d.get('explanation', d.get('description', '')))[:80])}</td></tr>"
-        for i, d in enumerate(details)
-    ) or '<tr><td colspan="5">无违规记录</td></tr>'
+    detail_rows = (
+        "".join(
+            f'<tr id="clause-{escape(str(d.get("clause_id", "")))}-{i}">'
+            f"<td>{escape(str(d.get('clause_id', '')))}</td>"
+            f"<td>{escape(str(d.get('title', '')))}</td>"
+            f"<td>{_sev_badge(str(d.get('severity', '')))}</td>"
+            f"<td>{escape(str(d.get('entity_type', '')))}</td>"
+            f"<td>{escape(str(d.get('explanation', d.get('description', '')))[:80])}</td></tr>"
+            for i, d in enumerate(details)
+        )
+        or '<tr><td colspan="5">无违规记录</td></tr>'
+    )
 
     sev_cells = "".join(f"<td>{sev.get(k, 0)}</td>" for k in ("critical", "major", "minor"))
     return f"""<!DOCTYPE html>

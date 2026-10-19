@@ -117,11 +117,7 @@ class SemanticAnalyzer:
             # 采样仅从未标记图元池进行，保持原 seed=42 口径。
             def _is_t3_marked(pr):  # 局部函数:判定 T3 标记图元
                 props = pr.properties or {}
-                return (
-                    "_t3_native" in props
-                    or "_t3_window_gid" in props
-                    or "_t3_wall_gid" in props
-                )
+                return "_t3_native" in props or "_t3_window_gid" in props or "_t3_wall_gid" in props
 
             _marked = [pr for pr in primitives if _is_t3_marked(pr)]
             _unmarked = [pr for pr in primitives if not _is_t3_marked(pr)]
@@ -251,11 +247,15 @@ class SemanticAnalyzer:
                     _ent.properties["_dimension_raw"] = _attr_val  # 操作
                     continue  # 继续循环
                 # 0/缺失不注入
-                if not (isinstance(_attr_val, (int, float)) and _attr_val > 0):  # check: numeric comparison
+                if not (
+                    isinstance(_attr_val, (int, float)) and _attr_val > 0
+                ):  # check: numeric comparison
                     continue  # 继续循环
                 # 不覆盖已有更可信来源：YOLO 检测宽度，或已存在的非零 width/height/length
                 _existing = _ent.properties.get(_attr_name)  # assign
-                if isinstance(_existing, (int, float)) and _existing > 0:  # check: numeric comparison
+                if (
+                    isinstance(_existing, (int, float)) and _existing > 0
+                ):  # check: numeric comparison
                     continue  # 继续循环
                 _ent.properties[_attr_name] = _attr_val  # 操作
                 _ent.properties["_dimension_source"] = "relations_bind"  # 操作

@@ -94,8 +94,7 @@ def build_scopes(
 
     if mode == "compartment":
         scopes = [
-            {"scope_id": c["scope_id"], "kind": "compartment", "bbox": c["bbox"],
-             "entity_count": 0}
+            {"scope_id": c["scope_id"], "kind": "compartment", "bbox": c["bbox"], "entity_count": 0}
             for c in compartments
         ]
         for e in entities:
@@ -198,8 +197,12 @@ def aggregate_exist_in_scopes(
     unscoped_hit = by_scope.get("__unscoped__", {}).get("hit", 0)
     if scopes["unscoped_entities"] and unscoped_hit:
         scope_results.append(
-            {"scope_id": "__unscoped__", "kind": "unscoped",
-             "hit_count": unscoped_hit, "satisfied": True}
+            {
+                "scope_id": "__unscoped__",
+                "kind": "unscoped",
+                "hit_count": unscoped_hit,
+                "satisfied": True,
+            }
         )
 
     if not scope_results:
