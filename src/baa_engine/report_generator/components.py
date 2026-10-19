@@ -4,6 +4,7 @@ PDF 报告组件 — 字体注册 / 颜色常量 / Flowable 自定义组件 / �
 
 import datetime
 import os
+import tempfile
 from typing import Any, Dict, List, Optional
 
 from reportlab.lib import colors
@@ -299,8 +300,16 @@ def build_doc(
     buf: List[Any],
 ) -> bytes:
     """用 buf 流式内容构建 PDF 文档并返回字节"""
+    tmp_path: Optional[str] = None
+    if output_path:
+        target = output_path
+    else:
+        # 无显式路径时用唯一临时文件（避免 /tmp 硬编码与并发覆盖）
+        fd, tmp_path = tempfile.mkstemp(suffix=".pdf", prefix="baa_report_")
+        os.close(fd)
+        target = tmp_path
     doc = BaseDocTemplate(
-        output_path or "/tmp/baa_report.pdf",
+        target,
         pagesize=A4,
         leftMargin=margin,
         rightMargin=margin,
@@ -316,7 +325,11 @@ def build_doc(
     )
     doc.addPageTemplates([PageTemplate(id="main", frames=frame)])
     doc.build(buf)
-    if not output_path:
-        with open("/tmp/baa_report.pdf", "rb") as f:
-            return f.read()
-    return b""
+    with open(target, "rb") as f:
+        data = f.read()
+    if tmp_path:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+    return data
