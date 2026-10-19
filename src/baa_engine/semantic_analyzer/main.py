@@ -111,6 +111,12 @@ class SemanticAnalyzer:
             random.seed(42)  # call
             primitives = random.sample(primitives, max_entities)  # assign
 
+        # Step 0.9: 图例学习（阶段 B M4）——分类前预扫描图例行结构，
+        # 学习 block_name → entity_type 供 INSERT 分类查表（仅本图生效）
+        from .legend_learner import _learn_legend_blocks
+
+        self._legend_learned = _learn_legend_blocks(primitives)
+
         # Step 1: 图元分类归并
         entities = self._classify_entities(primitives)  # assign
 
