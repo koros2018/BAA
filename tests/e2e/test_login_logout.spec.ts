@@ -18,7 +18,7 @@ test.describe("登录 / 登出流程", () => {
 
     await page.fill("#collab-reg-username", USER);
     await page.fill("#collab-reg-password", PASS);
-    await page.fill("#collab-reg-email", "e2e@test.com");
+    await page.fill("#collab-reg-email", `${USER}@test.com`);
     await page.fill("#collab-reg-name", "E2E Tester");
 
     // 提交注册
@@ -49,7 +49,7 @@ test.describe("登录 / 登出流程", () => {
     });
 
     // ── 登出 ──
-    await page.click('button:has-text("退出")');
+    await page.click('#user-status-logged-in button:has-text("退出")');
     await page.waitForTimeout(1000);
 
     // 验证登出后回到未登录状态

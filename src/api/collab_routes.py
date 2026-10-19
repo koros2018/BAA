@@ -562,7 +562,6 @@ async def collab_resolve_comment(comment_id: str, user_id: str = Depends(verify_
                 "message": msg,
             },
         )
-    return
     return {"status": "success"}
 
 

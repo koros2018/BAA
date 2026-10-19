@@ -12,9 +12,9 @@ test.describe("P119 审核工作流 API 闭环", () => {
       data: {
         review_id: reviewId,
         details: [
-          { clause_id: "DIM-001", entity_id: "ent-1", violation_type: "宽度过窄" },
-          { clause_id: "EXIST-001", entity_id: "ent-2", violation_type: "消防设施缺失" },
-          { clause_id: "DIM-002", entity_id: "ent-3", violation_type: "尺寸不合规" },
+          { clause_id: "DIM-001", entity_id: "ent-1", violation_type: "宽度过窄", result: "FAIL" },
+          { clause_id: "EXIST-001", entity_id: "ent-2", violation_type: "消防设施缺失", result: "FAIL" },
+          { clause_id: "DIM-002", entity_id: "ent-3", violation_type: "尺寸不合规", result: "FAIL" },
         ],
       },
     });

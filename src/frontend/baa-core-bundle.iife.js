@@ -4866,7 +4866,7 @@
     const desc = document.getElementById("modal-team-desc")?.value?.trim() || "";
     collabApi("/collab/teams", { method: "POST", body: JSON.stringify({ name, description: desc }) }).then((d) => {
       if (d.status === "success") {
-        window.setCurrentTeamId?.(String(d.team_id || d.id || ""));
+        window.setCurrentTeamId?.(String(d.team?.id || ""));
         window.setCurrentProjectId?.("");
         closeCollabModal();
         collabRefresh();
@@ -4898,7 +4898,7 @@
         }
         ph += "</table>";
       }
-      setModalBody('<h3 class="text-lg font-bold mb-4">团队: ' + escHtml$1(String(team.name)) + '</h3><div class="mb-4"><h4 class="font-medium mb-2">成员 (' + members.length + ")</h4>" + mh + `</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">项目</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal('` + teamId + `')">+ 新建项目</button></div>` + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+      setModalBody('<h3 class="text-lg font-bold mb-4">团队: ' + escHtml$1(String(team.name)) + '</h3><div class="mb-4"><div class="flex justify-between items-center mb-2"><h4 class="font-medium">成员 (' + members.length + `)</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showAddMemberModal('` + teamId + `')">+ 添加成员</button></div>` + mh + `</div><div><div class="flex justify-between items-center mb-2"><h4 class="font-medium">项目</h4><button class="modal-btn modal-btn-primary text-xs" onclick="showCreateProjectModal('` + teamId + `')">+ 新建项目</button></div>` + ph + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
     });
   }
   function showProjectDetail(projectId) {
@@ -4937,7 +4937,7 @@
     collabApi("/collab/projects", { method: "POST", body: JSON.stringify({ name, team_id: teamId, description: desc, building_type: btype }) }).then((d) => {
       if (d.status === "success") {
         window.setCurrentTeamId?.(teamId);
-        window.setCurrentProjectId?.(String(d.project_id || d.id || ""));
+        window.setCurrentProjectId?.(String(d.project?.id || ""));
         showTeamDetail(teamId);
       } else {
         showToast$1(collabErrMsg(d), "info");
@@ -4976,28 +4976,146 @@
       } else {
         for (const c of comments) {
           const icon = c.comment_type === "issue" ? "⚠️" : c.comment_type === "suggestion" ? "💡" : c.comment_type === "question" ? "❓" : "✅";
-          ch += '<div class="comment-box comment-' + String(c.comment_type) + '"><div class="flex justify-between items-start"><span class="font-medium text-sm">' + icon + " " + escHtml$1(String(c.author_name || "")) + '</span><span class="text-xs text-gray-400">' + new Date(Number(c.created_at) * 1e3).toLocaleString() + '</span></div><p class="text-sm mt-1">' + escHtml$1(String(c.content || "")) + "</p>";
-          if (c.clause_ref) {
-            ch += '<div class="text-xs text-gray-400 mt-1">• 条款: ' + escHtml$1(String(c.clause_ref)) + "</div>";
+          const resolved = c.is_resolved === true;
+          ch += '<div class="comment-box comment-' + String(c.comment_type) + '" data-comment-id="' + String(c.id) + '"><div class="flex justify-between items-start"><span class="font-medium text-sm">' + icon + " " + escHtml$1(String(c.author_name || "")) + (resolved ? ' <span class="text-xs text-green-600">✅ 已解决</span>' : "") + '</span><span class="text-xs text-gray-400">' + new Date(Number(c.created_at) * 1e3).toLocaleString() + '</span></div><p class="text-sm mt-1">' + escHtml$1(String(c.content || "")) + "</p>";
+          if (c.clause_id) {
+            ch += '<div class="text-xs text-gray-400 mt-1">• 条款: ' + escHtml$1(String(c.clause_id)) + "</div>";
           }
-          if (c.entity_ref) {
-            ch += '<div class="text-xs text-gray-400">• 实体: ' + escHtml$1(String(c.entity_ref)) + "</div>";
+          if (c.entity_id) {
+            ch += '<div class="text-xs text-gray-400">• 实体: ' + escHtml$1(String(c.entity_id)) + "</div>";
+          }
+          if (!c.is_resolved) {
+            ch += `<div class="mt-1"><button class="text-xs text-green-700 underline" onclick="resolveComment('` + String(c.id) + "', '" + sessionId + `')">标记已解决</button></div>`;
           }
           ch += "</div>";
         }
       }
       let fh = "";
-      if (flow && flow.steps) {
-        fh = '<table class="collab-table"><tr><th>序号</th><th>审批人</th><th>状态</th><th>意见</th><th>时间</th></tr>';
+      if (flow && flow.steps && flow.steps.length) {
+        fh = '<table class="collab-table"><tr><th>序号</th><th>审批人</th><th>状态</th><th>意见</th><th>时间</th><th>操作</th></tr>';
         for (const st of flow.steps) {
           const sb = '<span class="collab-badge collab-badge-' + String(st.status) + '">' + String(st.status) + "</span>";
-          fh += "<tr><td>" + String(st.order) + "</td><td>" + escHtml$1(String(st.reviewer_name || "")) + "</td><td>" + sb + "</td><td>" + escHtml$1(String(st.comment || "")) + "</td><td>" + (st.acted_at ? new Date(Number(st.acted_at) * 1e3).toLocaleString() : "") + "</td></tr>";
+          const acts = st.status === "pending" ? `<button class="text-xs text-green-700 underline mr-2" onclick="approveApprovalStep('` + String(st.id) + "', '" + sessionId + `')">通过</button><button class="text-xs text-red-600 underline" onclick="showRejectStepModal('` + String(st.id) + "', '" + sessionId + `')">驳回</button>` : "";
+          fh += "<tr><td>" + String(st.step_order) + "</td><td>" + escHtml$1(String(st.assignee_name || "")) + "</td><td>" + sb + "</td><td>" + escHtml$1(String(st.comment || "")) + "</td><td>" + (st.decided_at ? new Date(Number(st.decided_at) * 1e3).toLocaleString() : "") + "</td><td>" + acts + "</td></tr>";
         }
         fh += "</table>";
       } else {
         fh = '<p class="text-sm text-gray-400 py-2">暂无审批流程</p>';
       }
-      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + '</div><div><h4 class="font-medium mb-2">审批流程</h4>' + fh + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+      const commentForm = `<div class="mt-3 border-t pt-3"><div class="flex gap-2 mb-2"><select id="rs-comment-type" class="input text-sm"><option value="issue">问题</option><option value="suggestion">建议</option><option value="question">疑问</option><option value="note">备注</option></select><input id="rs-comment-clause" class="input text-sm" placeholder="条款ID(可选)" /><input id="rs-comment-entity" class="input text-sm" placeholder="实体ID(可选)" /></div><textarea id="rs-comment-content" class="input w-full" rows="2" placeholder="评论内容"></textarea><div class="flex justify-between items-center mt-2"><span id="rs-comment-msg" class="text-xs text-red-600"></span><button class="modal-btn modal-btn-primary text-xs" onclick="submitComment('` + sessionId + `')">发表评论</button></div></div>`;
+      const approvalTools = `<div class="mt-2"><button id="rs-approval-create" class="modal-btn modal-btn-primary text-xs" onclick="showApprovalFlowForm('` + sessionId + `')">+ 发起审批</button><div id="rs-approval-form" class="mt-2"></div></div>`;
+      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div><div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    });
+  }
+  function submitComment(sessionId) {
+    const content = document.getElementById("rs-comment-content")?.value?.trim() || "";
+    if (!content) {
+      const m = document.getElementById("rs-comment-msg");
+      if (m) m.textContent = "评论内容不能为空";
+      return;
+    }
+    const commentType = document.getElementById("rs-comment-type")?.value || "note";
+    const clauseId = document.getElementById("rs-comment-clause")?.value?.trim() || "";
+    const entityId = document.getElementById("rs-comment-entity")?.value?.trim() || "";
+    collabApi("/collab/review-sessions/" + sessionId + "/comments", { method: "POST", body: JSON.stringify({ content, comment_type: commentType, clause_id: clauseId, entity_id: entityId }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        const m = document.getElementById("rs-comment-msg");
+        if (m) m.textContent = collabErrMsg(d);
+      }
+    });
+  }
+  function resolveComment(commentId, sessionId) {
+    collabApi("/collab/comments/" + commentId + "/resolve", { method: "PUT" }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showApprovalFlowForm(sessionId) {
+    const el = document.getElementById("rs-approval-form");
+    if (!el) return;
+    el.innerHTML = `<input id="approval-name" class="input w-full mb-2 text-sm" value="标准审批" placeholder="审批流程名称" /><input id="approval-assignees" class="input w-full mb-2 text-sm" placeholder="审批人用户ID(逗号分隔)" /><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary text-xs" onclick="document.getElementById('rs-approval-form').innerHTML=''">取消</button><button class="modal-btn modal-btn-primary text-xs" onclick="createApprovalFlow('` + sessionId + `')">提交</button></div>`;
+  }
+  function createApprovalFlow(sessionId) {
+    const name = document.getElementById("approval-name")?.value?.trim() || "标准审批";
+    const raw = document.getElementById("approval-assignees")?.value?.trim() || "";
+    const assigneeIds = raw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (!assigneeIds.length) {
+      showToast$1("请填写审批人用户ID", "info");
+      return;
+    }
+    collabApi("/collab/review-sessions/" + sessionId + "/approval-flow", { method: "POST", body: JSON.stringify({ name, assignee_ids: assigneeIds }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function approveApprovalStep(stepId, sessionId) {
+    collabApi("/collab/approval-steps/" + stepId + "/approve", { method: "POST", body: JSON.stringify({ comment: "" }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showRejectStepModal(stepId, sessionId) {
+    setModalBody(`<h3 class="text-lg font-bold mb-4">驳回审批</h3><textarea id="reject-comment" class="input w-full mb-2" rows="3" placeholder="驳回意见"></textarea><div class="flex gap-2 justify-end"><button class="modal-btn modal-btn-secondary" onclick="showReviewSessionDetail('` + sessionId + `')">返回</button><button class="modal-btn modal-btn-primary" onclick="rejectApprovalStep('` + stepId + "', '" + sessionId + `')">确认驳回</button></div>`);
+  }
+  function rejectApprovalStep(stepId, sessionId) {
+    const comment = document.getElementById("reject-comment")?.value?.trim() || "";
+    collabApi("/collab/approval-steps/" + stepId + "/reject", { method: "POST", body: JSON.stringify({ comment }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function updateSessionStatus(sessionId, status) {
+    collabApi("/collab/review-sessions/" + sessionId + "/status", { method: "PUT", body: JSON.stringify({ status }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function showAddMemberModal(teamId) {
+    setModalBody(`<h3 class="text-lg font-bold mb-4">添加团队成员</h3><div class="flex gap-2 mb-2"><input id="member-search" class="input flex-1" placeholder="搜索用户名" /><select id="member-role" class="input text-sm"><option value="member">member</option><option value="manager">manager</option><option value="guest">guest</option></select><button class="modal-btn modal-btn-primary text-xs" onclick="searchUsersForMember('` + teamId + `')">搜索</button></div><div id="member-results"></div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="showTeamDetail('` + teamId + `')">返回</button></div>`);
+  }
+  function searchUsersForMember(teamId) {
+    const q = document.getElementById("member-search")?.value?.trim() || "";
+    collabApi("/collab/users/search?query=" + encodeURIComponent(q)).then((d) => {
+      const el = document.getElementById("member-results");
+      if (!el) return;
+      const users = d.users || [];
+      if (!users.length) {
+        el.innerHTML = '<p class="text-sm text-gray-400 py-2">无匹配用户</p>';
+        return;
+      }
+      let h = '<table class="collab-table"><tr><th>用户</th><th>操作</th></tr>';
+      for (const u of users) {
+        h += "<tr><td>" + escHtml$1(String(u.display_name || u.username || "")) + `</td><td><button class="text-blue-600 text-xs underline" onclick="addTeamMember('` + teamId + "', '" + String(u.id) + `')">添加</button></td></tr>`;
+      }
+      h += "</table>";
+      el.innerHTML = h;
+    });
+  }
+  function addTeamMember(teamId, userId) {
+    const role = document.getElementById("member-role")?.value || "member";
+    collabApi("/collab/teams/" + teamId + "/members", { method: "POST", body: JSON.stringify({ user_id: userId, role }) }).then((d) => {
+      if (d.status === "success") {
+        showTeamDetail(teamId);
+      } else {
+        showToast$1(collabErrMsg(d), "info");
+      }
     });
   }
   if (_token) {
@@ -5226,6 +5344,17 @@
   w.showCreateReviewSessionModal = showCreateReviewSessionModal;
   w.createReviewSession = createReviewSession;
   w.showReviewSessionDetail = showReviewSessionDetail;
+  w.submitComment = submitComment;
+  w.resolveComment = resolveComment;
+  w.showApprovalFlowForm = showApprovalFlowForm;
+  w.createApprovalFlow = createApprovalFlow;
+  w.approveApprovalStep = approveApprovalStep;
+  w.showRejectStepModal = showRejectStepModal;
+  w.rejectApprovalStep = rejectApprovalStep;
+  w.updateSessionStatus = updateSessionStatus;
+  w.showAddMemberModal = showAddMemberModal;
+  w.searchUsersForMember = searchUsersForMember;
+  w.addTeamMember = addTeamMember;
   w.testConnection = testConnection;
   w.router = router;
   w.importServerKey = importServerKey;

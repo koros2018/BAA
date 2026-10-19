@@ -1,42 +1,34 @@
 import { expect, test } from "@playwright/test";
+import * as path from "path";
+import { fileURLToPath } from "url";
 
-const FIXTURE_DIR = "/mnt/d/OpenClawData3workspace/Projects/BAA/tests/e2e/fixtures";
+const FIXTURE_DIR =
+  process.env.E2E_FIXTURE_DIR ||
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 test.describe("批量审查流程", () => {
-  test("上传多个 DXF → 批量送审 → 查看结果", async ({ page }) => {
+  test("上传多张 DXF → 勾选送审 → 查看批量结果", async ({ page }) => {
+    test.slow();
     await page.goto("/");
-
-    // 进入图纸管理页面
     await page.click('[data-page="drawings"]');
+    const yolo = page.locator("#use-yolo-checkbox");
+    if (await yolo.isChecked()) await yolo.uncheck();
 
-    // 多文件上传
-    await page.setInputFiles("#batch-file-input", [
-      `${FIXTURE_DIR}/test_basic.dxf`,
-      `${FIXTURE_DIR}/test_batch.dxf`,
-      `${FIXTURE_DIR}/test_room.dxf`,
-    ]);
+    // 逐张上传解析（列表逐张累积）
+    const files = ["test_basic.dxf", "test_batch.dxf", "test_room.dxf"];
+    for (let i = 0; i < files.length; i++) {
+      await page.setInputFiles("#file-input", `${FIXTURE_DIR}/${files[i]}`);
+      await page.click('[data-action="uploadAndReview"]');
+      await expect(page.locator("#drawing-count")).toHaveText(String(i + 1), { timeout: 120_000 });
+    }
 
-    // 等待文件加载到队列
-    await page.waitForTimeout(2000);
-
-    // 点击批量送审按钮（start-btn）
-    const batchBtn = page.locator("#batch-review-start-btn");
+    // 全选 → 批量送审：走图纸列表多选 → batchReview() → /review-from-data
+    await page.click('[data-action="selectAllDrawings"]');
+    const batchBtn = page.locator("#batch-review-btn");
     await expect(batchBtn).toBeVisible({ timeout: 10_000 });
     await batchBtn.click();
 
-    // 等待批量结果出现：summary 或 details 有内容（二选一即可）
-    await Promise.race([
-      page
-        .locator("#batch-review-summary")
-        .waitFor({ state: "visible", timeout: 180_000 }),
-      page
-        .locator("#batch-review-details")
-        .waitFor({ state: "visible", timeout: 180_000 }),
-    ]);
-
-    // 至少 summary 或 details 非空
-    const summaryText = (await page.locator("#batch-review-summary").textContent())?.trim() || "";
-    const detailsCount = await page.locator("#batch-review-details > div").count();
-    expect(summaryText.length > 0 || detailsCount > 0).toBe(true);
+    await expect(page.locator("#upload-progress")).toContainText("批量审查完成", { timeout: 120_000 });
+    await expect(page.locator("#upload-progress")).toContainText("项违规", { timeout: 10_000 });
   });
 });

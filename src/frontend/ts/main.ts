@@ -202,6 +202,17 @@ import {
   showCreateReviewSessionModal,
   createReviewSession,
   showReviewSessionDetail,
+  submitComment,
+  resolveComment,
+  showApprovalFlowForm,
+  createApprovalFlow,
+  approveApprovalStep,
+  showRejectStepModal,
+  rejectApprovalStep,
+  updateSessionStatus,
+  showAddMemberModal,
+  searchUsersForMember,
+  addTeamMember,
 } from './components/collab';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
@@ -433,6 +444,17 @@ w.createProject = createProject;
 w.showCreateReviewSessionModal = showCreateReviewSessionModal;
 w.createReviewSession = createReviewSession;
 w.showReviewSessionDetail = showReviewSessionDetail;
+w.submitComment = submitComment;
+w.resolveComment = resolveComment;
+w.showApprovalFlowForm = showApprovalFlowForm;
+w.createApprovalFlow = createApprovalFlow;
+w.approveApprovalStep = approveApprovalStep;
+w.showRejectStepModal = showRejectStepModal;
+w.rejectApprovalStep = rejectApprovalStep;
+w.updateSessionStatus = updateSessionStatus;
+w.showAddMemberModal = showAddMemberModal;
+w.searchUsersForMember = searchUsersForMember;
+w.addTeamMember = addTeamMember;
 
 w.testConnection = testConn;
 w.router = router;
