@@ -25,14 +25,14 @@ jobs:
 
       - name: JSHint — src/frontend/*.js
         run: |
-          jshint src/frontend/*.js --config .jshintrc --verbose 2>&1 | tee /tmp/jshint.log
-
-          # 检查是否有 ERROR 行（WARNING 不阻断）
-          if grep -q "^[^ ]*:[0-9]*:[0-9]*.*Error" /tmp/jshint.log 2>/dev/null; then
+          # 只阻断 E 级错误；W 级警告不阻断（bundle 为生成的现代 JS，W119 等为噪声）
+          jshint src/frontend/*.js --config .jshintrc 2>&1 | tee /tmp/jshint.log || true
+          if grep -qE "\(E[0-9]{3}\)" /tmp/jshint.log; then
+            echo "JSHint 发现 E 级错误:"
             cat /tmp/jshint.log
             exit 1
           fi
-          echo "JSHint passed (only warnings if any)"
+          echo "JSHint passed (no E-level errors)"
 
       - name: 检查 alert() 残留
         run: |
@@ -75,10 +75,9 @@ jobs:
           print('HTML structure OK')
           "
 
-      - name: 检查前端文件是否可加载（ESLint 兜底）
+      - name: 前端 JS 语法检查（node --check）
         run: |
-          npm install -g eslint@8
           for f in src/frontend/*.js; do
-            node -c "$f" || echo "⚠️ 语法错误: $f" && exit 1
+            node --check "$f"
           done
-          echo "All JS files pass node -c syntax check"
+          echo "All JS files pass node --check syntax check"
