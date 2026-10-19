@@ -27,7 +27,7 @@
 
 - **critical FAIL 下降 100%**（≥80% 达标）。诚实解读：OLD 的 465 个 critical 在本抽样中 100% 属误报（类型在图中存在却被判缺），NEW 全部修正——447 降级为带「N/M 个作用域未检出」的 low 提示、18 确认覆盖。
 - **漏报保护**：missing 判定语义与 OLD 等价（全图无目标类型才 critical）；抽样 missing=0，构造上不存在「OLD 报 NEW 不报」路径（pass 要求全作用域命中，partial 仍可见）。
-- 局限（诚实）：网格（50m）≠防火分区，partial→low 是 v1 务实语义；分区识别（fire_compartment 分类产出）落地后作用域精度进一步提升。
+- 局限（诚实）：网格（50m）≠防火分区，partial→low 是 v1 务实语义；~~分区识别落地后提升~~ → **已落地（2026-10-19 治理①）**：A-FIRE/防火分区图层闭合区域产 fire_compartment/fire_zone，底图实测 grid 90 格→compartment 3 分区（docs/governance_20261019/）。
 
 ## 四、复现
 

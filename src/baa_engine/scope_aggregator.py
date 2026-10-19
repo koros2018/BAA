@@ -9,8 +9,8 @@ EXIST 类判定的误报机制（B2 评估定位）：
 本引擎将判定从「单图元/整图」升级为「作用域内聚合」：
 
 作用域来源（优先级递减，均客观可测）：
-1. ``fire_compartment`` 实体（分类层补齐后即插即用；当前 classify 未产出，
-   v1 阶段实际回退到网格）
+1. ``fire_compartment`` / ``fire_zone`` 实体（分类层已从防火分区图层
+   （A-FIRE、防火分区）的闭合区域产出；无分区实体的图纸回退网格）
 2. 空间网格回退（默认 50m 网格）：纯几何划分，不依赖分区识别，立即可用
 
 聚合语义（宁缺勿错）：
@@ -29,8 +29,9 @@ from typing import Any, Dict, List, Optional, Tuple
 # 空间网格回退：默认 50m（防火分区典型尺度 1000~4000㎡ 即 30~70m 边长）
 DEFAULT_GRID_MM = 50000.0
 
-# 分区实体类型（与 classify.py 未来产出对齐；当前为空则回退网格）
-_COMPARTMENT_TYPES = {"fire_compartment"}
+# 分区实体类型（classify.py 区域守卫产出：防火分区图层闭合多边形/HATCH；
+# fire_zone 为「防火分区」中文图层规则产出类型；图纸无分区实体时回退网格）
+_COMPARTMENT_TYPES = {"fire_compartment", "fire_zone"}
 
 
 def _center(entity: Dict[str, Any]) -> Optional[Tuple[float, float]]:

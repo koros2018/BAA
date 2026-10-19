@@ -23,4 +23,8 @@ LAYER_RULES_FIRE = {
     "消火栓按钮": "hydrant_call_button",  # P70 消火栓启泵按钮
     "启泵": "hydrant_call_button",  # P70 启泵按钮
     "水泵接合器": "siamese_connection",  # P70 水泵接合器
+    # 防火分区边界图层（real: 平面布置底图0712 A-FIRE 闭合多边形, xref 嵌套
+    # 形态 底图平面图$0$11$0$A-FIRE 亦含子串 A-FIRE）。配合 classify 区域守卫:
+    # 仅闭合多边形/HATCH 且 bbox≥25m² 才产分区实体, 分隔线/标注被滤除。
+    "A-FIRE": "fire_compartment",
 }

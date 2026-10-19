@@ -41,6 +41,29 @@ def _is_landscape_layer(layer: str) -> bool:
     )
 
 
+# 防火分区/防火单元实体最小 bbox 面积（25m²）:
+# 真实分区多为数百~数千 m²（底图实测 219~5483m²），25m² 下限仅过滤
+# 分隔线/文字/图例块等退化几何，不误杀真实小分区。
+_COMPARTMENT_MIN_AREA_MM2 = 25e6
+
+
+def _is_compartment_region(prim: RawPrimitive) -> bool:
+    """分区实体须为真实区域几何：闭合多边形/HATCH 且 bbox 面积达标。
+
+    防火分区图层（A-FIRE/防火分区）上同时存在边界 LINE、标注 TEXT、
+    图例 INSERT 等退化几何，其 bbox 不构成有效作用域，必须滤除，
+    否则 scope_aggregator 的分区作用域被污染。
+    """
+    if prim.dxf_type not in ("LWPOLYLINE", "POLYLINE", "HATCH"):
+        return False
+    bb = prim.bbox or {}
+    try:
+        barea = float(bb.get("width", 0) or 0) * float(bb.get("height", 0) or 0)
+    except (TypeError, ValueError):
+        return False
+    return barea >= _COMPARTMENT_MIN_AREA_MM2
+
+
 def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """图元分类归并"""
     # 优先解析 META 图层（合成图纸结构化数据）
@@ -135,6 +158,15 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 # PUB_HATCH 等填充层已由 LAYER_RULES 正确返回 "other" 被过滤，
                 # 真实 DOOR_FIRE/SLAB/窗图层返回 "unknown" 走几何兜底保留 door/window
                 entity_type = geo_type
+
+        # 防火分区/防火单元类型守卫（T-B2 遗留治理）：
+        # 无论来自图层规则（A-FIRE/防火分区）还是块名命中（防火分区图例块），
+        # 仅接受真实区域几何；边界线/文字/图例块等退化几何归 other，
+        # 不产生分区实体，避免 scope_aggregator 作用域被退化 bbox 污染。
+        if entity_type in ("fire_compartment", "fire_zone") and not _is_compartment_region(
+            prim
+        ):
+            entity_type = "other"
 
         if prim.properties.get("_block_default"):
             self._classify_block_default += 1
