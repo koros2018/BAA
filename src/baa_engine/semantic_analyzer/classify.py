@@ -614,6 +614,12 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             lg = lookup_legend(str(v))
             if lg:
                 return lg
+        # 图例学习命中（Step 0.9 预扫描本图图例行学得的映射，优先于守卫/兜底）
+        learned = getattr(self, "_legend_learned", None)
+        if learned:
+            hit_type = learned.get(block_name)
+            if hit_type:
+                return hit_type
         # 景观/绿化图层的未识别块不是建筑构件（苗木/灯具/铺装小品），
         # 归 other，不走 wall 兜底（防墙实例污染，见文件头守卫说明）。
         if _is_landscape_layer(prim.layer):
