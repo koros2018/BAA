@@ -201,3 +201,55 @@ jobs:
         with:
           name: real-drawing-baseline-report
           path: data/real_drawing_baseline_report.json
+
+  recall_gate:
+    name: "Recall Gate (T-B3)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ezdxf
+
+      - name: Guard - gold drawings availability
+        id: data_guard
+        run: |
+          ok=true
+          names=(
+            "A1云计算中心平面图0405_t3.dxf"
+            "20210409-3#泵房_t3.dxf"
+            "202109409-2#配电房_t3.dxf"
+          )
+          for name in "${names[@]}"; do
+            [ -n "$(find data -name "$name" -print -quit 2>/dev/null)" ] || { ok=false; echo "missing: $name"; }
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Run recall gate (T3 gold set, miss-rate floor)
+        if: steps.data_guard.outputs.ok == 'true'
+        run: |
+          python src/tools/recall_metrics.py \
+            --json data/recall_metrics_latest.json \
+            --history docs/recall_metrics/history.jsonl \
+            --gate-recall 0.75
+
+      - name: Notice - gold drawings not in repo
+        if: steps.data_guard.outputs.ok != 'true'
+        run: |
+          echo "::notice::T3 黄金标准 3 张源图未入库（.gitignore 排除数据目录），跳过 recall gate。本地/数据源可用时补跑。"
+
+      - name: Upload recall report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recall-metrics-report
+          path: data/recall_metrics_latest.json
