@@ -29,9 +29,23 @@ def _ent(entity_id, etype, x, y, w, h, props=None):
 
 def test_t3_wall_seg_injects_width_and_length():
     """seg 厚度 200mm/跨度 5400mm → wall.width=0.2, length=5.4, source=t3_native。"""
-    wall = _ent("W1", "wall", 0, 0, 5400, 200, {
-        "_t3_wall_seg": {"orientation": "h", "pos": 100, "start": 0, "end": 5400, "thickness": 200},
-    })
+    wall = _ent(
+        "W1",
+        "wall",
+        0,
+        0,
+        5400,
+        200,
+        {
+            "_t3_wall_seg": {
+                "orientation": "h",
+                "pos": 100,
+                "start": 0,
+                "end": 5400,
+                "thickness": 200,
+            },
+        },
+    )
     out = _inject_native_instance_fields([wall])
     assert out[0].properties["width"] == pytest.approx(0.2)
     assert out[0].properties["length"] == pytest.approx(5.4)
@@ -40,9 +54,23 @@ def test_t3_wall_seg_injects_width_and_length():
 
 def test_t3_single_wall_thickness_none_only_length():
     """single 未配对面墙 thickness=None → 只注入 length，不臆测厚度。"""
-    wall = _ent("W2", "wall", 0, 0, 3000, 1, {
-        "_t3_wall_seg": {"orientation": "h", "pos": 50, "start": 0, "end": 3000, "thickness": None},
-    })
+    wall = _ent(
+        "W2",
+        "wall",
+        0,
+        0,
+        3000,
+        1,
+        {
+            "_t3_wall_seg": {
+                "orientation": "h",
+                "pos": 50,
+                "start": 0,
+                "end": 3000,
+                "thickness": None,
+            },
+        },
+    )
     out = _inject_native_instance_fields([wall])
     assert "width" not in out[0].properties
     assert out[0].properties["length"] == pytest.approx(3.0)
@@ -50,9 +78,23 @@ def test_t3_single_wall_thickness_none_only_length():
 
 def test_t3_wall_thickness_out_of_range_skipped():
     """厚度 2000mm 超出 0.05~1.0m 合理区间 → 不注入。"""
-    wall = _ent("W3", "wall", 0, 0, 5000, 2000, {
-        "_t3_wall_seg": {"orientation": "h", "pos": 1000, "start": 0, "end": 5000, "thickness": 2000},
-    })
+    wall = _ent(
+        "W3",
+        "wall",
+        0,
+        0,
+        5000,
+        2000,
+        {
+            "_t3_wall_seg": {
+                "orientation": "h",
+                "pos": 1000,
+                "start": 0,
+                "end": 5000,
+                "thickness": 2000,
+            },
+        },
+    )
     out = _inject_native_instance_fields([wall])
     assert "width" not in out[0].properties
     assert out[0].properties["length"] == pytest.approx(5.0)
@@ -63,9 +105,17 @@ def test_t3_wall_thickness_out_of_range_skipped():
 
 def test_t3_window_bbox_injects_width():
     """_t3_window_bbox 1200×200（mm）→ window.width=1.2。"""
-    win = _ent("WIN1", "window", 0, 0, 1200, 200, {
-        "_t3_window_bbox": {"x": 0, "y": 0, "width": 1200, "height": 200},
-    })
+    win = _ent(
+        "WIN1",
+        "window",
+        0,
+        0,
+        1200,
+        200,
+        {
+            "_t3_window_bbox": {"x": 0, "y": 0, "width": 1200, "height": 200},
+        },
+    )
     out = _inject_native_instance_fields([win])
     assert out[0].properties["width"] == pytest.approx(1.2)
     assert "height" not in out[0].properties

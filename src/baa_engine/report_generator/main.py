@@ -86,6 +86,7 @@ class ReviewReport:
             build_signature_page,
             build_toc_page,
         )
+
         buf.append(PageBreak())
         build_toc_page(buf, self.styles, self.page_w, self.margin, details, lang)
         buf.append(PageBreak())

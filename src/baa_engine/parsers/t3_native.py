@@ -38,25 +38,25 @@ DOOR_BLOCK_PREFIX = "$DORLIB2D"
 WINDOW_BLOCK_PREFIX = "$WINLIB2D"
 COLUMN_BLOCK_PREFIXES = ("_FZH", "_FZK")
 
-VIEW_GAP = 2000.0            # 平面视图聚类膨胀间隙（仅 WALL/COLUMN/门窗核心实体）
-WALL_MIN_LEN = 300.0         # 最短墙段
-WALL_FACE_MIN_GAP = 60.0     # 双墙线最小间距
-WALL_FACE_MAX_GAP = 600.0    # 双墙线最大间距
-WALL_FACE_MERGE_GAP = 80.0   # 同面墙共线合并间隙
+VIEW_GAP = 2000.0  # 平面视图聚类膨胀间隙（仅 WALL/COLUMN/门窗核心实体）
+WALL_MIN_LEN = 300.0  # 最短墙段
+WALL_FACE_MIN_GAP = 60.0  # 双墙线最小间距
+WALL_FACE_MAX_GAP = 600.0  # 双墙线最大间距
+WALL_FACE_MERGE_GAP = 80.0  # 同面墙共线合并间隙
 WALL_PAIR_MIN_OVERLAP = 0.5  # 双面墙重叠率阈值
-WINDOW_CLUSTER_GAP = 150.0   # 窗线聚类间隙
-WINDOW_MIN_LONG = 350.0      # 窗洞最小长边
-WINDOW_MAX_LONG = 4000.0     # 窗洞最大长边
-WINDOW_MAX_SHORT = 800.0     # 窗符号最大短边
-WINDOW_WALL_NEAR = 600.0     # 窗中心到墙面的最大距离
+WINDOW_CLUSTER_GAP = 150.0  # 窗线聚类间隙
+WINDOW_MIN_LONG = 350.0  # 窗洞最小长边
+WINDOW_MAX_LONG = 4000.0  # 窗洞最大长边
+WINDOW_MAX_SHORT = 800.0  # 窗符号最大短边
+WINDOW_WALL_NEAR = 600.0  # 窗中心到墙面的最大距离
 COLUMN_MIN_R = 50.0
 COLUMN_MAX_R = 1000.0
 # 分解态矩形柱（LWPOLYLINE 轮廓，天正导出时柱被分解）的判据
-COLUMN_MIN_EDGE = 80.0     # 柱轮廓最短边（mm）
-COLUMN_MAX_EDGE = 1200.0   # 柱轮廓最长边（mm）
-COLUMN_MAX_ASPECT = 4.0    # 柱轮廓长宽比上限（墙柱也允许，但排除长墙误纳）
+COLUMN_MIN_EDGE = 80.0  # 柱轮廓最短边（mm）
+COLUMN_MAX_EDGE = 1200.0  # 柱轮廓最长边（mm）
+COLUMN_MAX_ASPECT = 4.0  # 柱轮廓长宽比上限（墙柱也允许，但排除长墙误纳）
 
-REGION_MIN_AREA = 8.0         # m²
+REGION_MIN_AREA = 8.0  # m²
 REGION_MAX_AREA = 50000.0
 REGION_MAX_ASPECT = 10.0
 REGION_MIN_WALL_SEGS = 8
@@ -380,9 +380,7 @@ def _select_plan_regions(items: Sequence[dict]) -> List[dict]:
         wall_segs = sum(
             1
             for it in group
-            if it["kind"] == "seg"
-            and it["layer"] == LAYER_WALL
-            and it["axis"] in (0, 1)
+            if it["kind"] == "seg" and it["layer"] == LAYER_WALL and it["axis"] in (0, 1)
         )
         door_blocks = sum(
             1
@@ -392,8 +390,7 @@ def _select_plan_regions(items: Sequence[dict]) -> List[dict]:
         col_blocks = sum(
             1
             for it in group
-            if (it["kind"] == "insert" and it["layer"] == LAYER_COLUMN)
-            or it.get("kind") == "poly"
+            if (it["kind"] == "insert" and it["layer"] == LAYER_COLUMN) or it.get("kind") == "poly"
         )
         win_ents = sum(1 for it in group if it["kind"] != "insert" and it["layer"] == LAYER_WINDOW)
         is_plan = (
@@ -415,7 +412,9 @@ def _select_plan_regions(items: Sequence[dict]) -> List[dict]:
                 "window_entities": win_ents,
             }
         )
-    regions.sort(key=lambda r: (r["door_blocks"] + r["column_blocks"], r["wall_segments"]), reverse=True)
+    regions.sort(
+        key=lambda r: (r["door_blocks"] + r["column_blocks"], r["wall_segments"]), reverse=True
+    )
     for idx, r in enumerate(regions):
         r["index"] = idx
     return regions
@@ -498,6 +497,7 @@ def _pair_faces(
             }
         )
         paired_intervals[(fa["pos"] + fb["pos"]) / 2.0].append((start, end))
+
     # 二次配对：与内墙交接处某一面被分成多段时，连续长面允许复用
     # （已配对的长面再与缺口另一侧的短面配对；同一中心线上去重）。
     def _occupied(center: float, a: float, b: float) -> bool:
@@ -556,7 +556,9 @@ def _pair_faces(
     return pairs
 
 
-def _walls_for_region(region_items: Sequence[dict], region_idx: int) -> Tuple[List[dict], List[Tuple[float, float, float, float]]]:
+def _walls_for_region(
+    region_items: Sequence[dict], region_idx: int
+) -> Tuple[List[dict], List[Tuple[float, float, float, float]]]:
     """返回墙实例 + 墙面线段（供窗贴墙判定）。"""
     h_runs: Dict[float, List[Tuple[float, float, List[str]]]] = defaultdict(list)
     v_runs: Dict[float, List[Tuple[float, float, List[str]]]] = defaultdict(list)
@@ -610,7 +612,9 @@ def _block_local_bbox(doc, block_name: str) -> Optional[Tuple[float, float, floa
     return min(xs), min(ys), max(xs), max(ys)
 
 
-def _openings_for_region(region_items: Sequence[dict], region_idx: int, face_segs, doc) -> Tuple[List[dict], List[dict]]:
+def _openings_for_region(
+    region_items: Sequence[dict], region_idx: int, face_segs, doc
+) -> Tuple[List[dict], List[dict]]:
     doors: List[dict] = []
     windows: List[dict] = []
     door_centers: List[Tuple[float, float]] = []
@@ -668,18 +672,21 @@ def _openings_for_region(region_items: Sequence[dict], region_idx: int, face_seg
                             break
             if len(group) < 2 and not singleton_ok:
                 continue
-            if not (WINDOW_MIN_LONG <= long_side <= WINDOW_MAX_LONG and short_side <= WINDOW_MAX_SHORT):
+            if not (
+                WINDOW_MIN_LONG <= long_side <= WINDOW_MAX_LONG and short_side <= WINDOW_MAX_SHORT
+            ):
                 if not singleton_ok:
                     continue
             # 门联窗（FMC）侧亮与洞口窗线与墙面共线、嵌在洞口内，窗中心到
             # 墙面端点可达窗长一半，故容差 = 长边/2 + 500。
             near_limit = long_side / 2.0 + 500.0
-            if all(
-                _point_seg_dist(cx, cy, *seg) > near_limit for seg in face_segs
-            ):
+            if all(_point_seg_dist(cx, cy, *seg) > near_limit for seg in face_segs):
                 continue
             # 与 WINLIB 块窗去重（块优先），但门联窗侧亮保留
-            if any(math.hypot(cx - wx, cy - wy) < 300.0 for wx, wy in [(w_["x"], w_["y"]) for w_ in windows]):
+            if any(
+                math.hypot(cx - wx, cy - wy) < 300.0
+                for wx, wy in [(w_["x"], w_["y"]) for w_ in windows]
+            ):
                 continue
             windows.append(
                 {
@@ -798,7 +805,14 @@ def extract_t3(doc, *, force: bool = False) -> Dict[str, Any]:
         "diagnostic": None,
     }
     if not signature["is_t3"] and not force:
-        return {"status": empty_status, "regions": [], "walls": [], "doors": [], "windows": [], "columns": []}
+        return {
+            "status": empty_status,
+            "regions": [],
+            "walls": [],
+            "doors": [],
+            "windows": [],
+            "columns": [],
+        }
 
     msp = doc.modelspace()
     items = _collect_items(msp)

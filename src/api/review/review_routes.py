@@ -571,9 +571,7 @@ async def review(  # code
                 # 网格基准用全实体（空间结构铺格），目标实体仅作归属统计——
                 # 若用 targets 自身铺格则每格天然命中，聚合恒 pass 形同虚设
                 sc = build_scopes(entities)
-                agg = aggregate_exist_in_scopes(
-                    func.func_id, list(func_targets), entities, sc
-                )
+                agg = aggregate_exist_in_scopes(func.func_id, list(func_targets), entities, sc)
                 if agg["overall"] == "pass":
                     continue  # 所有作用域均命中：不产生缺失 finding
                 if agg["overall"] == "partial":
@@ -1138,9 +1136,7 @@ async def export_review_export(
         xbytes = build_review_xlsx(review_id, filename, summary, details)
         return Response(
             content=xbytes,
-            media_type=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
+            media_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             headers={"Content-Disposition": f'attachment; filename="{review_id}_report.xlsx"'},
         )
 

@@ -106,7 +106,7 @@ def build_topology_graph(entities: List[SemanticEntity]) -> nx.Graph:
 
     # 空间-空间：隔墙邻接（bbox 缘距 ≤ 墙厚缓冲）
     for i, a in enumerate(rooms):
-        for b in rooms[i + 1:]:
+        for b in rooms[i + 1 :]:
             if _bbox_gap_mm(a, b) <= _WALL_GAP_MM:
                 g.add_edge(a.id, b.id, relation="adjacent")
 
@@ -137,9 +137,7 @@ def topology_summary(g: nx.Graph) -> Dict[str, Any]:
         for u, v, data in g.edges(data=True)
     ]
     adjacency = {str(nid): sorted(g.neighbors(nid)) for nid in g.nodes}
-    components = [
-        sorted(c) for c in nx.connected_components(g)
-    ]
+    components = [sorted(c) for c in nx.connected_components(g)]
     return {
         "node_count": g.number_of_nodes(),
         "edge_count": g.number_of_edges(),

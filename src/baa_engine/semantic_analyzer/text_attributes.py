@@ -53,9 +53,7 @@ _THICKNESS_PATTERNS = (
 # 门窗编号：前缀 + 可选防火等级字 + 宽(2位) + 高(2位)
 # 左边界排除字母/数字/「%」：DXF 中 %%C 为直径符号 φ（如 %%C1816x6266 是管径），
 # 若不排除会被误当作窗编号 C1816。
-_CODE_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9%])(FHM|FM|M|C)[甲乙丙]?(\d{2})(\d{2})(?![0-9])"
-)
+_CODE_PATTERN = re.compile(r"(?<![A-Za-z0-9%])(FHM|FM|M|C)[甲乙丙]?(\d{2})(\d{2})(?![0-9])")
 
 
 def _parse_thickness_m(text: str) -> Optional[float]:

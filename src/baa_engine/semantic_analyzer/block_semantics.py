@@ -175,23 +175,20 @@ _TELECOM_RULES: Tuple[Tuple[str, str], ...] = (
 # 弱电/电气设备补充规则：追加到末尾，保持既有规则优先级不变。
 # 实测高频块名：摄像机/变压器/发电机/接触器/智能照明控制面板…
 # 明确不映射（保持 None，避免新增误报）：天正/AVE 系统块、图框、匿名块（见 T-A2 验收记录）。
-_ELECTRICAL_WEAK_RULES: Tuple[Tuple[str, str], ...] = (
-    _TELECOM_RULES
-    + (
-        ("WIFI", "equipment"),
-        ("网络", "equipment"),
-        ("语音", "equipment"),
-        ("摄像机", "equipment"),
-        ("球机", "equipment"),
-        ("CAMERA", "equipment"),
-        ("变压器", "equipment"),
-        ("发电机", "equipment"),
-        ("接触器", "equipment"),
-        ("控制箱", "equipment"),
-        ("控制面板", "equipment"),
-        ("桥架", "equipment"),
-        ("母线", "equipment"),
-    )
+_ELECTRICAL_WEAK_RULES: Tuple[Tuple[str, str], ...] = _TELECOM_RULES + (
+    ("WIFI", "equipment"),
+    ("网络", "equipment"),
+    ("语音", "equipment"),
+    ("摄像机", "equipment"),
+    ("球机", "equipment"),
+    ("CAMERA", "equipment"),
+    ("变压器", "equipment"),
+    ("发电机", "equipment"),
+    ("接触器", "equipment"),
+    ("控制箱", "equipment"),
+    ("控制面板", "equipment"),
+    ("桥架", "equipment"),
+    ("母线", "equipment"),
 )
 
 

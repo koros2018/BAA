@@ -10,7 +10,6 @@ from .block_semantics import BLOCK_FALLBACK_TYPE, classify_block_name
 from .legend_rules import lookup_legend
 from ..drawing_parser import RawPrimitive
 
-
 # 景观/绿化图层守卫（阶段 B M1 收口 · 分类治理）。
 # 真实图纸库 252 张实测：LA-* 景观图层的 INSERT 块（苗木/灯具/铺装小品）
 # 块名无模式可穷举（k300/zt1 代号、苗木名、天正库块混杂），未命中规则表
@@ -126,11 +125,19 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 s = min(seg["start"], seg["end"])
                 e = max(seg["start"], seg["end"])
                 if seg.get("orientation") == "h":
-                    bbox_override = {"x": s, "y": seg["pos"] - t / 2.0,
-                                     "width": e - s, "height": max(t, 1.0)}
+                    bbox_override = {
+                        "x": s,
+                        "y": seg["pos"] - t / 2.0,
+                        "width": e - s,
+                        "height": max(t, 1.0),
+                    }
                 else:
-                    bbox_override = {"x": seg["pos"] - t / 2.0, "y": s,
-                                     "width": max(t, 1.0), "height": e - s}
+                    bbox_override = {
+                        "x": seg["pos"] - t / 2.0,
+                        "y": s,
+                        "width": max(t, 1.0),
+                        "height": e - s,
+                    }
         elif t3_native in ("door", "column", "window"):
             if t3_gid is not None:
                 if t3_gid in self._t3_window_seen:
@@ -163,9 +170,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         # 无论来自图层规则（A-FIRE/防火分区）还是块名命中（防火分区图例块），
         # 仅接受真实区域几何；边界线/文字/图例块等退化几何归 other，
         # 不产生分区实体，避免 scope_aggregator 作用域被退化 bbox 污染。
-        if entity_type in ("fire_compartment", "fire_zone") and not _is_compartment_region(
-            prim
-        ):
+        if entity_type in ("fire_compartment", "fire_zone") and not _is_compartment_region(prim):
             entity_type = "other"
 
         if prim.properties.get("_block_default"):
@@ -207,20 +212,20 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         s = min(seg["start"], seg["end"])
         e = max(seg["start"], seg["end"])
         if seg.get("orientation") == "h":  # condition: 水平墙
-            bbox = {"x": s, "y": seg["pos"] - t / 2.0,
-                    "width": e - s, "height": max(t, 1.0)}
+            bbox = {"x": s, "y": seg["pos"] - t / 2.0, "width": e - s, "height": max(t, 1.0)}
         else:  # 垂直墙
-            bbox = {"x": seg["pos"] - t / 2.0, "y": s,
-                    "width": max(t, 1.0), "height": e - s}
+            bbox = {"x": seg["pos"] - t / 2.0, "y": s, "width": max(t, 1.0), "height": e - s}
         self._entity_counter += 1
-        entities.append(SemanticEntity(
-            entity_id=f"WALL_{self._entity_counter:03d}",
-            entity_type="wall",
-            bbox=bbox,
-            layer="WALL",
-            confidence=0.9,
-            properties={"_t3_wall_gid": wgid, "_t3_wall_seg": seg, "_t3_backfill": True},
-        ))
+        entities.append(
+            SemanticEntity(
+                entity_id=f"WALL_{self._entity_counter:03d}",
+                entity_type="wall",
+                bbox=bbox,
+                layer="WALL",
+                confidence=0.9,
+                properties={"_t3_wall_gid": wgid, "_t3_wall_seg": seg, "_t3_backfill": True},
+            )
+        )
 
     # 归并同类重叠图元
     entities = _merge_overlapping(self, entities)
