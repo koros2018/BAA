@@ -108,8 +108,29 @@ class SemanticAnalyzer:
         if len(primitives) > max_entities:  # check: numeric comparison
             import random  # stdlib import
 
+            # T3 原生识别标记图元（_t3_native / _t3_window_gid / _t3_wall_gid）
+            # 采样豁免（治理②③：组件层 vs 实体层过滤差异）：
+            # 组件层 t3_native 识别跑全量文档，实体层随机采样会把已识别的
+            # 门/窗/墙/柱标记图元丢弃，造成「组件层已识别、实体层消失」的
+            # 漏报缺口（d3: 381 标记图元丢 227，T-B3 FN 门 handle=13A55）。
+            # 标记图元是权威识别结果且数量小（≈1.6%），全量保留；
+            # 采样仅从未标记图元池进行，保持原 seed=42 口径。
+            def _is_t3_marked(pr):  # 局部函数:判定 T3 标记图元
+                props = pr.properties or {}
+                return (
+                    "_t3_native" in props
+                    or "_t3_window_gid" in props
+                    or "_t3_wall_gid" in props
+                )
+
+            _marked = [pr for pr in primitives if _is_t3_marked(pr)]
+            _unmarked = [pr for pr in primitives if not _is_t3_marked(pr)]
+            _budget = max(max_entities - len(_marked), 0)
             random.seed(42)  # call
-            primitives = random.sample(primitives, max_entities)  # assign
+            if len(_unmarked) > _budget:  # check: numeric comparison
+                primitives = _marked + random.sample(_unmarked, _budget)  # assign
+            else:
+                primitives = _marked + _unmarked  # assign
 
         # Step 0.9: 图例学习（阶段 B M4）——分类前预扫描图例行结构，
         # 学习 block_name → entity_type 供 INSERT 分类查表（仅本图生效）
