@@ -366,6 +366,10 @@ from src.api.collab.audit_routes import router as audit_router  # P119 违规审
 app.include_router(model_params_router, prefix="/api/v1")  # P93 模型参数导出
 app.include_router(audit_router)  # P119 违规审核工作流
 
+from src.api.topology_routes import router as topology_router  # T-B1 拓扑显式化
+
+app.include_router(topology_router)  # 路径已含 /api/v1 前缀
+
 from .stats_routes import get_stats  # P72 统计仪表盘
 
 
