@@ -210,10 +210,14 @@ import {
   showRejectStepModal,
   rejectApprovalStep,
   updateSessionStatus,
+  recheckSession,
+  createRectification,
+  markRectificationDone,
   showAddMemberModal,
   searchUsersForMember,
   addTeamMember,
 } from './components/collab';
+import { loadInteractiveDrawing, locateEntity } from './components/drawing-viewer';
 
 // ── 初始化 API 客户端 ──────────────────────────────────────
 // 注意：apiBase 不能调用 getApiBase()（会无限递归），直接读 DOM
@@ -455,6 +459,13 @@ w.updateSessionStatus = updateSessionStatus;
 w.showAddMemberModal = showAddMemberModal;
 w.searchUsersForMember = searchUsersForMember;
 w.addTeamMember = addTeamMember;
+
+// ── T-B6: 工作流闭环 + 交互式图纸定位 ──────────────────────
+w.recheckSession = recheckSession;
+w.createRectification = createRectification;
+w.markRectificationDone = markRectificationDone;
+w.loadInteractiveDrawing = loadInteractiveDrawing;
+w.locateEntity = locateEntity;
 
 w.testConnection = testConn;
 w.router = router;

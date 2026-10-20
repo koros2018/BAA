@@ -1824,7 +1824,10 @@
     const confPct = Math.round(conf * 100);
     const cColor = confColor(conf);
     const cLabel = confLabel(conf);
-    let html = '<div class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5"><div class="flex justify-between items-start"><div><span class="font-medium">' + escHtml$1(props.clauseTitle) + '</span> <span class="text-gray-400">(' + escHtml$1(props.funcId || props.clauseId) + ')</span></div><div class="flex gap-1"><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + '</span><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + cColor + "-100 text-" + cColor + '-700" title="置信度 ' + confPct + '%">' + cLabel + '</span><span class="text-' + sevColor + '-600 font-medium">' + escHtml$1(props.result) + '</span></div></div><span class="text-gray-500">' + escHtml$1(props.entityType) + " · 实测: " + (props.extractedValue != null ? props.extractedValue.toFixed(2) : "-") + " · 要求: " + (props.requiredValue != null ? props.requiredValue.toFixed(2) : "-") + '</span><br/><div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="' + cColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></div><span class="text-gray-400">' + escHtml$1(props.explanation) + "</span>";
+    let html = '<div data-entity-id="' + escHtml$1(props.entityId || "") + '" class="p-2 bg-' + sevColor + '-50 rounded text-xs mb-1.5"><div class="flex justify-between items-start"><div><span class="font-medium">' + escHtml$1(props.clauseTitle) + '</span> <span class="text-gray-400">(' + escHtml$1(props.funcId || props.clauseId) + ')</span></div><div class="flex gap-1"><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + sevColor + "-100 text-" + sevColor + '-700">' + sevLabel + '</span><span class="px-1.5 py-0.5 rounded text-xs font-medium bg-' + cColor + "-100 text-" + cColor + '-700" title="置信度 ' + confPct + '%">' + cLabel + '</span><span class="text-' + sevColor + '-600 font-medium">' + escHtml$1(props.result) + '</span></div></div><span class="text-gray-500">' + escHtml$1(props.entityType) + " · 实测: " + (props.extractedValue != null ? props.extractedValue.toFixed(2) : "-") + " · 要求: " + (props.requiredValue != null ? props.requiredValue.toFixed(2) : "-") + '</span><br/><div class="mt-1"><div class="w-full bg-gray-200 rounded-full h-1"><div class="' + cColor + '-500 h-1 rounded-full" style="width:' + confPct + '%"></div></div></div><span class="text-gray-400">' + escHtml$1(props.explanation) + "</span>";
+    if (props.entityId) {
+      html += `<div class="mt-1"><button onclick="locateEntity('` + escHtml$1(props.entityId) + `')" class="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 hover:bg-blue-100">📍 定位图元</button></div>`;
+    }
     if (props.corrections && props.corrections.length > 0) {
       const top = props.corrections[0];
       const pColor = top.priority === "high" ? "red" : top.priority === "medium" ? "orange" : "yellow";
@@ -2149,6 +2152,7 @@
       if (result.status === "success") {
         renderReviewSummary(summary, result);
         renderReviewDetails(details, result);
+        window.renderInteractiveDrawing?.("interactive-drawing-container", String(drawing.id || ""));
         _initAuditItems(result).then(() => {
           const reviewId = result.queue_info?.task_id || result.task_id || "";
           if (reviewId) {
@@ -4963,13 +4967,16 @@
     Promise.all([
       collabApi("/collab/review-sessions/" + sessionId),
       collabApi("/collab/review-sessions/" + sessionId + "/comments"),
-      collabApi("/collab/review-sessions/" + sessionId + "/approval-flow")
+      collabApi("/collab/review-sessions/" + sessionId + "/approval-flow"),
+      collabApi("/collab/review-sessions/" + sessionId + "/rectifications")
     ]).then((r) => {
       if (r[0].status !== "success") return;
       const rs = r[0].review_session || {};
       const comments = r[1].comments || [];
       const flow = r[2].approval_flow;
+      const rects = r[3] && r[3].status === "success" ? r[3].rectifications || [] : [];
       const statusBadge = '<span class="collab-badge collab-badge-' + String(rs.status) + '">' + String(rs.status) + "</span>";
+      const statusActions = buildStatusActions(String(rs.status || ""), sessionId);
       let ch = "";
       if (!comments.length) {
         ch = '<p class="text-sm text-gray-400 py-2">暂无评论</p>';
@@ -5004,7 +5011,9 @@
       }
       const commentForm = `<div class="mt-3 border-t pt-3"><div class="flex gap-2 mb-2"><select id="rs-comment-type" class="input text-sm"><option value="issue">问题</option><option value="suggestion">建议</option><option value="question">疑问</option><option value="note">备注</option></select><input id="rs-comment-clause" class="input text-sm" placeholder="条款ID(可选)" /><input id="rs-comment-entity" class="input text-sm" placeholder="实体ID(可选)" /></div><textarea id="rs-comment-content" class="input w-full" rows="2" placeholder="评论内容"></textarea><div class="flex justify-between items-center mt-2"><span id="rs-comment-msg" class="text-xs text-red-600"></span><button class="modal-btn modal-btn-primary text-xs" onclick="submitComment('` + sessionId + `')">发表评论</button></div></div>`;
       const approvalTools = `<div class="mt-2"><button id="rs-approval-create" class="modal-btn modal-btn-primary text-xs" onclick="showApprovalFlowForm('` + sessionId + `')">+ 发起审批</button><div id="rs-approval-form" class="mt-2"></div></div>`;
-      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div><div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+      const workflowSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">工作流流转</h4><div class="flex gap-2 flex-wrap">' + statusActions + '</div><div id="rs-recheck-result" class="mt-2"></div></div>';
+      const rectSection = buildRectificationSection(sessionId, rects);
+      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + "</h3>" + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + "</div>" + rectSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
     });
   }
   function submitComment(sessionId) {
@@ -5143,6 +5152,260 @@
         collabLogout();
       });
     }, 500);
+  }
+  function buildStatusActions(status, sessionId) {
+    const sBtn = (label, target, cls) => '<button class="px-2 py-1 rounded text-xs ' + cls + `" onclick="updateSessionStatus('` + sessionId + "', '" + target + `')">` + label + "</button>";
+    const reBtn = `<button class="px-2 py-1 rounded text-xs bg-indigo-600 text-white hover:bg-indigo-700" onclick="recheckSession('` + sessionId + `')">🔍 提交复查</button>`;
+    switch (status) {
+      case "draft":
+        return sBtn("📤 送审", "pending", "bg-blue-600 text-white hover:bg-blue-700");
+      case "pending":
+        return sBtn("▶ 开始审查", "in_progress", "bg-blue-600 text-white hover:bg-blue-700");
+      case "in_progress":
+        return sBtn("✅ 通过", "approved", "bg-green-600 text-white hover:bg-green-700") + sBtn("❌ 驳回", "rejected", "bg-red-600 text-white hover:bg-red-700") + sBtn("🔧 开始整改", "rectifying", "bg-orange-500 text-white hover:bg-orange-600");
+      case "rejected":
+        return sBtn("🔧 开始整改", "rectifying", "bg-orange-500 text-white hover:bg-orange-600");
+      case "rectifying":
+        return reBtn;
+      case "rechecking":
+        return sBtn("✅ 通过", "approved", "bg-green-600 text-white hover:bg-green-700") + sBtn("❌ 驳回", "rejected", "bg-red-600 text-white hover:bg-red-700");
+      case "approved":
+        return sBtn("📦 归档", "archived", "bg-gray-600 text-white hover:bg-gray-700");
+      default:
+        return '<span class="text-xs text-gray-400">终态，无可用流转</span>';
+    }
+  }
+  function showRecheckResult(d) {
+    const box = document.getElementById("rs-recheck-result");
+    if (!box) return;
+    const cmp = d.comparison || {};
+    const cnt = (k) => Number(cmp[k] && cmp[k].count || 0);
+    const items = (k) => (cmp[k] && cmp[k].items || []).slice(0, 8).map(
+      (it) => '<li class="truncate">' + escHtml$1(String(it.clause_title || it.clause_id || "-")) + (it.entity_id ? " @" + escHtml$1(String(it.entity_id)) : "") + "</li>"
+    ).join("");
+    box.innerHTML = '<div class="text-xs bg-gray-50 border rounded p-2 mt-2"><div class="flex gap-3 mb-1"><span class="text-green-700 font-medium">✅ 已解决 ' + cnt("resolved") + '</span><span class="text-red-700 font-medium">🆕 新增 ' + cnt("new") + '</span><span class="text-orange-600 font-medium">🔁 未修复 ' + cnt("persisted") + '</span><span class="text-gray-500">共 ' + Number(d.findings_count || 0) + ' 条违规</span></div><div class="grid grid-cols-3 gap-2"><ul class="list-disc pl-4 text-gray-500">' + items("resolved") + '</ul><ul class="list-disc pl-4 text-gray-500">' + items("new") + '</ul><ul class="list-disc pl-4 text-gray-500">' + items("persisted") + "</ul></div></div>";
+  }
+  function recheckSession(sessionId) {
+    window.showToast?.("⏳ 复查中，请稍候…", "info");
+    collabApi("/collab/review-sessions/" + sessionId + "/recheck", { method: "POST", body: JSON.stringify({}) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+        window.setTimeout(() => showRecheckResult(d), 400);
+      } else {
+        window.showToast?.(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function buildRectificationSection(sessionId, rects) {
+    let list = "";
+    if (!rects.length) {
+      list = '<p class="text-sm text-gray-400 py-2">暂无整改记录</p>';
+    } else {
+      list = '<table class="collab-table"><tr><th>条款</th><th>实体</th><th>整改动作</th><th>责任人</th><th>状态</th><th>备注</th><th>操作</th></tr>';
+      for (const rc of rects) {
+        const done = rc.status === "done";
+        const badge = done ? '<span class="collab-badge collab-badge-approved">done</span>' : '<span class="collab-badge collab-badge-pending">pending</span>';
+        const act = done ? "" : `<button class="text-xs text-green-700 underline" onclick="markRectificationDone('` + String(rc.id) + "', '" + sessionId + `')">标记完成</button>`;
+        list += "<tr><td>" + escHtml$1(String(rc.clause_id || "-")) + "</td><td>" + escHtml$1(String(rc.entity_id || "-")) + "</td><td>" + escHtml$1(String(rc.action || "")) + "</td><td>" + escHtml$1(String(rc.owner || "")) + "</td><td>" + badge + "</td><td>" + escHtml$1(String(rc.note || "")) + "</td><td>" + act + "</td></tr>";
+      }
+      list += "</table>";
+    }
+    const form = `<div class="mt-2"><div class="flex gap-2 flex-wrap mb-2"><input id="rs-rect-clause" class="input text-sm w-24" placeholder="条款ID" /><input id="rs-rect-entity" class="input text-sm w-28" placeholder="实体ID" /><input id="rs-rect-action" class="input text-sm flex-1" placeholder="整改动作" /><input id="rs-rect-owner" class="input text-sm w-28" placeholder="责任人ID" /></div><div class="flex justify-end"><button class="modal-btn modal-btn-primary text-xs" onclick="createRectification('` + sessionId + `')">+ 登记整改项</button></div></div>`;
+    return '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">整改记录</h4>' + list + form + "</div>";
+  }
+  function createRectification(sessionId) {
+    const val = (id) => document.getElementById(id)?.value?.trim() || "";
+    const action = val("rs-rect-action");
+    if (!action) {
+      window.showToast?.("整改动作不能为空", "info");
+      return;
+    }
+    const item = { clause_id: val("rs-rect-clause"), entity_id: val("rs-rect-entity"), action, owner: val("rs-rect-owner") };
+    collabApi("/collab/review-sessions/" + sessionId + "/rectifications", { method: "POST", body: JSON.stringify({ items: [item] }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        window.showToast?.(collabErrMsg(d), "info");
+      }
+    });
+  }
+  function markRectificationDone(rid, sessionId) {
+    collabApi("/collab/rectifications/" + rid, { method: "PUT", body: JSON.stringify({ status: "done" }) }).then((d) => {
+      if (d.status === "success") {
+        showReviewSessionDetail(sessionId);
+      } else {
+        window.showToast?.(collabErrMsg(d), "info");
+      }
+    });
+  }
+  const FLASH_MS = 2200;
+  const IOU_MIN = 0.3;
+  function parseBBoxAttr(el) {
+    const raw = el.getAttribute("data-bbox") || "";
+    const parts = raw.split(",").map(Number);
+    if (parts.length !== 4 || parts.some((n) => !isFinite(n))) return null;
+    const [x, y, width, height] = parts;
+    return { x, y, width, height };
+  }
+  function iou(a, b) {
+    const ix = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+    const iy = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+    const inter = ix * iy;
+    const union = a.width * a.height + b.width * b.height - inter;
+    return union > 0 ? inter / union : 0;
+  }
+  function clearHighlights() {
+    document.querySelectorAll("[data-locate-highlight]").forEach((el) => {
+      const svg = el;
+      const prev = svg.getAttribute("data-locate-prev-style");
+      if (prev != null) {
+        if (prev === "") svg.removeAttribute("style");
+        else svg.setAttribute("style", prev);
+        svg.removeAttribute("data-locate-prev-style");
+      }
+      svg.removeAttribute("data-locate-highlight");
+    });
+  }
+  function highlightSvgElement(el) {
+    clearHighlights();
+    el.setAttribute("data-locate-prev-style", el.getAttribute("style") || "");
+    el.setAttribute("data-locate-highlight", "1");
+    if (el.tagName.toLowerCase() === "text") {
+      el.setAttribute("style", "fill:#ef4444 !important; stroke:#ef4444 !important; font-weight:bold;");
+    } else {
+      el.setAttribute("style", "stroke:#ef4444 !important; stroke-width:2px !important;");
+    }
+    try {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch {
+    }
+  }
+  function flashViolationCard(entityId) {
+    if (!entityId) return;
+    let sel;
+    try {
+      sel = '[data-entity-id="' + CSS.escape(entityId) + '"]';
+    } catch {
+      sel = '[data-entity-id="' + entityId.replace(/"/g, "") + '"]';
+    }
+    const card = document.querySelector(sel);
+    if (!card) return;
+    const cls = ["ring-2", "ring-blue-500", "rounded"];
+    cls.forEach((c) => card.classList.add(c));
+    try {
+      card.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch {
+    }
+    window.setTimeout(() => cls.forEach((c) => card.classList.remove(c)), FLASH_MS);
+  }
+  function findEntities() {
+    const w2 = window;
+    return w2._currentReviewEntities || [];
+  }
+  function entityBBox(e) {
+    const b = e.bbox;
+    if (!b || typeof b.x !== "number" || typeof b.width !== "number") return null;
+    return b;
+  }
+  async function renderInteractiveDrawing(containerId, fileId) {
+    const container = document.getElementById(containerId);
+    if (!container || !fileId) return false;
+    try {
+      const r = await fetch(getApiBase() + "/render/" + encodeURIComponent(fileId) + "/interactive", { headers: getHeaders() });
+      if (!r.ok) {
+        container.innerHTML = '<div class="text-xs text-red-400 p-2">交互式图纸加载失败（HTTP ' + r.status + "）</div>";
+        return false;
+      }
+      const svg = await r.text();
+      container.innerHTML = svg;
+      const svgEl = container.querySelector("svg");
+      if (svgEl) {
+        const svgItem = svgEl;
+        svgItem.style.maxWidth = "100%";
+        svgItem.style.height = "auto";
+        svgEl.querySelectorAll("[data-eid]").forEach((el) => {
+          el.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const item = ev.currentTarget;
+            highlightSvgElement(item);
+            const bbox = parseBBoxAttr(item);
+            if (!bbox) return;
+            let bestId = "";
+            let bestScore = 0;
+            for (const e of findEntities()) {
+              const eb = entityBBox(e);
+              if (!eb) continue;
+              const score = iou(bbox, eb);
+              if (score > bestScore) {
+                bestScore = score;
+                bestId = String(e.id || "");
+              }
+            }
+            if (bestScore > IOU_MIN) flashViolationCard(bestId);
+          });
+        });
+      }
+      return true;
+    } catch {
+      container.innerHTML = '<div class="text-xs text-red-400 p-2">交互式图纸加载异常</div>';
+      return false;
+    }
+  }
+  async function loadInteractiveDrawing() {
+    const sel = document.getElementById("review-drawing-select");
+    const id = (sel?.value || "").trim();
+    if (!id) {
+      window.showToast?.("请先选择已解析的图纸", "info");
+      return;
+    }
+    await renderInteractiveDrawing("interactive-drawing-container", id);
+  }
+  function locateEntity(entityId) {
+    if (!entityId) return false;
+    const containers = document.querySelectorAll("[data-interactive-drawing]");
+    if (!containers.length) {
+      window.showToast?.("请先载入交互式图纸", "info");
+      return false;
+    }
+    let target = null;
+    let query = "";
+    try {
+      query = '[data-eid="' + CSS.escape(entityId) + '"]';
+    } catch {
+      query = '[data-eid="' + entityId.replace(/"/g, "") + '"]';
+    }
+    for (const c of Array.from(containers)) {
+      const direct = c.querySelector(query);
+      if (direct) {
+        target = direct;
+        break;
+      }
+    }
+    if (!target) {
+      const ent = findEntities().find((e) => String(e.id || "") === entityId);
+      const bbox = ent ? entityBBox(ent) : null;
+      if (bbox) {
+        let bestScore = 0;
+        for (const c of Array.from(containers)) {
+          c.querySelectorAll("[data-bbox]").forEach((el) => {
+            const bb = parseBBoxAttr(el);
+            if (!bb) return;
+            const score = iou(bbox, bb);
+            if (score > bestScore) {
+              bestScore = score;
+              target = el;
+            }
+          });
+        }
+        if (bestScore <= IOU_MIN) target = null;
+      }
+    }
+    if (!target) {
+      window.showToast?.("未在图面定位到该实体", "info");
+      return false;
+    }
+    highlightSvgElement(target);
+    return true;
   }
   initApiClient({
     apiBase: () => document.getElementById("api-base")?.value || "http://localhost:8000",
@@ -5355,6 +5618,11 @@
   w.showAddMemberModal = showAddMemberModal;
   w.searchUsersForMember = searchUsersForMember;
   w.addTeamMember = addTeamMember;
+  w.recheckSession = recheckSession;
+  w.createRectification = createRectification;
+  w.markRectificationDone = markRectificationDone;
+  w.loadInteractiveDrawing = loadInteractiveDrawing;
+  w.locateEntity = locateEntity;
   w.testConnection = testConnection;
   w.router = router;
   w.importServerKey = importServerKey;

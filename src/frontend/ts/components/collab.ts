@@ -253,13 +253,16 @@ export function showReviewSessionDetail(sessionId: string): void {
   Promise.all([
     collabApi('/collab/review-sessions/' + sessionId),
     collabApi('/collab/review-sessions/' + sessionId + '/comments'),
-    collabApi('/collab/review-sessions/' + sessionId + '/approval-flow')
+    collabApi('/collab/review-sessions/' + sessionId + '/approval-flow'),
+    collabApi('/collab/review-sessions/' + sessionId + '/rectifications')
   ]).then((r) => {
     if (r[0].status !== 'success') return;
     const rs = (r[0].review_session as Record<string, unknown>) || {};
     const comments = (r[1].comments as Array<Record<string, unknown>>) || [];
     const flow = r[2].approval_flow as { steps?: Array<Record<string, unknown>> } | undefined;
+    const rects = r[3] && r[3].status === 'success' ? ((r[3].rectifications as Array<Record<string, unknown>>) || []) : [];
     const statusBadge = '<span class="collab-badge collab-badge-' + String(rs.status) + '">' + String(rs.status) + '</span>';
+    const statusActions = buildStatusActions(String(rs.status || ''), sessionId);
     let ch = '';
     if (!comments.length) { ch = '<p class="text-sm text-gray-400 py-2">暂无评论</p>'; } else {
       for (const c of comments) {
@@ -286,7 +289,9 @@ export function showReviewSessionDetail(sessionId: string): void {
     }
     const commentForm = '<div class="mt-3 border-t pt-3"><div class="flex gap-2 mb-2"><select id="rs-comment-type" class="input text-sm"><option value="issue">问题</option><option value="suggestion">建议</option><option value="question">疑问</option><option value="note">备注</option></select><input id="rs-comment-clause" class="input text-sm" placeholder="条款ID(可选)" /><input id="rs-comment-entity" class="input text-sm" placeholder="实体ID(可选)" /></div><textarea id="rs-comment-content" class="input w-full" rows="2" placeholder="评论内容"></textarea><div class="flex justify-between items-center mt-2"><span id="rs-comment-msg" class="text-xs text-red-600"></span><button class="modal-btn modal-btn-primary text-xs" onclick="submitComment(\'' + sessionId + '\')">发表评论</button></div></div>';
     const approvalTools = '<div class="mt-2"><button id="rs-approval-create" class="modal-btn modal-btn-primary text-xs" onclick="showApprovalFlowForm(\'' + sessionId + '\')">+ 发起审批</button><div id="rs-approval-form" class="mt-2"></div></div>';
-    setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml(String(rs.name || '')) + ' ' + statusBadge + '</h3><div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div><div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    const workflowSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">工作流流转</h4><div class="flex gap-2 flex-wrap">' + statusActions + '</div><div id="rs-recheck-result" class="mt-2"></div></div>';
+    const rectSection = buildRectificationSection(sessionId, rects);
+    setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml(String(rs.name || '')) + ' ' + statusBadge + '</h3>' + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div>' + rectSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
   });
 }
 
@@ -389,4 +394,130 @@ if (_token) {
       } else { collabLogout(); }
     }).catch(() => { collabLogout(); });
   }, 500);
+}
+
+
+// ── T-B6: 工作流闭环（状态流转按钮 / 整改记录 / 复查对比） ─────────────
+
+/** 按当前状态渲染合法流转按钮（与后端 REVIEW_STATUS_TRANSITIONS 对应） */
+function buildStatusActions(status: string, sessionId: string): string {
+  const sBtn = (label: string, target: string, cls: string) =>
+    '<button class="px-2 py-1 rounded text-xs ' + cls + '" onclick="updateSessionStatus(\'' + sessionId + '\', \'' + target + '\')">' + label + '</button>';
+  const reBtn =
+    '<button class="px-2 py-1 rounded text-xs bg-indigo-600 text-white hover:bg-indigo-700" onclick="recheckSession(\'' + sessionId + '\')">🔍 提交复查</button>';
+  switch (status) {
+    case 'draft':
+      return sBtn('📤 送审', 'pending', 'bg-blue-600 text-white hover:bg-blue-700');
+    case 'pending':
+      return sBtn('▶ 开始审查', 'in_progress', 'bg-blue-600 text-white hover:bg-blue-700');
+    case 'in_progress':
+      return sBtn('✅ 通过', 'approved', 'bg-green-600 text-white hover:bg-green-700') +
+        sBtn('❌ 驳回', 'rejected', 'bg-red-600 text-white hover:bg-red-700') +
+        sBtn('🔧 开始整改', 'rectifying', 'bg-orange-500 text-white hover:bg-orange-600');
+    case 'rejected':
+      return sBtn('🔧 开始整改', 'rectifying', 'bg-orange-500 text-white hover:bg-orange-600');
+    case 'rectifying':
+      return reBtn;
+    case 'rechecking':
+      return sBtn('✅ 通过', 'approved', 'bg-green-600 text-white hover:bg-green-700') +
+        sBtn('❌ 驳回', 'rejected', 'bg-red-600 text-white hover:bg-red-700');
+    case 'approved':
+      return sBtn('📦 归档', 'archived', 'bg-gray-600 text-white hover:bg-gray-700');
+    default:
+      return '<span class="text-xs text-gray-400">终态，无可用流转</span>';
+  }
+}
+
+/** 复查对比结果渲染到 #rs-recheck-result */
+function showRecheckResult(d: Record<string, unknown>): void {
+  const box = document.getElementById('rs-recheck-result');
+  if (!box) return;
+  const cmp = (d.comparison as Record<string, any>) || {};
+  const cnt = (k: string) => Number((cmp[k] && cmp[k].count) || 0);
+  const items = (k: string) =>
+    (((cmp[k] && cmp[k].items) || []) as Array<Record<string, unknown>>)
+      .slice(0, 8)
+      .map((it) =>
+        '<li class="truncate">' + escHtml(String(it.clause_title || it.clause_id || '-')) +
+        (it.entity_id ? ' @' + escHtml(String(it.entity_id)) : '') + '</li>'
+      )
+      .join('');
+  box.innerHTML =
+    '<div class="text-xs bg-gray-50 border rounded p-2 mt-2">' +
+    '<div class="flex gap-3 mb-1">' +
+    '<span class="text-green-700 font-medium">✅ 已解决 ' + cnt('resolved') + '</span>' +
+    '<span class="text-red-700 font-medium">🆕 新增 ' + cnt('new') + '</span>' +
+    '<span class="text-orange-600 font-medium">🔁 未修复 ' + cnt('persisted') + '</span>' +
+    '<span class="text-gray-500">共 ' + Number(d.findings_count || 0) + ' 条违规</span>' +
+    '</div>' +
+    '<div class="grid grid-cols-3 gap-2">' +
+    '<ul class="list-disc pl-4 text-gray-500">' + items('resolved') + '</ul>' +
+    '<ul class="list-disc pl-4 text-gray-500">' + items('new') + '</ul>' +
+    '<ul class="list-disc pl-4 text-gray-500">' + items('persisted') + '</ul>' +
+    '</div></div>';
+}
+
+/** 提交复查：服务端复跑审查并对比新旧 findings，状态流转到 rechecking */
+export function recheckSession(sessionId: string): void {
+  window.showToast?.('⏳ 复查中，请稍候…', 'info');
+  collabApi('/collab/review-sessions/' + sessionId + '/recheck', { method: 'POST', body: JSON.stringify({}) }).then((d) => {
+    if (d.status === 'success') {
+      showReviewSessionDetail(sessionId);
+      window.setTimeout(() => showRecheckResult(d), 400);
+    } else {
+      window.showToast?.(collabErrMsg(d), 'info');
+    }
+  });
+}
+
+/** 整改记录列表 + 登记表单 */
+function buildRectificationSection(sessionId: string, rects: Array<Record<string, unknown>>): string {
+  let list = '';
+  if (!rects.length) {
+    list = '<p class="text-sm text-gray-400 py-2">暂无整改记录</p>';
+  } else {
+    list = '<table class="collab-table"><tr><th>条款</th><th>实体</th><th>整改动作</th><th>责任人</th><th>状态</th><th>备注</th><th>操作</th></tr>';
+    for (const rc of rects) {
+      const done = rc.status === 'done';
+      const badge = done
+        ? '<span class="collab-badge collab-badge-approved">done</span>'
+        : '<span class="collab-badge collab-badge-pending">pending</span>';
+      const act = done
+        ? ''
+        : '<button class="text-xs text-green-700 underline" onclick="markRectificationDone(\'' + String(rc.id) + '\', \'' + sessionId + '\')">标记完成</button>';
+      list += '<tr><td>' + escHtml(String(rc.clause_id || '-')) + '</td><td>' + escHtml(String(rc.entity_id || '-')) + '</td><td>' + escHtml(String(rc.action || '')) + '</td><td>' + escHtml(String(rc.owner || '')) + '</td><td>' + badge + '</td><td>' + escHtml(String(rc.note || '')) + '</td><td>' + act + '</td></tr>';
+    }
+    list += '</table>';
+  }
+  const form =
+    '<div class="mt-2"><div class="flex gap-2 flex-wrap mb-2">' +
+    '<input id="rs-rect-clause" class="input text-sm w-24" placeholder="条款ID" />' +
+    '<input id="rs-rect-entity" class="input text-sm w-28" placeholder="实体ID" />' +
+    '<input id="rs-rect-action" class="input text-sm flex-1" placeholder="整改动作" />' +
+    '<input id="rs-rect-owner" class="input text-sm w-28" placeholder="责任人ID" />' +
+    '</div><div class="flex justify-end">' +
+    '<button class="modal-btn modal-btn-primary text-xs" onclick="createRectification(\'' + sessionId + '\')">+ 登记整改项</button>' +
+    '</div></div>';
+  return '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">整改记录</h4>' + list + form + '</div>';
+}
+
+/** 登记整改项（单条） */
+export function createRectification(sessionId: string): void {
+  const val = (id: string) => ((document.getElementById(id) as HTMLInputElement | null)?.value?.trim() || '');
+  const action = val('rs-rect-action');
+  if (!action) {
+    window.showToast?.('整改动作不能为空', 'info');
+    return;
+  }
+  const item = { clause_id: val('rs-rect-clause'), entity_id: val('rs-rect-entity'), action, owner: val('rs-rect-owner') };
+  collabApi('/collab/review-sessions/' + sessionId + '/rectifications', { method: 'POST', body: JSON.stringify({ items: [item] }) }).then((d) => {
+    if (d.status === 'success') { showReviewSessionDetail(sessionId); } else { window.showToast?.(collabErrMsg(d), 'info'); }
+  });
+}
+
+/** 标记整改完成 */
+export function markRectificationDone(rid: string, sessionId: string): void {
+  collabApi('/collab/rectifications/' + rid, { method: 'PUT', body: JSON.stringify({ status: 'done' }) }).then((d) => {
+    if (d.status === 'success') { showReviewSessionDetail(sessionId); } else { window.showToast?.(collabErrMsg(d), 'info'); }
+  });
 }

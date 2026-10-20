@@ -385,6 +385,145 @@ async def render_drawing_overlay(  # code
     return Response(content=svg_content, media_type="image/svg+xml")  # return
 
 
+# ── 交互式图纸渲染（T-B6: 违规↔图元双向定位） ──────────
+
+
+@router.get("/render/{file_id}/interactive")
+def render_drawing_interactive(
+    file_id: str,
+    api_key: str = Depends(verify_api_key),
+):
+    """渲染交互式 SVG：每个图元嵌入 data-eid（DXF handle）与 data-bbox（DXF 坐标）。
+
+    复用 /render/{file_id}/overlay 的渲染内核（bounds + viewBox），不做服务端高亮；
+    点击联动与违规定位高亮由前端 drawing-viewer 完成。同步阻塞，FastAPI 自动放线程池。
+    """
+    file_path = get_file_path(file_id)
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail={"status": "error", "error_code": "FILE_NOT_FOUND", "message": "文件不存在"},
+        )
+
+    import ezdxf
+    from io import StringIO
+
+    try:
+        doc = ezdxf.readfile(str(file_path))
+        msp = doc.modelspace()
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "error_code": "PARSE_FAILED", "message": "无法解析图纸文件"},
+        )
+
+    all_x, all_y = [], []
+    for entity in msp:
+        try:
+            if entity.dxftype() == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                all_x.extend([s[0], e[0]])
+                all_y.extend([s[1], e[1]])
+            elif entity.dxftype() == "LWPOLYLINE":
+                pts = [(v[0], v[1]) for v in entity.get_points()]
+                all_x.extend(p[0] for p in pts)
+                all_y.extend(p[1] for p in pts)
+            elif entity.dxftype() == "CIRCLE":
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                all_x.extend([cx - r, cx + r])
+                all_y.extend([cy - r, cy + r])
+            elif entity.dxftype() in ("TEXT", "MTEXT"):
+                ins = entity.dxf.insert[:2]
+                all_x.append(ins[0])
+                all_y.append(ins[1])
+        except Exception:
+            continue
+
+    if not all_x:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "error_code": "EMPTY_DRAWING", "message": "图纸无有效图元"},
+        )
+
+    margin = 5.0
+    x_min, x_max = min(all_x) - margin, max(all_x) + margin
+    y_min, y_max = min(all_y) - margin, max(all_y) + margin
+    w, h = x_max - x_min, y_max - y_min
+
+    svg_w = min(max(w * 0.5, 400), 1200)
+    svg_h = min(max(h * 0.5, 300), 800)
+
+    buf = StringIO()
+    buf.write(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="{x_min} {-y_max} {w} {h}" '
+        f'width="{svg_w}" height="{svg_h}" '
+        f'style="background:#fff">\n'
+    )
+
+    max_entities = 2000
+    drawn = 0
+
+    for entity in msp:
+        if drawn >= max_entities:
+            break
+        eid = entity.dxf.handle if hasattr(entity.dxf, "handle") else ""
+        dxftype = entity.dxftype()
+        try:
+            if dxftype == "LINE":
+                s, e = entity.dxf.start, entity.dxf.end
+                bx, by = min(s[0], e[0]), min(s[1], e[1])
+                bw, bh = abs(e[0] - s[0]), abs(e[1] - s[1])
+                buf.write(
+                    f'<line data-eid="{eid}" data-bbox="{bx:.2f},{by:.2f},{bw:.2f},{bh:.2f}" '
+                    f'x1="{s[0]:.2f}" y1="{-s[1]:.2f}" '
+                    f'x2="{e[0]:.2f}" y2="{-e[1]:.2f}" '
+                    f'stroke="#333" stroke-width="0.5" />\n'
+                )
+                drawn += 1
+            elif dxftype == "LWPOLYLINE":
+                raw_pts = [(v[0], v[1]) for v in entity.get_points()]
+                pts = [(p[0], -p[1]) for p in raw_pts]
+                d = "M" + " L".join(f"{p[0]:.2f},{p[1]:.2f}" for p in pts)
+                xs = [p[0] for p in raw_pts]
+                ys = [p[1] for p in raw_pts]
+                bx, by = min(xs), min(ys)
+                bw, bh = max(xs) - bx, max(ys) - by
+                buf.write(
+                    f'<path data-eid="{eid}" data-bbox="{bx:.2f},{by:.2f},{bw:.2f},{bh:.2f}" '
+                    f'd="{d}" fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )
+                drawn += 1
+            elif dxftype == "CIRCLE":
+                cx, cy = entity.dxf.center[:2]
+                r = entity.dxf.radius
+                buf.write(
+                    f'<circle data-eid="{eid}" '
+                    f'data-bbox="{cx - r:.2f},{cy - r:.2f},{2 * r:.2f},{2 * r:.2f}" '
+                    f'cx="{cx:.2f}" cy="{-cy:.2f}" r="{r:.2f}" '
+                    f'fill="none" stroke="#333" stroke-width="0.5" />\n'
+                )
+                drawn += 1
+            elif dxftype in ("TEXT", "MTEXT"):
+                ins = entity.dxf.insert[:2]
+                txt = entity.dxf.text if hasattr(entity.dxf, "text") else ""
+                ht = entity.dxf.height if hasattr(entity.dxf, "height") else 2.5
+                tw = ht * max(len(txt or " "), 1)
+                buf.write(
+                    f'<text data-eid="{eid}" '
+                    f'data-bbox="{ins[0]:.2f},{ins[1]:.2f},{tw:.2f},{ht:.2f}" '
+                    f'x="{ins[0]:.2f}" y="{-ins[1]:.2f}" '
+                    f'font-size="{ht}" fill="#666">{txt[:30]}</text>\n'
+                )
+                drawn += 1
+        except Exception:
+            continue
+
+    buf.write("</svg>")
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
+
+
 # ── PDF 审查报告导出 ─────────────────────────────────
 
 

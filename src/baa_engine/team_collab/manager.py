@@ -45,6 +45,7 @@ from .models import (
     ProjectPermission,
     ApprovalStatus,
     ReviewStatus,
+    REVIEW_STATUS_TRANSITIONS,
     CommentType,
     User,
     Team,
@@ -890,7 +891,7 @@ class CollaborationManager:
     def update_review_session_status(
         self, session_id: str, user_id: str, status: str
     ) -> Tuple[bool, str]:
-        """待补充。"""
+        """更新审查会话状态：按 REVIEW_STATUS_TRANSITIONS 校验合法流转（T-B6 工作流闭环）。"""
         session = self._get_session()
 
         try:
@@ -907,7 +908,17 @@ class CollaborationManager:
 
                 return False, "无权限"
 
+            valid_statuses = {s.value for s in ReviewStatus}
+
+            if status not in valid_statuses:
+
+                return False, f"未知状态: {status}"
+
             old_status = rs.status
+
+            if status not in REVIEW_STATUS_TRANSITIONS.get(old_status, set()):
+
+                return False, f"非法状态流转: {old_status} -> {status}"
 
             rs.status = status
 

@@ -63,7 +63,9 @@ export function renderReviewItem(props: ReviewItemProps): string {
   const cLabel = confLabel(conf);
 
   let html =
-    '<div class="p-2 bg-' +
+    '<div data-entity-id="' +
+    escHtml(props.entityId || '') +
+    '" class="p-2 bg-' +
     sevColor +
     '-50 rounded text-xs mb-1.5">' +
     '<div class="flex justify-between items-start">' +
@@ -110,6 +112,14 @@ export function renderReviewItem(props: ReviewItemProps): string {
     '<span class="text-gray-400">' +
     escHtml(props.explanation) +
     '</span>';
+
+  // T-B6: 违规→图元定位
+  if (props.entityId) {
+    html +=
+      '<div class="mt-1"><button onclick="locateEntity(\'' +
+      escHtml(props.entityId) +
+      '\')" class="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 hover:bg-blue-100">📍 定位图元</button></div>';
+  }
 
   // 修正建议
   if (props.corrections && props.corrections.length > 0) {

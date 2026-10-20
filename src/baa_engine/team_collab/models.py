@@ -85,14 +85,36 @@ class ApprovalStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-# 审查会话状态枚举：draft 草稿 / pending 待审 / in_progress 进行中 / approved 通过 / rejected 驳回 / archived 归档
+# 审查会话状态枚举：draft 草稿 / pending 待审 / in_progress 进行中 / approved 通过 / rejected 驳回 /
+# rectifying 整改中 / rechecking 复查中 / archived 归档
 class ReviewStatus(str, Enum):
     DRAFT = "draft"
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     APPROVED = "approved"
     REJECTED = "rejected"
+    RECTIFYING = "rectifying"
+    RECHECKING = "rechecking"
     ARCHIVED = "archived"
+
+
+# 审查会话合法状态流转表（T-B6 工作流闭环）：
+# draft→pending→in_progress→(approved|rejected|rectifying 直达整改)
+# rejected→rectifying→rechecking→(approved|rejected)；approved→archived；archived 为终态
+REVIEW_STATUS_TRANSITIONS = {
+    ReviewStatus.DRAFT.value: {ReviewStatus.PENDING.value},
+    ReviewStatus.PENDING.value: {ReviewStatus.IN_PROGRESS.value},
+    ReviewStatus.IN_PROGRESS.value: {
+        ReviewStatus.APPROVED.value,
+        ReviewStatus.REJECTED.value,
+        ReviewStatus.RECTIFYING.value,
+    },
+    ReviewStatus.REJECTED.value: {ReviewStatus.RECTIFYING.value},
+    ReviewStatus.RECTIFYING.value: {ReviewStatus.RECHECKING.value},
+    ReviewStatus.RECHECKING.value: {ReviewStatus.APPROVED.value, ReviewStatus.REJECTED.value},
+    ReviewStatus.APPROVED.value: {ReviewStatus.ARCHIVED.value},
+    ReviewStatus.ARCHIVED.value: set(),
+}
 
 
 Base = declarative_base()
@@ -322,6 +344,38 @@ class ReviewSession(Base):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "completed_at": self.completed_at,
+        }
+
+
+# 整改记录模型（T-B6 工作流闭环）：驳回后登记整改任务，整改方更新进度，复查阶段核销
+# status: pending 待整改 / done 已完成；clause_id/entity_id 关联条款与图元，供双向定位
+class RectificationRecord(Base):
+    __tablename__ = "rectification_records"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4())[:12])
+    session_id = Column(String(36), ForeignKey("review_sessions.id"), nullable=False, index=True)
+    clause_id = Column(String(128), default="")
+    entity_id = Column(String(128), default="")
+    action = Column(Text, default="")
+    owner = Column(String(36), default="")
+    status = Column(String(16), default="pending")
+    note = Column(Text, default="")
+    created_at = Column(Float, default=time.time)
+    updated_at = Column(Float, default=time.time, onupdate=time.time)
+    review_session = relationship("ReviewSession", lazy="selectin")
+
+    def to_dict(self) -> dict:
+        """序列化为字典。"""
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "clause_id": self.clause_id,
+            "entity_id": self.entity_id,
+            "action": self.action,
+            "owner": self.owner,
+            "status": self.status,
+            "note": self.note,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
 

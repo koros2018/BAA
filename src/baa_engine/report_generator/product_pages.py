@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """报告产品化补页（Roadmap v4 T-B4）：条款索引页 / 结论页 / 签字页。
 
 与 report_generator 既有页面同风格（reportlab Flowable + build_styles），
