@@ -500,6 +500,95 @@ async def collab_update_review_session_status(
     return {"status": "success"}
 
 
+@router.post("/collab/review-sessions/{session_id}/rectifications")
+async def collab_create_rectifications(
+    session_id: str, body: dict, user_id: str = Depends(verify_collab_token)
+):
+    """登记整改记录：body.items 批量，或 body 本身为单条。"""
+    from src.baa_engine.team_collab.rectification import create_rectifications
+
+    cm = get_collab_manager()
+    items = body.get("items") or [body]
+    records, msg = create_rectifications(cm, session_id, user_id, items)
+    if records is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "OPERATION_FAILED",
+                "message": msg,
+            },
+        )
+    return {"status": "success", "rectifications": records}
+
+
+@router.get("/collab/review-sessions/{session_id}/rectifications")
+async def collab_list_rectifications(
+    session_id: str, user_id: str = Depends(verify_collab_token)
+):
+    """整改记录列表。"""
+    from src.baa_engine.team_collab.rectification import list_rectifications
+
+    cm = get_collab_manager()
+    records, msg = list_rectifications(cm, session_id, user_id)
+    if records is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "OPERATION_FAILED",
+                "message": msg,
+            },
+        )
+    return {"status": "success", "rectifications": records}
+
+
+@router.put("/collab/rectifications/{rid}")
+async def collab_update_rectification(
+    rid: str, body: dict, user_id: str = Depends(verify_collab_token)
+):
+    """更新整改记录（status/note/action/owner）。"""
+    from src.baa_engine.team_collab.rectification import update_rectification
+
+    cm = get_collab_manager()
+    record, msg = update_rectification(cm, rid, user_id, body)
+    if record is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "OPERATION_FAILED",
+                "message": msg,
+            },
+        )
+    return {"status": "success", "rectification": record}
+
+
+@router.post("/collab/review-sessions/{session_id}/recheck")
+def collab_recheck_session(
+    session_id: str, body: Optional[dict] = None, user_id: str = Depends(verify_collab_token)
+):
+    """复查：复跑会话 file_ids 审查，返回新旧 findings 对比；状态流转到 rechecking。
+
+    同步阻塞（parse+判定），FastAPI 自动放线程池执行。
+    """
+    from src.baa_engine.team_collab.recheck import recheck_session
+
+    cm = get_collab_manager()
+    building_type = (body or {}).get("building_type", "civil")
+    result, msg = recheck_session(cm, session_id, user_id, building_type=building_type)
+    if result is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "error_code": "OPERATION_FAILED",
+                "message": msg,
+            },
+        )
+    return {"status": "success", **result}
+
+
 @router.post("/collab/review-sessions/{session_id}/comments")
 async def collab_add_comment(
     session_id: str, body: dict, user_id: str = Depends(verify_collab_token)

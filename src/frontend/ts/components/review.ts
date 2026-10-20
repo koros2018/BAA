@@ -74,6 +74,8 @@ export async function runReview(): Promise<void> {
     if (result.status === 'success') {
       renderReviewSummary(summary, result);
       renderReviewDetails(details, result);
+      // T-B6: 自动载入交互式图纸（双向定位）
+      (window as any).renderInteractiveDrawing?.('interactive-drawing-container', String(drawing.id || ''));
       // P119: 初始化审核条目 + 刷新审核面板
       _initAuditItems(result).then(() => {
         const reviewId = (result.queue_info as any)?.task_id || result.task_id || '';
