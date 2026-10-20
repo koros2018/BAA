@@ -4,9 +4,8 @@ import { expect, test } from "@playwright/test";
 test.describe("页面路由全量 smoke", () => {
   const pages = [
     { selector: '[data-page="drawings"]', name: "图纸管理" },
-    { selector: '[data-page="review"]', name: "AI 审查" },
     { selector: '[data-page="collab"]', name: "团队协作" },
-    { selector: '[data-page="reports"]', name: "报告" },
+    { selector: '[data-page="history"]', name: "审查记录" }, // TD-E2E-002: 报告入口由审查记录承载，无独立 reports 页
     { selector: '[data-page="settings"]', name: "设置" },
   ];
 
@@ -25,6 +24,10 @@ test.describe("页面路由全量 smoke", () => {
     });
   }
 
+  test("AI 审图入口按设计隐藏（P112 合并入图纸管理，TD-E2E-001）", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('[data-page="review"]')).toBeHidden();
+  });
   test("首页加载 + health 检查", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/BAA/);

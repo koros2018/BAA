@@ -484,6 +484,7 @@ w.renderReviewTable = renderReviewTable;
 w.runReview = runReview;
 w.renderViolationOverlay = renderViolationOverlay;
 w.runBatchReviewComponent = runBatchReviewComponent;
+w.runBatchReview = runBatchReviewSSE; // TD-E2E-005: 显式挂载（sse-batch 模块内的隐式挂载会被 tree-shake 整体摇掉，历史缺陷根因）
 
 // P123 Phase 3: router 已在构造函数中初始化 hash 路由 + popstate/hashchange 监听
 // 不再需要旧的 sidebar onclick 监听（page-nav.ts 的 initNavigation 已由 router 替代）

@@ -31,4 +31,30 @@ test.describe("批量审查流程", () => {
     await expect(page.locator("#upload-progress")).toContainText("批量审查完成", { timeout: 120_000 });
     await expect(page.locator("#upload-progress")).toContainText("项违规", { timeout: 10_000 });
   });
+
+  test("TD-E2E-005 守护：SSE 批量审查 Tab 选择文件后点击触发 /batch-review-stream", async ({ page }) => {
+    await page.goto("/");
+    await page.click('[data-page="drawings"]');
+    // 审查面板默认 hidden，批量 Tab 不依赖已载图纸，直接展开
+    await page.evaluate(
+      () => (window as unknown as { showDrawingReviewPanel?: (v: boolean) => void }).showDrawingReviewPanel?.(true),
+    );
+    await page.click("#dr-tab-batch");
+    await expect(page.locator("#dr-panel-batch")).toBeVisible();
+
+    await page.setInputFiles("#batch-file-input", `${FIXTURE_DIR}/test_basic.dxf`);
+    // 根因①守护：change 事件必须写入 window.batchFiles（修复前全仓无赋值点）
+    const n = await page.evaluate(
+      () => (window as unknown as { batchFiles?: FileList }).batchFiles?.length ?? 0,
+    );
+    expect(n).toBe(1);
+
+    // 根因②守护：点击开始必须真正发起 SSE 请求（修复前 data-action 名不匹配静默 no-op）
+    const reqPromise = page.waitForRequest(
+      (r) => r.url().includes("/batch-review-stream") && r.method() === "POST",
+      { timeout: 15_000 },
+    );
+    await page.click("#batch-review-start-btn");
+    await reqPromise;
+  });
 });
