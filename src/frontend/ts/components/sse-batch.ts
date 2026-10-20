@@ -52,7 +52,11 @@ interface FileState {
 }
 
 function getBatchFiles(): File[] {
-  return (window as unknown as Record<string, unknown>).batchFiles as File[];
+  const f = (window as unknown as Record<string, unknown>).batchFiles as
+    | FileList
+    | File[]
+    | undefined;
+  return f ? Array.from(f) : [];
 }
 
 async function runBatchReviewSSE(): Promise<void> {

@@ -23,9 +23,9 @@
 
 **交付物**：主干依赖图 + 关闭视觉后的回归报告。
 **验收标准**
-- [ ] 生产主干无任何光栅/视觉依赖（`grep` 依赖清单与 import 链无 YOLO/分割库）。
-- [ ] 关闭视觉后 2224+ 存量测试全部通过、无新增 FAIL。
-- [ ] 研究模块与主干物理隔离，主干运行时不被加载。
+- [x] 生产主干无任何光栅/视觉依赖（`grep` 依赖清单与 import 链无 YOLO/分割库）。（**达标**：requirements.txt 零视觉依赖；yolo import 全延迟且受 VISION_ENABLED 双守卫（baa_api.py L635）；引擎侧 _yolo_enhance_impl 为 P84 空返回 stub；证据链 docs/ta1_acceptance/README.md）
+- [x] 关闭视觉后 2224+ 存量测试全部通过、无新增 FAIL。（**达标**：VISION_ENABLED 默认 false（api_globals.py L85）+ test_api.py 默认关闭断言；当前全量回归 2505 passed / 0 failed 覆盖存量基线）
+- [x] 研究模块与主干物理隔离，主干运行时不被加载。（**达标**：ultralytics 顶层 import 仅 src/tools/p111_train_yolo.py；主干（baa_engine/api）grep 零 import src/tools；消防符号 spot 无生产代码路径）
 
 ### T-A2 块语义分类（关联 G7 / A2）
 **开发任务**
@@ -35,9 +35,9 @@
 
 **交付物**：`block_semantics` 映射模块 + 图例查表器 + 未分类率统计脚本。
 **验收标准**
-- [ ] 图元未分类率相较基线下降 ≥50%。
-- [ ] 映射命中案例出具前后对比证据链（图纸 ID + 命中块名）。
-- [ ] 联合 `LAYER_RULES` 后不引入新增误报（误报率不上升）。
+- [ ] 图元未分类率相较基线下降 ≥50%。（**未达标·诚实上报**：2026-10-20 复测（基线修正为 V1+关图例+关 M4 学习器）40 张有效未分类率 5.63%→4.78%，相对 -15.1%<50%；机制有效——block_default 726→438（-39.7%，288 块重归类）回归 0，但残量主体为非 INSERT 图元（未映射图层线/文字），块语义结构性触达不了，根治需图层规则扩面；绝对值 4.78% 参考性低于看板 ≤7% 目标；证据 docs/ta2_acceptance/ta2_rerun_20261020.json）
+- [x] 映射命中案例出具前后对比证据链（图纸 ID + 命中块名）。（**达标**：ta2_rerun_20261020.json 逐图纸 drawing_id + block_names 分布 + 命中明细 wall→equipment/telecom_point 等）
+- [x] 联合 `LAYER_RULES` 后不引入新增误报（误报率不上升）。（**达标**：回归门 regressions=0 / guard_removed=0 / changes=0，40 张全量）
 
 ### T-A3 天正 T3 识别验收（关联 G8 / A3）
 **开发任务**
@@ -226,7 +226,7 @@
 
 ## 技术债
 
-- 登记表：`docs/tech_debt/README.md`（开放 3 条 / 已关闭 2 条）。TD-E2E-003（4 例陈旧 fixture 路径 + 旧 UI 流程）与 TD-E2E-004（audit 用例缺 `result` 字段）已于 2026-10-19 修复并回归通过；TD-E2E-001/002（`test_regression` 复用隐藏页/未注册页）与 TD-E2E-005（批量审查 Tab 全局未挂载，修复过程新发现）仍开放。
+- 登记表：`docs/tech_debt/README.md`（**开放 0 条 / 已关闭 5 条**，2026-10-20 阶段 A/B 收口全清）。TD-E2E-003/004 于 2026-10-19 修复；TD-E2E-001/002（回归 smoke 复用隐藏页/未注册页，改为对齐侧栏现实的断言）与 TD-E2E-005（批量审查 Tab 三层根因：batchFiles 无赋值点 + data-action 名不匹配 + sse-batch 模块被 vite tree-shake 整体摇掉——main.ts 显式挂载修复）已于 2026-10-20 修复，**全量 E2E 38/38 real-run 通过**。
 
 ## 指标看板（纳入 CI/报表）
 
@@ -238,4 +238,4 @@
 | 漏报率（recall） | 未量化 | 可量化 | 持续下降 |
 | 工作流闭环 | 无 | 可演示 | 机构可用 |
 | 生产部署形态 | 本地 Docker | 私有部署就绪 | 多副本生产 |
-| 前端测试 | Vitest 27 用例 + 9 E2E（新增协作全流程 10 用例，real-run 10/10） | 关键组件单测 | E2E ≥12（9+10=19 达标） |
+| 前端测试 | Vitest 27 用例 + 全量 E2E 38 用例（2026-10-20 real-run 38/38，含工作流闭环 12 用例与批量审查守护用例） | 关键组件单测 | E2E ≥12（38 已达标） |

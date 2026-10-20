@@ -113,6 +113,12 @@ export function initApp(): void {
   const apiBase = document.getElementById('api-base');
   apiBase?.addEventListener('change', () => appState.saveApiBase());
 
+  // TD-E2E-005: 批量审查 Tab 文件选择 → window.batchFiles（sse-batch 读取）
+  const batchInput = document.getElementById('batch-file-input') as HTMLInputElement | null;
+  batchInput?.addEventListener('change', () => {
+    (window as unknown as Record<string, unknown>).batchFiles = batchInput.files;
+  });
+
   // P124-A Phase 1: 全局 action 委托
   bindActionDelegation();
 

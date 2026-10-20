@@ -15,7 +15,8 @@
   block_default     = INSERT 块名/图例均未命中，回退 wall（块语义未覆盖）
   effective_rate    = (unclassified + block_default) / total   ← 块语义可直接影响的度量
   baseline(pre-T-A2)= 原始 V1 规则表（patch classify.classify_block_name → V1）+ 关闭
-                      图例兜底（patch classify.lookup_legend → None）
+                      图例兜底（patch classify.lookup_legend → None）+ 关闭图例学习器
+                      （patch legend_learner._learn_legend_blocks → {}，M4 Step 0.9 复测口径修正）
   current           = 现状（扩充块名映射 + 图例兜底 + ATTRIB 落库）
   guard_removed     = 基线(V1 无守卫)误报为构件、现状命中 _SHEET_NAME_MARKERS 后正确
                       去分类的图纸/系统图块（属修复而非劣化），不计入失败
@@ -55,6 +56,9 @@ from src.baa_engine.semantic_analyzer.block_semantics import (  # noqa: E402
 LEGEND_PATCH_TARGET = "src.baa_engine.semantic_analyzer.classify.lookup_legend"
 # 块名规则的补丁目标（pre-T-A2 基线回退到原始 V1 规则表）。
 BLOCK_NAME_PATCH_TARGET = "src.baa_engine.semantic_analyzer.classify.classify_block_name"
+# M4 图例学习器的补丁目标（Step 0.9 预扫描学得的映射属图例兜底家族，
+# baseline 必须一并关闭，否则基线被人为抬高、降幅失真）。
+LEARNER_PATCH_TARGET = "src.baa_engine.semantic_analyzer.legend_learner._learn_legend_blocks"
 
 DEFAULT_DIR = r"D:\BaiduNetdiskDownload\测试图纸"
 
@@ -117,6 +121,7 @@ def _run_once(path: Path, parser: DrawingParser, baseline: bool) -> Optional[Tup
                 patch(BLOCK_NAME_PATCH_TARGET, new=_classify_block_name_v1)
             )
             stack.enter_context(patch(LEGEND_PATCH_TARGET, return_value=None))
+            stack.enter_context(patch(LEARNER_PATCH_TARGET, new=lambda prims: {}))
         result = parser.parse(str(path), f"ta2_{path.stem}")
         if not result.success or not result.primitives:
             return None
