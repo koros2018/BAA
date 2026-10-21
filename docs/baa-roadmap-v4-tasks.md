@@ -151,8 +151,8 @@
 ### T-C1 数据层升级（关联 G14 / G17 / C1）
 **开发任务**：抽象数据层 → PostgreSQL + Alembic 迁移脚本。
 **验收标准**
-- [ ] 生产多副本共享存储可用（缓存/协作/历史迁移完成）。
-- [ ] 迁移可重复执行且幂等，回滚路径清晰。
+- [x] 生产多副本共享存储可用（缓存/协作/历史迁移完成）。（**达标**：统一数据层 `src/baa_engine/db/`（全项目唯一 engine/session 入口，URL 解析 显式>env>默认 SQLite 回退）+ 四域（历史/审计/缓存/协作）session 化；便携 PG 17.6 实测：双进程并发三域读写互见、真实 legacy 三库搬迁 1138 源行全量落地（1138=634 历史 + 406 审计[全为 test-/e2e_ 孤儿按 FK 守卫跳过] + 2 缓存 + 96 协作）；全量回归 2520 passed / 0 failed。证据链 docs/tc1_acceptance/）
+- [x] 迁移可重复执行且幂等，回滚路径清晰。（**达标**：Alembic 0001 upgrade ×2 幂等、downgrade base → upgrade head 重建 13 表；搬迁工具按主键 INSERT OR IGNORE / ON CONFLICT DO NOTHING，二次搬迁 inserted 全 0；回滚路径 = 旧三 SQLite 文件原样保留，新库异常回指旧库；单测 15 用例 + PG 验收 4 用例全绿。证据链 docs/tc1_acceptance/）
 
 ### T-C2 并发与扩展（关联 G15 / G20 / C2）
 **开发任务**：分布式限流 + 服务无状态化 + HPA 配置。

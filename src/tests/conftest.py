@@ -14,8 +14,33 @@ if PROJECT_ROOT not in sys.path:  # check: membership test
 # ── 全局 client fixture（所有测试文件可用） ─────────
 os.environ["BAA_API_KEY"] = "test-api-key"
 os.environ["BAA_AUTH_SECRET"] = "test-secret"
-from fastapi.testclient import TestClient
-from src.api.baa_api import app
+
+# ── T-C1：统一数据层测试隔离（必须在 import baa_api 之前生效） ─────────
+# 每个 pytest 进程/xdist worker 使用独立 SQLite 文件：
+# ① 不污染真实 data/ 目录 ② 规避共享文件锁竞争 ③ 显式设置过的 BAA_DATABASE_URL 不覆盖
+import atexit  # noqa: E402
+import tempfile  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_TEST_DB = Path(tempfile.gettempdir()) / f"baa_test_{os.getpid()}.db"
+os.environ.setdefault("BAA_DATABASE_URL", f"sqlite:///{_TEST_DB.as_posix()}")
+
+
+def _cleanup_test_db():
+    """进程退出：先释放全部引擎连接（否则池化连接锁定 SQLite 文件），再删临时库。"""
+    from src.baa_engine.db import dispose_all
+
+    try:
+        dispose_all()
+    except Exception:
+        pass
+    Path(str(_TEST_DB)).unlink(missing_ok=True)
+
+
+atexit.register(_cleanup_test_db)
+
+from fastapi.testclient import TestClient  # noqa: E402
+from src.api.baa_api import app  # noqa: E402
 
 
 @pytest.fixture(scope="module")

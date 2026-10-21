@@ -11,6 +11,7 @@ markers = [
     "slow: slow-running tests (skip by default)",
     "real_drawing: 真实图纸基线测试，默认跳过（CI 独立阶段运行）",
     "api: API-level integration tests",
+    "pg: PostgreSQL 验收测试（需 BAA_TEST_PG_URL，本地便携 PG / CI 服务）",
 ]
 
 [tool.black]
