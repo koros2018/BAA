@@ -28,9 +28,14 @@ from datetime import datetime
 from typing import Optional, List, Tuple
 
 
-from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
-from sqlalchemy.orm import sessionmaker, scoped_session, Session
+from src.baa_engine.db import (
+    ensure_schema,
+    get_engine,
+    get_session_factory,
+    resolve_database_url,
+)
 
 
 import logging
@@ -118,15 +123,20 @@ class CollaborationManager:
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-        self._engine = create_engine(
-            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}, pool_pre_ping=True
-        )
+        # T-C1 统一数据层：默认路径走统一 URL 解析（BAA_DATABASE_URL 优先，回退 SQLite 单库）；
+        # 显式 db_path（测试隔离）继续以独立 SQLite 文件生效。
+        if os.path.abspath(db_path) == os.path.abspath(DEFAULT_DB_PATH):
+            self._url = resolve_database_url()
+        else:
+            self._url = f"sqlite:///{db_path}"
 
-        Base.metadata.create_all(self._engine)
+        self._engine = get_engine(self._url)
 
-        self._session_factory = scoped_session(sessionmaker(bind=self._engine))
+        ensure_schema(self._url)  # 生产以 Alembic 为准，此处建表兜底（幂等）
 
-        logger.info(f"[Collab] DB ready: {db_path}")
+        self._session_factory = get_session_factory(self._url)
+
+        logger.info(f"[Collab] DB ready: {self._url}")
 
     def _get_session(self) -> Session:
         """获取审查会话。"""

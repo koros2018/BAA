@@ -1,0 +1,54 @@
+T-C1 T8 便携 PostgreSQL 验收实跑记录（2026-10-20）
+================================================================
+
+环境
+----
+PostgreSQL 17.6 (EDB Windows x64 binaries zip → D:\tmp\pgsql)
+initdb -D D:\tmp\pgdata -U baa --auth=trust --no-locale -E UTF8
+pg_ctl -p 5433，库 baa_test
+psql: PostgreSQL 17.6 on x86_64-windows, compiled by msvc-19.44.35213, 64-bit
+
+四项验收：pytest -m pg（BAA_TEST_PG_URL=postgresql+psycopg://baa@localhost:5433/baa_test）
+------------------------------------------------------------------------
+$ python -m pytest src/tests/test_pg_acceptance.py -m pg -q
+4 passed, 7 warnings in 3.24s
+
+  1. test_pg_01_upgrade_idempotent      PASSED  (alembic upgrade ×2 幂等；13 表 + alembic_version=0001；重复验收先降 base 清场)
+  2. test_pg_02_concurrent_three_domains PASSED (双进程并发写历史/缓存/协作三域并回读，第三方连接互见)
+  3. test_pg_03_downgrade_rebuild       PASSED  (downgrade base → upgrade head 重建 13 表)
+  4. test_pg_04_real_migration_row_counts PASSED (真实 legacy 三库搬迁行数比对，二次搬迁幂等)
+
+无环境默认回归不受影响：python -m pytest src/tests/test_pg_acceptance.py -q → 4 skipped
+
+搬迁行数比对（python -m src.baa_engine.db.migration_tool --url <PG>）
+----------------------------------------------------------------
+table                     source  inserted  target_total
+review_history               634         0           634
+review_audit_items           406         0             0 (跳过孤儿406条)
+cache_entries                  2         0             2
+users                         30         0            30
+teams                         11         0            11
+team_members                  15         0            15
+projects                       8         0             8
+project_members                8         0             8
+review_sessions                7         0             7
+rectification_records          2         0             2
+review_comments                5         0             5
+approval_flows                 5         0             5
+approval_steps                 5         0             5
+
+合计 source=1138 target_total=732（幂等重跑 inserted 全 0）
+
+孤儿审计行核实（历史脏数据，非搬迁缺陷）
+--------------------------------
+data/review_history.db 中 review_audit_items 的 136 个 distinct review_id
+全部不在 review_history（ID 前缀：test-* 133 个 / e2e_* 3 个 = 历史 E2E 与
+单测残留，对应 history 行从未落库）。旧 SQLite 库不强制外键导致积累。
+搬迁工具 FK 守卫按设计跳过并计入 skipped，保证新库引用完整性。
+
+全量回归（SQLite 基线）
+----------------
+$ python -m pytest src/tests -q
+2520 passed, 18 skipped, 14 deselected, 8 warnings in 18.43s
+（基线 2505 + T-C1 新增 15：test_db_url 6 + test_migrations 3 +
+ test_migration_tool 5 + 孤儿守卫 1；18 skipped = 14 基线 + 4 pg 无环境）
