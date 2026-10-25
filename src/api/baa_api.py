@@ -561,7 +561,7 @@ async def deconstruct(  # code
         "cpu", description="YOLO 推理设备: cpu(默认) / xpu(Intel Arc GPU)"
     ),  # function call
     request: Request = None,  # assignment
-    api_key: str = Depends(verify_api_key),  # function call
+    api_key: str = Depends(require_scope("deconstruct:write")),  # T-C4 细粒度授权
 ):  # code
     """图纸解构（免费端点）
 

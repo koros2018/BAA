@@ -152,6 +152,36 @@ DEFAULT_RATE_LIMIT = {  # 每密钥每分钟限制
 }  # code
 DEFAULT_STORAGE_PATH = "data/api_keys.json"  # assignment
 
+# ── T-C4：细粒度 scope 模型 ───────────────────────────────
+# scope 语义：<资源>:<操作>。"*" 为全量通配。密钥可显式指定 scopes 子集，
+# 未指定时按 permission 等级映射默认值（向后兼容，存量密钥行为不变）。
+PERMISSION_SCOPES = {
+    "admin": ["*"],
+    "write": [
+        "review:write",
+        "review:read",
+        "deconstruct:write",
+        "deconstruct:read",
+        "files:write",
+        "order:read",
+        "batch:write",
+        "collab:write",
+        "collab:read",
+    ],
+    "read": ["review:read", "deconstruct:read", "order:read", "collab:read"],
+    "limited": ["review:read"],
+}
+
+
+def has_scope(key_info: dict, scope: str) -> bool:
+    """判定 key_info 是否拥有指定 scope（"*" 通配；缺省按 permission 映射）。"""
+    if not key_info:
+        return False
+    scopes = key_info.get("scopes")
+    if not scopes:
+        scopes = PERMISSION_SCOPES.get(key_info.get("permission", "limited"), [])
+    return "*" in scopes or scope in scopes
+
 
 # ── 密钥管理器 ──────────────────────────────────────────────
 
@@ -407,6 +437,7 @@ class ApiKeyManager:  # class definition
         ttl_days: int = None,  # assignment
         label: str = "",  # assignment
         created_by: str = "system",  # assignment
+        scopes: List[str] = None,  # T-C4：显式 scope 子集（缺省按 permission 映射）
     ) -> dict:  # code
         """生成新 API Key
 
@@ -415,6 +446,7 @@ class ApiKeyManager:  # class definition
             ttl_days: 有效期天数（默认90天）
             label: 用途标签（如"生产-前端"、"测试-张三"）
             created_by: 创建者标识
+            scopes: 显式 scope 列表（T-C4 细粒度授权）；缺省按 permission 映射
 
         Returns:
             {"key_id": str, "raw_key": str, "info": dict}
@@ -440,6 +472,7 @@ class ApiKeyManager:  # class definition
             "hash": key_hash,  # 字段
             "encrypted_raw": encrypted_raw,  # AES-GCM 密文，可解密为原始密钥
             "permission": permission,  # 字段
+            "scopes": list(scopes) if scopes else list(PERMISSION_SCOPES.get(permission, [])),  # T-C4
             "label": label,  # 字段
             "created_by": created_by,  # 字段
             "created_at": now.isoformat(),  # 字段
@@ -489,6 +522,7 @@ class ApiKeyManager:  # class definition
             return {  # return: dict
                 "key_id": "__env__",  # 字段
                 "permission": "admin",  # 字段
+                "scopes": ["*"],  # T-C4：环境变量 admin 通道全权限
                 "label": "env-key",  # 字段
                 "enabled": True,  # 字段
                 "expires_at": None,  # 字段

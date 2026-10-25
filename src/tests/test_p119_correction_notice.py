@@ -71,10 +71,12 @@ class TestCorrectionNoticePDF:
 
 class TestCorrectionNoticeAPI:
     @pytest.fixture
-    def client(self):
+    def client(self, monkeypatch):
         from src.api.baa_api import app, API_KEYS
 
         # 保存并清空 API_KEYS 以启用匿名模式，测试后恢复
+        # T-C4：匿名需显式开启 BAA_ALLOW_ANONYMOUS=1
+        monkeypatch.setenv("BAA_ALLOW_ANONYMOUS", "1")
         saved = set(API_KEYS)
         API_KEYS.clear()
         from fastapi.testclient import TestClient

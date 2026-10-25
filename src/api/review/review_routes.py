@@ -24,6 +24,7 @@ from . import (
 )
 from . import (
     verify_api_key,
+    require_scope,
     SUPPORTED_FORMATS,
     MAX_FILE_SIZE,
     MAX_FILE_SIZE_MB,
@@ -249,7 +250,7 @@ async def review(  # code
         le=600,
         description="P121 Phase 3: 审查超时阈值(秒)，超过返回已完成的部分结果",
     ),  # function call
-    api_key: str = Depends(verify_api_key),  # function call
+    api_key: str = Depends(require_scope("review:write")),  # T-C4 细粒度授权
 ):  # code
     """图纸合规审查（免费试用）
 
