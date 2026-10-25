@@ -221,10 +221,11 @@ class TestReviewEndpointWebhook:
     """/review 和 /review-from-data 端点正确接收 webhook 参数"""
 
     @pytest.fixture(autouse=True)
-    def _api_key(self):
-        """允许匿名访问（verify_api_key 在 API_KEYS 为空时走匿名路径）"""
+    def _api_key(self, monkeypatch):
+        """允许匿名访问（T-C4 后需显式开启 BAA_ALLOW_ANONYMOUS）"""
         import src.api.api_globals as ag
 
+        monkeypatch.setenv("BAA_ALLOW_ANONYMOUS", "1")
         saved = set(ag.API_KEYS)
         ag.API_KEYS.clear()
         yield

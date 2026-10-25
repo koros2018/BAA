@@ -265,10 +265,19 @@ class DrawingParser:
                     )  # code
                 self._doc = dxf_doc  # assignment
             elif ext == ".pdf":  # condition: ext == ".pdf" — P100 PDF 直接接入
-                # 委托到 parsers.pdf_parser 转 DXF，再走标准 DXF 解析
-                from src.baa_engine.parsers.pdf_parser import pdf_to_dxf  # 延迟导入避免循环
+                # T-C4：默认走独立子进程（AGPL 许可隔离，主进程不加载 PyMuPDF）；
+                # BAA_PDF_ISOLATION=0 时回退进程内直接调用（仅本地开发/测试）。
+                from src.baa_engine.parsers.pdf_isolation import (  # 延迟导入避免循环
+                    pdf_isolation_enabled,
+                    pdf_to_dxf_isolated,
+                )
 
-                pdf_result = pdf_to_dxf(str(path), page_index=page_index)
+                if pdf_isolation_enabled():
+                    pdf_result = pdf_to_dxf_isolated(str(path), page_index=page_index)
+                else:
+                    from src.baa_engine.parsers.pdf_parser import pdf_to_dxf
+
+                    pdf_result = pdf_to_dxf(str(path), page_index=page_index)
                 if pdf_result is None:
                     return DrawingResult(
                         file_path=file_path,

@@ -44,6 +44,7 @@ __all__ = [
     "_review_semaphore",
     "ENGINE_THREAD_POOL",
     "verify_api_key",
+    "require_scope",
     "get_file_path",
     "require_admin",
     "generate_file_id",
@@ -196,10 +197,25 @@ def _enforce_rate_limit(key_info: dict) -> None:
         )
 
 
+def _anonymous_allowed() -> bool:
+    """T-C4：匿名放行默认关闭，仅在显式配置 BAA_ALLOW_ANONYMOUS=1 时允许。
+
+    未配置任何密钥的部署（API_KEYS 为空）不再默认放行匿名请求，
+    避免生产环境忘配密钥导致接口裸奔。
+    """
+    return os.getenv("BAA_ALLOW_ANONYMOUS", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
 def verify_api_key(api_key: str = Depends(extract_api_key)) -> str:
     """验证 API 密钥（含提取 + 校验 + 限流）
 
-    兼容性：API_KEYS 为空时允许匿名访问（未配置密钥的部署场景）。
+    兼容性：API_KEYS 为空且 BAA_ALLOW_ANONYMOUS=1 时允许匿名访问
+    （仅开发/内网场景）；默认匿名不放行（T-C4 安全基线）。
     API_KEYS 非空时：必须提供有效密钥。
     数据库密钥管理优先，其次配置密钥。
     校验通过后按密钥权限执行分布式限流（T-C2）。
@@ -209,8 +225,8 @@ def verify_api_key(api_key: str = Depends(extract_api_key)) -> str:
     if key_info and key_info.get("enabled", True):
         _enforce_rate_limit(key_info)
         return api_key
-    # API_KEYS 为空：匿名访问（无密钥配置的部署场景）
-    if not API_KEYS and not key_info:
+    # API_KEYS 为空：匿名访问（需显式开启 BAA_ALLOW_ANONYMOUS）
+    if not API_KEYS and not key_info and _anonymous_allowed():
         return "anonymous"
     if api_key and api_key in API_KEYS:
         return api_key
@@ -224,10 +240,60 @@ def verify_api_key(api_key: str = Depends(extract_api_key)) -> str:
     )
 
 
+def require_scope(scope: str):
+    """T-C4：细粒度授权依赖。要求密钥拥有指定 scope（或 "*"）。
+
+    鉴权顺序：DB 密钥（含 scope 校验 + 限流）→ 静态配置密钥（视为全权限，
+    向后兼容）→ 匿名（仅 BAA_ALLOW_ANONYMOUS=1）。
+    """
+
+    def _dep(api_key: str = Depends(extract_api_key)) -> str:
+        from src.baa_engine.api_key_manager import has_scope
+
+        km = get_key_manager()
+        key_info = km.validate_key(api_key)
+        if key_info and key_info.get("enabled", True):
+            if not has_scope(key_info, scope):
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "status": "error",
+                        "error_code": "INSUFFICIENT_SCOPE",
+                        "message": f"密钥缺少所需权限范围: {scope}",
+                        "required_scope": scope,
+                    },
+                )
+            _enforce_rate_limit(key_info)
+            return api_key
+        if not API_KEYS and not key_info and _anonymous_allowed():
+            return "anonymous"
+        if api_key and api_key in API_KEYS:
+            return api_key
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "status": "error",
+                "error_code": "UNAUTHORIZED",
+                "message": "无效的API Key",
+            },
+        )
+
+    return _dep
+
+
 def require_admin(request: Request, api_key: str = "") -> str:
     """验证 admin 权限"""
-    if not API_KEYS:
+    if not API_KEYS and _anonymous_allowed():
         return "anonymous"
+    if not API_KEYS:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "status": "error",
+                "error_code": "FORBIDDEN",
+                "message": "未配置密钥，admin 通道不可用（T-C4 关闭匿名默认放行）",
+            },
+        )
     km = get_key_manager()
     key_info = km.validate_key(api_key)
     if key_info and key_info.get("permission") == "admin":

@@ -31,6 +31,7 @@ async def create_api_key(  # code
     permission = body.get("permission", "write")  # function call
     ttl_days = body.get("ttl_days", 90)  # function call
     label = body.get("label", "")  # function call
+    scopes = body.get("scopes")  # T-C4：可选显式 scope 子集（list[str]）
 
     # 异常保护：捕获可能失败的调用
     try:  # 尝试
@@ -39,6 +40,7 @@ async def create_api_key(  # code
             ttl_days=ttl_days,  # assignment
             label=label,  # assignment
             created_by=api_key or "anonymous",  # assignment
+            scopes=scopes,  # T-C4
         )  # code
     except ValueError as e:  # 捕获异常
         raise HTTPException(

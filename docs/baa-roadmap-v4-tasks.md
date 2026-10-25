@@ -166,11 +166,11 @@
 - [x] 关键链路均有指标与告警（解析/判定/API）。（**达标**：observability.py 8 指标覆盖 API（请求数/耗时按路由模板分组）、解析（耗时/成败）、判定（耗时/findings 按 severity/错误按 code）、限流（429 计数）、队列（4 Gauge 采集时回调 provider）；k8s/prometheus-rules.yaml 3 组 7 条告警（5xx>5%、p95>120s、PodDown、解析失败率>20%、判定 p95>300s、队列积压>20、限流拒绝>1/s）；Deployment Pod 加 prometheus.io 抓取注解；单测 9/9 含路由模板防标签爆炸验证）
 - [x] 日志结构化可检索，告警可触达。（**达标**：JsonFormatter JSON 行（ts/level/logger/message+extras），BAA_LOG_FORMAT=json 启用、默认格式不变；log_request 访问日志带 method/route/status/duration_ms/client 可字段检索；告警经 Prometheus→Alertmanager 触达（receiver 集群侧配置，webhook 可复用 webhooks.py 飞书/钉钉卡片）。全量回归 2546 passed / 0 failed；证据链 docs/tc3_acceptance/）
 
-### T-C4 安全合规隔离（关联 G18 / G19 / G22 / C4）
+### T-C4 安全合规隔离（关联 G21 / C4）
 **开发任务**：AGPL/GPL 依赖独立进程/微服务；细粒度 RBAC；关闭匿名默认放行。
 **验收标准**
-- [ ] 法务可出具合规说明（许可隔离清晰）。
-- [ ] RBAC 支持细粒度权限；`API_KEYS` 为空不再放行匿名。
+- [x] 法务可出具合规说明（许可隔离清晰）。（**达标**：docs/compliance/license-isolation.md 全量许可扫描（GPL 家族仅 4 组）；PyMuPDF(AGPL) 独立进程隔离——pdf_service.py CLI worker + pdf_isolation.py 主进程封装（零 PyMuPDF 导入，CLI+stdout JSON 通信，进程边界=许可边界），BAA_PDF_ISOLATION 默认开；LGPL 组件（psycopg×2/frozendict）动态链接合规说明；test_agpl_component_whitelist 白名单测试防新增未评审 GPL 组件；端到端实测子进程解析成功且主进程 sys.modules 无 pymupdf）
+- [x] RBAC 支持细粒度权限；`API_KEYS` 为空不再放行匿名。（**达标**：PERMISSION_SCOPES scope 模型（<资源>:<操作>，admin=* 通配）+ has_scope + generate_key(scopes=) 显式收窄 + /admin/keys 支持 scopes + require_scope() 依赖工厂（不足 403 INSUFFICIENT_SCOPE）已挂 /review(review:write)、/deconstruct(deconstruct:write)，存量密钥按 permission 映射向后兼容；BAA_ALLOW_ANONYMOUS 默认 0 关闭匿名（API_KEYS 空 → 401/admin 403），仅显式 =1 放行（本机 .env 开发用），.env.example 生产默认 0。全量回归 2559 passed / 0 failed；证据链 docs/tc4_acceptance/）
 
 ### T-C5 云端部署流水线（关联 P115 / C5）
 **开发任务**：CI/CD + 生产配置管理。
