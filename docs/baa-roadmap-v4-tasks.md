@@ -175,7 +175,7 @@
 ### T-C5 云端部署流水线（关联 P115 / C5）
 **开发任务**：CI/CD + 生产配置管理。
 **验收标准**
-- [ ] `docker compose up -d` 后生产就绪（一键起服务）。
+- [x] `docker compose up -d` 后生产就绪（一键起服务）。（**达标**：docker-entrypoint.sh 先 alembic upgrade head 后 gunicorn；compose 注入生产安全基线（匿名关/AGPL 隔离/JSON 日志）；.dockerignore 收紧（本地 .env 密钥不进镜像、保留 data/specs 规范库）；.env.production.example 生产配置模板；CI 新增 docker.yml 三 job（build → compose_smoke：up -d + /health 轮询 + /metrics + 匿名 401/403 阻断 + PG 迁移落库表数校验 → v* 标签 push GHCR）；.gitattributes 锁 *.sh LF 防 CRLF；静态防漂移测试 6/6；全量回归 2565 passed / 0 failed；证据链 docs/tc5_acceptance/）
 
 ### T-C6 知识库开放（关联 P117 / C6）
 **开发任务**：原子函数/规范 schema 版本化 + SDK 示例。

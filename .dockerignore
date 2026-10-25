@@ -1,23 +1,43 @@
+# T-C5：生产镜像瘦身——开发/测试/本地状态不进镜像
 .git
 .gitignore
+.github/
+.trae/
+.trae-html-share-packages/
 .venv
-venv
-__pycache__
+.venv_old/
+venv/
+node_modules/
+__pycache__/
 *.pyc
 .pytest_cache
+.coverage
+# 本地环境配置（含密钥）绝不进镜像；生产配置经 env / compose 注入
 .env
 .env.example
+.env.production.example
+# 测试与 E2E
+tests/
+e2e/
+src/tests/
 conftest.py
+# 文档与本地运行产物
+docs/
+memory/
+output/
+runs/
 scripts/
+k8s/
+datasets/
+# 数据与模型（生产经卷挂载；data/specs 规范库保留在镜像内）
 data/logs/
 data/files/
 data/coco/
 data/coco_v2/
 data/drawings/
-data/models/baa_lora/
-data/models/baa_yolov8n/
-data/models/baa_yolov8n_v2/
-data/models/baa_yolov8n_v3/
+data/models/
+data/p106_yolo_dataset/
+data/sft_dataset/
 *.dwg
 *.dxf
 *.pt

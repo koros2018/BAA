@@ -1,0 +1,2 @@
+# T-C5：shell 脚本必须 LF（Windows core.autocrlf 会改成 CRLF，容器内 /bin/sh 无法执行）
+*.sh text eol=lf

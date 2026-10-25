@@ -29,7 +29,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="BAA - Blueprint AI Agent"
 LABEL org.opencontainers.image.description="图纸合规智能体 - DXF/DWG 图纸 AI 审查系统"
-LABEL org.opencontainers.image.version="2.5.11"
+LABEL org.opencontainers.image.version="2.5.80"
 LABEL org.opencontainers.image.source="https://github.com/koros2018/BAA"
 
 # 系统运行依赖（ezdwg/ezdxf 需要）
@@ -43,47 +43,31 @@ ENV PATH=/root/.local/bin:$PATH
 
 WORKDIR /app
 
-# 复制项目代码（排除开发/测试文件）
+# 复制项目代码（.dockerignore 已排除开发/测试/本地状态/密钥文件）
 COPY . .
 
-# 清理开发文件以缩小镜像
-RUN rm -rf \
-    .git \
-    .venv \
-    venv \
-    .pytest_cache \
-    __pycache__ \
-    */__pycache__ \
-    */*/__pycache__ \
-    .gitignore \
-    .env.example \
-    conftest.py \
-    scripts/
+# 生产启动脚本（先迁移后服务）
+RUN chmod +x docker-entrypoint.sh
 
 # 创建数据目录（卷挂载点）
 RUN mkdir -p /app/data/files /app/data/models /app/data/logs /app/data/specs
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD python3 -c "import urllib.request; r = urllib.request.urlopen('http://localhost:${BAA_PORT:-8000}/health'); assert r.status == 200" || exit 1
+    CMD python3 -c "import urllib.request, os; r = urllib.request.urlopen('http://localhost:%s/health' % os.environ.get('BAA_PORT','8000')); assert r.status == 200" || exit 1
 
 # 环境变量（运行时可通过 -e 覆盖）
+# T-C4/T-C5 生产安全基线：匿名关闭、PDF AGPL 进程隔离开启、结构化日志
 ENV BAA_PORT=8000
 ENV BAA_WORKERS=2
 ENV BAA_DATA_DIR=/app/data
-ENV BAA_API_KEY=***
+ENV BAA_ALLOW_ANONYMOUS=0
+ENV BAA_PDF_ISOLATION=1
+ENV BAA_LOG_FORMAT=json
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
 EXPOSE 8000
 
-# 生产启动：Gunicorn + Uvicorn Worker
-ENTRYPOINT ["sh", "-c", "gunicorn src.api.baa_api:app \
-    -k uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:${BAA_PORT:-8000} \
-    --timeout 120 \
-    --max-requests 10000 \
-    --workers ${BAA_WORKERS:-2} \
-    --access-logfile - \
-    --error-logfile - \
-    --preload"]
+# 生产启动：Alembic 迁移 + Gunicorn + Uvicorn Worker
+ENTRYPOINT ["./docker-entrypoint.sh"]

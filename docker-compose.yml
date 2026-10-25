@@ -34,6 +34,7 @@ services:
       - BAA_PORT=${BAA_PORT:-8000}
       - BAA_WORKERS=${BAA_WORKERS:-2}
       - BAA_DATA_DIR=/app/data
+      # 生产必须覆盖为强随机值（.env 或 -e）；默认仅为本地一键体验
       - BAA_API_KEY=${BAA_API_KEY:-baa_dev_2026}
       - PYTHONUNBUFFERED=1
       # T-C2 无状态化：限流计数 / API 密钥 / 任务队列统一落 PostgreSQL，
@@ -41,6 +42,10 @@ services:
       - BAA_DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-baa}:${POSTGRES_PASSWORD:-baa_pg_2026}@postgres:5432/${POSTGRES_DB:-baa}
       - BAA_RATE_LIMIT_ENABLED=1
       - BAA_QUEUE_NAMESPACE=default
+      # T-C4/T-C5 生产安全基线：匿名关闭、PDF AGPL 进程隔离、结构化日志
+      - BAA_ALLOW_ANONYMOUS=${BAA_ALLOW_ANONYMOUS:-0}
+      - BAA_PDF_ISOLATION=${BAA_PDF_ISOLATION:-1}
+      - BAA_LOG_FORMAT=${BAA_LOG_FORMAT:-json}
     depends_on:
       postgres:
         condition: service_healthy
