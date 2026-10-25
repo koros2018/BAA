@@ -1,0 +1,87 @@
+# T-C3 告警规则：PrometheusRule（prometheus-operator CRD）
+# 关键链路：API 错误率/慢请求、解析失败率、判定耗时、限流、队列积压、副本可用性
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: baa-alerts
+  namespace: baa
+  labels:
+    app: baa
+    prometheus: kube-prometheus  # 按集群实际 selector 调整
+spec:
+  groups:
+    - name: baa.api
+      rules:
+        - alert: BaaHighErrorRate
+          expr: |
+            sum(rate(baa_http_requests_total{namespace="baa",status=~"5.."}[5m]))
+              / sum(rate(baa_http_requests_total{namespace="baa"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "BAA API 5xx 错误率超 5%（5 分钟窗口）"
+            description: "5xx 比率 {{ $value | humanizePercentage }}，请检查副本日志与依赖（PG/存储）。"
+        - alert: BaaSlowRequests
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(baa_http_request_duration_seconds_bucket{namespace="baa",route=~"/review|/deconstruct"}[5m])) by (le)
+            ) > 120
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "BAA 审查/解析 p95 耗时超 120s"
+            description: "p95 {{ $value }}s，疑似大图积压或引擎退化，检查队列与 CPU。"
+        - alert: BaaPodDown
+          expr: |
+            absent(up{namespace="baa",app="baa"} == 1)
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "BAA 无可用副本（up 指标缺失）"
+            description: "所有 baa Pod 抓取失败，服务可能整体不可用。"
+    - name: baa.pipeline
+      rules:
+        - alert: BaaParseFailureSpike
+          expr: |
+            sum(rate(baa_parse_total{namespace="baa",result="failed"}[10m]))
+              / sum(rate(baa_parse_total{namespace="baa"}[10m])) > 0.2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "图纸解析失败率超 20%（10 分钟窗口）"
+            description: "解析失败率 {{ $value | humanizePercentage }}，疑似批量坏文件或解析器回归。"
+        - alert: BaaReviewSlowP95
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(baa_review_duration_seconds_bucket{namespace="baa"}[10m])) by (le)
+            ) > 300
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "规范判定 p95 超 300s"
+            description: "判定耗时 {{ $value }}s，检查大图比例与原子函数执行超时配置。"
+    - name: baa.capacity
+      rules:
+        - alert: BaaQueueBacklog
+          expr: |
+            max(baa_queue_queued{namespace="baa"}) > 20
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "审查队列积压超 20 个任务"
+            description: "排队 {{ $value }} 个，考虑扩容副本（HPA 应已触发，核查资源上限）。"
+        - alert: BaaRateLimitSpike
+          expr: |
+            sum(rate(baa_rate_limit_rejected_total{namespace="baa"}[5m])) > 1
+          for: 5m
+          labels:
+            severity: info
+          annotations:
+            summary: "限流拒绝速率超 1 req/s"
+            description: "429 拒绝 {{ $value }}/s，检查是否有客户端异常刷量或配额配置过紧。"

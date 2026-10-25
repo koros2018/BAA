@@ -19,6 +19,7 @@ cryptography>=41.0.0  # API key 加密
 psutil>=5.9.0  # 系统资源监控
 sqlalchemy>=2.0.0  # 数据库 ORM
 alembic>=1.13  # 数据库迁移（T-C1 统一数据层）
+prometheus-client>=0.20  # 指标导出 /metrics（T-C3 可观测）
 psycopg[binary]>=3.2  # PostgreSQL 驱动（T-C1 多副本共享存储）
 reportlab>=4.0.0  # PDF 报告生成（report_generator）
 openpyxl>=3.1.0  # Excel 报告导出（review xlsx_report，T-B4）

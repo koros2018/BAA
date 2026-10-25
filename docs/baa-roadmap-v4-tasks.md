@@ -163,8 +163,8 @@
 ### T-C3 可观测（关联 G23 / G24 / C3）
 **开发任务**：接入 `/metrics`（Prometheus）+ 结构化日志 + 告警规则。
 **验收标准**
-- [ ] 关键链路均有指标与告警（解析/判定/API）。
-- [ ] 日志结构化可检索，告警可触达。
+- [x] 关键链路均有指标与告警（解析/判定/API）。（**达标**：observability.py 8 指标覆盖 API（请求数/耗时按路由模板分组）、解析（耗时/成败）、判定（耗时/findings 按 severity/错误按 code）、限流（429 计数）、队列（4 Gauge 采集时回调 provider）；k8s/prometheus-rules.yaml 3 组 7 条告警（5xx>5%、p95>120s、PodDown、解析失败率>20%、判定 p95>300s、队列积压>20、限流拒绝>1/s）；Deployment Pod 加 prometheus.io 抓取注解；单测 9/9 含路由模板防标签爆炸验证）
+- [x] 日志结构化可检索，告警可触达。（**达标**：JsonFormatter JSON 行（ts/level/logger/message+extras），BAA_LOG_FORMAT=json 启用、默认格式不变；log_request 访问日志带 method/route/status/duration_ms/client 可字段检索；告警经 Prometheus→Alertmanager 触达（receiver 集群侧配置，webhook 可复用 webhooks.py 飞书/钉钉卡片）。全量回归 2546 passed / 0 failed；证据链 docs/tc3_acceptance/）
 
 ### T-C4 安全合规隔离（关联 G18 / G19 / G22 / C4）
 **开发任务**：AGPL/GPL 依赖独立进程/微服务；细粒度 RBAC；关闭匿名默认放行。

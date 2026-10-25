@@ -180,6 +180,9 @@ def _enforce_rate_limit(key_info: dict) -> None:
     limit = DEFAULT_RATE_LIMIT.get(perm, 10)
     result = get_rate_limiter().check_and_consume(f"key:{key_id}", limit)
     if not result.allowed:
+        from src.baa_engine.observability import RATE_LIMIT_REJECTED
+
+        RATE_LIMIT_REJECTED.inc()
         raise HTTPException(
             status_code=429,
             detail={

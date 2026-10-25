@@ -299,6 +299,15 @@ async def lifespan(app: FastAPI):  # function call
     """
     # 启动时：等待引擎预热完成
     _engine_thread.join(timeout=120)  # function call
+    # T-C3：结构化日志（BAA_LOG_FORMAT=json 时启用）+ 队列指标 provider
+    from src.baa_engine.observability import (
+        register_queue_stats_provider,
+        setup_structured_logging,
+    )
+
+    if setup_structured_logging():
+        logger.info("[T-C3] 结构化日志已启用（BAA_LOG_FORMAT=json）")
+    register_queue_stats_provider(lambda: _review_queue.stats())
     # Roadmap v4 T-A1 启动校验：视觉/感知层默认关闭，防止误启用光栅主干
     if VISION_ENABLED:  # condition: 显式开启
         logger.warning(
@@ -430,6 +439,21 @@ app.add_middleware(  # code
     allow_methods=["*"],  # assignment
     allow_headers=["*"],  # assignment
 )  # code
+
+# ── T-C3：指标 + 访问日志中间件（后注册先执行，位于 CORS 外层） ──
+from src.api.metrics_middleware import MetricsMiddleware  # noqa: E402
+
+app.add_middleware(MetricsMiddleware)
+
+
+@app.get("/metrics", tags=["System"], include_in_schema=False)
+async def metrics():  # function call
+    """Prometheus 指标端点（T-C3；集群内抓取，无需鉴权）"""
+    from fastapi import Response
+
+    from src.baa_engine.observability import CONTENT_TYPE_LATEST, render_metrics
+
+    return Response(content=render_metrics(), media_type=CONTENT_TYPE_LATEST)
 
 
 # get_api_key 已迁移至 api_globals.extract_api_key
@@ -598,9 +622,14 @@ async def deconstruct(  # code
 
     # Step 1: 图纸解析（CPU密集型 → 线程池）
     # 将 DWG/DXF 文件解析为基本图元（线、弧、圆、文字等）
+    _parse_start = time.time()  # T-C3
     result = await loop.run_in_executor(  # assignment
         ENGINE_THREAD_POOL, _drawing_parser.parse, str(file_path), file_id  # 操作
     )  # code
+    from src.baa_engine.observability import PARSE_DURATION, PARSE_TOTAL
+
+    PARSE_DURATION.observe(time.time() - _parse_start)
+    PARSE_TOTAL.labels(result="success" if result.success else "failed").inc()
 
     # ── P18 截断警告（部分解析成功） ─────────────────────
     page_warning = None  # assignment
@@ -792,10 +821,20 @@ async def deconstruct(  # code
         return findings, registry_funcs, total_checks, elements
 
     try:
+        _review_start = time.time()  # T-C3
         findings, registry_funcs, total_checks, elements = await loop.run_in_executor(
             ENGINE_THREAD_POOL, _do_deconstruct_step3, entities
         )
+        from src.baa_engine.observability import FINDINGS_TOTAL, REVIEW_DURATION
+
+        REVIEW_DURATION.labels(endpoint="deconstruct").observe(time.time() - _review_start)
+        for _f in findings:
+            if not _f.get("is_duplicate"):
+                FINDINGS_TOTAL.labels(severity=_f.get("severity", "major")).inc()
     except Exception as e:
+        from src.baa_engine.observability import REVIEW_ERRORS
+
+        REVIEW_ERRORS.labels(code="REVIEW_FAILED").inc()
         return {
             "status": "error",
             "error_code": "REVIEW_FAILED",
