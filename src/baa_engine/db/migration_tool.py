@@ -26,6 +26,7 @@ T-C1 存量数据搬迁工具：旧三 SQLite 库 → 统一数据层目标库�
 import argparse
 import json
 import logging
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,7 @@ from sqlalchemy.orm import Session  # noqa: F401
 
 from src.baa_engine.db import ensure_schema, get_session_factory, resolve_database_url
 from src.baa_engine.db.models import audit, cache, collab, history  # noqa: F401
+from src.baa_engine.db.models.apikey import ApiKeyRecord, ApiKeyUsage
 from src.baa_engine.db.models.audit import ReviewAuditItem
 from src.baa_engine.db.models.cache import CacheEntry
 from src.baa_engine.db.models.collab import (
@@ -286,6 +288,75 @@ def migrate(
         sf.remove()
 
 
+def migrate_api_keys(
+    json_path: Optional[str] = None,
+    target_url: Optional[str] = None,
+    dry_run: bool = False,
+) -> Dict[str, int]:
+    """旧 data/api_keys.json → 统一库 api_keys/api_key_usage（显式执行，不自动导入）。
+
+    设计取舍：密钥属敏感数据，不并入默认 migrate() 全量搬迁，避免测试/演示库
+    意外吃到生产密钥；由运维在切换版本时显式调用。
+
+    幂等：按 key_id 插入忽略已存在行（不覆盖目标库更新后的记录）。
+    """
+    path = Path(
+        json_path
+        or os.getenv("BAA_API_KEYS_PATH", str(PROJECT_ROOT / "data" / "api_keys.json"))
+    )
+    report = {"source_keys": 0, "inserted_keys": 0, "inserted_usage": 0, "skipped": 0}
+    if not path.exists():
+        report["error"] = 1
+        return report
+
+    url = resolve_database_url(target_url)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    keys = data.get("keys") or {}
+    usage = data.get("usage") or {}
+    report["source_keys"] = len(keys)
+    if dry_run:
+        return report
+
+    ensure_schema(url)
+    sf = get_session_factory(url)
+    session = sf()
+    try:
+        key_cols = set(_cols(ApiKeyRecord))
+        usage_cols = set(_cols(ApiKeyUsage))
+        before_keys = session.scalar(func_count(ApiKeyRecord)) or 0
+        for key_id, info in keys.items():
+            row = {k: v for k, v in info.items() if k in key_cols}
+            row.update(
+                key_id=key_id,
+                key_hash=info.get("hash", ""),
+                enabled=bool(info.get("enabled", True)),
+                record=info,
+            )
+            session.connection().execute(_insert_stmt(ApiKeyRecord, url), row)
+        session.commit()
+        report["inserted_keys"] = (session.scalar(func_count(ApiKeyRecord)) or 0) - before_keys
+
+        before_usage = session.scalar(func_count(ApiKeyUsage)) or 0
+        for key_id, u in usage.items():
+            if key_id not in keys:
+                report["skipped"] += 1  # 孤儿用量（密钥已删除），保持新库完整性
+                continue
+            row = {k: v for k, v in u.items() if k in usage_cols}
+            row.update(
+                key_id=key_id,
+                calls=int(u.get("calls", 0) or 0),
+                last_used=u.get("last_used"),
+            )
+            session.connection().execute(_insert_stmt(ApiKeyUsage, url), row)
+        session.commit()
+        report["inserted_usage"] = (
+            session.scalar(func_count(ApiKeyUsage)) or 0
+        ) - before_usage
+        return report
+    finally:
+        sf.remove()
+
+
 def _source_key(source_path: Path) -> str:
     """把 MIGRATION_PLAN 里的默认源路径映射到 src_map 键。"""
     p = Path(source_path)
@@ -307,6 +378,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="T-C1 存量数据搬迁：旧三库 → 统一数据层")
     parser.add_argument("--dry-run", action="store_true", help="仅统计，不写入")
     parser.add_argument("--url", default=None, help="目标库 URL（默认 BAA_DATABASE_URL / 回退 SQLite）")
+    parser.add_argument(
+        "--api-keys",
+        action="store_true",
+        help="额外显式搬迁旧 data/api_keys.json（敏感数据，默认不导入）",
+    )
     args = parser.parse_args(argv)
 
     report = migrate(dry_run=args.dry_run, target_url=args.url)
@@ -322,6 +398,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         total_src += r["source"]
         total_dst += r["target_total"]
     print(f"\n合计 source={total_src} target_total={total_dst} dry_run={args.dry_run}")
+    if args.api_keys:
+        kr = migrate_api_keys(target_url=args.url, dry_run=args.dry_run)
+        print(
+            f"api_keys: source={kr['source_keys']} inserted={kr['inserted_keys']} "
+            f"usage_inserted={kr['inserted_usage']} skipped={kr['skipped']}"
+            + (" (源缺失)" if kr.get("error") else "")
+        )
     print("旧三文件原样保留（回滚路径：停写 + 回指旧库）。")
     return 0
 

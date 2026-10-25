@@ -13,6 +13,9 @@ data:
   BAA_PORT: "8000"
   BAA_WORKERS: "4"
   BAA_DATA_DIR: "/app/data"
+  BAA_RATE_LIMIT_ENABLED: "1"
+  # 任务队列/密钥/限流的命名空间（生产固定 default）
+  BAA_QUEUE_NAMESPACE: "default"
   PYTHONUNBUFFERED: "1"
 ---
 apiVersion: v1
@@ -25,6 +28,11 @@ data:
   # 使用 base64 编码，生产环境建议用 External Secrets Operator 管理
   # 默认值: echo -n "baa_prod_2026" | base64
   BAA_API_KEY: YmFhX3Byb2RfMjAyNg==
+  # T-C2 无状态化：多副本共享 PostgreSQL（限流计数/密钥/任务队列）
+  BAA_DATABASE_URL: cG9zdGdyZXNxbCtwc3ljb3BnOi8vYmFhOmJhYV9wZ18yMDI2QGJhYS1wb3N0Z3Jlczo1NDMyL2JhYQ==
+  POSTGRES_PASSWORD: YmFhX3BnXzIwMjY=
+  POSTGRES_USER: YmFh
+  POSTGRES_DB: YmFh
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -94,11 +102,114 @@ metadata:
   name: baa-data-pvc
   namespace: baa
 spec:
+  # T-C2：多副本必须共享同一 /app/data（上传图纸跨副本可读），
+  # ReadWriteMany 需集群具备 RWX 存储类（NFS / CephFS / EFS 等）。
+  # 若只有块存储（EBS/RBD），请改用对象存储（S3/MinIO）承载图纸目录，
+  # 此时可删掉本 PVC 与 Deployment 中的 volumeMounts。
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: baa-postgres
+  namespace: baa
+  labels:
+    app: baa-postgres
+spec:
+  clusterIP: None
+  selector:
+    app: baa-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: baa-postgres
+  namespace: baa
+  labels:
+    app: baa-postgres
+spec:
+  serviceName: baa-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: baa-postgres
+  template:
+    metadata:
+      labels:
+        app: baa-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: baa-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: baa-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: baa-secret
+                  key: POSTGRES_DB
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "baa", "-d", "baa"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "baa", "-d", "baa"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: pg-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: baa-pdb
+  namespace: baa
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: baa
 ---
 apiVersion: v1
 kind: Service

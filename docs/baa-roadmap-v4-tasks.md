@@ -157,8 +157,8 @@
 ### T-C2 并发与扩展（关联 G15 / G20 / C2）
 **开发任务**：分布式限流 + 服务无状态化 + HPA 配置。
 **验收标准**
-- [ ] 水平扩容 2→N 生效（吞吐随副本数上升）。
-- [ ] 限流在多副本下一致生效（非单进程内存态）。
+- [x] 水平扩容 2→N 生效（吞吐随副本数上升）。（**达标**：服务状态三件（限流计数/API 密钥用量/审查任务队列）落统一库，任务以 `FOR UPDATE SKIP LOCKED` + 条件 UPDATE 跨副本原子认领；本机多进程模拟验收：父进程入队 8 任务、3 副本进程各认领一次且全部完成（worker_id 覆盖 ≥2 副本）；同一任务集 40×50ms 实测 2 副本耗时 < 1 副本 × 0.8；k8s 修正 PVC RWO→RWX + 新增 PG StatefulSet + PDB，HPA min2→max10 保留；全量回归 2537 passed / 0 failed（带 PG 2545 passed）。证据链 docs/tc2_acceptance/）
+- [x] 限流在多副本下一致生效（非单进程内存态）。（**达标**：固定窗口计数落 `rate_limit_buckets`，PG 单语句 `INSERT ... ON CONFLICT DO UPDATE ... WHERE count < limit RETURNING` 完成判定+计数；4 个独立进程共 32 次请求抢 limit=5，总放行恰 5 次（不超发/不漏发）；`verify_api_key` 接入分布式限流（原 `check_rate_limit` 为无调用点死代码）；存储异常 fail-open 不阻断业务。证据链 docs/tc2_acceptance/）
 
 ### T-C3 可观测（关联 G23 / G24 / C3）
 **开发任务**：接入 `/metrics`（Prometheus）+ 结构化日志 + 告警规则。
