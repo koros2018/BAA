@@ -11,9 +11,44 @@ pip install baa-sdk
 或从源码安装（monorepo 内）：
 
 ```bash
-cd src/sdk
-pip install -e .
+pip install ./src/sdk
 ```
+
+## 10 分钟跑通
+
+无需启动服务即可先跑离线示例（自动导出知识库包）：
+
+```bash
+python src/sdk/examples/quickstart_offline.py
+# [OK] 离线示例跑通（全程无需网络与服务）
+```
+
+在线示例（先 `docker compose up -d` 或 `uvicorn src.api.baa_api:app --port 8000`）：
+
+```bash
+python src/sdk/examples/quickstart_online.py http://localhost:8000 your-api-key
+```
+
+## 知识库包（离线）
+
+服务端一键导出（原子函数 + 规范条文 + 版本元数据，含 sha256 校验）：
+
+```bash
+python -m src.baa_engine.knowledge -o dist/baa_knowledge.zip
+```
+
+SDK 加载并校验（schema 主版本不兼容、校验和不匹配、条目计数不一致均拒绝）：
+
+```python
+from baa_sdk import KnowledgeBundle
+
+kb = KnowledgeBundle.load("dist/baa_knowledge_v1.0.0.zip")
+print(kb.summary())          # schema_version / kb_version / counts / standards
+print(kb.function("DIM-001"))  # 单条原子函数
+print(kb.specs_by_standard())  # 按标准分组的规范条文
+```
+
+包内文件：`manifest.json` / `functions.json` / `specs.json` / `versions.json`。
 
 ## 快速开始
 
@@ -58,6 +93,7 @@ client.batch_review(["a.dxf", "b.dxf"])
 | `construction_review_report()` | `POST /api/v1/construction-review/report` |
 | `list_functions()` | `GET /api/v1/functions` |
 | `list_specs()` | `GET /api/v1/specs` |
+| `spec_versions()` | `GET /api/v1/specs/versions` |
 
 ## 许可证
 

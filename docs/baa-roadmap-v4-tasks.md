@@ -180,8 +180,8 @@
 ### T-C6 知识库开放（关联 P117 / C6）
 **开发任务**：原子函数/规范 schema 版本化 + SDK 示例。
 **验收标准**
-- [ ] 一键导出知识库包。
-- [ ] SDK 10 分钟内跑通（含示例）。
+- [x] 一键导出知识库包。（**达标**：`src/baa_engine/knowledge.py` 导出 zip 4 文件——manifest/functions/specs/versions，含 schema_version 1.0 + kb_version + 每文件 sha256 自校验；实测 422 函数 / 199 条文 / 8 标准 / 34KB）
+- [x] SDK 10 分钟内跑通（含示例）。（**达标**：`src/sdk/examples/quickstart_offline.py` 从零自动导出并跑通、无需服务；`quickstart_online.py` 连服务四步；修复 SDK 原本无法构建的三处元数据缺陷（错误 backend / py-modules 不匹配 / 引用不存在的 requirements.txt）后 wheel 构建 + 安装 + `KnowledgeBundle.load` 实测通过；schema 主版本/校验和/计数三重校验；单测 12 passed，全量回归 2578 passed / 0 failed；证据链 docs/tc6_acceptance/）
 
 ### T-C7 OCR 解阻塞（关联 G11 / C7，条件触发）
 **开发任务**：获真实扫描件后接入 PaddleOCR/tesseract chi_sim。
