@@ -1,14 +1,30 @@
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-baa}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-baa_pg_2026}
+      - POSTGRES_DB=${POSTGRES_DB:-baa}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-baa} -d ${POSTGRES_DB:-baa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   baa:
     build: .
-    container_name: baa-server
+    # 未设 container_name，支持 `docker compose up --scale baa=3` 水平扩容；
+    # 多副本时请移除下方固定 host 端口映射，改由反向代理/Nginx 转发到各副本。
     restart: unless-stopped
     ports:
       - "${BAA_PORT:-8000}:8000"
     volumes:
-      # 持久化数据：上传文件、密钥、日志
+      # 持久化数据：上传文件、密钥备份、日志
       - baa_data:/app/data
       # 规范库（可选挂载）
       # - ./data/specs:/app/data/specs
@@ -20,6 +36,14 @@ services:
       - BAA_DATA_DIR=/app/data
       - BAA_API_KEY=${BAA_API_KEY:-baa_dev_2026}
       - PYTHONUNBUFFERED=1
+      # T-C2 无状态化：限流计数 / API 密钥 / 任务队列统一落 PostgreSQL，
+      # 多副本共享同一份状态（跨副本可见、原子认领）。
+      - BAA_DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-baa}:${POSTGRES_PASSWORD:-baa_pg_2026}@postgres:5432/${POSTGRES_DB:-baa}
+      - BAA_RATE_LIMIT_ENABLED=1
+      - BAA_QUEUE_NAMESPACE=default
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health'); assert r.status == 200"]
       interval: 30s
@@ -34,4 +58,6 @@ services:
 
 volumes:
   baa_data:
+    driver: local
+  pg_data:
     driver: local

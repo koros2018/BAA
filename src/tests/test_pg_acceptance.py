@@ -23,7 +23,7 @@ import sqlalchemy
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PG_URL = os.getenv("BAA_TEST_PG_URL", "")
 
-# 0001_initial 覆盖的 13 张业务表
+# 0001_initial + 0002（T-C2 无状态化）覆盖的业务表
 EXPECTED_TABLES = {
     "review_history",
     "review_audit_items",
@@ -38,6 +38,11 @@ EXPECTED_TABLES = {
     "review_comments",
     "approval_flows",
     "approval_steps",
+    # T-C2
+    "rate_limit_buckets",
+    "api_keys",
+    "api_key_usage",
+    "review_tasks",
 }
 
 pytestmark = [
@@ -87,9 +92,23 @@ def _alembic(rev: str, down: bool = False):
 
 
 def _reset_to_base(engine):
-    """脏状态自清理：仅当目标库已有 Alembic 版本记录时降回 base。"""
-    if sqlalchemy.inspect(engine).has_table("alembic_version"):
-        _alembic("base", down=True)
+    """脏状态自清理。
+
+    - 版本记录存在 → Alembic downgrade base
+    - 版本表存在但无记录（表由 ensure_schema 建出、未纳入版本管理，例如
+      其他验收模块先跑过）→ 直接 drop 全部统一表，回到干净状态
+    """
+    if not sqlalchemy.inspect(engine).has_table("alembic_version"):
+        return
+    with engine.connect() as conn:
+        ver = conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
+    if ver is None:
+        from src.baa_engine.db import Base
+        from src.baa_engine.db import models as _models  # noqa: F401
+
+        Base.metadata.drop_all(engine)
+        return
+    _alembic("base", down=True)
 
 
 @pytest.fixture(autouse=True)
@@ -113,7 +132,7 @@ def test_pg_01_upgrade_idempotent():
     assert EXPECTED_TABLES <= tables, f"缺表: {EXPECTED_TABLES - tables}"
     with engine.connect() as conn:
         ver = conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
-    assert ver == "0001"
+    assert ver == "0002"
     engine.dispose()
 
 
@@ -204,7 +223,7 @@ def test_pg_03_downgrade_rebuild():
     assert EXPECTED_TABLES <= tables
     with engine.connect() as conn:
         ver = conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
-    assert ver == "0001"
+    assert ver == "0002"
     engine.dispose()
 
 

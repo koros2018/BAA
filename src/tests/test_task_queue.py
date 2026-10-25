@@ -13,6 +13,23 @@ import time
 from src.baa_engine.task_queue import ReviewQueue, ReviewTask
 
 
+@pytest.fixture(autouse=True)
+def _clean_review_tasks():
+    """T-C2：队列状态落统一库，逐用例清表保证统计/位置断言不受历史行干扰。"""
+    from sqlalchemy import delete
+
+    from src.baa_engine.db import ensure_schema, get_engine, resolve_database_url
+    from src.baa_engine.db.models.tasks import ReviewTaskRecord
+
+    url = resolve_database_url()
+    ensure_schema(url)
+    with get_engine(url).begin() as conn:
+        conn.execute(delete(ReviewTaskRecord))
+    yield
+    with get_engine(url).begin() as conn:
+        conn.execute(delete(ReviewTaskRecord))
+
+
 @pytest.mark.asyncio
 async def test_enqueue_and_get_status():
     """测试入队和状态查询"""

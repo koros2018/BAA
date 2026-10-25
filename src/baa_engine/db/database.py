@@ -7,6 +7,7 @@ BAA 统一数据层 — 引擎与会话工厂（T-C1）
 - engine 一律惰性创建并按 URL 缓存（--preload fork 安全：import 时不建任何连接）
 """
 
+import logging
 import os
 import threading
 from pathlib import Path
@@ -14,6 +15,8 @@ from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+logger = logging.getLogger(__name__)
 
 # src/baa_engine/db/database.py → parents[3] = 项目根
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -88,10 +91,21 @@ def ensure_schema(explicit_url=None) -> None:
     """建表兜底（幂等）。
 
     生产以 Alembic 迁移为准；此处服务于：测试零配置建库、首启无迁移环境。
+    多副本同时首启时 create_all 会竞争建表（DuplicateTable）——建表失败后
+    校验目标表是否齐全，齐全即视为成功（另一副本已建好），避免启动失败。
     """
     from .models.base import Base
 
-    Base.metadata.create_all(get_engine(explicit_url))
+    engine = get_engine(explicit_url)
+    try:
+        Base.metadata.create_all(engine)
+    except Exception:
+        from sqlalchemy import inspect
+
+        missing = set(Base.metadata.tables) - set(inspect(engine).get_table_names())
+        if missing:
+            raise
+        logger.debug("[db] 建表竞争：表已由其他进程创建，忽略")
 
 
 def dispose_engine(explicit_url=None) -> None:

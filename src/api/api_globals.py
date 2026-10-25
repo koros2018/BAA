@@ -13,6 +13,8 @@ from typing import Optional, List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Request, Header, Query, Depends
 
+from src.baa_engine.rate_limit import get_rate_limiter, rate_limit_enabled
+
 # ── 显式导出：确保 from ... import * 能导入以下划线开头的共享变量
 __all__ = [
     "PROJECT_ROOT",
@@ -160,16 +162,49 @@ def extract_api_key(
     return api_key
 
 
+def _enforce_rate_limit(key_info: dict) -> None:
+    """T-C2：跨副本一致的分布式限流（存储层原子计数，非进程内状态）。
+
+    - 环境变量 admin 通道（__env__）不限流，保持既有语义
+    - 存储不可用时 fail-open（不阻断业务），仅告警
+    """
+    if not rate_limit_enabled():
+        return
+    key_id = key_info.get("key_id") or ""
+    if not key_id or key_id == "__env__":
+        return
+
+    from src.baa_engine.api_key_manager import DEFAULT_RATE_LIMIT
+
+    perm = key_info.get("permission", "limited")
+    limit = DEFAULT_RATE_LIMIT.get(perm, 10)
+    result = get_rate_limiter().check_and_consume(f"key:{key_id}", limit)
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "status": "error",
+                "error_code": "RATE_LIMITED",
+                "message": f"请求过于频繁（{limit} 次/分钟），请 {result.retry_after}s 后重试",
+                "limit": result.limit,
+                "retry_after": result.retry_after,
+            },
+            headers={"Retry-After": str(result.retry_after)},
+        )
+
+
 def verify_api_key(api_key: str = Depends(extract_api_key)) -> str:
-    """验证 API 密钥（含提取 + 校验）
+    """验证 API 密钥（含提取 + 校验 + 限流）
 
     兼容性：API_KEYS 为空时允许匿名访问（未配置密钥的部署场景）。
     API_KEYS 非空时：必须提供有效密钥。
     数据库密钥管理优先，其次配置密钥。
+    校验通过后按密钥权限执行分布式限流（T-C2）。
     """
     km = get_key_manager()
     key_info = km.validate_key(api_key)
     if key_info and key_info.get("enabled", True):
+        _enforce_rate_limit(key_info)
         return api_key
     # API_KEYS 为空：匿名访问（无密钥配置的部署场景）
     if not API_KEYS and not key_info:
@@ -210,5 +245,9 @@ def require_admin(request: Request, api_key: str = "") -> str:
 MAX_CONCURRENT_REVIEWS = 4
 from src.baa_engine.task_queue import ReviewQueue  # noqa: E402
 
-_review_queue = ReviewQueue(max_concurrent=MAX_CONCURRENT_REVIEWS, queue_timeout=300.0)
+_review_queue = ReviewQueue(
+    max_concurrent=MAX_CONCURRENT_REVIEWS,
+    queue_timeout=300.0,
+    namespace=os.getenv("BAA_QUEUE_NAMESPACE", "default"),
+)
 _review_semaphore = None  # 兼容旧引用，由 baa_api.py 设置

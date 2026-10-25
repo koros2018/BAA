@@ -194,6 +194,12 @@ class ApiKeyManager:  # class definition
         self._usage: Dict[str, dict] = {}  # key_id → {calls, last_used, per_minute}
         self._env_key = env_key or os.getenv("BAA_API_KEY", "")  # function call
         self._loaded = False  # assignment
+        # T-C2 无状态化：默认路径走统一库（跨副本可见），JSON 仅作备份；
+        # 显式 storage_path（测试隔离/单机定制）继续以独立 JSON 生效，行为与改造前一致。
+        self._use_db = storage_path is None
+        self._load_ts = 0.0
+        self._cache_ttl = float(os.getenv("BAA_API_KEY_CACHE_TTL", "5"))
+        self._deleted: set = set()  # 本进程显式删除的 key_id（避免全量覆盖误删他人）
 
     # ── 持久化 ──────────────────────────────────────────
 
@@ -221,14 +227,64 @@ class ApiKeyManager:  # class definition
         return hmac.compare_digest(self._hash_key(raw_key), stored_hash)  # return
 
     def load(self):  # function: def load(self):
-        """从持久化存储加载密钥"""
-        # 条件分支：if self._loaded
-        if self._loaded:  # condition: self._loaded:
-            return  # code
-        self._reload()  # function call
+        """从持久化存储加载密钥
+
+        T-C2：带 TTL 的惰性刷新——多副本各自缓存，最多 BAA_API_KEY_CACHE_TTL 秒
+        （默认 5s）后可见其他副本的增删改。
+        """
+        now = time.time()
+        if self._loaded and (now - self._load_ts) < self._cache_ttl:
+            return
+        self._reload()
 
     def _reload(self):  # function: def _reload(self):
-        """强制从文件重新加载（跳过 _loaded 短路）"""
+        """强制重新加载（统一库优先，不可用时回退 JSON 文件）"""
+        if self._use_db and self._load_from_db():
+            pass
+        else:
+            self._load_from_json()
+        self._loaded = True
+        self._load_ts = time.time()
+
+    # ── T-C2：统一库持久化 ────────────────────────────
+
+    def _db_session(self):
+        """打开统一库会话（惰性建表；调用方负责 remove）。"""
+        from src.baa_engine.db import ensure_schema, get_session_factory, resolve_database_url
+
+        url = resolve_database_url()
+        ensure_schema(url)
+        return get_session_factory(url)()
+
+    def _load_from_db(self) -> bool:
+        """从统一库加载密钥与用量；返回 False 表示库不可用（调用方回退 JSON）。"""
+        from src.baa_engine.db import get_session_factory
+
+        try:
+            session = self._db_session()
+        except Exception as e:
+            logger.warning("[P120] 统一库不可用，回退 JSON 存储: %s", e)
+            return False
+        try:
+            from src.baa_engine.db.models.apikey import ApiKeyRecord, ApiKeyUsage
+
+            keys = {r.key_id: dict(r.record) for r in session.query(ApiKeyRecord).all()}
+            usage = {
+                u.key_id: {"calls": u.calls or 0, "last_used": u.last_used, "per_minute": []}
+                for u in session.query(ApiKeyUsage).all()
+            }
+            with self._lock:
+                self._keys = keys
+                self._usage = usage
+            return True
+        except Exception as e:
+            logger.warning("[P120] 统一库读取失败，回退 JSON 存储: %s", e)
+            return False
+        finally:
+            get_session_factory().remove()
+
+    def _load_from_json(self):
+        """旧 JSON 文件读取（兼容路径：统一库不可用时使用）。"""
         self._ensure_storage_dir()  # function call
         # 条件分支：if os.path.exists(self._storage_path)
         if os.path.exists(self._storage_path):  # check: OR condition
@@ -248,23 +304,100 @@ class ApiKeyManager:  # class definition
                     type(e).__name__,
                     e,
                 )
-        self._loaded = True  # assignment
+
+    def _save_to_db(self, keys_snapshot: dict, usage_snapshot: dict, deleted: set) -> bool:
+        """写入统一库（upsert + 仅删除本进程显式删除的密钥，避免副本间覆盖）。"""
+        from src.baa_engine.db import get_session_factory
+
+        try:
+            session = self._db_session()
+        except Exception as e:
+            logger.warning("[P120] 统一库不可用，密钥仅写 JSON: %s", e)
+            return False
+        try:
+            from src.baa_engine.db.models.apikey import ApiKeyRecord, ApiKeyUsage
+
+            for key_id in deleted:
+                session.query(ApiKeyUsage).filter(ApiKeyUsage.key_id == key_id).delete(
+                    synchronize_session=False
+                )
+                session.query(ApiKeyRecord).filter(ApiKeyRecord.key_id == key_id).delete(
+                    synchronize_session=False
+                )
+            for key_id, info in keys_snapshot.items():
+                session.merge(
+                    ApiKeyRecord(
+                        key_id=key_id,
+                        key_hash=info.get("hash", ""),
+                        enabled=bool(info.get("enabled", True)),
+                        record=info,
+                    )
+                )
+            # 用量只补建缺失行，绝不覆盖：计数器由 record_usage 的原子 UPSERT 推进，
+            # 若在此写本地快照会以陈旧值回退其他副本已累计的数量（lost update）。
+            candidates = [
+                k for k in usage_snapshot if k not in deleted and k in keys_snapshot
+            ]
+            if candidates:
+                existing = {
+                    row[0]
+                    for row in session.query(ApiKeyUsage.key_id)
+                    .filter(ApiKeyUsage.key_id.in_(candidates))
+                    .all()
+                }
+                for key_id in candidates:
+                    if key_id in existing:
+                        continue
+                    usage = usage_snapshot[key_id]
+                    session.add(
+                        ApiKeyUsage(
+                            key_id=key_id,
+                            calls=int(usage.get("calls", 0) or 0),
+                            last_used=usage.get("last_used"),
+                        )
+                    )
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.warning("[P120] 密钥写库失败，已回退 JSON: %s", e)
+            return False
+        finally:
+            get_session_factory().remove()
 
     def save(self):  # function: def save(self):
-        """持久化存储到文件"""
+        """持久化：统一库为准 + JSON 备份（兼容旧工具与人工排障）"""
+        with self._lock:
+            keys_snapshot = json.loads(json.dumps(self._keys, ensure_ascii=False))
+            usage_snapshot = {
+                k: {"calls": v.get("calls", 0), "last_used": v.get("last_used")}
+                for k, v in self._usage.items()
+            }
+            deleted = set(self._deleted)
+
+        if self._use_db and self._save_to_db(keys_snapshot, usage_snapshot, deleted):
+            with self._lock:
+                self._deleted -= deleted
+        self._save_json(keys_snapshot)
+
+    def _save_json(self, keys_snapshot: dict):
+        """JSON 备份写入（原子替换）。"""
         self._ensure_storage_dir()  # function call
         # 上下文管理器
         with self._lock:  # 上下文管理
             data = {  # assignment
-                "keys": self._keys,  # 字段
+                "keys": keys_snapshot,  # 字段
                 "usage": self._usage,  # 字段
                 "updated_at": datetime.now(timezone.utc).isoformat(),  # 字段
             }  # code
         # 原子写入：先写临时文件再rename
-        tmp = self._storage_path + ".tmp"  # assignment
-        with open(tmp, "w") as f:  # 上下文
-            json.dump(data, f, indent=2, ensure_ascii=False)  # function call
-        os.replace(tmp, self._storage_path)  # function call
+        try:
+            tmp = self._storage_path + ".tmp"  # assignment
+            with open(tmp, "w") as f:  # 上下文
+                json.dump(data, f, indent=2, ensure_ascii=False)  # function call
+            os.replace(tmp, self._storage_path)  # function call
+        except OSError as e:  # 备份失败不影响主流程
+            logger.warning("[P120] 密钥 JSON 备份写入失败: %s", e)
 
     # ── 密钥生成 ──────────────────────────────────────────
 
@@ -490,6 +623,7 @@ class ApiKeyManager:  # class definition
                 return False  # return: boolean
             del self._keys[key_id]  # 删除
             self._usage.pop(key_id, None)  # pop item
+            self._deleted.add(key_id)  # T-C2：记录显式删除，save 时定向清理
         self.save()  # function call
         return True  # return: boolean
 
@@ -516,19 +650,58 @@ class ApiKeyManager:  # class definition
             return  # code
 
         now = time.time()  # function call
+        now_iso = datetime.now(timezone.utc).isoformat()
+        # T-C2：用量写入统一库（跨副本累计）；写失败不影响请求
+        if self._use_db:
+            self._increment_usage_db(key_id, now_iso)
         # 上下文管理器
         with self._lock:  # 上下文管理
             usage = self._usage.setdefault(
                 key_id, {"calls": 0, "last_used": None, "per_minute": []}
             )  # function call
             usage["calls"] += 1  # 操作
-            usage["last_used"] = datetime.now(timezone.utc).isoformat()  # 操作
+            usage["last_used"] = now_iso  # 操作
             # 每分钟计数（保留最近5分钟）
             minute_bucket = int(now // 60)  # function call
             usage["per_minute"] = [
                 b for b in usage.get("per_minute", []) if b[0] > minute_bucket - 5  # 操作
             ]  # check: numeric comparison
             usage["per_minute"].append((minute_bucket, now))  # 操作
+
+    def _increment_usage_db(self, key_id: str, now_iso: str) -> None:
+        """统一库原子自增调用计数（PG/SQLite 各自的 UPSERT）。"""
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        from src.baa_engine.db import get_engine, resolve_database_url
+        from src.baa_engine.db.models.apikey import ApiKeyUsage
+
+        url = resolve_database_url()
+        tbl = ApiKeyUsage.__table__
+        try:
+            engine = get_engine(url)
+            if url.strip().lower().startswith("sqlite"):
+                stmt = (
+                    sqlite_insert(tbl)
+                    .values(key_id=key_id, calls=1, last_used=now_iso)
+                    .on_conflict_do_update(
+                        index_elements=["key_id"],
+                        set_={"calls": tbl.c.calls + 1, "last_used": now_iso},
+                    )
+                )
+            else:
+                stmt = (
+                    pg_insert(tbl)
+                    .values(key_id=key_id, calls=1, last_used=now_iso)
+                    .on_conflict_do_update(
+                        index_elements=[tbl.c.key_id],
+                        set_={"calls": tbl.c.calls + 1, "last_used": now_iso},
+                    )
+                )
+            with engine.begin() as conn:
+                conn.execute(stmt)
+        except Exception as e:
+            logger.debug("[P120] 用量写库失败（不影响请求）: %s", e)
 
     def get_usage_stats(
         self, key_id: str = None
@@ -562,7 +735,10 @@ class ApiKeyManager:  # class definition
     def check_rate_limit(
         self, raw_key: str
     ) -> bool:  # function: def check_rate_limit(self, raw_key: str) -> bool:
-        """检查是否超限（返回False表示超出限制）"""
+        """检查是否超限（返回False表示超出限制）
+
+        T-C2：委托统一库分布式限流器——多副本共享同一计数，不再是进程内 dict。
+        """
         self.load()  # function call
         # 环境变量key不限制
         if self._env_key and hmac.compare_digest(raw_key, self._env_key):  # check: AND condition
@@ -576,19 +752,9 @@ class ApiKeyManager:  # class definition
         perm = key_info.get("permission", "limited")  # function call
         limit = DEFAULT_RATE_LIMIT.get(perm, 10)  # function call
 
-        now = time.time()  # function call
-        minute_bucket = int(now // 60)  # function call
+        from src.baa_engine.rate_limit import get_rate_limiter
 
-        # 上下文管理器
-        with self._lock:  # 上下文管理
-            usage = self._usage.setdefault(
-                key_id, {"calls": 0, "last_used": None, "per_minute": []}
-            )  # function call
-            # 清理旧bucket
-            usage["per_minute"] = [
-                b for b in usage.get("per_minute", []) if b[0] == minute_bucket  # 操作
-            ]  # condition: b[0] == minute_bucket]
-            return len(usage["per_minute"]) < limit  # return: count
+        return get_rate_limiter().check_and_consume(f"key:{key_id}", limit).allowed
 
     # ── 清理过期密钥 ──────────────────────────────────────────
 
