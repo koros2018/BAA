@@ -10,6 +10,7 @@ numpy>=1.24.0
 # API
 fastapi>=0.110.0
 uvicorn>=0.29.0
+gunicorn>=22.0.0  # 生产多进程管理（Linux 容器；Dockerfile 入口使用）
 python-multipart>=0.0.9
 httpx>=0.27.0  # 测试用 HTTP 客户端
 
