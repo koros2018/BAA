@@ -20,9 +20,8 @@ COPY requirements.txt pyproject.toml ./
 # 安装所有依赖到 /install
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-# 预下载 YOLOv8n 权重（避免运行时首次下载慢）
-RUN python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt', download=False)" 2>/dev/null || \
-    python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+# 注：YOLO 权重不在构建期预下载——生产主干走矢量原生解析（VISION_ENABLED 默认关），
+# 感知路线已止损（P84 mAP≈0），避免构建期依赖未装/下载失败阻断流水线。
 
 # ── 第二阶段：运行环境 ────────────────────────────────────
 FROM python:3.12-slim AS runtime
