@@ -56,10 +56,17 @@ compose 健康依赖/环境基线、Dockerfile 先迁移后服务、dockerignore
 
 | 项 | 结果 |
 |---|---|
-| 静态测试 | 6/6 passed |
-| 全量回归 | **2565 passed / 0 failed**（基线 2559+6，见 regression.txt） |
+| 静态测试 | 7/7 passed |
+| 全量回归 | **2566 passed / 0 failed**（基线 2559+7，见 regression.txt） |
 | compose YAML / workflow YAML | 语法校验通过 |
-| CI 冒烟 | 由 push 后 `.github/workflows/docker.yml` compose_smoke 执行（结果附 GitHub Actions run） |
+| CI 冒烟 | **通过**（[run 40192459218](https://github.com/koros2018/BAA/actions/runs/40192459218) @ `6cf1e50`）：Docker Build success；compose_smoke 七个 step 全 success——Start full stack / Wait for API healthy（`healthy after 20s`）/ Verify endpoints（/health 200、/metrics 含指标、无密钥 401/403、合法密钥可用）/ Verify DB schema migrated（PG public 表数校验通过）/ Teardown |
+
+### 3.1 CI 冒烟过程修复（两轮，均已提交）
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | Docker Build failure | Dockerfile 构建期 `YOLO('yolov8n.pt')` 预下载步骤 `ModuleNotFoundError: No module named 'ultralytics'` | 删除该步骤（感知路线已止损、`VISION_ENABLED` 默认关）→ `f931a5c` |
+| 2 | compose_smoke failure（健康检查 600s 超时） | 容器日志 `exec: gunicorn: not found` → 迁移成功但服务起不来、无限重启；requirements.txt 从未包含 gunicorn | `requirements.txt` 补 `gunicorn>=22.0.0`，并新增静态测试「入口脚本引用的可执行文件必须在 requirements 中」防回归 → `6cf1e50` |
 
 ## 4. 已知限制
 
