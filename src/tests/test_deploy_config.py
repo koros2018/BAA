@@ -80,6 +80,15 @@ def test_docker_ci_workflow_smoke_covers_acceptance():
     assert "information_schema.tables" in smoke_steps
 
 
+def test_entrypoint_binaries_in_requirements():
+    """入口脚本引用的可执行文件必须来自 requirements（防 gunicorn: not found 回归）。"""
+    entrypoint = (ROOT / "docker-entrypoint.sh").read_text(encoding="utf-8")
+    reqs = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
+    for binary in ("gunicorn", "uvicorn", "alembic"):
+        if binary in entrypoint:
+            assert binary in reqs, f"{binary} 在入口脚本中使用但未列入 requirements.txt"
+
+
 def test_alembic_and_requirements_in_image_context():
     """迁移脚本与依赖清单必须包含在镜像构建上下文（不被 dockerignore 排除）。"""
     ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8")
