@@ -58,3 +58,7 @@ node_modules/
 e2e-results/
 package-lock.json
 .iife.js
+
+# T-C6 知识库导出包与 SDK 构建产物
+/dist/
+src/sdk/build/

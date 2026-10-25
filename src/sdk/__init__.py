@@ -39,6 +39,7 @@ import logging
 
 _sdk_logger = logging.getLogger(__name__)
 
+import hashlib
 import json
 import mimetypes
 import os
@@ -289,6 +290,11 @@ class BAAClient:
     def list_specs(self) -> list[dict]:
         """列出所有规范标准"""
         return self._get("/api/v1/specs")
+
+    def spec_versions(self, standard: Optional[str] = None) -> dict:
+        """查询支持的规范版本及其变更日志（T-C6 知识库版本化）"""
+        params = {"standard": standard} if standard else None
+        return self._get("/api/v1/specs/versions", params=params)
 
     def update_function(self, func_id: str, body: dict) -> dict:
         """更新原子函数参数"""
@@ -580,3 +586,109 @@ class BAAClient:
         )
         with urlopen(req, timeout=self.timeout) as resp:  # nosec
             return json.loads(resp.read().decode("utf-8"))
+
+
+# ═══════════════════════════════════════════════════════════════
+# T-C6 知识库开放：离线知识库包（schema 版本化 + 完整性校验）
+# ═══════════════════════════════════════════════════════════════
+
+__version__ = "2.5.80"
+
+KB_FORMAT = "baa-knowledge-bundle"
+BUNDLE_FILES = ("manifest.json", "functions.json", "specs.json", "versions.json")
+
+
+class KnowledgeBundleError(BAAError):
+    """知识库包加载/校验失败"""
+
+
+class KnowledgeBundle:
+    """离线知识库包。
+
+    由服务端 `python -m src.baa_engine.knowledge` 一键导出为 zip；SDK 直接读取，
+    不需要运行服务。加载时校验：包格式、schema 主版本兼容、各文件 sha256、条目计数。
+
+    Example:
+        >>> kb = KnowledgeBundle.load("dist/baa_knowledge_v1.0.0.zip")
+        >>> kb.summary()["counts"]["functions"]
+        422
+        >>> kb.function("DIM-001")["name"]
+    """
+
+    SCHEMA_MAJOR = 1  # 兼容的包 schema 主版本
+
+    def __init__(self, path, manifest: dict, functions: list, specs: list, versions: dict):
+        self.path = Path(path)
+        self.manifest = manifest
+        self.functions = functions
+        self.specs = specs
+        self.versions = versions
+
+    @classmethod
+    def load(cls, path) -> "KnowledgeBundle":
+        """加载并校验知识库包；任何不一致抛 KnowledgeBundleError。"""
+        import zipfile
+
+        p = Path(path)
+        if not p.exists():
+            raise KnowledgeBundleError(f"知识库包不存在: {p}")
+        with zipfile.ZipFile(p) as zf:
+            names = set(zf.namelist())
+            missing = set(BUNDLE_FILES) - names
+            if missing:
+                raise KnowledgeBundleError(f"知识库包缺少文件: {sorted(missing)}")
+
+            manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+            if manifest.get("format") != KB_FORMAT:
+                raise KnowledgeBundleError(f"非 BAA 知识库包: {manifest.get('format')}")
+
+            major = str(manifest.get("schema_version", "")).split(".")[0]
+            if major != str(cls.SCHEMA_MAJOR):
+                raise KnowledgeBundleError(
+                    f"schema 主版本不兼容: 包={manifest.get('schema_version')} "
+                    f"SDK 支持={cls.SCHEMA_MAJOR}.x"
+                )
+
+            for name, meta in manifest.get("files", {}).items():
+                digest = hashlib.sha256(zf.read(name)).hexdigest()
+                if digest != meta.get("sha256"):
+                    raise KnowledgeBundleError(f"{name} 校验和不匹配（包已损坏或被篡改）")
+
+            functions = json.loads(zf.read("functions.json").decode("utf-8"))
+            specs = json.loads(zf.read("specs.json").decode("utf-8"))
+            versions = json.loads(zf.read("versions.json").decode("utf-8"))
+
+        counts = manifest.get("counts", {})
+        if len(functions) != counts.get("functions") or len(specs) != counts.get("specs"):
+            raise KnowledgeBundleError(
+                f"条目计数不一致: manifest={counts} "
+                f"实际 functions={len(functions)} specs={len(specs)}"
+            )
+        return cls(p, manifest, functions, specs, versions)
+
+    def summary(self) -> dict:
+        """包概要（版本 + 计数 + 支持标准）。"""
+        return {
+            "path": str(self.path),
+            "format": self.manifest.get("format"),
+            "schema_version": self.manifest.get("schema_version"),
+            "kb_version": self.manifest.get("kb_version"),
+            "generated_at": self.manifest.get("generated_at"),
+            "counts": self.manifest.get("counts", {}),
+            "standards": self.manifest.get("standards", []),
+        }
+
+    def function(self, func_id: str):
+        """按 func_id 查询原子函数定义；不存在返回 None。"""
+        for f in self.functions:
+            if f.get("func_id") == func_id:
+                return f
+        return None
+
+    def specs_by_standard(self) -> dict:
+        """按标准分组返回规范条文。"""
+        grouped: dict[str, list] = {}
+        for s in self.specs:
+            grouped.setdefault(s.get("standard", ""), []).append(s)
+        return grouped
+
