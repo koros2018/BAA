@@ -344,6 +344,9 @@ async def review(  # code
         file_id, webhook_url=webhook_url, webhook_type=webhook_type
     )
     if task_obj is None:
+        from src.baa_engine.observability import REVIEW_ERRORS
+
+        REVIEW_ERRORS.labels(code="QUEUE_TIMEOUT").inc()
         return {
             "status": "error",
             "error_code": "QUEUE_TIMEOUT",
@@ -360,14 +363,22 @@ async def review(  # code
         # Step 1: 图纸解析（CPU密集型 → 线程池）
         _get_rq().update_progress(task_id, 10.0)
         review_state["progress"] = "parsing"
+        _parse_start = time.time()  # T-C3
         result = await loop.run_in_executor(  # assignment
             _get_pool(), _get_dp().parse, str(file_path), file_id  # 操作
         )  # code
+        from src.baa_engine.observability import PARSE_DURATION, PARSE_TOTAL
+
+        PARSE_DURATION.observe(time.time() - _parse_start)
+        PARSE_TOTAL.labels(result="success" if result.success else "failed").inc()
         # 解析后检查超时
         partial = await _check_timeout()
         if partial:
             return partial
         if not result.success:  # check: negated condition
+            from src.baa_engine.observability import REVIEW_ERRORS
+
+            REVIEW_ERRORS.labels(code="PARSE_FAILED").inc()
             _get_rq().fail(task_id, result.error)
             return {  # return: dict
                 "status": "error",  # 字段
@@ -849,6 +860,16 @@ async def review(  # code
 
     # ── P62: 结构化摘要 ─────────────────────────────────
     structured_summary = _build_structured_summary(details)
+
+    # ── T-C3: 判定链路指标（耗时 + 发现严重度分布） ───────────
+    from src.baa_engine.observability import (
+        FINDINGS_TOTAL,
+        REVIEW_DURATION,
+    )
+
+    REVIEW_DURATION.labels(endpoint="review").observe(time.time() - start)
+    for _d in details:
+        FINDINGS_TOTAL.labels(severity=_d.get("severity", "major")).inc()
 
     # 原子函数列表（_do_clustering 内部有局部定义，这里取一次用于响应）
     registry_funcs = _get_fr().list_all()
@@ -1655,6 +1676,9 @@ async def review_multi_sheet(
         file_id, webhook_url=webhook_url, webhook_type=webhook_type
     )
     if task_obj is None:
+        from src.baa_engine.observability import REVIEW_ERRORS
+
+        REVIEW_ERRORS.labels(code="QUEUE_TIMEOUT").inc()
         return {
             "status": "error",
             "error_code": "QUEUE_TIMEOUT",

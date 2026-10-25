@@ -50,6 +50,11 @@ spec:
     metadata:
       labels:
         app: baa
+      annotations:
+        # T-C3：Prometheus 抓取（pod 级发现；多副本各自抓取进程内聚合指标）
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
       # 共享对象存储: 将 /app/data 挂载为 PVC（或改用 S3 minio 侧车）
       # 本示例使用 PVC；生产环境建议替换为 CSI driver (e.g. Ceph RBD / EBS)
