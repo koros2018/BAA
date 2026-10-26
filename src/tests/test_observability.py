@@ -155,3 +155,70 @@ def test_alert_rules_yaml_valid():
         for r in g["rules"]:
             assert r.get("expr"), f"{r['alert']} 缺 expr"
             assert r.get("for"), f"{r['alert']} 缺 for"
+
+
+# ── D1-T5：规范库规模指标断言 ──────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _reset_spec_stats_flag():
+    """D1-T5: 在每个 observability 测试前重置 _spec_stats_collected_once。
+
+    pytest 多测试共享同一进程时，前一个测试可能已触发幂等短路——
+    重置 flag 保证后续测试的 /metrics 能看到实时采集值。
+    """
+    from src.baa_engine import observability as obs
+
+    obs._reset_spec_stats_for_test()
+    yield
+    obs._reset_spec_stats_for_test()
+
+
+def test_spec_metrics_loaded_from_standard_set_registry():
+    """D1-T5: collect_spec_stats() 从 StandardSet 注册表采集 4 个内置集。"""
+    from src.baa_engine import observability as obs
+
+    obs.collect_spec_stats()
+    text = obs.render_metrics().decode()
+
+    # 每个标准集的 included_standards 数量
+    assert 'baa_spec_standards_total{code="CN-National-v1"} 5.0' in text
+    assert 'baa_spec_standards_total{code="CN-Shanghai-v1"} 5.0' in text
+    assert 'baa_spec_standards_total{code="CN-Guangdong-v1"} 5.0' in text
+    assert 'baa_spec_standards_total{code="US-NFPA-v1"} 4.0' in text
+    # 总地标覆盖条数：上海3 + 广东3 = 6
+    assert "baa_spec_scale_overrides_total 6.0" in text
+
+
+def test_spec_metrics_exposed_via_metrics_endpoint():
+    """D1-T5: /metrics 端点暴露 baa_spec_* 指标。"""
+    from fastapi.testclient import TestClient
+
+    from src.api.baa_api import app
+
+    client = TestClient(app)
+    body = client.get("/metrics").text
+    assert "baa_spec_standards_total" in body
+    assert "baa_spec_scale_overrides_total" in body
+    assert 'code="CN-National-v1"' in body
+    assert 'code="CN-Shanghai-v1"' in body
+    assert 'code="CN-Guangdong-v1"' in body
+    assert 'code="US-NFPA-v1"' in body
+
+
+def test_spec_metrics_idempotent_short_circuit():
+    """D1-T5: 幂等短路——首次 render 后重复调用不再遍历注册表，但值不变。"""
+    from src.baa_engine import observability as obs
+
+    obs.collect_spec_stats()
+    first = obs.render_metrics().decode()
+
+    # 重置 flag 前再 render——应复用已采集值
+    second = obs.render_metrics().decode()
+    assert first == second, "幂等短路后 render_metrics() 输出应完全一致"
+
+    # 重置后再次采集——输出仍相同（标准集注册表启动后不变）
+    obs._reset_spec_stats_for_test()
+    third = obs.render_metrics().decode()
+    assert 'code="CN-National-v1"' in third
+    assert "baa_spec_scale_overrides_total 6.0" in third
+
