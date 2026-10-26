@@ -86,6 +86,22 @@ QUEUE_RUNNING = Gauge("baa_queue_running", "本副本运行中的审查任务数
 QUEUE_COMPLETED = Gauge("baa_queue_completed", "已完成审查任务数（命名空间全局）")
 QUEUE_FAILED = Gauge("baa_queue_failed", "失败审查任务数（命名空间全局）")
 
+# ── D1-T5：规范库规模指标 ──────────────────────────────────
+#
+# 由 collect_spec_stats() 在 render_metrics() 时填充——从 StandardSet 注册表
+# 动态读取，多副本各自实例内聚合，与 Queue Gauge 同模式。
+
+SPEC_STANDARDS_TOTAL = Gauge(
+    "baa_spec_standards_total",
+    "已注册规范集数（按 code 标签；每个 code 的值为 included_standards 条数）",
+    ["code"],
+)
+SPEC_SCALE_OVERRIDES_TOTAL = Gauge(
+    "baa_spec_scale_overrides_total",
+    "所有已注册规范集累计地标阈值覆盖条数（scale_overrides 总 key 数）",
+)
+_spec_stats_collected_once = False  # 只在首次采集后重置——标准集注册表启动后不变
+
 
 def register_queue_stats_provider(provider: Callable[[], dict]) -> None:
     """注册队列统计回调（由 api 层注入 _review_queue.stats）。"""
@@ -108,9 +124,35 @@ def collect_queue_stats() -> None:
         logger.warning("[T-C3] 队列指标采集失败", exc_info=True)
 
 
+def collect_spec_stats() -> None:
+    """D1-T5：从 StandardSet 注册表采集规范集规模指标。
+
+    标准集注册表启动后不再变动——首次采集后直接 set_labels，
+    后续 render_metrics() 重复调用是幂等的（Gauge.set 覆盖）。
+    """
+    global _spec_stats_collected_once
+    if _spec_stats_collected_once:
+        return  # 幂等短路
+    try:
+        from src.baa_engine.standards import StandardSet
+
+        total_overrides = 0
+        for s in StandardSet.all():
+            SPEC_STANDARDS_TOTAL.labels(code=s.code).set(
+                float(len(s.included_standards))
+            )
+            total_overrides += len(s.scale_overrides)
+        SPEC_SCALE_OVERRIDES_TOTAL.set(float(total_overrides))
+        _spec_stats_collected_once = True
+    except Exception:  # StandardSet 可能尚未初始化（冷启动阶段）
+        logger = logging.getLogger(__name__)
+        logger.warning("[D1-T5] 规范集指标采集失败", exc_info=True)
+
+
 def render_metrics() -> bytes:
     """生成 Prometheus 文本格式指标（采集前刷新队列读数）。"""
     collect_queue_stats()
+    collect_spec_stats()
     return generate_latest()
 
 
@@ -128,8 +170,11 @@ __all__ = [
     "QUEUE_RUNNING",
     "QUEUE_COMPLETED",
     "QUEUE_FAILED",
+    "SPEC_STANDARDS_TOTAL",
+    "SPEC_SCALE_OVERRIDES_TOTAL",
     "register_queue_stats_provider",
     "collect_queue_stats",
+    "collect_spec_stats",
     "render_metrics",
     "JsonFormatter",
     "setup_structured_logging",

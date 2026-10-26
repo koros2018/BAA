@@ -258,6 +258,33 @@ async def bootstrap_admin_key():  # function call
     }  # code
 
 
+# ── T-D1/D1-T4：标准集查询（公开只读，前端下拉用）─────────
+
+
+@router.get("/api/v1/standards", tags=["D1-T4"])
+async def list_standard_sets():
+    """返回所有已注册标准集（D1-T4 前端审查配置页下拉依赖此端点）。
+
+    无需鉴权——标准集列表是引擎元数据，属于公开配置，不涉及客户敏感数据。
+    """
+    from src.baa_engine.standards import list_sets
+
+    return {
+        "count": len(list_sets()),
+        "sets": [
+            {
+                "code": s.code,
+                "name": s.name,
+                "version": s.version,
+                "included_standards": s.included_standards,
+                "scale_overrides_count": len(s.scale_overrides),
+                "description": s.description,
+            }
+            for s in list_sets()
+        ],
+    }
+
+
 # ── EMA2 第三方对接 API ───────────────────────────────────
 
 
