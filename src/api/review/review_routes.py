@@ -1241,15 +1241,22 @@ async def review_from_data(  # code
 
             # D1-T4: 三级兜底（与 admin_routes.py Step 3 对齐）
             def _resolve_threshold(func, building_types) -> tuple:
-                """三级兜底：scale_overrides > SpecRepository.get_threshold_safe > 硬编码。"""
+                """三级兜底：scale_overrides > SpecRepository.get_threshold_safe > 硬编码。
+
+                注意：scale_overrides 只提供阈值数字，operator/unit 语义由 clause
+                决定（如疏散距离 DIST-001 是 <=，走道宽度是 >=），必须保留
+                func.operator/func.unit，不能硬编码 ">="。
+                """
                 _std = scale_ctx.resolve_standard(func.func_id)
                 # 取多个 building_type 中最严（最高）的阈值
                 worst_val, worst_unit, worst_op = None, None, None
                 for bt in building_types:
-                    # tier 1: scale_overrides
+                    # tier 1: scale_overrides（只覆盖阈值数字，operator 保留 func 的）
                     override = scale_ctx.get_override(func.clause_id, bt)
                     if override is not None:
-                        v, u, o = override, "", ">="
+                        v = override
+                        u = getattr(func, "unit", "")
+                        o = getattr(func, "operator", ">=")
                     else:
                         # tier 2: SpecRepository
                         safe = repo.get_threshold_safe(func.clause_id, bt, _std)
