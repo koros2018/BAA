@@ -1175,11 +1175,25 @@ async def review_from_data(  # code
 
     接收前端或其他服务已解析好的实体数据，直接运行规范判定。
     适用于已有结构化数据的场景，跳过图纸解析步骤。
+
+    D1-T4：新增 standard_set_code 参数——与 admin_routes.py /tasks 端点行为对齐，
+    走 ScaleContext 三级兜底（地标 scale_overrides > SpecRepository > 硬编码）。
     """
     entities = body.get("entities", [])  # function call
     building_type = body.get("building_type", "civil")  # function call
     building_types = body.get("building_types")  # function call
     _effective_types_from_data = building_types if building_types else [building_type]  # 赋值
+    # D1-T4: 标准集参数（缺省 CN-National-v1，与 /tasks 端点对齐）
+    standard_set_code = body.get("standard_set_code", "CN-National-v1")
+
+    # 校验 standard_set_code 合法性（可选，未知 code 时 ScaleContext 会 gracefully 回退）
+    from src.baa_engine.standards import available_codes
+    if standard_set_code not in available_codes():
+        return {
+            "status": "error",
+            "error_code": "UNKNOWN_STANDARD_SET",
+            "message": f"未知 standard_set_code='{standard_set_code}'，可用值: {available_codes()}",
+        }
 
     start = time.time()  # get current time
 
@@ -1204,12 +1218,20 @@ async def review_from_data(  # code
         # 导致 SIGKILL → ERR_EMPTY_RESPONSE，参考 /review 端点的 _do_clustering 模式
         def _do_clustering_from_data(
             entities,
+            _standard_set_code=standard_set_code,
         ) -> tuple:  # function: def _do_clustering_from_data(entities) -> tuple:
-            """在线程池中执行规范判定 + 缺失检查"""
-            from src.baa_engine.spec_repository import SpecRepository
+            """在线程池中执行规范判定 + 缺失检查
+
+            D1-T4：用 ScaleContext 封装标准集 + 三级兜底，
+            用预热后的 _get_sr() 替代本地 new SpecRepository()。
+            """
+            from src.baa_engine.standards import ScaleContext
             from collections import Counter
 
-            repo = SpecRepository()
+            # D1-T4: 用预热后的全局 SpecRepository（engine 启动时已 build_func_standard_maps）
+            repo = _get_sr()
+            # D1-T4: 构造 ScaleContext（含深拷贝的地标 scale_overrides）
+            scale_ctx = ScaleContext.create(_standard_set_code)
             clause_results = Counter()
             details = []
             registry_funcs = _get_fr().list_all()
@@ -1217,22 +1239,37 @@ async def review_from_data(  # code
                 f for f in registry_funcs if getattr(f, "requires_global_context", False)
             ]  # P70
 
-            def get_strict_threshold(
-                clause_id: str,
-            ) -> tuple:  # function: def get_strict_threshold(clause_id: str) -> tuple:
-                """获取条款严格模式阈值。"""
+            # D1-T4: 三级兜底（与 admin_routes.py Step 3 对齐）
+            def _resolve_threshold(func, building_types) -> tuple:
+                """三级兜底：scale_overrides > SpecRepository.get_threshold_safe > 硬编码。"""
+                _std = scale_ctx.resolve_standard(func.func_id)
+                # 取多个 building_type 中最严（最高）的阈值
                 worst_val, worst_unit, worst_op = None, None, None
-                for bt in _effective_types_from_data:
-                    v, u, o = repo.get_threshold(clause_id, bt)
+                for bt in building_types:
+                    # tier 1: scale_overrides
+                    override = scale_ctx.get_override(func.clause_id, bt)
+                    if override is not None:
+                        v, u, o = override, "", ">="
+                    else:
+                        # tier 2: SpecRepository
+                        safe = repo.get_threshold_safe(func.clause_id, bt, _std)
+                        if safe is not None:
+                            v, u, o = safe
+                        else:
+                            # tier 3: 保留原子函数硬编码（不动 func.threshold）
+                            continue
                     if worst_val is None or v > worst_val:
                         worst_val, worst_unit, worst_op = v, u, o
+                # 全部跳过 → 返回当前 func 的硬编码值
+                if worst_val is None:
+                    return func.threshold, getattr(func, "unit", ""), getattr(func, "operator", ">=")
                 return worst_val, worst_unit, worst_op
 
             for e in entities:
                 for func in [
                     f for f in registry_funcs if not getattr(f, "requires_global_context", False)
                 ]:
-                    threshold_val, unit, op = get_strict_threshold(func.clause_id)
+                    threshold_val, unit, op = _resolve_threshold(func, _effective_types_from_data)
                     func.threshold = threshold_val
                     func.unit = unit
                     func.operator = op
@@ -1369,6 +1406,17 @@ async def review_from_data(  # code
             tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
             tier_counts[tier] = tier_counts.get(tier, 0) + 1
 
+        # D1-T4: 构造标准集元数据（用于 response_data）
+        from src.baa_engine.standards import ScaleContext as _SCtx
+
+        try:
+            _std_ctx = _SCtx.create(standard_set_code)
+            _std_obj = _std_ctx.standard_set
+            std_name = _std_obj.name if _std_obj else standard_set_code
+            std_ver = _std_obj.version if _std_obj else ""
+        except Exception:
+            std_name, std_ver = standard_set_code, ""
+
         response_data = {  # assignment
             "status": "success",  # 字段
             "summary": {  # 字段
@@ -1383,6 +1431,10 @@ async def review_from_data(  # code
             "details": details[:100],  # 字段
             "building_type": building_type,  # 字段
             "processing_time_ms": elapsed,  # 字段
+            # D1-T4: 返回所用标准集信息（前端报告页显示）
+            "standard_set_code": standard_set_code,
+            "standard_set_name": std_name,
+            "standard_set_version": std_ver,
         }  # code
 
         # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────

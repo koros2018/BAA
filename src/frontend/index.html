@@ -173,6 +173,13 @@
               <select id="review-drawing-select" class="text-sm border rounded px-2 py-1 mb-3 w-full" onchange="onReviewDrawingSelect()">
                 <option value="">— 请先在上方上传解析 —</option>
               </select>
+              <!-- D1-T4: 标准集下拉（调 GET /api/v1/standards） -->
+              <div class="mb-3">
+                <label class="text-xs text-gray-500 block mb-1">🔎 依据标准集</label>
+                <select id="review-standard-set" class="text-sm border rounded px-2 py-1 w-full">
+                  <option value="CN-National-v1">🔄 加载中...</option>
+                </select>
+              </div>
               <div class="text-xs text-gray-400 mb-2" id="review-drawing-info"></div>
               <button data-action="runReview" data-args="[]" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 w-full" disabled id="review-start-btn">
                 🔍 开始审查

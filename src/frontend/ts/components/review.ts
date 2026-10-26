@@ -11,6 +11,38 @@ import { _initAuditItems, _refreshAuditPanel } from './audit';
 type ReviewFinding = Record<string, unknown>;
 
 /**
+ * 加载标准集列表到下拉框（D1-T4）
+ * GET /api/v1/standards → 填充 review-standard-set select
+ */
+async function loadStandardSets(): Promise<void> {
+  const sel = document.getElementById('review-standard-set') as HTMLSelectElement | null;
+  if (!sel) return;
+  // 已填充则跳过
+  if (sel.options.length > 1 || (sel.options[0] && !sel.options[0].value.startsWith('CN-'))) {
+    return;
+  }
+  try {
+    const url = (window as any).API_BASE?.() + '/api/v1/standards';
+    const r = await fetch(url, { headers: (window as any).HEADERS?.() || {} });
+    if (!r.ok) return;
+    const data = await r.json();
+    const sets = data.sets || [];
+    if (sets.length === 0) return;
+    sel.innerHTML = '';
+    for (const s of sets) {
+      const opt = document.createElement('option');
+      opt.value = s.code;
+      opt.textContent = `${s.name} (${s.code})` + (s.scale_overrides_count > 0 ? ` 🏷️ ${s.scale_overrides_count}地标覆盖` : '');
+      sel.appendChild(opt);
+    }
+    // 缺省 CN-National-v1
+    sel.value = 'CN-National-v1';
+  } catch {
+    // 加载失败不阻塞审查——下拉框保留"加载中"，审查继续用缺省值
+  }
+}
+
+/**
  * 执行审查：从已解析图纸中提取实体 → 调用 /review-from-data → 渲染结果
  */
 export async function runReview(): Promise<void> {
@@ -27,6 +59,9 @@ export async function runReview(): Promise<void> {
     (window as any).showToast?.('图纸数据不存在', 'info');
     return;
   }
+
+  // D1-T4: 预加载标准集下拉
+  loadStandardSets();
 
   const bt = (drawing.building_type as string) || '';
   // P125 strict：显式标注 entities 为数组，避免 || 让 TS 推断为 {}
@@ -51,10 +86,13 @@ export async function runReview(): Promise<void> {
 
   try {
     const url = (window as any).API_BASE?.() + '/review-from-data';
+    // D1-T4: 把标准集 code 传给后端
+    const stdSel = document.getElementById('review-standard-set') as HTMLSelectElement | null;
+    const standardSetCode = stdSel?.value || 'CN-National-v1';
     const r = await fetch(url, {
       method: 'POST',
       headers: { ...(window as any).HEADERS?.() || {}, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entities, building_type: bt }),
+      body: JSON.stringify({ entities, building_type: bt, standard_set_code: standardSetCode }),
     });
     const result = (await r.json()) as Record<string, unknown>;
 
@@ -116,6 +154,21 @@ function renderReviewSummary(container: HTMLElement | null, result: Record<strin
     '<div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + (tc.suspected || 0) + '</div><div class="text-xs text-gray-400">🟡 疑似违规</div></div>' +
     '<div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + (tc.needs_review || 0) + '</div><div class="text-xs text-gray-400">🔴 建议复核</div></div>' +
     '</div>';
+
+  // D1-T4: 依据标准集徽章
+  const stdCode = (result.standard_set_code as string) || '';
+  const stdName = (result.standard_set_name as string) || stdCode;
+  const stdVer = (result.standard_set_version as string) || '';
+  if (stdCode) {
+    html += '<div class="mb-2 text-xs flex items-center gap-2">' +
+      '<span class="text-gray-400">依据标准集:</span>' +
+      '<span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 font-medium">' +
+      stdName + (stdVer ? ' ' + stdVer : '') + '</span>' +
+      (stdCode.startsWith('CN-Shanghai') || stdCode.startsWith('CN-Guangdong')
+        ? '<span class="px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded border border-orange-200 text-[10px] font-semibold">🏷️ 地标</span>'
+        : '') +
+      '</div>';
+  }
 
   // 实体类型分布 + 导出按钮
   const reviewId = (result.queue_info as any)?.task_id || result.task_id || '';
