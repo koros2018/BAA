@@ -62,3 +62,6 @@ package-lock.json
 # T-C6 知识库导出包与 SDK 构建产物
 /dist/
 src/sdk/build/
+
+# T-C7 OCR 语言包（二进制产物，不入库）
+tessdata/

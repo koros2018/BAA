@@ -1,0 +1,3 @@
+﻿python -m pytest src/tests -q
+2600 passed, 22 skipped, 14 deselected, 8 warnings in 39.21s
+2026-10-25 23:35 (baseline 2578 passed -> +22 T-C7)
