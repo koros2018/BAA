@@ -12,6 +12,8 @@
 | psycopg / psycopg-binary | 3.3.6 | LGPL-3.0-only | PostgreSQL 驱动 | 动态链接 + 未修改源码，符合 LGPL（见 §3） |
 | psycopg2-binary | 2.9.12 | LGPL | PostgreSQL 驱动（alembic 兼容） | 同上 |
 | frozendict | 2.4.6 | LGPLv3 | 不可变字典（间接依赖） | 同上 |
+| ifcopenshell | 0.9.0.post1 | LGPL-3.0 | IFC4 输出（T-C8 `ifc_export.py`） | 同上（动态 import，未修改源码） |
+| casadi | 3.7.x | LGPL-3.0 | cadquery 传递依赖（T-C8 STEP 输出） | 同上 |
 
 其余依赖均为 MIT / BSD / Apache-2.0 等宽松许可，无特殊义务。
 
@@ -48,7 +50,7 @@ AGPL-3.0 的核心义务：通过网络向用户提供服务的"修改版或基�
 可采购 Artifex 商业许可替换 AGPL 路径（接口不变，仅需在 pdf_service 中
 使用商业版 PyMuPDF）。
 
-## 3. LGPL 组件（psycopg / psycopg2 / frozendict）
+## 3. LGPL 组件（psycopg / psycopg2 / frozendict / ifcopenshell / casadi）
 
 - 使用方式：Python 动态导入（相当于动态链接），**未修改任何上游源码**。
 - LGPL-3.0 §4 义务：允许用户替换库版本（pip 安装即满足）、提供许可文本

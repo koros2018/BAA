@@ -26,6 +26,8 @@ reportlab>=4.0.0  # PDF 报告生成（report_generator）
 openpyxl>=3.1.0  # Excel 报告导出（review xlsx_report，T-B4）
 PyMuPDF>=1.23.0  # 矢量 PDF 解析（parsers/pdf_parser.py，import fitz）
 pytesseract>=0.3.10  # OCR 包装器（P128 Phase 2，需系统 tesseract + chi_sim）
+ifcopenshell>=0.8  # IFC4 输出（T-C8，LGPL-3.0）
+cadquery>=2.4  # STEP 输出（T-C8，Apache-2.0；含 OCP 内核）
 
 # 测试
 pytest>=8.0.0
