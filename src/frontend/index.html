@@ -10,8 +10,11 @@
 <body class="bg-gray-50 text-gray-800">
 
 <div class="flex h-screen">
-  <!-- 左侧导航 -->
-  <div class="w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
+  <!-- D2-T1: 移动端汉堡菜单按钮 -->
+  <button id="mobile-menu-btn" class="mobile-menu-btn" data-action="toggleSidebar" data-args="[]" aria-label="打开菜单">☰</button>
+
+  <!-- 左侧导航（桌面态） -->
+  <div id="sidebar" class="sidebar-desktop w-56 bg-white border-r border-gray-200 flex flex-col shrink-0">
     <div class="p-4 border-b border-gray-100">
       <h1 class="text-lg font-bold text-blue-700">BAA</h1>
       <p class="text-xs text-gray-400">Blueprint AI Agent</p>
@@ -51,6 +54,9 @@
       连接中...
     </div>
   </div>
+
+  <!-- D2-T1: 移动端侧边栏遮罩（点击关闭） -->
+  <div id="sidebar-overlay" class="sidebar-overlay" data-action="toggleSidebar" data-args="[]"></div>
 
   <!-- 主内容 -->
   <div class="flex-1 overflow-y-auto p-6">

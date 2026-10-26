@@ -245,6 +245,14 @@ w.uid = uid;
 w.mergeDeep = mergeDeep;
 w.showToast = showToast;
 
+// D2-T1: 移动端侧边栏抽屉切换
+w.toggleSidebar = function toggleSidebar(): void {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.toggle('sidebar-open');
+  if (overlay) overlay.classList.toggle('open');
+};
+
 w.showSkeleton = showSkeleton;
 w.hideSkeleton = hideSkeleton;
 w.renderSkeletonContainer = renderSkeletonContainer;
