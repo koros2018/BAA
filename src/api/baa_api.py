@@ -241,6 +241,15 @@ def _load_engine_sync():  # function: def _load_engine_sync():
         _ag._spec_repo = _spec_repo
         _ag._feedback_manager = _feedback_manager
         _ag._learning_engine = _learning_engine
+
+        # T-D1：预填充 StandardSet 的 func→standard 映射（引擎预热后一次性）
+        try:
+            from src.baa_engine.standards import build_func_standard_maps_for_all_sets
+
+            build_func_standard_maps_for_all_sets(_spec_repo.list_all())
+        except Exception as _ste:
+            print(f"[BAA] StandardSet 映射构建跳过（非致命）: {_ste}")
+
         print(
             f"[BAA] 引擎已预热: {_func_registry.count}个原子函数, {_spec_repo.count}条规范"
         )  # print output

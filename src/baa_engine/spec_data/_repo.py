@@ -127,13 +127,23 @@ class SpecRepository:  # class definition
         return [c for c in clauses if c.category == category]  # return: list
 
     def get_threshold(
-        self, clause_id: str, building_type: str = "civil", standard: str = "GB 50016-2014"
+        self,
+        clause_id: str,
+        building_type: str = "civil",
+        standard: Optional[str] = None,
     ) -> Tuple[
         float, str, str
     ]:  # function: def get_threshold(self, clause_id: str, building_type: str =
         """获取指定建筑类型和标准的阈值
         返回: (value, unit, operator)
+
+        T-D1: standard 允许为 None——自动回退到默认 "GB 50016-2014"。
+
+        注意：找不到 clause 或 clause 里 threshold 为 0 时，返回 (0.0, "", ">=")。
+        调用方若需判断"是否有有效阈值"，请用 get_threshold_safe()。
         """
+        if standard is None:
+            standard = "GB 50016-2014"
         clause = self.get(clause_id, standard)  # function call
         # 条件分支：if not clause
         if not clause:  # check: negated condition
@@ -144,7 +154,14 @@ class SpecRepository:  # class definition
             return 0.0, "", ">="  # return
 
         params = clause.params  # assignment
-        value = float(params["threshold"])  # function call
+        # T-D2：安全取 threshold，兼容 clause 里 params 缺 threshold key 的情况
+        # （16 个住宅类 clause + 128 个无 clause 函数：数据填漏，不是设计缺陷）
+        if not isinstance(params, dict) or "threshold" not in params:
+            return 0.0, "", ">="  # 旧路径零破坏：找不到时回默认
+        try:
+            value = float(params["threshold"])  # function call
+        except (TypeError, ValueError):
+            return 0.0, "", ">="
         unit = params.get("unit", "")  # function call
         operator = params.get("operator", ">=")  # function call
 
@@ -156,6 +173,47 @@ class SpecRepository:  # class definition
             value = clause.threshold.building_types.get(bt, value)  # function call
 
         return value, unit, operator  # return
+
+    def get_threshold_safe(
+        self,
+        clause_id: str,
+        building_type: str = "civil",
+        standard: Optional[str] = None,
+    ) -> Optional[Tuple[float, str, str]]:
+        """D1-T2：获取有效阈值，找不到或无意义时返回 None（让调用方保留原子函数硬编码兜底）。
+
+        判定"无意义阈值"标准：
+          - clause 不存在 → None
+          - clause.params['threshold'] 缺失或为 0.0 → None （16 个 GB50067/GB50974 住宅类 clause
+            填了 clause 但 params.threshold=0.0，admin_routes.py 无条件覆盖 func.threshold 导致全失效）
+          - 其他情况返回 (value, unit, operator)
+        """
+        if standard is None:
+            standard = "GB 50016-2014"
+        clause = self.get(clause_id, standard)
+        if not clause:
+            clause = self.get(clause_id, "GB 50016-2014")
+        if not clause:
+            return None
+
+        params = clause.params
+        if not isinstance(params, dict) or "threshold" not in params:
+            return None
+        try:
+            value = float(params["threshold"])
+        except (TypeError, ValueError):
+            return None
+        if value == 0.0:
+            return None
+
+        unit = params.get("unit", "")
+        operator = params.get("operator", ">=")
+        if clause.threshold and clause.threshold.building_types:
+            bt = (
+                building_type if building_type in clause.threshold.building_types else "civil"
+            )
+            value = clause.threshold.building_types.get(bt, value)
+        return value, unit, operator
 
     def to_json(self) -> str:  # function: def to_json(self) -> str:
         """序列化为 JSON"""

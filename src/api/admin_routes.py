@@ -301,13 +301,25 @@ async def _dispatch_webhooks(event: str, payload: dict) -> None:  # function cal
 
 
 async def _run_review_task(
-    task_id: str, file_path: str, building_type: str, webhook_url: str = None
+    task_id: str,
+    file_path: str,
+    building_type: str,
+    webhook_url: str = None,
+    standard_set_code: str = "CN-National-v1",
 ):  # function call
     """后台执行异步审查任务
 
     在后台线程中执行完整的审查流程：解析→语义分析→规范判定→缺失检查。
     完成后更新 _ag._tasks 存储中的状态，并根据配置触发 Webhook 回调。
+
+    T-D1: standard_set_code 决定 get_threshold 查找哪个 standard 下的 clause。
+    T-D2: ScaleContext 收拢 standard_set_code + StandardSet 实例 + scale_overrides 接口。
     """
+    # T-D1/T-D2：构造 ScaleContext
+    from src.baa_engine.standards import ScaleContext
+
+    _scale_ctx = ScaleContext.create(standard_set_code)
+
     _ag._tasks[task_id]["status"] = "running"  # 操作
     _ag._tasks[task_id]["updated_at"] = datetime.now().isoformat()  # 操作
 
@@ -358,17 +370,29 @@ async def _run_review_task(
         details = []  # assignment
         for e in entities:  # 循环
             for func in _ag._func_registry.list_all():  # 循环
-                threshold_val, unit, op = _ag._spec_repo.get_threshold(
-                    func.clause_id, building_type
-                )  # function call
-                func.threshold = threshold_val  # assignment
-                func.unit = unit  # assignment
-                func.operator = op  # assignment
+                # T-D2：ScaleContext 代理 StandardSet.resolve_standard
+                _std = _scale_ctx.resolve_standard(func.func_id)
+                # T-D2：get_threshold_safe 返回 None 时保留原子函数硬编码兜底
+                _safe = _ag._spec_repo.get_threshold_safe(
+                    func.clause_id, building_type, _std
+                )
+                # T-D2 接口预留：scale_overrides 优先级高于 SpecRepository
+                _override = _scale_ctx.get_override(func.clause_id, building_type)
+                if _override is not None:
+                    func.threshold = _override
+                elif _safe is not None:
+                    threshold_val, unit, op = _safe
+                    func.threshold = threshold_val  # assignment
+                    func.unit = unit  # assignment
+                    func.operator = op  # assignment
+                # 否则 func.threshold / unit / operator 保留 AtomicFunction 构造时的硬编码值
                 r = _ag._func_registry.execute_with_timeout(func, e)  # function call
                 if r is None or r.result == "PASS":  # check: value is None
                     continue  # 继续循环
+                # T-D1：clause.standard 用实际查到的 standard，而非硬编码 GB50016
+                _clause_standard = _std or "GB 50016-2014"
                 clause = {  # assignment
-                    "standard": "GB50016",  # 字段
+                    "standard": _clause_standard,  # T-D1 修复：按 StandardSet 动态取值
                     "clause_id": func.clause_id,  # 字段
                     "title": func.name,  # 字段
                     "text": func.description,  # 字段
@@ -492,12 +516,27 @@ async def create_review_task(  # code
     file: UploadFile = File(...),  # function call
     building_type: str = Query("civil", description="建筑类型: civil/industrial"),  # function call
     webhook_url: str = Query("", description="回调通知 URL（可选）"),  # function call
+    standard_set_code: str = Query(
+        "CN-National-v1", description="T-D1: 规范标准集代码，缺省 CN-National-v1（中国国家级标准）"
+    ),  # T-D1
     api_key: str = Depends(_ag.verify_api_key),  # function call
 ):  # code
     """创建异步审查任务（EMA2 对接）
 
     上传图纸文件，创建异步审查任务。任务完成后通过轮询或 Webhook 获取结果。
+
+    T-D1: 新增可选参数 standard_set_code 用于切换规范标准集。
+          - 缺省 CN-National-v1（GB50016 + GB50974 + GB50763 + GB50067）
+          - 未知 code 返回 400 + 可用代码列表
     """
+    # T-D1：校验 standard_set_code
+    try:
+        from src.baa_engine.standards import load_set
+
+        load_set(standard_set_code)  # 仅校验，不做重初始化
+    except KeyError as _ke:
+        raise HTTPException(status_code=400, detail=str(_ke))
+
     filename = file.filename or "unknown"  # assignment
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""  # function call
     if ext not in _ag.SUPPORTED_FORMATS:  # check: membership test
@@ -534,6 +573,7 @@ async def create_review_task(  # code
         "filename": filename,  # 字段
         "building_type": building_type,  # 字段
         "webhook_url": webhook_url or None,  # 字段
+        "standard_set_code": standard_set_code,  # T-D1
         "created_at": datetime.now().isoformat(),  # 字段
         "updated_at": datetime.now().isoformat(),  # 字段
         "result": None,  # 字段
@@ -542,7 +582,9 @@ async def create_review_task(  # code
 
     # 启动后台任务
     asyncio.create_task(
-        _run_review_task(task_id, str(file_path), building_type, webhook_url)
+        _run_review_task(
+            task_id, str(file_path), building_type, webhook_url, standard_set_code
+        )
     )  # function call
 
     return {  # return: dict
