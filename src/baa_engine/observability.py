@@ -101,6 +101,19 @@ SPEC_SCALE_OVERRIDES_TOTAL = Gauge(
     "所有已注册规范集累计地标阈值覆盖条数（scale_overrides 总 key 数）",
 )
 _spec_stats_collected_once = False  # 只在首次采集后重置——标准集注册表启动后不变
+# D1-T5 注释：幂等短路在标准集注册表启动后不再变动的假设下是安全的；
+# 未来若 StandardSet 支持运行时动态增删（admin API），需移除此短路，
+# 改为每次 collect_spec_stats() 重新遍历 StandardSet.all()。
+# pytest fixture 可调用 _reset_spec_stats_for_test() 显式重置。
+
+
+def _reset_spec_stats_for_test() -> None:
+    """D1-T5 测试辅助：重置幂等短路 flag，让 collect_spec_stats() 下次重新采集。
+
+    仅在测试中使用——生产代码永远不需要调用。
+    """
+    global _spec_stats_collected_once
+    _spec_stats_collected_once = False
 
 
 def register_queue_stats_provider(provider: Callable[[], dict]) -> None:
@@ -179,6 +192,7 @@ __all__ = [
     "JsonFormatter",
     "setup_structured_logging",
     "log_request",
+    "_reset_spec_stats_for_test",
 ]
 
 
