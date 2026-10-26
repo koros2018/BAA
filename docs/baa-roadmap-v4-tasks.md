@@ -186,7 +186,7 @@
 ### T-C7 OCR 解阻塞（关联 G11 / C7，条件触发）
 **开发任务**：获真实扫描件后接入 PaddleOCR/tesseract chi_sim。
 **验收标准**
-- [ ] ≥200DPI 扫描件识别率 ≥ 85%。
+- [x] ≥200DPI 扫描件识别率 ≥ 85%。（**达标**：tesseract 5.5.2 + chi_sim（tessdata_best，Apache-2.0 主进程直调）；PDF 探测/栅格化复用 T-C4 AGPL 隔离子进程；合成 300DPI 扫描件 200/300DPI 渲染识别率均 100%（6/6）；关键调优——chi_sim 单语言优于 chi_sim+eng 混挂（汉字误判拉丁乱码 0.833→1.000）；预处理 ≥200DPI 升采样 + numpy Otsu 二值化；单测 22 passed；证据链 docs/tc7_acceptance/）
 
 ### T-C8 IFC/STEP 输出（关联 C8，延后支线）
 **开发任务**：IfcOpenShell 输出 IFC4 + CadQuery 输出 STEP（独立文件）。

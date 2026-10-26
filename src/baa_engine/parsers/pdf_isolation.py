@@ -31,27 +31,9 @@ def pdf_isolation_enabled() -> bool:
     )
 
 
-def pdf_to_dxf_isolated(
-    pdf_path: str,
-    page_index: int = 0,
-    scale: Optional[int] = None,
-    timeout: Optional[float] = None,
-) -> Optional[dict]:
-    """在独立子进程中执行 PDF→DXF，返回与 pdf_to_dxf 相同的结果 dict。
-
-    子进程失败/超时/输出非法时返回 None（调用方按解析失败处理）。
-    """
-    cmd = [
-        sys.executable,
-        "-m",
-        "src.baa_engine.parsers.pdf_service",
-        str(pdf_path),
-        "--page",
-        str(page_index),
-    ]
-    if scale is not None:
-        cmd += ["--scale", str(scale)]
-
+def _run_worker(args: list, timeout: Optional[float]) -> Optional[dict]:
+    """运行 pdf_service 子进程并解析最后一行 JSON 结果。"""
+    cmd = [sys.executable, "-m", "src.baa_engine.parsers.pdf_service", *args]
     try:
         proc = subprocess.run(
             cmd,
@@ -61,7 +43,7 @@ def pdf_to_dxf_isolated(
             timeout=timeout or _DEFAULT_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
-        logger.warning("[T-C4] PDF 隔离子进程超时: %s", pdf_path)
+        logger.warning("[T-C4] PDF 隔离子进程超时: %s", args[0] if args else "")
         return None
 
     # 结果在 stdout 最后一行 JSON（前面可能有依赖库的告警输出）
@@ -85,3 +67,54 @@ def pdf_to_dxf_isolated(
         logger.warning("[T-C4] PDF 隔离子进程失败: %s", payload.get("error"))
         return None
     return payload["result"]
+
+
+def pdf_to_dxf_isolated(
+    pdf_path: str,
+    page_index: int = 0,
+    scale: Optional[int] = None,
+    timeout: Optional[float] = None,
+) -> Optional[dict]:
+    """在独立子进程中执行 PDF→DXF，返回与 pdf_to_dxf 相同的结果 dict。
+
+    子进程失败/超时/输出非法时返回 None（调用方按解析失败处理）。
+    """
+    args = [str(pdf_path), "--page", str(page_index)]
+    if scale is not None:
+        args += ["--scale", str(scale)]
+    return _run_worker(args, timeout)
+
+
+def probe_pdf_isolated(
+    pdf_path: str,
+    page_index: int = 0,
+    timeout: Optional[float] = None,
+) -> Optional[dict]:
+    """T-C7：统计页面矢量/栅格构成，判定是否为扫描件。
+
+    返回 {page_count, lines, curves, images, text_chars, is_raster} 或 None。
+    """
+    return _run_worker([str(pdf_path), "--page", str(page_index), "--probe"], timeout)
+
+
+def render_pdf_page_isolated(
+    pdf_path: str,
+    out_png: str,
+    page_index: int = 0,
+    dpi: int = 300,
+    timeout: Optional[float] = None,
+) -> Optional[dict]:
+    """T-C7：将 PDF 页面栅格化为 PNG（供扫描件 OCR）。
+
+    返回 {png, width, height, dpi} 或 None。
+    """
+    args = [
+        str(pdf_path),
+        "--page",
+        str(page_index),
+        "--render-png",
+        str(out_png),
+        "--dpi",
+        str(dpi),
+    ]
+    return _run_worker(args, timeout)
