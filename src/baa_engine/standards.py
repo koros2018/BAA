@@ -115,12 +115,21 @@ class ScaleContext:
 
     @classmethod
     def create(cls, code: str) -> "ScaleContext":
-        """根据 code 创建；未知 code 时 standard_set=None（admin_routes.py 已做 API 校验）。"""
+        """根据 code 创建；未知 code 时 standard_set=None（admin_routes.py 已做 API 校验）。
+
+        D1-T3：如果 StandardSet 注册了 scale_overrides（地标阈值覆盖），
+        深拷贝进 ScaleContext 实例——审查管线里的动态修改不应污染全局注册数据。
+        """
+        import copy as _copy
+
         try:
             s = load_set(code)
         except KeyError:
             s = None
-        return cls(standard_set_code=code, standard_set=s)
+        ctx = cls(standard_set_code=code, standard_set=s)
+        if s and s.scale_overrides:
+            ctx.scale_overrides = _copy.deepcopy(s.scale_overrides)
+        return ctx
 
     def resolve_standard(self, func_id: str) -> Optional[str]:
         """代理 StandardSet.resolve_standard，None 回退时由调用方兜底。"""
@@ -185,6 +194,74 @@ StandardSet.register(StandardSet(
         "NFPA 14-2021",
     ],
     description="NFPA 生命安全 + 建筑规范 + 消防喷淋 + 立管，海外项目使用",
+))
+
+
+# ── D1-T3：首批地标集（上海 / 广东）─────────────────────────
+#
+# 设计要点（Roadmap 第 6 节版权风险缓解）：
+# 1. 只存 **阈值数字**，不存地标原文条文——避免侵权；
+# 2. scale_overrides 的 key 是 **国标 clause_id**（如 GB50016-5.5.18），
+#    表示"该国标条款在此地标下的覆盖值"，不引入地标自身条款号体系；
+# 3. included_standards 仍为国标列表——地标只做阈值覆盖，不新增 standard；
+# 4. 保守原则：仅填公开可查的差异，不确定的不填；
+# 5. building_type 目前只覆盖 "civil"（MVP 阶段只有 civil / industrial 两种
+#    Query 参数值，未来加 commercial 后可扩）。
+
+# 上海地标（DGJ08-20 住宅设计标准 + DG/TJ 08-2408 城市综合体消防技术标准
+#         + 人员密集场所疏散通道要点）
+StandardSet.register(StandardSet(
+    code="CN-Shanghai-v1",
+    name="中国 上海地方标准（v1）",
+    version="v1",
+    included_standards=[
+        "GB 50016-2014",
+        "GB 50016-2018",
+        "GB 50974-2014",
+        "GB 50763-2012",
+        "GB 50067-2014",
+    ],
+    scale_overrides={
+        # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 上海住宅走廊 ≥1.2m
+        # （来源：DGJ08-20-2018 住宅设计标准 5.3.1 条）
+        "GB50016-5.5.18-2": {"civil": 1.2},
+        # GB50016-7.1.1 消防车道宽度：国标 civil=4.0m → 上海综合体 ≥4.5m
+        # （来源：DG/TJ 08-2408-2022 城市综合体消防 3.2 加严要求）
+        "GB50016-7.1.1": {"civil": 4.5},
+        # GB50016-5.5.18 疏散楼梯净宽：国标 civil=1.2m → 上海大型建筑 ≥1.3m
+        # （来源：上海人员密集场所疏散通道技术要点 1.2.1 表，一/二级耐火
+        #  每百人 0.65m 推算 + 最小净宽加严）
+        "GB50016-5.5.18": {"civil": 1.3},
+    },
+    description="上海地标阈值覆盖：住宅走道+综合体消防车道+大型建筑楼梯净宽",
+))
+
+# 广东地标（DBJ15-31 建筑防火设计规程 + 广东省公安厅大中型商业建筑意见）
+StandardSet.register(StandardSet(
+    code="CN-Guangdong-v1",
+    name="中国 广东地方标准（v1）",
+    version="v1",
+    included_standards=[
+        "GB 50016-2014",
+        "GB 50016-2018",
+        "GB 50974-2014",
+        "GB 50763-2012",
+        "GB 50067-2014",
+    ],
+    scale_overrides={
+        # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 广东商业主通道 ≥3.0m
+        # （来源：广东省公安厅 2014 大中型商业建筑意见 第 1 条第 2 款）
+        # 注意：此值针对大中型商业建筑，非全建筑类型——MVP 阶段
+        # building_type 无 commercial 选项，暂用 civil 表示地标整体加严
+        "GB50016-5.5.18-2": {"civil": 3.0},
+        # GB50016-5.5.17 房间疏散距离：国标 civil=30m → 广东商业 ≤25m
+        # （来源：广东商业建筑消防设计审查要点，商业疏散距离比国标严 5m）
+        "GB50016-5.5.17": {"civil": 25.0},
+        # GB50016-5.5.18-3 疏散门净宽：国标 civil=0.9m → 广东 ≥1.0m
+        # （来源：DBJ15-31 系列地标消防设施配置加严）
+        "GB50016-5.5.18-3": {"civil": 1.0},
+    },
+    description="广东地标阈值覆盖：商业主通道+疏散距离+疏散门净宽",
 ))
 
 

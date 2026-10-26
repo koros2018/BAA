@@ -33,11 +33,14 @@ def repo():
 
 
 def test_builtin_sets_registered():
-    """内置集必须注册到位（CN-National-v1 + US-NFPA-v1）。"""
+    """内置集必须注册到位（CN-National-v1 + US-NFPA-v1 + CN-Shanghai-v1 + CN-Guangdong-v1）。"""
     codes = available_codes()
     assert "CN-National-v1" in codes
     assert "US-NFPA-v1" in codes
-    assert len(codes) == 2
+    # D1-T3：首批地标集
+    assert "CN-Shanghai-v1" in codes
+    assert "CN-Guangdong-v1" in codes
+    assert len(codes) == 4
 
 
 def test_load_set_cn_national():
