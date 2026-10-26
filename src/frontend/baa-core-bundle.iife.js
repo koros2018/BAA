@@ -2107,6 +2107,30 @@
       showToast?.("网络错误: " + err.message, "error");
     }
   }
+  async function loadStandardSets() {
+    const sel = document.getElementById("review-standard-set");
+    if (!sel) return;
+    if (sel.options.length > 1 || sel.options[0] && !sel.options[0].value.startsWith("CN-")) {
+      return;
+    }
+    try {
+      const url = window.API_BASE?.() + "/api/v1/standards";
+      const r = await fetch(url, { headers: window.HEADERS?.() || {} });
+      if (!r.ok) return;
+      const data = await r.json();
+      const sets = data.sets || [];
+      if (sets.length === 0) return;
+      sel.innerHTML = "";
+      for (const s of sets) {
+        const opt = document.createElement("option");
+        opt.value = s.code;
+        opt.textContent = `${s.name} (${s.code})` + (s.scale_overrides_count > 0 ? ` 🏷️ ${s.scale_overrides_count}地标覆盖` : "");
+        sel.appendChild(opt);
+      }
+      sel.value = "CN-National-v1";
+    } catch {
+    }
+  }
   async function runReview() {
     const select = document.getElementById("review-drawing-select");
     const id = select?.value ?? "";
@@ -2120,6 +2144,7 @@
       window.showToast?.("图纸数据不存在", "info");
       return;
     }
+    loadStandardSets();
     const bt = drawing.building_type || "";
     const entities = drawing.entities || drawing.raw?.entities || [];
     if (entities.length === 0) {
@@ -2138,10 +2163,12 @@
     }
     try {
       const url = window.API_BASE?.() + "/review-from-data";
+      const stdSel = document.getElementById("review-standard-set");
+      const standardSetCode = stdSel?.value || "CN-National-v1";
       const r = await fetch(url, {
         method: "POST",
         headers: { ...window.HEADERS?.() || {}, "Content-Type": "application/json" },
-        body: JSON.stringify({ entities, building_type: bt })
+        body: JSON.stringify({ entities, building_type: bt, standard_set_code: standardSetCode })
       });
       const result = await r.json();
       if (loading) loading.classList.add("hidden");
@@ -2186,6 +2213,12 @@
     const vs = result.summary || {};
     const tc = vs.confidence_tier_counts || { confirmed: 0, suspected: 0, needs_review: 0 };
     let html = '<div class="grid grid-cols-4 gap-2 mb-3"><div class="card p-2 text-center"><div class="text-lg font-bold text-blue-600">' + (vs.violations || 0) + '</div><div class="text-xs text-gray-400">违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-red-600">' + (tc.confirmed || 0) + '</div><div class="text-xs text-gray-400">✅ 确认违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-yellow-600">' + (tc.suspected || 0) + '</div><div class="text-xs text-gray-400">🟡 疑似违规</div></div><div class="card p-2 text-center"><div class="text-lg font-bold text-orange-600">' + (tc.needs_review || 0) + '</div><div class="text-xs text-gray-400">🔴 建议复核</div></div></div>';
+    const stdCode = result.standard_set_code || "";
+    const stdName = result.standard_set_name || stdCode;
+    const stdVer = result.standard_set_version || "";
+    if (stdCode) {
+      html += '<div class="mb-2 text-xs flex items-center gap-2"><span class="text-gray-400">依据标准集:</span><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 font-medium">' + stdName + (stdVer ? " " + stdVer : "") + "</span>" + (stdCode.startsWith("CN-Shanghai") || stdCode.startsWith("CN-Guangdong") ? '<span class="px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded border border-orange-200 text-[10px] font-semibold">🏷️ 地标</span>' : "") + "</div>";
+    }
     const reviewId = result.queue_info?.task_id || result.task_id || "";
     const summaryObj = result.summary || {};
     const entityTypes = summaryObj.entity_types || {};
