@@ -165,6 +165,10 @@ class TestLicenseIsolation:
             "psycopg-binary",
             "psycopg2-binary",
             "frozendict",
+            # T-C8：ifcopenshell（LGPL-3.0，动态 import）与 cadquery 传递依赖
+            # casadi（LGPL-3.0）——均为动态链接使用，无源码修改，合规
+            "ifcopenshell",
+            "casadi",
         }
         assert set(gpl_family) <= allowed, f"新增未评审 GPL 家族组件: {set(gpl_family) - allowed}"
 

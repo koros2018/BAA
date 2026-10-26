@@ -1,0 +1,5 @@
+﻿python -m pytest src/tests -q
+2616 passed, 22 skipped, 14 deselected, 8 warnings in 46.67s
+2026-10-26 (baseline 2600 passed -> +16 T-C8)
+注：首跑 1 failed（test_security_tc4 GPL 白名单未含 ifcopenshell/casadi），
+补白名单 + 合规文档 license-isolation.md 同步更新后全绿

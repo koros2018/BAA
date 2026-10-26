@@ -191,7 +191,7 @@
 ### T-C8 IFC/STEP 输出（关联 C8，延后支线）
 **开发任务**：IfcOpenShell 输出 IFC4 + CadQuery 输出 STEP（独立文件）。
 **验收标准**
-- [ ] 5 张平面图 Hausdorff 距离 ≤ 2mm。
+- [x] 5 张平面图 Hausdorff 距离 ≤ 2mm。（**达标**：ifcopenshell 0.9 输出 IFC4（IfcWall+矩形拉伸体，SI 米制）+ cadquery 2.8 输出 STEP AP214（mm 盒体 compound）；5 张合成 T3 平面图（单间/双间/大厅/带窗/2×2 网格）经 DrawingParser 完整解析→导出→读回，墙足迹对称 Hausdorff IFC/STEP 均 0.0mm；单测 16 passed；证据链 docs/tc8_acceptance/）
 
 ---
 
