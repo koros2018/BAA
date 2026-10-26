@@ -370,6 +370,10 @@ from src.api.review import router as review_router  # import
 
 app.include_router(review_router)  # tags 已在 review/__init__ 中声明
 
+from src.api.exports import router as export_router  # D2-T3 离线导出
+
+app.include_router(export_router)  # D2-T3 离线导出
+
 from src.api.render_endpoint import router as render_router  # import
 
 app.include_router(render_router)  # tags 已在 render_endpoint 中声明

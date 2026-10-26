@@ -443,6 +443,36 @@ class BAAClient:
         with urlopen(req, timeout=self.timeout) as resp:  # nosec
             return resp.read()
 
+    def export_bundle(self, review_id: str) -> bytes:
+        """D2-T3 离线导出：触发打包并下载 zip。"""
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                c.post(
+                    self._url(f"/exports/{review_id}"),
+                    headers=self._headers(),
+                ).raise_for_status()
+                r = c.get(
+                    self._url(f"/exports/{review_id}/download"),
+                    headers=self._headers(),
+                )
+                r.raise_for_status()
+                return r.content
+        from urllib.request import Request, urlopen
+
+        req = Request(
+            self._url(f"/exports/{review_id}"),
+            headers=self._headers(),
+            method="POST",
+        )
+        with urlopen(req, timeout=self.timeout) as resp:  # nosec
+            pass
+        req2 = Request(
+            self._url(f"/exports/{review_id}/download"),
+            headers=self._headers(),
+        )
+        with urlopen(req2, timeout=self.timeout) as resp:  # nosec
+            return resp.read()
+
     # ── 多 Sheet 审查 (P73) ────────────────────────────────
 
     def review_multi_sheet(
