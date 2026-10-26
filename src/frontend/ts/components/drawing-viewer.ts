@@ -171,5 +171,10 @@ export function locateEntity(entityId: string): boolean {
     return false;
   }
   highlightSvgElement(target);
+  // D2-T4 移动端：定位后滚动到视口中心
+  const rect = (target as Element).getBoundingClientRect();
+  if (rect.top < 0 || rect.bottom > window.innerHeight || rect.left < 0 || rect.right > window.innerWidth) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  }
   return true;
 }

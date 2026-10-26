@@ -115,6 +115,65 @@ export function zoomImage(img: HTMLImageElement | null): void {
     if (e.key === 'ArrowDown') { state.offsetY -= 30; apply(); e.preventDefault(); }
   });
 
+  // ── 触控手势：单指拖拽 + 双指 pinch 缩放 ────────────────
+  let touchStartDist = 0;
+  let touchStartScale = 1;
+  let touchLastX = 0;
+  let touchLastY = 0;
+  let touchPanActive = false;
+
+  const dist = (t1: Touch, t2: Touch) =>
+    Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+
+  imgEl?.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touchPanActive = true;
+      touchLastX = e.touches[0].clientX;
+      touchLastY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+      touchPanActive = false;
+      touchStartDist = dist(e.touches[0], e.touches[1]);
+      touchStartScale = state.scale;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  imgEl?.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && touchPanActive) {
+      const dx = e.touches[0].clientX - touchLastX;
+      const dy = e.touches[0].clientY - touchLastY;
+      state.offsetX += dx;
+      state.offsetY += dy;
+      touchLastX = e.touches[0].clientX;
+      touchLastY = e.touches[0].clientY;
+      apply();
+    } else if (e.touches.length === 2) {
+      const newDist = dist(e.touches[0], e.touches[1]);
+      if (touchStartDist > 0) {
+        const ratio = newDist / touchStartDist;
+        const newScale = Math.max(0.1, Math.min(20, touchStartScale * ratio));
+        state.scale = newScale;
+        apply();
+      }
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  imgEl?.addEventListener('touchend', () => {
+    touchPanActive = false;
+    touchStartDist = 0;
+  });
+
+  // 双击重置
+  let lastTap = 0;
+  imgEl?.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      zoomReset();
+    }
+    lastTap = now;
+  });
+
   apply();
 }
 
