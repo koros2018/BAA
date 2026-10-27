@@ -98,3 +98,23 @@ client.batch_review(["a.dxf", "b.dxf"])
 ## 许可证
 
 MIT
+
+---
+
+## 交付物版本兼容矩阵（D3-T4）
+
+| SDK 版本 | report_schema_version | kb_schema_version | 发布说明 |
+|----------|----------------------|-------------------|---------|
+| >= 2.5.80 | 1.x | 1.x | 新增 ReportBundle + VersionMismatchError |
+| 待定 2.6.0 | 1.x, 2.x | 1.x, 2.x | 支持 schema v2 交付物包 |
+
+**使用示例**：
+```python
+from baa_sdk import ReportBundle, VersionMismatchError
+
+try:
+    rb = ReportBundle.load("exports/review_xxx.zip")
+    print(rb.summary())
+except VersionMismatchError as e:
+    print(f"版本不兼容，请升级 SDK: {e}")
+```

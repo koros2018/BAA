@@ -473,6 +473,54 @@ class BAAClient:
         with urlopen(req2, timeout=self.timeout) as resp:  # nosec
             return resp.read()
 
+    # ── D3-T2 整改通知单 / 复查意见 ─────────────────────────
+
+    def generate_correction_notice(
+        self,
+        review_id: str,
+        output_dir: str | None = None,
+    ) -> str:
+        """生成整改通知单 .docx，返回本地文件路径。"""
+        url = self._url(f"/api/v1/corrections/{review_id}/notice")
+        out_dir = Path(output_dir) if output_dir else Path.cwd()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / f"correction_notice_{review_id}.docx"
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                r = c.post(url, headers=self._headers())
+                r.raise_for_status()
+                out.write_bytes(r.content)
+        else:
+            from urllib.request import Request, urlopen
+
+            req = Request(url, headers=self._headers(), method="POST")
+            with urlopen(req, timeout=self.timeout) as resp:  # nosec
+                out.write_bytes(resp.read())
+        return str(out)
+
+    def generate_recheck_opinion(
+        self,
+        review_id: str,
+        output_dir: str | None = None,
+    ) -> str:
+        """生成复查意见 .docx，返回本地文件路径。"""
+        url = self._url(f"/api/v1/corrections/{review_id}/recheck")
+        out_dir = Path(output_dir) if output_dir else Path.cwd()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / f"recheck_opinion_{review_id}.docx"
+        if httpx is not None:
+            with httpx.Client(timeout=self.timeout) as c:
+                r = c.post(url, headers=self._headers())
+                r.raise_for_status()
+                out.write_bytes(r.content)
+        else:
+            from urllib.request import Request, urlopen
+
+            req = Request(url, headers=self._headers(), method="POST")
+            with urlopen(req, timeout=self.timeout) as resp:  # nosec
+                out.write_bytes(resp.read())
+        return str(out)
+
     # ── 多 Sheet 审查 (P73) ────────────────────────────────
 
     def review_multi_sheet(
@@ -722,3 +770,61 @@ class KnowledgeBundle:
             grouped.setdefault(s.get("standard", ""), []).append(s)
         return grouped
 
+
+# ══════════════════════════════════════════════════════════════
+# D3-T4 交付物版本化：ReportBundle + VersionMismatchError
+# ══════════════════════════════════════════════════════════════
+
+REPORT_FORMAT = "baa-report-bundle"
+REPORT_BUNDLE_FILES = ("manifest.json",)
+
+
+class VersionMismatchError(BAAError):
+    """交付物包 schema 版本不兼容，需升级 SDK。"""
+
+
+class ReportBundle:
+    """离线交付物包（审查报告 zip）。
+
+    由服务端 POST /exports/{review_id} 产出，包含 manifest.json。
+    加载时校验 schema 主版本，不匹配抛 VersionMismatchError。
+    """
+
+    SCHEMA_MAJOR = 1
+
+    def __init__(self, path, manifest):
+        self.path = Path(path)
+        self.manifest = manifest
+
+    @classmethod
+    def load(cls, path):
+        import zipfile
+        p = Path(path)
+        if not p.exists():
+            raise VersionMismatchError(f"交付物包不存在: {p}")
+        with zipfile.ZipFile(p) as zf:
+            names = set(zf.namelist())
+            missing = set(REPORT_BUNDLE_FILES) - names
+            if missing:
+                raise VersionMismatchError(f"交付物包缺少文件: {sorted(missing)}")
+            manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+            if manifest.get("format") != REPORT_FORMAT:
+                raise VersionMismatchError(f"非 BAA 交付物包: {manifest.get('format')}")
+            major = str(manifest.get("schema_version", "")).split(".")[0]
+            if major != str(cls.SCHEMA_MAJOR):
+                raise VersionMismatchError(
+                    f"schema 主版本不兼容: 包={manifest.get('schema_version')} "
+                    f"SDK 支持={cls.SCHEMA_MAJOR}.x，请升级 SDK"
+                )
+        return cls(p, manifest)
+
+    def summary(self):
+        return {
+            "path": str(self.path),
+            "format": self.manifest.get("format"),
+            "schema_version": self.manifest.get("schema_version"),
+            "review_id": self.manifest.get("review_id"),
+            "exported_at": self.manifest.get("exported_at"),
+            "standard_set": self.manifest.get("standard_set"),
+            "dxf_sha256": self.manifest.get("dxf_sha256", "")[:12],
+        }
