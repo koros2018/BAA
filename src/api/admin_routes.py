@@ -285,6 +285,32 @@ async def list_standard_sets():
     }
 
 
+# ── D3-T1：报告模板查询（公开只读） ─────────────────────────
+
+@router.get("/api/v1/templates", tags=["D3-T1"])
+async def list_report_templates():
+    """返回所有已注册报告模板（D3-T1 前端报告页下拉依赖此端点）。"""
+    from src.baa_engine.report_generator.template import get_template_registry
+
+    reg = get_template_registry()
+    return {
+        "count": len(reg.all()),
+        "templates": [
+            {
+                "code": t.code,
+                "name": t.name,
+                "description": t.description,
+                "primary_color": t.primary_color,
+                "accent_color": t.accent_color,
+                "title": t.title,
+                "sections": t.sections,
+                "footer_text": t.footer_text,
+            }
+            for t in reg.all()
+        ],
+    }
+
+
 # ── EMA2 第三方对接 API ───────────────────────────────────
 
 

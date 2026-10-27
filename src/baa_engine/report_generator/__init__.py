@@ -2,5 +2,20 @@
 
 from .main import ReviewReport
 from .components import ensure_font, build_styles, make_table, _FONT_REGISTERED
+from .template import (
+    ReportTemplate,
+    TemplateRegistry,
+    get_template_registry,
+    reset_template_registry_for_test,
+)
 
-__all__ = ["ReviewReport", "ensure_font", "build_styles", "make_table"]
+__all__ = [
+    "ReviewReport",
+    "ensure_font",
+    "build_styles",
+    "make_table",
+    "ReportTemplate",
+    "TemplateRegistry",
+    "get_template_registry",
+    "reset_template_registry_for_test",
+]

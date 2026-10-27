@@ -30,15 +30,35 @@ from .score import build_score_page
 from .diff import build_diff_page
 from .summary import build_summary_page, build_structured_summary_page
 from .violations import build_violation_pages, build_correction_pages
+from .template import get_template_registry, ReportTemplate
+
+
+# section_code -> builder callable name
+_SECTION_BUILDERS = {
+    "cover": "cover",
+    "score": "score",
+    "summary": "summary",
+    "structured_summary": "structured_summary",
+    "violations": "violations",
+    "corrections": "corrections",
+    "diff": "diff",
+    "toc": "toc",
+    "conclusion": "conclusion",
+    "signature": "signature",
+}
 
 
 class ReviewReport:
     """合规审查报告 PDF 生成器（薄层编排器）"""
 
-    def __init__(self) -> None:
-        """初始化实例。"""
+    def __init__(self, template_code: str = "national") -> None:
+        """初始化实例。D3-T1：新增 template_code 支持模板配色/章节编排。"""
         ensure_font()
-        self.styles = build_styles()
+        self.template: ReportTemplate = get_template_registry().get(template_code)
+        self.styles = build_styles(
+            primary_hex=self.template.primary_color,
+            secondary_hex=self.template.accent_color,
+        )
         self.page_w, self.page_h = A4
         self.margin = 20 * mm
 
@@ -53,46 +73,53 @@ class ReviewReport:
         diff_report: Optional[Dict[str, Any]] = None,
         structured_summary: Optional[Dict[str, Any]] = None,
     ) -> bytes:
-        """生成完整审查报告 PDF"""
+        """生成完整审查报告 PDF。按 template.sections 顺序渲染章节。"""
         buf: List[Any] = []
+        sections = self.template.sections
 
-        build_cover(buf, self.styles, self.page_w, self.margin, filename, summary, lang)
-        buf.append(PageBreak())
-
-        build_score_page(buf, self.styles, self.page_w, self.margin, summary, lang, details)
-        buf.append(PageBreak())
-
-        build_summary_page(
-            buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
-        )
-        buf.append(PageBreak())
-
-        if structured_summary:
-            build_structured_summary_page(
-                buf, self.styles, self.page_w, self.margin, structured_summary, lang
-            )
-            buf.append(PageBreak())
-
-        if diff_report:
-            build_diff_page(buf, self.styles, self.page_w, self.margin, diff_report, lang)
-            buf.append(PageBreak())
-
-        build_violation_pages(buf, self.styles, details, corrections, lang)
-        build_correction_pages(buf, self.styles, corrections, lang)
-
-        # T-B4 报告产品化补页：条款索引 / 审查结论 / 签署归档
-        from .product_pages import (
-            build_conclusion_page,
-            build_signature_page,
-            build_toc_page,
-        )
-
-        buf.append(PageBreak())
-        build_toc_page(buf, self.styles, self.page_w, self.margin, details, lang)
-        buf.append(PageBreak())
-        build_conclusion_page(
-            buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
-        )
-        build_signature_page(buf, self.styles, self.page_w, self.margin, summary, lang)
+        # D3-T1：按 template.sections 动态渲染章节；未知 section 优雅跳过
+        for sec in sections:
+            if sec == "cover":
+                build_cover(buf, self.styles, self.page_w, self.margin, filename, summary, lang)
+                buf.append(PageBreak())
+            elif sec == "score":
+                build_score_page(buf, self.styles, self.page_w, self.margin, summary, lang, details)
+                buf.append(PageBreak())
+            elif sec == "summary":
+                build_summary_page(
+                    buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
+                )
+                buf.append(PageBreak())
+            elif sec == "structured_summary":
+                if structured_summary:
+                    build_structured_summary_page(
+                        buf, self.styles, self.page_w, self.margin, structured_summary, lang
+                    )
+                    buf.append(PageBreak())
+            elif sec == "diff":
+                if diff_report:
+                    build_diff_page(buf, self.styles, self.page_w, self.margin, diff_report, lang)
+                    buf.append(PageBreak())
+            elif sec == "violations":
+                build_violation_pages(buf, self.styles, details, corrections, lang)
+            elif sec == "corrections":
+                build_correction_pages(buf, self.styles, corrections, lang)
+            elif sec in ("toc", "conclusion", "signature"):
+                from .product_pages import (
+                    build_conclusion_page,
+                    build_signature_page,
+                    build_toc_page,
+                )
+                if sec == "toc":
+                    buf.append(PageBreak())
+                    build_toc_page(buf, self.styles, self.page_w, self.margin, details, lang)
+                elif sec == "conclusion":
+                    buf.append(PageBreak())
+                    build_conclusion_page(
+                        buf, self.styles, self.page_w, self.margin, filename, summary, details, lang
+                    )
+                elif sec == "signature":
+                    build_signature_page(buf, self.styles, self.page_w, self.margin, summary, lang)
+            # else: 未知 section 优雅跳过
 
         return build_doc(self.page_w, self.page_h, self.margin, output_path, buf)
