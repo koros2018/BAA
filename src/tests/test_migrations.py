@@ -28,6 +28,9 @@ EXPECTED_TABLES = {
     "api_keys",
     "api_key_usage",
     "review_tasks",
+    # D4-T3 计费
+    "billing_cycles",
+    "billing_alerts",
 }
 
 
@@ -49,10 +52,10 @@ def test_upgrade_head_creates_all_tables(alembic_cfg):
     cfg, db = alembic_cfg
     alembic.command.upgrade(cfg, "head")
     assert EXPECTED_TABLES <= _tables(db)
-    # version 表记录 head（0002 = T-C2 无状态化）
+    # version 表记录 head（0003 = D4-T3 计费表）
     with create_engine(f"sqlite:///{db}").connect() as conn:
         ver = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert ver == "0002"
+    assert ver == "0003"
 
 
 def test_upgrade_head_idempotent(alembic_cfg):
