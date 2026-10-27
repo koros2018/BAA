@@ -146,14 +146,19 @@ class StatCard(Flowable):
 # ── 样式构建 ─────────────────────────────────────────────
 
 
-def build_styles() -> Dict[str, ParagraphStyle]:
-    """构建 PDF 段落样式字典"""
+def build_styles(
+    primary_hex: Optional[str] = None,
+    secondary_hex: Optional[str] = None,
+) -> Dict[str, ParagraphStyle]:
+    """构建 PDF 段落样式字典。D3-T1 新增：模板可覆盖主/次色调。"""
+    p_colors = colors.HexColor(primary_hex) if primary_hex else C_PRIMARY
+    s_colors = colors.HexColor(secondary_hex) if secondary_hex else C_SECONDARY
     return {
         "cover-title": ParagraphStyle(
             "CoverTitle",
             fontName="WQY",
             fontSize=28,
-            textColor=C_PRIMARY,
+            textColor=p_colors,
             leading=36,
             spaceAfter=12,
         ),
@@ -177,7 +182,7 @@ def build_styles() -> Dict[str, ParagraphStyle]:
             "SectionTitle",
             fontName="WQY",
             fontSize=16,
-            textColor=C_PRIMARY,
+            textColor=p_colors,
             leading=22,
             spaceAfter=10,
         ),
@@ -185,7 +190,7 @@ def build_styles() -> Dict[str, ParagraphStyle]:
             "SubsectionTitle",
             fontName="WQY",
             fontSize=13,
-            textColor=C_SECONDARY,
+            textColor=s_colors,
             leading=18,
             spaceAfter=8,
         ),
