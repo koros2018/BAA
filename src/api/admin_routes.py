@@ -311,6 +311,28 @@ async def list_report_templates():
     }
 
 
+# ── D4-T2：License 状态查询（公开只读） ───────────────────────
+
+@router.get("/api/v1/license/status", tags=["D4-T2"])
+async def get_license_status():
+    """返回当前 License 状态（公开只读，无需鉴权）。"""
+    from src.baa_engine.license import get_license_manager
+
+    mgr = get_license_manager(online=False)
+    info = mgr.validate()
+    return {
+        "plan": info.plan,
+        "company": info.company,
+        "trial": info.trial,
+        "trial_days_remaining": mgr.trial_expires_in_days(),
+        "signature_valid": info.signature_valid,
+        "error": info.error,
+        "features": info.features,
+        "max_concurrent": info.max_concurrent,
+        "max_monthly_reviews": info.max_monthly_reviews,
+    }
+
+
 # ── EMA2 第三方对接 API ───────────────────────────────────
 
 
