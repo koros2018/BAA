@@ -374,6 +374,14 @@ from src.api.exports import router as export_router  # D2-T3 离线导出
 
 app.include_router(export_router)  # D2-T3 离线导出
 
+from src.api.corrections.correction_routes import router as correction_router  # D3-T2 整改通知单
+
+app.include_router(correction_router)  # D3-T2 整改通知单
+
+from src.api.projects.project_routes import router as project_router  # D3-T3 客户成功
+
+app.include_router(project_router)  # D3-T3 客户成功
+
 from src.api.render_endpoint import router as render_router  # import
 
 app.include_router(render_router)  # tags 已在 render_endpoint 中声明
