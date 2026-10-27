@@ -382,6 +382,9 @@ from src.api.projects.project_routes import router as project_router  # D3-T3 �
 
 app.include_router(project_router)  # D3-T3 客户成功
 
+from src.api.billing.billing_routes import router as billing_router  # D4-T3 计费
+app.include_router(billing_router)  # D4-T3 计费
+
 from src.api.render_endpoint import router as render_router  # import
 
 app.include_router(render_router)  # tags 已在 render_endpoint 中声明
