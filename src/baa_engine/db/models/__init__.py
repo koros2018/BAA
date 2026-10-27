@@ -4,12 +4,13 @@
 """
 
 from .base import Base  # noqa: F401
-from . import apikey, audit, cache, collab, history, project, ratelimit, tasks  # noqa: F401,E402
+from . import apikey, audit, billing, cache, collab, history, project, ratelimit, tasks  # noqa: F401,E402
 
 __all__ = [
     "Base",
     "apikey",
     "audit",
+    "billing",
     "cache",
     "collab",
     "history",
