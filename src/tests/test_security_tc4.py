@@ -103,7 +103,7 @@ class TestAnonymousGate:
         no_keys.delenv("BAA_ALLOW_ANONYMOUS", raising=False)
         resp = TestClient(app).get("/api/v1/functions")
         assert resp.status_code == 401
-        assert resp.json()["detail"]["error_code"] == "UNAUTHORIZED"
+        assert resp.json()["error_code"] == "UNAUTHORIZED"
 
     def test_anonymous_allowed_when_opted_in(self, no_keys):
         from fastapi.testclient import TestClient

@@ -127,7 +127,7 @@ def test_middleware_records_route_template_not_raw_path():
     from src.api.baa_api import app
 
     client = TestClient(app)
-    client.get("/order/obs-test-12345")  # 触发一次带路径参数的请求
+    client.get("/order/obs-test-12345", headers={"Authorization": "Bearer test-api-key"})  # 触发一次带路径参数的请求
     body = client.get("/metrics").text
     assert 'route="/order/{order_id}"' in body
     assert "obs-test-12345" not in body

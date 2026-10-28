@@ -406,6 +406,9 @@ app.include_router(topology_router)  # 路径已含 /api/v1 前缀
 from src.api.audit_routes import router as system_audit_router  # E2-T2 系统审计日志
 app.include_router(system_audit_router)  # E2-T2
 
+from src.api.rbac_routes import router as rbac_router  # E3-T3 接口级 RBAC
+app.include_router(rbac_router)  # E3-T3
+
 from .stats_routes import get_stats  # P72 统计仪表盘
 
 
@@ -476,6 +479,11 @@ app.add_middleware(MetricsMiddleware)
 from src.api.audit_middleware import AuditMiddleware  # noqa: E402
 
 app.add_middleware(AuditMiddleware)
+
+# ── E3-T3：接口级 RBAC 权限中间件 ──
+from src.api.rbac_middleware import RBACMiddleware  # noqa: E402
+
+app.add_middleware(RBACMiddleware)
 
 
 @app.get("/metrics", tags=["System"], include_in_schema=False)
