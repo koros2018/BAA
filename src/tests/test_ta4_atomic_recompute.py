@@ -74,12 +74,35 @@ def test_dim001_stair_width_text_source(registry):
 
 
 def test_dim113_door_mm_unit_auto_convert(registry):
-    """房间疏散门 ≥0.9m：mm 数值属性（>100 启发式）自动换算 → 正确判定。"""
+    """房间疏散门 ≥0.9m：疏散门实体 mm 属性（>100 启发式）自动换算 → 正确判定。
+
+    误报治理：普通 ``door`` 无疏散门语义（卫生间/设备/管井门），
+    与 DIM-006/DIM-009 同口径不判违规；显式标注后仍判定（不漏报）。
+    """
     func = registry._funcs["DIM-113"]
-    ok = func.execute(_ent("door", 0, 0, 1000, 100, {"width": 1000}))
+    ok = func.execute(_ent("exit_door", 0, 0, 1000, 100, {"width": 1000}))
     assert ok is not None and ok.result == "PASS"
     assert ok.actual == pytest.approx(1.0)
-    bad = func.execute(_ent("door", 0, 0, 800, 100, {"width": 800}))
+    bad = func.execute(_ent("exit_door", 0, 0, 800, 100, {"width": 800}))
+    assert bad is not None and bad.result == "FAIL"
+    # 普通 door（无疏散门证据）→ 适用性未知，不判违规
+    assert func.execute(_ent("door", 0, 0, 800, 100, {"width": 800})) is None
+    # 显式标注为疏散门的 door 仍判定（不漏报）
+    explicit = func.execute(
+        _ent("door", 0, 0, 800, 100, {"width": 800, "is_evacuation_door": True})
+    )
+    assert explicit is not None and explicit.result == "FAIL"
+
+
+def test_dim009_float_boundary_tolerance(registry):
+    """DIM-009 边界：实测 0.8999999999999 vs 阈值 0.9 → PASS（表示误差不报违规）。
+
+    真实偏差不放宽：0.85 < 0.9 → 仍 FAIL。
+    """
+    func = registry._funcs["DIM-009"]
+    ok = func.execute(_ent("exit_door", 0, 0, 900, 0, {"clear_width": 0.8999999999999418}))
+    assert ok is not None and ok.result == "PASS"
+    bad = func.execute(_ent("exit_door", 0, 0, 850, 0, {"clear_width": 0.85}))
     assert bad is not None and bad.result == "FAIL"
 
 
