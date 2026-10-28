@@ -174,9 +174,9 @@ class SemanticAnalyzer:
         # Step 1.5: 走廊宽度推断（平行线聚类 + bbox 短边）
         entities = self._infer_corridor_widths(entities, primitives)  # assign
 
-        # Step 1.6: door/fire_door 属性增强（宽度兜底 + 防火等级推断）
+        # Step 1.6: door/fire_door/doorway 属性增强（宽度兜底 + 防火等级推断）
         for ent in entities:  # 循环
-            if ent.type in ("door", "fire_door", "exit_door"):  # check: membership test
+            if ent.type in ("door", "fire_door", "exit_door", "doorway"):  # check: membership test
                 # 宽度兜底：bbox长边优先推断（门扇的宽度是长边，短边是门扇厚度）
                 if (
                     ent.properties.get("width", 0) < 0.3
@@ -223,6 +223,22 @@ class SemanticAnalyzer:
                         elif "丙" in layer_upper or "C" in words:  # 分支
                             ent.properties["fire_rating"] = 1.0  # 丙级=1.0
                         # 不设默认值——无法推断时留空，让原子函数处理
+
+        # Step 1.7: 房间面积兜底（扫线法失败时的 fallback）
+        # 如果 room 实体没有 area 属性，用 bbox 估算（bw*bh/1e6，合理范围 1~500m²）
+        for ent in entities:  # 循环
+            if ent.type != "room":  # check: membership test
+                continue  # 继续循环
+            if ent.properties.get("area", 0) > 0:  # check: numeric comparison
+                continue  # 继续循环
+            bbox = ent.bbox  # assign
+            bw = bbox.get("width", 0)  # assign
+            bh = bbox.get("height", 0)  # assign
+            if bw > 0 and bh > 0:  # check: numeric comparison
+                area_m2 = (bw * bh) / 1_000_000  # assign
+                if 1.0 <= area_m2 <= 500.0:  # check: numeric comparison
+                    ent.properties["area"] = round(area_m2, 2)  # 操作
+                    ent.properties["_area_source"] = "bbox_fallback"  # 操作
 
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
@@ -839,13 +855,14 @@ class SemanticAnalyzer:
                                         ent.properties["clear_width"] = w_m  # 操作
                                         ent.properties["_width_source"] = "bbox_long_edge"  # 操作
 
-        # ── 策略1.5：door/window 宽度推断（V2增强）──
+        # ── 策略1.5：door/window/doorway 宽度推断（V2增强）──
         for ent in entities:  # 循环
             if ent.type not in (
                 "door",
                 "window",
                 "fire_door",
                 "exit_door",
+                "doorway",
             ):  # check: membership test
                 continue  # 继续循环
             existing = ent.properties.get("width", 0)  # assign
@@ -886,6 +903,38 @@ class SemanticAnalyzer:
                     ent.properties["width"] = w_m  # 操作
                     ent.properties["clear_width"] = w_m  # 操作
 
+        # ── 策略1.6：stair/staircase 宽度推断（V2增强）──
+        # 楼梯的踏步宽度 = bbox 长边（mm），短边 = 楼梯深度/厚度
+        for ent in entities:  # 循环
+            if ent.type not in ("stair", "staircase"):  # check: membership test
+                continue  # 继续循环
+            existing = ent.properties.get("width", 0)
+            if existing > 0.3:  # check: numeric comparison
+                continue  # 继续循环
+            bbox = ent.bbox  # assign
+            bw = bbox.get("width", 0)  # assign
+            bh = bbox.get("height", 0)  # assign
+            if bw > 0 and bh > 0:  # check: numeric comparison
+                # 楼梯踏步宽 = 长边，合理范围 200~1500mm
+                long_mm = max(bw, bh)  # assign
+                if 200 <= long_mm <= 1500:  # check: numeric comparison
+                    w_m = long_mm * 0.001  # assign
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
+                    ent.properties["_width_source"] = "stair_bbox_long_edge"  # 操作
+                else:
+                    # 超出合理范围，标记跳过防止策略2覆盖
+                    ent.properties["_width_source"] = "stair_out_of_range"  # 操作
+            elif max(bw, bh) > 0:  # LINE 类型：span = 踏步宽
+                span_mm = max(bw, bh)  # assign
+                if 200 <= span_mm <= 1500:  # check: numeric comparison
+                    w_m = span_mm * 0.001  # assign
+                    ent.properties["width"] = w_m  # 操作
+                    ent.properties["clear_width"] = w_m  # 操作
+                    ent.properties["_width_source"] = "stair_bbox_span"  # 操作
+                else:
+                    ent.properties["_width_source"] = "stair_out_of_range"  # 操作
+
         # ── 策略2：bbox 短边推断（覆盖所有类型） ──
         for ent in entities:  # 循环
             if ent.type not in (
@@ -894,6 +943,8 @@ class SemanticAnalyzer:
                 "window",
                 "room",
                 "wall",
+                "stair",
+                "staircase",
             ):  # check: membership test
                 continue  # 继续循环
             bbox = ent.bbox  # assign
@@ -901,6 +952,10 @@ class SemanticAnalyzer:
             bh = bbox.get("height", 0)  # assign
 
             if bw == 0 and bh == 0:  # check: AND condition
+                continue  # 继续循环
+
+            # 已有来源标记的实体跳过（策略1.5/1.6 已处理）
+            if ent.properties.get("_width_source"):  # check: value is not None
                 continue  # 继续循环
 
             # bbox 两边非零 → 短边为宽度（mm→m），长边为 length
