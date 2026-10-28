@@ -5,11 +5,13 @@
 - 输入与 IFC 导出共用同一 components dict（mm 单位）；STEP 按 mm 写出
   （OCP 原生单位即 mm，免换算）
 - 墙/柱/门窗均为盒体，逐构件独立 solid 打包为 compound，
-  读回校验按 solid BoundingBox 重建足迹矩形
+  读回校验按 solid BoundingBox 重建足迹
 - 依赖缺失时 export_step 返回 None（优雅降级）
 
-Hausdorff 验收配套：`read_wall_rects_step()` 按导出顺序取前 N 个 solid
-（墙先于柱/门窗写入，读回顺序一致）重建足迹（mm）。
+ E4-T1 深化：
+ - 支持弧形墙（IfcCircleProfileDef → CadQuery arc-based solid）
+ - Hausdorff 验收配套：`read_wall_rects_step()` 按导出顺序取前 N 个 solid
+   （墙先于柱/门窗写入，读回顺序一致）重建足迹（mm）。
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from src.baa_engine.ifc_export import (
     column_rect_mm,
     door_rect_mm,
     wall_rect_mm,
+    wall_arc_rect_mm,
     window_rect_mm,
     _DOOR_SIZE_MM,
     _STORY_HEIGHT_MM,
@@ -57,8 +60,10 @@ def export_step(
         return None
 
     walls = [wall_rect_mm(w) for w in components.get("walls", [])]
-    walls = [r for r in walls if r]
-    if not walls:
+    # E4-T1：弧形墙直接用包围矩形作为墙计数（arc 数据由 _arc_box 处理）
+    walls_have_rect = [r for r in walls if r]
+    walls_have_arc = [w for w in components.get("walls", []) if wall_arc_rect_mm(w) is not None]
+    if not walls_have_rect and not walls_have_arc:
         logger.warning("[T-C8] 无墙构件，跳过 STEP 导出")
         return None
 
@@ -70,11 +75,30 @@ def export_step(
             .translate(((x0 + x1) / 2.0, (y0 + y1) / 2.0, 0.0))
         )
 
+    # E4-T1：弧形墙 solid（圆柱体）
+    def _arc_box(rect: Rect, height: float):
+        x0, y0, x1, y1 = rect
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        r = max(x1 - x0, y1 - y0) / 2.0
+        return (
+            cq.Workplane("XY")
+            .circle(r)
+            .extrude(height)
+            .translate((cx, cy, 0.0))
+        )
+
     shapes = []
     counts = {"walls": 0, "columns": 0, "doors": 0, "windows": 0}
 
-    for rect in walls:
-        shapes.append(_box(rect, story_height_mm))
+    for w in components.get("walls", []):
+        # E4-T1：优先尝试弧形墙
+        arc_rect = wall_arc_rect_mm(w)
+        if arc_rect:
+            shapes.append(_arc_box(arc_rect, story_height_mm))
+        else:
+            rect = wall_rect_mm(w)
+            if rect:
+                shapes.append(_box(rect, story_height_mm))
         counts["walls"] += 1
     for col in components.get("columns", []):
         rect = column_rect_mm(col)
