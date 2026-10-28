@@ -283,6 +283,13 @@ def require_scope(scope: str):
 
 def require_admin(request: Request, api_key: str = "") -> str:
     """验证 admin 权限"""
+    # 优先使用中间件已注入的 api_key，其次使用显式参数
+    effective_key = (getattr(request, "state", None) and getattr(request.state, "api_key", "")) or api_key
+    km = get_key_manager()
+    key_info = km.validate_key(effective_key)
+    if key_info and key_info.get("enabled", True) and key_info.get("permission") == "admin":
+        return effective_key
+    # 兼容旧逻辑：API_KEYS 为空且匿名放行时允许访问
     if not API_KEYS and _anonymous_allowed():
         return "anonymous"
     if not API_KEYS:
@@ -294,12 +301,8 @@ def require_admin(request: Request, api_key: str = "") -> str:
                 "message": "未配置密钥，admin 通道不可用（T-C4 关闭匿名默认放行）",
             },
         )
-    km = get_key_manager()
-    key_info = km.validate_key(api_key)
-    if key_info and key_info.get("permission") == "admin":
-        return api_key
-    if api_key and api_key in API_KEYS:
-        return api_key
+    if effective_key and effective_key in API_KEYS:
+        return effective_key
     raise HTTPException(
         status_code=403,
         detail={
