@@ -325,6 +325,19 @@ async def lifespan(app: FastAPI):  # function call
         )
     else:  # 默认关闭
         print("[BAA] 视觉/感知层已禁用（默认）：主干为矢量原生解析")  # print output
+
+    # E4-T4：生产配置校验（启动时输出健康报告）
+    from src.api.config_middleware import validate_env
+    _cfg_report = validate_env()
+    if _cfg_report["errors"]:
+        for _e in _cfg_report["errors"]:
+            logger.error(f"[E4-T4] 配置错误: {_e['key']} - {_e['msg']}")
+    elif _cfg_report["warnings"]:
+        for _w in _cfg_report["warnings"]:
+            logger.warning(f"[E4-T4] 配置警告: {_w['key']} - {_w['msg']}")
+    else:
+        logger.info("[E4-T4] 生产配置校验通过")
+
     yield  # 生成
     # 关闭时：清理线程池
     ENGINE_THREAD_POOL.shutdown(wait=False)  # function call

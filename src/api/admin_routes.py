@@ -258,6 +258,24 @@ async def bootstrap_admin_key():  # function call
     }  # code
 
 
+# ── E4-T4：生产配置管理 ─────────────────────────────────────────
+
+@router.get("/api/v1/admin/config", tags=["E4-T4"])
+async def get_admin_config(
+    api_key: str = Depends(_ag.verify_api_key),
+    _admin: str = Depends(_ag.require_admin),
+):
+    """返回当前生产配置摘要（脱敏），供运维诊断与审计。
+
+    - 敏感字段（BAA_API_KEY / BAA_AUTH_SECRET / BAA_DATABASE_URL）一律掩码展示
+    - 包含启动时配置校验健康报告（errors/warnings）
+    - 仅 admin scope 可访问
+    """
+    from src.api.config_middleware import get_config_endpoint_payload
+
+    return get_config_endpoint_payload()
+
+
 # ── T-D1/D1-T4：标准集查询（公开只读，前端下拉用）─────────
 
 
