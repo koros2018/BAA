@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, replace as _dc_replace  # dataclass su
 
 import concurrent.futures  # import
 import logging  # stdlib: logging
+import math  # stdlib: isclose 浮点比较容差
 
 logger = logging.getLogger(__name__)  # function call
 
@@ -39,6 +40,33 @@ class Severity(Enum):  # class definition
     PASS = "pass"  # assignment
     DEGRADED = "degraded"  # 超时降级
     ERROR = "error"  # 执行异常
+
+
+# 边界比较容差：几何量（DXF 单位换算/扫线测量）存在浮点表示误差，
+# 实测 0.8999999999999 与阈值 0.9 在语义上相等。仅吸收表示误差
+# （相对 1e-6），不放宽真实偏差——0.85 vs 0.9 仍判 FAIL。
+_COMPARE_REL_TOL = 1e-6
+_COMPARE_ABS_TOL = 1e-9
+
+
+def _compare(actual: float, operator: str, threshold: float) -> bool:
+    """带表示误差容差的阈值比较（判定收敛点：消除浮点边界误报）。"""
+    try:
+        a = float(actual)
+        t = float(threshold)
+    except (TypeError, ValueError):
+        return False
+    if operator == ">=":
+        return a >= t or math.isclose(a, t, rel_tol=_COMPARE_REL_TOL, abs_tol=_COMPARE_ABS_TOL)
+    if operator == "<=":
+        return a <= t or math.isclose(a, t, rel_tol=_COMPARE_REL_TOL, abs_tol=_COMPARE_ABS_TOL)
+    if operator == "==":
+        return abs(a - t) < 1e-6
+    if operator == ">":
+        return a > t
+    if operator == "<":
+        return a < t
+    return False
 
 
 # ── 数据结构 ──────────────────────────────────────────────
@@ -181,18 +209,7 @@ class AtomicFunction:  # class definition
                     )  # function call
             # 尊重 operator 字段（P57 后部分 EXIST 函数使用 == / <=）
             # 生产环境 actual 为 0.0 或 1.0，语义等价
-            if self.operator == ">=":  # check: numeric comparison
-                passed = actual >= self.threshold  # assignment
-            elif self.operator == "<=":  # 分支
-                passed = actual <= self.threshold  # assignment
-            elif self.operator == "==":  # 分支
-                passed = abs(actual - self.threshold) < 1e-6  # function call
-            elif self.operator == ">":  # 分支
-                passed = actual > self.threshold  # assignment
-            elif self.operator == "<":  # 分支
-                passed = actual < self.threshold  # assignment
-            else:  # 否则
-                passed = False  # assignment
+            passed = _compare(actual, self.operator, self.threshold)
             return FuncResult(  # return
                 func_id=self.func_id,  # assignment
                 func_name=self.name,  # assignment
@@ -222,18 +239,7 @@ class AtomicFunction:  # class definition
         delta = actual - self.threshold  # assignment
 
         # 执行比较
-        if self.operator == ">=":  # check: numeric comparison
-            passed = actual >= self.threshold  # assignment
-        elif self.operator == "<=":  # 分支
-            passed = actual <= self.threshold  # assignment
-        elif self.operator == "==":  # 分支
-            passed = abs(actual - self.threshold) < 1e-6  # function call
-        elif self.operator == ">":  # 分支
-            passed = actual > self.threshold  # assignment
-        elif self.operator == "<":  # 分支
-            passed = actual < self.threshold  # assignment
-        else:  # 否则
-            passed = False  # assignment
+        passed = _compare(actual, self.operator, self.threshold)
 
         # 严重等级
         if passed:  # condition: passed:
@@ -359,9 +365,27 @@ class AtomicFunction:  # class definition
         # T-A4: DIM-113（房间疏散门净宽 ≥0.9m）此前无提取分支，永远返回 None
         # （死函数）——Step 3.5/3.6/3.7 注入的 door width 无法被消费，补齐。
         if func_id in ("DIM-001", "DIM-003", "DIM-004", "DIM-113"):  # check: membership test
+            # 误报治理：DIM-113「房间疏散门」需要适用性证据。真实图纸 2644 个
+            # door 中 647 个宽度 <0.9m（0.7~0.88m），绝大多数是卫生间/设备/管井
+            # 普通门，并非疏散门——逐门判违规在单图上产生 647 条误报（占全部
+            # 误报 76%）。与 DIM-006 同口径（普通门不具备疏散门语义不判定）：
+            # 仅 exit_door/evacuation_door/room_door 或显式标注的实体判定。
+            if func_id == "DIM-113":  # condition: func_id == "DIM-113":
+                etype = entity.get("type", "")  # function call
+                explicit = (
+                    props.get("is_evacuation_door")
+                    or props.get("evacuation_door")
+                    or entity.get("subtype") in ("evacuation_door", "room_door")
+                )
+                if etype == "door" and not explicit:  # check: applicability
+                    return None  # 普通门适用性未知，不判疏散门净宽
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定
+            # DIM-001 合理性下限：楼梯净宽 <0.6m 必为分类/测量错误
+            # （真实图纸实测 0.397m 来自 TEXT 实体被误分类为 stair 的文本框长边）
+            if func_id == "DIM-001" and val < 0.6:  # check: numeric comparison
+                return None
 
             # DIM-004 边界容差：<2% 偏差视为测量误差，不报违规
             if func_id == "DIM-004" and 0.98 <= (val / 1.1) < 1.0:  # check: numeric comparison
