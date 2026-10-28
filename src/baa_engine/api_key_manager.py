@@ -879,3 +879,9 @@ def get_key_manager() -> ApiKeyManager:  # function: def get_key_manager() -> Ap
         _key_manager.ensure_env_key_exists()  # function call
         _key_manager.cleanup_expired()  # function call
     return _key_manager  # return
+
+
+def reset_key_manager() -> None:
+    """重置 key manager 单例，用于测试环境切换。"""
+    global _key_manager  # 全局变量
+    _key_manager = None
