@@ -281,3 +281,135 @@ def test_export_graceful_degrade_no_walls(tmp_path, monkeypatch):
     assert ifc_export.export_ifc4({"walls": []}, str(out_ifc)) is None
     assert step_export.export_step({"walls": []}, str(out_step)) is None
     assert not out_ifc.exists() and not out_step.exists()
+
+
+# ── E4-T1：弧形墙足迹 ──────────────────────────────────────
+
+
+def test_wall_arc_rect_mm_basic():
+    """弧形墙包含 arc 字段时返回包围矩形。"""
+    from src.baa_engine.ifc_export import wall_arc_rect_mm
+
+    wall = {
+        "arc": {"cx": 5000.0, "cy": 3000.0, "radius": 2000.0},
+        "thickness": 200.0,
+    }
+    rect = wall_arc_rect_mm(wall)
+    assert rect is not None
+    assert rect == (2900.0, 900.0, 7100.0, 5100.0)  # cx±r±t/2
+
+
+def test_wall_arc_rect_missing_fields():
+    """缺少圆心或半径时返回 None。"""
+    from src.baa_engine.ifc_export import wall_arc_rect_mm
+
+    assert wall_arc_rect_mm({"arc": {"cx": 1.0}}) is None  # 缺 radius
+    assert wall_arc_rect_mm({"arc": {}}) is None  # 全缺
+    assert wall_arc_rect_mm({"arc": None}) is None  # arc 为 None
+
+
+def test_wall_arc_rect_non_arc_returns_none():
+    """非弧形墙（无 arc 字段）返回 None。"""
+    from src.baa_engine.ifc_export import wall_arc_rect_mm
+
+    wall = {"orientation": "h", "pos": 100.0, "start": 0.0, "end": 5000.0}
+    assert wall_arc_rect_mm(wall) is None
+
+
+# ── E4-T1：SI 单位校验 ──────────────────────────────────────
+
+
+@IFC_MARK
+def test_verify_si_units_valid(tmp_path):
+    """导出的 IFC 文件应通过 SI 单位校验。"""
+    from src.baa_engine.ifc_export import export_ifc4, verify_si_units
+
+    out_path = str(tmp_path / "si_test.ifc")
+    components = {
+        "walls": [{"orientation": "h", "pos": 200.0, "start": 0.0, "end": 5000.0, "thickness": 200.0}],
+        "doors": [],
+        "windows": [],
+        "columns": [],
+    }
+    info = export_ifc4(components, out_path)
+    assert info is not None
+
+    result = verify_si_units(out_path)
+    assert result["valid"] is True
+    assert result["linear_unit"] is not None
+    assert result["length_unit"] is not None
+
+
+@IFC_MARK
+def test_verify_si_units_errors_on_corrupted(tmp_path):
+    """损坏的 IFC 文件应返回 valid=False。"""
+    from src.baa_engine.ifc_export import verify_si_units
+
+    bad_path = str(tmp_path / "bad.ifc")
+    with open(bad_path, "w") as f:
+        f.write("not a valid ifc file\n")
+
+    result = verify_si_units(bad_path)
+    assert result["valid"] is False
+    assert len(result["errors"]) > 0
+
+
+# ── E4-T1：开口检测 ──────────────────────────────────────
+
+
+def test_find_host_wall_for_door_in_wall():
+    """门位于墙段范围内时应识别宿主墙。"""
+    from src.baa_engine.ifc_export import _find_host_wall, wall_rect_mm
+
+    walls = [
+        {"orientation": "h", "pos": 100.0, "start": 0.0, "end": 6000.0, "thickness": 200.0},
+    ]
+    door = {"x": 3000.0, "y": 100.0, "rotation": 0.0}
+    host = _find_host_wall(door, walls)
+    assert host is not None
+    assert wall_rect_mm(host) is not None
+
+
+def test_find_host_wall_no_match():
+    """门远离所有墙时返回 None。"""
+    from src.baa_engine.ifc_export import _find_host_wall
+
+    walls = [
+        {"orientation": "h", "pos": 100.0, "start": 0.0, "end": 1000.0, "thickness": 200.0},
+    ]
+    door = {"x": 5000.0, "y": 100.0, "rotation": 0.0}
+    assert _find_host_wall(door, walls) is None
+
+
+def test_find_host_wall_missing_coords():
+    """门缺少坐标时返回 None。"""
+    from src.baa_engine.ifc_export import _find_host_wall
+
+    assert _find_host_wall({}, []) is None
+    assert _find_host_wall({"x": None, "y": None}, []) is None
+
+
+# ── E4-T1：STEP 弧形墙 ──────────────────────────────────────
+
+
+@STEP_MARK
+def test_step_export_arc_wall(tmp_path):
+    """STEP 导出应支持弧形墙（圆形截面）。"""
+    from src.baa_engine.step_export import export_step
+
+    components = {
+        "walls": [
+            {
+                "arc": {"cx": 5000.0, "cy": 3000.0, "radius": 2000.0},
+                "thickness": 200.0,
+            },
+        ],
+        "doors": [],
+        "windows": [],
+        "columns": [],
+    }
+    out_path = str(tmp_path / "arc_wall.step")
+    info = export_step(components, out_path)
+    assert info is not None
+    assert info["counts"]["walls"] == 1
+    assert (tmp_path / "arc_wall.step").exists()
