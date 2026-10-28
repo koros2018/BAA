@@ -403,6 +403,9 @@ from src.api.topology_routes import router as topology_router  # T-B1 拓扑显�
 
 app.include_router(topology_router)  # 路径已含 /api/v1 前缀
 
+from src.api.audit_routes import router as system_audit_router  # E2-T2 系统审计日志
+app.include_router(system_audit_router)  # E2-T2
+
 from .stats_routes import get_stats  # P72 统计仪表盘
 
 
@@ -468,6 +471,11 @@ app.add_middleware(  # code
 from src.api.metrics_middleware import MetricsMiddleware  # noqa: E402
 
 app.add_middleware(MetricsMiddleware)
+
+# ── E2-T2：审计日志中间件（记录审查操作） ──
+from src.api.audit_middleware import AuditMiddleware  # noqa: E402
+
+app.add_middleware(AuditMiddleware)
 
 
 @app.get("/metrics", tags=["System"], include_in_schema=False)

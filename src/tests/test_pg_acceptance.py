@@ -43,6 +43,11 @@ EXPECTED_TABLES = {
     "api_keys",
     "api_key_usage",
     "review_tasks",
+    # D4-T3
+    "billing_cycles",
+    "billing_alerts",
+    # E2-T2
+    "audit_logs",
 }
 
 pytestmark = [
@@ -132,7 +137,7 @@ def test_pg_01_upgrade_idempotent():
     assert EXPECTED_TABLES <= tables, f"缺表: {EXPECTED_TABLES - tables}"
     with engine.connect() as conn:
         ver = conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
-    assert ver == "0002"
+    assert ver == "0004"
     engine.dispose()
 
 
@@ -223,7 +228,7 @@ def test_pg_03_downgrade_rebuild():
     assert EXPECTED_TABLES <= tables
     with engine.connect() as conn:
         ver = conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
-    assert ver == "0002"
+    assert ver == "0004"
     engine.dispose()
 
 

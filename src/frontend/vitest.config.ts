@@ -2,7 +2,6 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
-// P126: Vitest 配置 — 独立于 vite.config.ts，避免影响构建产物
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
@@ -12,9 +11,14 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'node', // 纯函数测试，无需 jsdom
+    // 纯函数测试默认 node 环境
+    environment: 'node',
     include: ['ts/**/*.test.ts'],
     globals: false,
     reporters: 'default',
+    // jsdom 配置：仅用于需要 DOM 的组件测试
+    poolOptions: {
+      threads: { singleThread: true },
+    },
   },
 });
