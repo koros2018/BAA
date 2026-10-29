@@ -756,7 +756,8 @@ class AtomicFunction:  # class definition
             if "has_evacuation_route" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
             # 大面积 room 疏散路径分析可能失败，跳过误报
-            area = props.get("area", 0.0)  # function call
+            # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
+            area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # 大面积 room，路径分析不可靠
             return 1.0 if props.get("has_evacuation_route", False) else 0.0  # return
@@ -769,7 +770,8 @@ class AtomicFunction:  # class definition
             if props.get("evacuation_route_secondary", False):  # check
                 return None
             # 大面积 room 疏散路径分析可能失败
-            area = props.get("area", 0.0)  # function call
+            # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
+            area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # return: None
             return props.get("evacuation_path_length", props.get("travel_distance", 0.0))  # return
@@ -780,7 +782,8 @@ class AtomicFunction:  # class definition
             if props.get("evacuation_route_secondary", False):  # check
                 return None
             # 大面积 room 疏散路径分析可能失败
-            area = props.get("area", 0.0)  # function call
+            # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
+            area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # return: None
             return 0.0 if props.get("evacuation_too_far", False) else 1.0  # return
@@ -788,7 +791,8 @@ class AtomicFunction:  # class definition
             if "evacuation_connected" not in props:  # check: membership test
                 return None  # 无连通性分析结果，跳过判定
             # 大面积 room 跳过
-            area = props.get("area", 0.0)  # function call
+            # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
+            area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # return: None
             # 连通性 = 1.0（连通），瓶颈 = 0.0（有瓶颈）
