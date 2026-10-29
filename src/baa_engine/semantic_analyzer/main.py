@@ -243,6 +243,9 @@ class SemanticAnalyzer:
         # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
         self._normalize_area_units(entities)  # 操作
 
+        # Step 1.9: 将有效 room 的面积传播给附近无面积的标记实体（前室/电梯厅等）
+        self._propagate_room_area(entities)  # 操作
+
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
 
@@ -1136,6 +1139,64 @@ class SemanticAnalyzer:
                 ent.properties["area_m2"] = round(area / 1_000_000, 2)  # 操作
             else:  # 分支
                 ent.properties["area_m2"] = round(area, 2)  # 操作
+
+    def _propagate_room_area(self, entities) -> None:
+        """Step 1.9: 将有效 room 的面积传播给附近无面积的标记实体。
+
+        场景：antechamber / fire_elevator / elevator_lobby 等通过文字标注识别，
+        本身无 polygon 面积，area_m2 为 0，只能靠 bbox 兜底（通常是文字框，极小）。
+        通过查找附近的有效 room，将 room 的 area_m2 传播给这些标记实体。
+
+        距离阈值：20m（20000mm），面积范围：0.5~500㎡。
+        """
+        # 收集有效 room 列表（有合理 area_m2）
+        valid_rooms = []
+        for ent in entities:
+            if ent.type != "room":
+                continue
+            area = ent.properties.get("area_m2", 0) or 0
+            if 0.5 <= area <= 500.0:
+                bbox = ent.bbox or {}
+                valid_rooms.append({
+                    "id": ent.id,
+                    "area": area,
+                    "cx": (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2,
+                    "cy": (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2,
+                })
+
+        if not valid_rooms:
+            return
+
+        # 对无 area_m2 的标记实体，找最近的有效 room 传播面积
+        propagate_types = {"antechamber", "fire_elevator", "elevator_lobby",
+                           "fire_elevator_lobby", "smoke_proof_lobby",
+                           "staircase_lobby", "scissor_stair_lobby", "lobby"}
+        max_dist_mm = 20_000  # 20m 距离上限
+
+        for ent in entities:
+            if ent.type not in propagate_types:
+                continue
+            if (ent.properties.get("area_m2", 0) or 0) > 0:
+                continue  # 已有面积，跳过
+
+            bbox = ent.bbox or {}
+            cx = (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2
+            cy = (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2
+
+            # 找最近的有效 room
+            best_room = None
+            best_dist = float("inf")
+            for room in valid_rooms:
+                dx = cx - room["cx"]
+                dy = cy - room["cy"]
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist < best_dist:
+                    best_dist = dist
+                    best_room = room
+
+            if best_room and best_dist <= max_dist_mm:
+                ent.properties["area_m2"] = best_room["area"]
+                ent.properties["area_source"] = f"propagated_from_{best_room['id']}"
 
     def _infer_room_types(
         self,
