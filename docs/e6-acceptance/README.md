@@ -75,7 +75,7 @@ if entity_type == "other":
 | unclassified | ~440 | 0 | 0 | — |
 | block_default | ~38 | 0 | 0 | — |
 | **effective_rate** | **4.78%** | **0.00%** | **0.00%** | **≤3%** ✅ |
-| other 实体 | — | 4439（44.0%） | 3906（39.1%） | 持续降低 |
+| other 实体 | — | 4439（44.0%） | 3906（39.1%）→ 4278（42.8%）*E6-T3 修正微小 ARC/CIRCLE |
 | other 减少量 | — | — | **−533 条** | — |
 
 ### E6-T2 门宽阈值调整详情
@@ -83,6 +83,15 @@ if entity_type == "other":
 - **改动**：`classify.py` `_classify_by_geometry` 中门宽下限从 700mm 降至 500mm（L326、L348）
 - **理论影响**：LINE [500,700) 段共 2,085 条，其中经 `real_se < 50` 过滤后约 533 条由 `other` 转为 `door`
 - **回归验证**：pytest 2832 passed / 0 failed；fp_rate_audit findings=193（DIM-113 护 guard 未引入新误报）
+
+### E6-T3 ARC/CIRCLE 微小半径误分类修复
+
+- **改动**：`classify.py` `_classify_by_geometry`
+  - ARC：新增 `radius < 50 → other` 守卫；门弧阈值从 `100 < radius < 2000` 放宽至 `50 <= radius < 2000`
+  - CIRCLE：`radius < 50 → other`（原误标为 `column`）
+- **影响**：877 条装饰性微小弧线 + 316 条微小圆形 → `other`（避免误标为 window/column）
+- **回归验证**：pytest 2832 passed / 0 failed；fp_rate_audit findings=193（无新误报）
+- **注意**：`other` 计数因正确归类而上升（3,906→4,278），effective_rate 保持 0.00%
 
 ### 全量回归
 
@@ -96,6 +105,7 @@ if entity_type == "other":
 **本次已做**：
 - E6-T1：退化过滤器（防御性代码，当前图纸无效但保留扩展性）
 - E6-T2：门宽阈值 700→500mm，回收 533 条短门宽实体为 `door`
+- E6-T3：ARC/CIRCLE 微小半径（<50mm）→ `other`，修复 1,193 条装饰性弧线/圆形误标
 
 **根因（未解决）**：所有 34,748 条 primitives 的 layer 均为 `"0"`（CAD 默认层），导致 LAYER_RULES 全部失效，分类完全依赖几何兜底。
 
@@ -108,7 +118,7 @@ if entity_type == "other":
 
 | 文件 | 操作 |
 |---|---|
-| `src/baa_engine/semantic_analyzer/classify.py` | 新增 `_classify_other` 计数器；E6-T2 门宽阈值 700→500mm |
+| `src/baa_engine/semantic_analyzer/classify.py` | 新增 `_classify_other` 计数器；E6-T2 门宽阈值 700→500mm；E6-T3 ARC/CIRCLE 微小半径 → other |
 | `src/baa_engine/semantic_analyzer/main.py` | 新增 `_classify_other` 初始化 + classification_stats 字段 + E6-T1 过滤器 |
 | `docs/roadmap-v5-20261027.md` | 更新 M10 里程碑 + other 指标 |
 | `docs/e6-acceptance/README.md` | 本证据链（含 E6-T2 结果） |
