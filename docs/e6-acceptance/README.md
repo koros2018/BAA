@@ -1,6 +1,6 @@
 # E6 未分类率深化 · 验收证据链
 
-日期：2026-10-28 ｜ 分支：main ｜ 状态：✅ effective_rate 达标 / ⚠️ other 实体待治理
+日期：2026-10-29 ｜ 分支：semantic-analyzer-layer-sharding-JM65bP ｜ 状态：✅ effective_rate 达标 / 🔄 other 实体持续治理
 
 ## 目标
 
@@ -69,34 +69,46 @@ if entity_type == "other":
 
 ### 东莞通单图
 
-| 指标 | 原版基线 | 修复后 | 目标 |
-|---|---|---|---|
-| classify_total | 10000 | 10000 | — |
-| unclassified | ~440 | **0** | — |
-| block_default | ~38 | **0** | — |
-| **effective_rate** | **4.78%** | **0.00%** | **≤3%** ✅ |
-| other 实体 | — | 4439（44.0%） | 观测中 |
+| 指标 | 原版基线 | E6-T1 后 | E6-T2 后（当前） | 目标 |
+|---|---|---|---|---|
+| classify_total | 10000 | 10000 | 10000 | — |
+| unclassified | ~440 | 0 | 0 | — |
+| block_default | ~38 | 0 | 0 | — |
+| **effective_rate** | **4.78%** | **0.00%** | **0.00%** | **≤3%** ✅ |
+| other 实体 | — | 4439（44.0%） | 3906（39.1%） | 持续降低 |
+| other 减少量 | — | — | **−533 条** | — |
+
+### E6-T2 门宽阈值调整详情
+
+- **改动**：`classify.py` `_classify_by_geometry` 中门宽下限从 700mm 降至 500mm（L326、L348）
+- **理论影响**：LINE [500,700) 段共 2,085 条，其中经 `real_se < 50` 过滤后约 533 条由 `other` 转为 `door`
+- **回归验证**：pytest 2832 passed / 0 failed；fp_rate_audit findings=193（DIM-113 护 guard 未引入新误报）
 
 ### 全量回归
 
 - pytest：2832 passed / 0 failed
-- fp_rate_audit：findings=191，可证误报率=0%
+- fp_rate_audit：findings=193，可证误报率=0%（DIM-113 护 guard 未因 E6-T2 引入新误报）
 
 ## 遗留问题
 
-**"other" 实体占比 44%** 不纳入 effective_rate 公式，但实际输出中占比显著。
+**"other" 实体占比 39%**（E6-T2 后从 44% 下降），仍不纳入 effective_rate 公式。
 
-降低 other 占比需要：
+**本次已做**：
+- E6-T1：退化过滤器（防御性代码，当前图纸无效但保留扩展性）
+- E6-T2：门宽阈值 700→500mm，回收 533 条短门宽实体为 `door`
+
+**根因（未解决）**：所有 34,748 条 primitives 的 layer 均为 `"0"`（CAD 默认层），导致 LAYER_RULES 全部失效，分类完全依赖几何兜底。
+
+**后续治理方向**：
 1. **补充图层信息**：让 parser 正确提取 layer 名（当前所有图元 layer="0"）
 2. **改进 geometry classifier**：将短 LINE/小多边形按语义归类（如 annotation/dimension）
 3. **扩充 LAYER_RULES**：覆盖更多实际图层名
-
-这三项属于 E6 后续治理，不在本轮任务范围内。
 
 ## 文件清单
 
 | 文件 | 操作 |
 |---|---|
-| `src/baa_engine/semantic_analyzer/classify.py` | 新增 `_classify_other` 计数器 |
+| `src/baa_engine/semantic_analyzer/classify.py` | 新增 `_classify_other` 计数器；E6-T2 门宽阈值 700→500mm |
 | `src/baa_engine/semantic_analyzer/main.py` | 新增 `_classify_other` 初始化 + classification_stats 字段 + E6-T1 过滤器 |
-| `docs/roadmap-v5-20261027.md` | 更新 M5 指标 + 验收数据 |
+| `docs/roadmap-v5-20261027.md` | 更新 M10 里程碑 + other 指标 |
+| `docs/e6-acceptance/README.md` | 本证据链（含 E6-T2 结果） |

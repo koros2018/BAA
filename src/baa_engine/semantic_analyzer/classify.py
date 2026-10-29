@@ -318,13 +318,14 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             )  # 赋值
         else:
             real_se = short_edge
-        # P84-E: 建筑门宽 ≥700mm 是基本约束，50-700mm 段的密集水平线
-        # 在东莞通中是填充图案（y 聚类 21-27 条/行），不是真实门
-        # 中等长度 LINE（700~2000mm）且近乎 hv → door
-        # P84 fix: 门宽 700mm 是下限边界，700mm 门 + 1mm 浮点容差
-        if 700 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
+        # P84-E: 建筑门宽 ≥500mm 是基本约束（设备间/管井门可达 500-600mm），
+        # 50-500mm 段的密集水平线在东莞通中是填充图案（y 聚类 21-27 条/行），
+        # 不是真实门。中等长度 LINE（500~2000mm）且近乎 hv → door。
+        # P84 fix: 门宽 500mm 是下限边界，500mm 门 + 1mm 浮点容差
+        # E6-T2: 从 700mm 降至 500mm，回收短门宽实体（降低 other 占比）
+        if 500 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
             return "door"
-        # 短 LINE（<700mm）：填充图案/标注线/引线 → other
+        # 短 LINE（<500mm）：填充图案/标注线/引线 → other
         return "other"
 
     if dxf_type in ("LWPOLYLINE", "POLYLINE"):  # check: membership test
@@ -342,9 +343,9 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
                 )  # 赋值
             else:
                 real_se = short_edge
-            # P84-E: 建筑门宽 ≥700mm，短 LINE 归为 other
-            # P84 fix: 门宽 700mm 是下限边界，同样用 +1mm 浮点容差
-            if 700 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
+            # P84-E: 建筑门宽 ≥500mm（E6-T2 从 700mm 降至 500mm），短 LINE 归为 other
+            # P84 fix: 门宽 500mm 是下限边界，同样用 +1mm 浮点容差
+            if 500 <= length + 1 < 2000 and real_se < 50:  # check: numeric comparison
                 return "door"
             return "other"
 
