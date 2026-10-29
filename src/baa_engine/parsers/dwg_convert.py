@@ -783,51 +783,127 @@ def _try_raw_decode(
     return None  # return: None
 
 
+def _try_ezdwg_direct(path: Path) -> Optional[Any]:
+    """第 0 级（E6 新增）：ezdwg 原生读取 DWG，保留图层信息。
+
+    ezdwg 的 layer_handle 映射到真实图层名，export_dxf 输出标准 DXF，
+    后续管线无需改动即可读到正确的 entity.dxf.layer。
+
+    返回:
+        ezdxf Document（成功且检测到非零图层）或 None（失败/无图层信息）
+    """
+    try:
+        import ezdwg as _ezdwg
+    except ImportError:
+        return None
+
+    try:
+        dwg_doc = _ezdwg.read(str(path))
+        tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        try:
+            dwg_doc.export_dxf(tmp_path)
+        finally:
+            # 尽快释放 ezdwg 文档
+            try:
+                dwg_doc.close()
+            except Exception:
+                pass
+
+        dxf_doc = ezdxf.readfile(tmp_path)
+
+        # 验证：确认输出了非零图层（否则降级到原有流程）
+        layer_counts = {}
+        entity_count = 0
+        for e in dxf_doc.modelspace():
+            try:
+                entity_count += 1
+                layer = e.dxf.layer
+                layer_counts[layer] = layer_counts.get(layer, 0) + 1
+            except Exception:
+                pass
+
+        Path(tmp_path).unlink(missing_ok=True)
+
+        non_zero_count = sum(v for k, v in layer_counts.items() if k and k != "0")
+        if entity_count > 10 and non_zero_count > 0:
+            zero_pct = layer_counts.get("0", 0) / entity_count * 100
+            logger.info(
+                "[E6-DWG] ezdwg 直读成功: %s → %d 实体, "
+                "layer='0': %.1f%%, 非零图层 %d 个",
+                path.name,
+                entity_count,
+                zero_pct,
+                len(layer_counts) - 1,
+            )
+            return dxf_doc
+
+        logger.warning(
+            "[E6-DWG] ezdwg 直读结果无有效图层 (%d 实体, %d 非零), 降级",
+            entity_count,
+            non_zero_count,
+        )
+        return None
+    except Exception as e:
+        logger.warning("[E6-DWG] ezdwg 直读失败: %s: %s", type(e).__name__, e)
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return None
+
+
 def _parse_dwg(
     path: Path,
 ):  # 独立函数（drawing_parser 按函数导入调用；原签名残留 self 导致 TypeError）
-    """解析 DWG 文件，六级兜底策略
+    """解析 DWG 文件，七级兜底策略
 
     级别（优先级从高到低）：
-    0. 同目录 DXF 自动兜底（天正 T3 图纸通常有配套 DXF）
-    1. ezdwg.read() + export_dxf() 直转
-    2. LibreCAD CLI 自动转换（如已安装）
-    3. ezdwg Entity.dxf 字典手动逐元素重建（增强版：含INSERT/HATCH/SOLID）
-    4. ezdwg raw 逐个类型解码（增强版：含DIMENSION/INSERT/HATCH/ELLIPSE）
-    5. 返回 None 让上层给友好提示
+    0. ezdwg 直读（保留图层信息）← E6 新增：DWG 原生解析优先于 DXF 兜底
+    1. 同目录 DXF 自动兜底（天正 T3 图纸通常有配套 DXF）
+    2. ezdwg.read() + export_dxf() 直转
+    3. LibreCAD CLI 自动转换（如已安装）
+    4. ezdwg Entity.dxf 字典手动逐元素重建（增强版：含INSERT/HATCH/SOLID）
+    5. ezdwg raw 逐个类型解码（增强版：含DIMENSION/INSERT/HATCH/ELLIPSE）
+    6. 返回 None 让上层给友好提示
     """
-    # ── 第 0 级：同目录 DXF 自动兜底 ──
-    dxf_result = _try_same_dir_dxf(path)  # function call
-    if dxf_result is not None:  # check: value is not None
-        return dxf_result  # return
+    # ── 第 0 级：ezdwg 直读（保留图层信息）── E6 新增
+    # DXF 导出时经常丢失图层语义（所有实体落在 layer="0"），
+    # 而 ezdwg 原生解析保留 layer_handle → layer_name 映射。
+    # 仅对 .dwg 文件启用此优先路径；.dxf 文件仍走原有逻辑。
+    if path.suffix.lower() == ".dwg":
+        dxf_result = _try_ezdwg_direct(path)
+        if dxf_result is not None:
+            return dxf_result
 
-    # ── 第 1 级：aspose-cad 转换（最可靠，支持 T3） ──
-    result = _try_aspose_cad_convert(path)  # function call
-    if result is not None:  # check: value is not None
-        return result  # return
+    # ── 第 1 级：同目录 DXF 自动兜底 ──
+    dxf_result = _try_same_dir_dxf(path)
+    if dxf_result is not None:
+        return dxf_result
 
     # ── 第 2 级：export_dxf 直转 ──
-    result = _try_ezdwg_export_dxf(path)  # function call
-    if result is not None:  # check: value is not None
-        return result  # return
+    result = _try_ezdwg_export_dxf(path)
+    if result is not None:
+        return result
 
     # ── 第 3 级：LibreCAD CLI 转换 ──
-    result = _try_librecad_convert(path)  # function call
-    if result is not None:  # check: value is not None
-        return result  # return
+    result = _try_librecad_convert(path)
+    if result is not None:
+        return result
 
     # ── 第 4 级：手动逐元素转换 ──
-    result = _try_manual_convert(path)  # function call
-    if result is not None:  # check: value is not None
-        return result  # return
+    result = _try_manual_convert(path)
+    if result is not None:
+        return result
 
     # ── 第 5 级：raw 逐个类型解码 ──
-    result = _try_raw_decode(path)  # function call
-    if result is not None:  # check: value is not None
-        return result  # return
+    result = _try_raw_decode(path)
+    if result is not None:
+        return result
 
-    # ── 第 5 级：所有方案都失败 ──
-    return None  # return: None
+    # ── 第 6 级：所有方案都失败 ──
+    return None
 
 
 def _insert_block_expand(

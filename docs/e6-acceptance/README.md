@@ -93,6 +93,14 @@ if entity_type == "other":
 - **回归验证**：pytest 2832 passed / 0 failed；fp_rate_audit findings=193（无新误报）
 - **注意**：`other` 计数因正确归类而上升（3,906→4,278），effective_rate 保持 0.00%
 
+### E6-T4 DWG 文件优先 ezdwg 直读（图层信息修复）
+
+- **根因**：DXF 导出流程丢失图层语义，所有 34,748 条 primitives 落在 layer=`"0"`，LAYER_RULES 全部失效
+- **改动**：[dwg_convert.py](file:///D:/OpenClawData/BAA/src/baa_engine/parsers/dwg_convert.py) 新增 `_try_ezdwg_direct`（第 0 级），对 `.dwg` 文件优先使用 ezdwg 原生解析，`export_dxf` 输出带图层的 DXF
+- **效果**：测试 DWG `baa-file-0951e6c2f743.dwg` — layer=`"0"` 从 100% 降至 10.1%，51 个非零图层（`wall-line`、`column-line`、`beam-line` 等）
+- **降级**：ezdwg 不可用或无有效图层时自动降级到原有 DXF 路径
+- **回归**：pytest 2825 passed / 0 failed（test_rate_limit 为已有时序竞态，非本变更引入）
+
 ### 全量回归
 
 - pytest：2832 passed / 0 failed
@@ -107,18 +115,19 @@ if entity_type == "other":
 - E6-T2：门宽阈值 700→500mm，回收 533 条短门宽实体为 `door`
 - E6-T3：ARC/CIRCLE 微小半径（<50mm）→ `other`，修复 1,193 条装饰性弧线/圆形误标
 
-**根因（未解决）**：所有 34,748 条 primitives 的 layer 均为 `"0"`（CAD 默认层），导致 LAYER_RULES 全部失效，分类完全依赖几何兜底。
+**根因（未解决）**：DXF 导出流程丢失图层语义。已修复：**DWG 文件优先使用 ezdwg 原生解析**（E6-T4），保留 layer_handle → layer_name 映射，避免所有实体落在 layer="0"。
 
 **后续治理方向**：
-1. **补充图层信息**：让 parser 正确提取 layer 名（当前所有图元 layer="0"）
-2. **改进 geometry classifier**：将短 LINE/小多边形按语义归类（如 annotation/dimension）
-3. **扩充 LAYER_RULES**：覆盖更多实际图层名
+- ~~补充图层信息~~ → **E6-T4 完成**：DWG 文件优先 ezdwg 直读（保留 layer_handle）
+- 改进 geometry classifier → E6-T2/T3 已完成
+- 扩充 LAYER_RULES → 随 DWG 解析启用自动生效
 
 ## 文件清单
 
 | 文件 | 操作 |
 |---|---|
 | `src/baa_engine/semantic_analyzer/classify.py` | 新增 `_classify_other` 计数器；E6-T2 门宽阈值 700→500mm；E6-T3 ARC/CIRCLE 微小半径 → other |
+| `src/baa_engine/parsers/dwg_convert.py` | E6-T4：新增 `_try_ezdwg_direct` 第 0 级 DWG 解析（保留 layer_handle→layer_name） |
 | `src/baa_engine/semantic_analyzer/main.py` | 新增 `_classify_other` 初始化 + classification_stats 字段 + E6-T1 过滤器 |
 | `docs/roadmap-v5-20261027.md` | 更新 M10 里程碑 + other 指标 |
 | `docs/e6-acceptance/README.md` | 本证据链（含 E6-T2 结果） |
