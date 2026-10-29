@@ -11,12 +11,12 @@ export default defineConfig({
     },
   },
   test: {
-    // 纯函数测试默认 node 环境
-    environment: 'node',
+    // jsdom 环境：所有测试均可访问 document/window
+    environment: 'jsdom',
     include: ['ts/**/*.test.ts'],
-    globals: false,
+    globals: true,
     reporters: 'default',
-    // jsdom 配置：仅用于需要 DOM 的组件测试
+    setupFiles: [],
     poolOptions: {
       threads: { singleThread: true },
     },
