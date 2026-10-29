@@ -4262,6 +4262,56 @@
         e.preventDefault();
       }
     });
+    let touchStartDist = 0;
+    let touchStartScale = 1;
+    let touchLastX = 0;
+    let touchLastY = 0;
+    let touchPanActive = false;
+    const dist = (t1, t2) => Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    imgEl?.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        touchPanActive = true;
+        touchLastX = e.touches[0].clientX;
+        touchLastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchPanActive = false;
+        touchStartDist = dist(e.touches[0], e.touches[1]);
+        touchStartScale = state.scale;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    imgEl?.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 1 && touchPanActive) {
+        const dx = e.touches[0].clientX - touchLastX;
+        const dy = e.touches[0].clientY - touchLastY;
+        state.offsetX += dx;
+        state.offsetY += dy;
+        touchLastX = e.touches[0].clientX;
+        touchLastY = e.touches[0].clientY;
+        apply();
+      } else if (e.touches.length === 2) {
+        const newDist = dist(e.touches[0], e.touches[1]);
+        if (touchStartDist > 0) {
+          const ratio = newDist / touchStartDist;
+          const newScale = Math.max(0.1, Math.min(20, touchStartScale * ratio));
+          state.scale = newScale;
+          apply();
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+    imgEl?.addEventListener("touchend", () => {
+      touchPanActive = false;
+      touchStartDist = 0;
+    });
+    let lastTap = 0;
+    imgEl?.addEventListener("touchend", (e) => {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        zoomReset();
+      }
+      lastTap = now;
+    });
     apply();
   }
   function zoomSet(dir) {
@@ -5275,7 +5325,12 @@
       const approvalTools = `<div class="mt-2"><button id="rs-approval-create" class="modal-btn modal-btn-primary text-xs" onclick="showApprovalFlowForm('` + sessionId + `')">+ 发起审批</button><div id="rs-approval-form" class="mt-2"></div></div>`;
       const workflowSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">工作流流转</h4><div class="flex gap-2 flex-wrap">' + statusActions + '</div><div id="rs-recheck-result" class="mt-2"></div></div>';
       const rectSection = buildRectificationSection(sessionId, rects);
-      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + "</h3>" + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + "</div>" + rectSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+      const fileIds = rs.file_ids || [];
+      let drawingSection = "";
+      if (fileIds.length > 0) {
+        drawingSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">🗺️ 交互式图纸</h4><div class="flex gap-2 mb-2"><button id="rs-load-interactive" class="modal-btn modal-btn-primary text-xs" onclick="loadInteractiveDrawing()">加载交互式图纸</button></div><div id="interactive-drawing-container" data-interactive-drawing="1" class="border rounded p-1 overflow-auto max-h-96 bg-white"></div></div>';
+      }
+      setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml$1(String(rs.name || "")) + " " + statusBadge + "</h3>" + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + "</div>" + rectSection + drawingSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
     });
   }
   function submitComment(sessionId) {
@@ -5667,6 +5722,10 @@
       return false;
     }
     highlightSvgElement(target);
+    const rect = target.getBoundingClientRect();
+    if (rect.top < 0 || rect.bottom > window.innerHeight || rect.left < 0 || rect.right > window.innerWidth) {
+      target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    }
     return true;
   }
   initApiClient({

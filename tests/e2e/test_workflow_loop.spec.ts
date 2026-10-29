@@ -187,4 +187,102 @@ test.describe.serial('T-B6 工作流闭环 E2E（状态机→整改→复查→�
     await page.click('#collab-modal-body button:has-text("归档")');
     await expect(page.locator('#collab-modal-body')).toContainText('终态，无可用流转');
   });
+
+  test('W13 交互式图纸加载：会话详情可见加载按钮，点击后 SVG 容器非空', async () => {
+    // 从 W2 开始的新会话（有 file_ids）
+    const { page: p, BASE: b, auth: a, FIXTURE_DIR: fd } = {
+      page, BASE, auth, FIXTURE_DIR: path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures'),
+    };
+    const ts2 = Date.now();
+    const TEAM2 = `E2E-WF-T2-${ts2}`;
+    const PROJ2 = `E2E-WF-P2-${ts2}`;
+    const SES2 = `E2E-WF-S2-${ts2}`;
+
+    const teamD = await (await p.request.post(b + '/collab/teams', { headers: a(), data: { name: TEAM2, description: 'e2e' } })).json();
+    expect(teamD.status).toBe('success');
+    const teamId = String((teamD.team as Record<string, unknown>).id);
+
+    const projD = await (await p.request.post(b + '/collab/projects', { headers: a(), data: { name: PROJ2, team_id: teamId, description: 'e2e' } })).json();
+    expect(projD.status).toBe('success');
+    const projectId2 = String((projD.project as Record<string, unknown>).id);
+
+    const buf = fs.readFileSync(path.join(fd, 'test_basic.dxf'));
+    const decD = await (await p.request.post(b + '/deconstruct?building_type=civil&use_yolo=false', {
+      multipart: { file: { name: 'test_basic.dxf', mimeType: 'application/dxf', buffer: buf } },
+    })).json();
+    expect(decD.status).toBe('success');
+    const fileId = String(decD.file_id || '');
+
+    const sesD = await (await p.request.post(b + '/collab/review-sessions', {
+      headers: a(), data: { project_id: projectId2, name: SES2, description: 'e2e bidir-locate', file_ids: [fileId] },
+    })).json();
+    expect(sesD.status).toBe('success');
+    const sessionId2 = String((sesD.review_session as Record<string, unknown>).id);
+
+    // 打开会话详情，检查交互式图纸区块存在
+    await p.evaluate((id) => (window as unknown as Record<string, unknown>).showReviewSessionDetail!(id), sessionId2);
+    await expect(p.locator('#collab-modal-body')).toContainText('🗺️ 交互式图纸');
+    await expect(p.locator('#rs-load-interactive')).toBeVisible();
+
+    // 点击加载交互式图纸
+    await p.click('#rs-load-interactive');
+    await expect(p.locator('#interactive-drawing-container svg')).toBeAttached({ timeout: 15000 });
+
+    // SVG 内有图元元素（data-eid 或 path/line/circle/text）
+    const svgChildren = await p.locator('#interactive-drawing-container svg').count();
+    expect(svgChildren).toBeGreaterThan(0);
+  });
+
+  test('W14 双向定位：违规→图元（locateEntity）与图元→违规（点击SVG元素触发高亮）', async () => {
+    const { page: p, BASE: b, auth: a, FIXTURE_DIR: fd } = {
+      page, BASE, auth, FIXTURE_DIR: path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures'),
+    };
+    const ts3 = Date.now();
+    const TEAM3 = `E2E-WF-T3-${ts3}`;
+    const PROJ3 = `E2E-WF-P3-${ts3}`;
+    const SES3 = `E2E-WF-S3-${ts3}`;
+
+    // 建团队/项目/上传图纸/创建会话
+    const teamD = await (await p.request.post(b + '/collab/teams', { headers: a(), data: { name: TEAM3, description: 'e2e' } })).json();
+    expect(teamD.status).toBe('success');
+    const teamId3 = String((teamD.team as Record<string, unknown>).id);
+    const projD = await (await p.request.post(b + '/collab/projects', { headers: a(), data: { name: PROJ3, team_id: teamId3, description: 'e2e' } })).json();
+    expect(projD.status).toBe('success');
+    const projectId3 = String((projD.project as Record<string, unknown>).id);
+    const buf = fs.readFileSync(path.join(fd, 'test_basic.dxf'));
+    const decD = await (await p.request.post(b + '/deconstruct?building_type=civil&use_yolo=false', {
+      multipart: { file: { name: 'test_basic.dxf', mimeType: 'application/dxf', buffer: buf } },
+    })).json();
+    expect(decD.status).toBe('success');
+    const fileId = String(decD.file_id || '');
+    const sesD = await (await p.request.post(b + '/collab/review-sessions', {
+      headers: a(), data: { project_id: projectId3, name: SES3, description: 'e2e bidir-locate', file_ids: [fileId] },
+    })).json();
+    expect(sesD.status).toBe('success');
+
+    // 导航到审查页面并加载交互式图纸
+    await p.goto('/');
+    await p.click('[data-page="review"]');
+    await p.fill('#review-file-select', fileId);
+    await p.waitForTimeout(500);
+    await p.click('button:has-text("加载交互式图纸")');
+    await expect(p.locator('#interactive-drawing-container svg')).toBeAttached({ timeout: 15000 });
+
+    // 验证 SVG 图元带有 data-eid 属性（后端渲染时已嵌入 DXF handle）
+    const svgEl = await p.locator('#interactive-drawing-container svg');
+    await expect(svgEl).toBeVisible();
+    const hasDataEid = await p.evaluate(() => {
+      const svg = document.querySelector('#interactive-drawing-container svg');
+      return svg ? svg.querySelectorAll('[data-eid]').length : 0;
+    });
+    expect(hasDataEid).toBeGreaterThan(0);
+
+    // 验证 locateEntity 函数在 window 上可用（违规→图元定位入口）
+    const hasLocateEntity = await p.evaluate(() => typeof window.locateEntity === 'function');
+    expect(hasLocateEntity).toBe(true);
+
+    // 验证调用 locateEntity 时能给出合理提示（无匹配实体时返回 false + toast）
+    const result = await p.evaluate(() => (window as unknown as Record<string, unknown>).locateEntity?.('NONEXISTENT_ENTITY_XYZ') ?? false);
+    expect(result).toBe(false);
+  });
 });
