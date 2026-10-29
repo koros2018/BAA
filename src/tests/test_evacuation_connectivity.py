@@ -201,5 +201,57 @@ class TestEvacuationDoorMarking:
         assert result is not None and result.result == "FAIL"
 
 
+class TestEvacuationRouteDedup:
+    """EVAC 房间级去重：同一疏散路径只由代表房间判定一次"""
+
+    def _entity(self, eid, etype, width=1000, area=None):
+        props = {} if area is None else {"area": area}
+        return SemanticEntity(
+            entity_id=eid,
+            entity_type=etype,
+            bbox={"x": 0, "y": 0, "width": width, "height": width},
+            layer="general",
+            properties=props,
+        )
+
+    def test_rooms_sharing_route_get_single_representative(self):
+        analyzer = SemanticAnalyzer()
+        room1 = self._entity("room1", "room", area=4500000)
+        room2 = self._entity("room2", "room", area=0)
+        exit1 = self._entity("exit1", "exit")
+        relations = [
+            SpatialRelation(source_id="room1", target_id="exit1", rel_type="adjacent", distance=40.0),
+            SpatialRelation(source_id="room2", target_id="exit1", rel_type="adjacent", distance=40.0),
+        ]
+        routes = analyzer.analyze_evacuation_routes([room1, room2, exit1], relations)
+        assert len(routes) == 2
+        assert routes[0]["route_key"] == routes[1]["route_key"] == "exit1:40.0"
+        reps = [r for r in routes if r["is_route_representative"]]
+        assert len(reps) == 1
+        # 代表房间取面积最小者（大面积房间路径分析不可靠）
+        assert reps[0]["room_id"] == "room2"
+        assert all(r["route_shared_room_count"] == 2 for r in routes)
+
+    def test_secondary_route_room_skips_evac_rules(self):
+        from src.baa_engine.atomic_functions import FuncRegistry
+
+        registry = FuncRegistry()
+        secondary = {
+            "id": "room9",
+            "type": "room",
+            "properties": {
+                "has_evacuation_route": True,
+                "evacuation_path_length": 48.28,
+                "evacuation_too_far": True,
+                "evacuation_route_secondary": True,
+            },
+        }
+        primary = dict(secondary, id="room8", properties={**secondary["properties"]})
+        primary["properties"].pop("evacuation_route_secondary")
+        assert registry.get("EVAC-002").execute(secondary) is None
+        assert registry.get("EVAC-003").execute(secondary) is None
+        assert registry.get("EVAC-002").execute(primary) is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

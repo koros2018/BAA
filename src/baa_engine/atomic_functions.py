@@ -765,6 +765,9 @@ class AtomicFunction:  # class definition
                 "evacuation_path_length" not in props and "travel_distance" not in props
             ):  # check: membership test
                 return None  # 无疏散路径长度数据，跳过判定
+            # 路由级指标去重：同一疏散路径的非代表房间跳过（由代表房间上报一次）
+            if props.get("evacuation_route_secondary", False):  # check
+                return None
             # 大面积 room 疏散路径分析可能失败
             area = props.get("area", 0.0)  # function call
             if area and area > 5000:  # check: numeric comparison
@@ -773,6 +776,9 @@ class AtomicFunction:  # class definition
         if func_id == "EVAC-003":  # 疏散路径是否超距
             if "evacuation_too_far" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
+            # 路由级指标去重：同一疏散路径的非代表房间跳过（由代表房间上报一次）
+            if props.get("evacuation_route_secondary", False):  # check
+                return None
             # 大面积 room 疏散路径分析可能失败
             area = props.get("area", 0.0)  # function call
             if area and area > 5000:  # check: numeric comparison

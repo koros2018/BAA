@@ -299,8 +299,28 @@ def _analyze_evacuation_routes_impl(
             "exceeds_max_distance": found_route is not None
             and found_route[1]
             > (20.0 if room.properties.get("is_dead_end", False) else 30.0),  # 字段
+            "room_area": room.properties.get("area", 0.0),  # 字段
+            # 赋路由标识：同一 (最近出口, 路径长度) 即同一条疏散路径
+            "exit_id": found_route[0][-1] if found_route else None,  # 字段
+            "route_key": (
+                f"{found_route[0][-1]}:{round(found_route[1], 2)}" if found_route else None
+            ),  # 字段
         }  # code
         routes.append(route_info)  # append: add to list
+
+    # 房间级去重：路由级指标（距离/超距）属于整条路径，不应按房间重复上报。
+    # 每条路径只保留一个代表房间参与 EVAC-002/003 判定，其余标记为 secondary。
+    route_groups: Dict[str, List[Dict]] = {}
+    for info in routes:
+        if info["has_route"]:
+            route_groups.setdefault(info["route_key"], []).append(info)
+    for members in route_groups.values():
+        # 代表房间取面积最小者：大面积房间的路径分析不可靠（见 EVAC 大面积守卫），
+        # 取小面积房间作为代表，判定数据更可信。room_id 兜底保证确定性。
+        rep = min(members, key=lambda r: (r.get("room_area") or 0.0, r["room_id"]))
+        for info in members:
+            info["route_shared_room_count"] = len(members)
+            info["is_route_representative"] = info is rep
 
     return routes  # return
 
