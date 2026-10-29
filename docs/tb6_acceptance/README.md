@@ -50,4 +50,3 @@
 - 跑测须用 Node 20（`D:\tmp\node20\node-v20.18.0-win-x64`）；Node 24 下 Playwright runner 启动挂死（T-B5 已记录，沿用）。
 - 协作库实际落盘路径：`src/data/collab/baa_collab.db`（`models.py` DEFAULT_DB_PATH 相对 src 包三层 dirname 计算），非仓库根 `data/`。
 - E2E 用户名/邮箱/团队/会话均带时间戳，避免唯一约束冲突；批量审查产品级缺陷未触碰（TD-E2E-005 已另行登记，与 T-B6 无关）。
-- 未 commit，待用户确认后执行（T-B6 changeset 含 product_pages.py BOM 修复）。
