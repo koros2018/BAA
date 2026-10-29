@@ -125,5 +125,81 @@ class TestEvacuationConnectivity:
         assert room_result["connected"] is True
 
 
+class TestEvacuationDoorMarking:
+    """Step 5.7 疏散门适用性标注（E5 误报治理后续）"""
+
+    def setup_method(self):
+        self.analyzer = SemanticAnalyzer()
+
+    def _make_entity(self, eid, etype, props=None, subtype=""):
+        return SemanticEntity(
+            entity_id=eid,
+            entity_type=etype,
+            bbox={"x": 0, "y": 0, "width": 10, "height": 10},
+            layer="general",
+            subtype=subtype,
+            properties=props or {},
+        )
+
+    def _make_relation(self, source_id, target_id, rel_type="adjacent"):
+        return SpatialRelation(source_id=source_id, target_id=target_id, rel_type=rel_type)
+
+    def test_door_adjacent_to_exit_is_marked(self):
+        """与严格出口直接相连的普通门 → 标注为疏散门"""
+        door = self._make_entity("door1", "door", {"width": 0.8})
+        stair = self._make_entity("stair1", "stair")
+        count = self.analyzer.mark_evacuation_doors(
+            [door, stair], [self._make_relation("door1", "stair1")], []
+        )
+        assert count == 1
+        assert door.properties["is_evacuation_door"] is True
+        assert door.properties["_evacuation_evidence"] == "exit_adjacent"
+
+    def test_door_on_room_route_is_marked(self):
+        """非辅助房间疏散路径上的门 → 标注为疏散门"""
+        door = self._make_entity("door1", "door", {"width": 0.8})
+        room = self._make_entity("room1", "room", subtype="")
+        room.properties["has_evacuation_route"] = True
+        routes = [{"room_id": "room1", "path": ["room1", "door1"], "has_route": True}]
+        count = self.analyzer.mark_evacuation_doors([door, room], [], routes)
+        assert count == 1
+        assert door.properties["is_evacuation_door"] is True
+        assert door.properties["_evacuation_evidence"] == "on_evacuation_route"
+
+    def test_door_on_toilet_route_is_not_marked(self):
+        """卫生间等辅助房间的门不承担房间疏散功能 → 不标注"""
+        door = self._make_entity("door1", "door", {"width": 0.7})
+        toilet = self._make_entity("room1", "room", subtype="toilet")
+        toilet.properties["has_evacuation_route"] = True
+        routes = [{"room_id": "room1", "path": ["room1", "door1"], "has_route": True}]
+        count = self.analyzer.mark_evacuation_doors([door, toilet], [], routes)
+        assert count == 0
+        assert "is_evacuation_door" not in door.properties
+
+    def test_unevidenced_door_stays_unmarked(self):
+        """无证据的普通门保持未标注（DIM-113 继续跳过，避免误报）"""
+        door = self._make_entity("door1", "door", {"width": 0.8})
+        room = self._make_entity("room1", "room", subtype="")
+        # 房间无疏散路径 → 不构成证据
+        routes = [{"room_id": "room1", "path": [], "has_route": False}]
+        count = self.analyzer.mark_evacuation_doors([door, room], [], routes)
+        assert count == 0
+        assert "is_evacuation_door" not in door.properties
+
+    def test_dim113_judges_marked_door(self):
+        """端到端：标注后的普通门进入 DIM-113 判定（不漏报）"""
+        from src.baa_engine.atomic_functions import FuncRegistry
+
+        door = self._make_entity("door1", "door", {"width": 0.8})
+        stair = self._make_entity("stair1", "stair")
+        self.analyzer.mark_evacuation_doors(
+            [door, stair], [self._make_relation("door1", "stair1")], []
+        )
+        func = FuncRegistry()._funcs["DIM-113"]
+        # 生产链路中原子函数消费的是 to_dict() 后的实体字典
+        result = func.execute(door.to_dict())
+        assert result is not None and result.result == "FAIL"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
