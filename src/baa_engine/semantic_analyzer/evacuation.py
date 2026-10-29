@@ -8,6 +8,75 @@ from typing import List, Dict, Any, Optional, Tuple
 from .models import SemanticEntity, SpatialRelation
 
 
+# 严格出口类型（与 analyze_evacuation_routes 的 strict_exits 口径一致）
+STRICT_EXIT_TYPES = ("exit", "exit_door", "stair", "staircase")
+
+# 非疏散门房间子类型：这类房间的门不承担房间疏散功能
+NON_EVACUATION_ROOM_SUBTYPES = {
+    "toilet",
+    "kitchen",
+    "storage",
+    "utility",
+    "equipment_room",
+    "elevator",
+}
+
+
+def _mark_evacuation_doors_impl(
+    self,
+    entities: List[SemanticEntity],
+    relations: List[SpatialRelation],
+    evacuation_routes: Optional[List[Dict]],
+) -> int:
+    """Step 5.7：为普通 door 标注疏散门适用性证据（is_evacuation_door）。
+
+    背景（docs/benchmark/false-positive-audit-20261028.md §6 召回风险）：
+    DIM-113 对无疏散门语义的普通门跳过判定，避免把卫生间/设备门误报为
+    疏散门净宽不足；但真实疏散门也会被一并跳过。此处只在**有确凿证据**时
+    放行，证据不足则保持未标注（宁可漏判也不误报）：
+
+    1. 门与严格出口（exit/exit_door/stair/staircase）存在直接空间关系；
+    2. 门出现在非辅助房间（卫生间/厨房/储藏/设备/管井/电梯除外）的
+       疏散路径上。
+
+    返回标注数量。
+    """
+    by_id: Dict[str, SemanticEntity] = {e.id: e for e in entities}
+    strict_exit_ids = {e.id for e in entities if e.type in STRICT_EXIT_TYPES}
+
+    # 实体关系表（无向）
+    adj: Dict[str, set] = {}
+    for rel in relations:
+        if rel.type not in ("adjacent", "connects_to", "contains"):
+            continue
+        adj.setdefault(rel.source_id, set()).add(rel.target_id)
+        adj.setdefault(rel.target_id, set()).add(rel.source_id)
+
+    evidence: Dict[str, str] = {}
+    for door in entities:
+        if door.type != "door":
+            continue
+        if adj.get(door.id, set()) & strict_exit_ids:
+            evidence[door.id] = "exit_adjacent"
+
+    for route in evacuation_routes or []:
+        room = by_id.get(route.get("room_id"))
+        if room is None or not route.get("has_route"):
+            continue
+        if (room.subtype or "") in NON_EVACUATION_ROOM_SUBTYPES:
+            continue
+        for node_id in route.get("path") or []:
+            ent = by_id.get(node_id)
+            if ent is not None and ent.type == "door":
+                evidence.setdefault(node_id, "on_evacuation_route")
+
+    for door_id, source in evidence.items():
+        door = by_id[door_id]
+        door.properties["is_evacuation_door"] = True
+        door.properties["_evacuation_evidence"] = source
+    return len(evidence)
+
+
 def _build_corridor_topology_impl(
     self,
     entities: List[

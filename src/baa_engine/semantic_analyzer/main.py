@@ -339,6 +339,10 @@ class SemanticAnalyzer:
                         "bottleneck_details"
                     ]  # assign
 
+        # Step 5.7: 疏散门适用性标注（E5 误报治理后续：恢复 DIM-113 召回）
+        # 证据不足的普通门保持未标注，DIM-113 继续跳过判定（宁可漏判不误报）。
+        self.mark_evacuation_doors(entities, relations, evacuation_routes)  # 操作
+
         result = {  # assign
             "entities": [e.to_dict() for e in entities],  # 字段
             "relations": [r.__dict__ if hasattr(r, "__dict__") else r for r in relations],  # 字段
@@ -1015,6 +1019,12 @@ class SemanticAnalyzer:
         from .evacuation import _verify_evacuation_connectivity_impl
 
         return _verify_evacuation_connectivity_impl(self, entities, relations, evacuation_routes)
+
+    def mark_evacuation_doors(self, entities, relations=None, evacuation_routes=None):
+        """为普通门标注疏散门适用性证据（Step 5.7，供 DIM-113 判定）。"""
+        from .evacuation import _mark_evacuation_doors_impl
+
+        return _mark_evacuation_doors_impl(self, entities, relations, evacuation_routes)
 
     def _yolo_enhance(self, dxf_path):
         """使用YOLO模型增强检测结果。"""
