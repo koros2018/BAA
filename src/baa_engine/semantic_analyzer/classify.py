@@ -74,10 +74,12 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
 
     # 未分类率统计：total 为进入循环的图元数。
     # unclassified = 被丢弃的 unknown；block_default = INSERT 块语义未覆盖回退 wall。
+    # other = 几何分类无法归入已知类型的图元（短 LINE、微小多边形等）。
     if not hasattr(self, "_classify_total"):
         self._classify_total = 0
         self._classify_unclassified = 0
         self._classify_block_default = 0
+        self._classify_other = 0
     if not hasattr(self, "_t3_window_seen"):
         self._t3_window_seen = set()
     if not hasattr(self, "_t3_wall_seen"):
@@ -179,6 +181,9 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         if entity_type == "unknown":  # condition: entity_type == "unknown":
             self._classify_unclassified += 1
             continue  # 继续循环
+
+        if entity_type == "other":
+            self._classify_other += 1
 
         self._entity_counter += 1
         # 过滤 NaN properties
