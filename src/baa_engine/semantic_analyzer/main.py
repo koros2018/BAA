@@ -316,6 +316,15 @@ class SemanticAnalyzer:
                 if r.get("path_length") is not None:  # check: value is not None
                     ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
                 ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)  # 操作
+                # 路由级指标去重：同一条疏散路径只由代表房间判定一次
+                if r.get("route_key"):  # 分支
+                    ent.properties["evacuation_route_key"] = r["route_key"]  # 操作
+                    ent.properties["evacuation_route_shared_count"] = r.get(
+                        "route_shared_room_count", 1
+                    )  # 操作
+                    if not r.get("is_route_representative", True):  # 分支
+                        # 非代表房间：EVAC-002/003 跳过，避免同一路径重复告警
+                        ent.properties["evacuation_route_secondary"] = True  # 操作
             # 对未找到路径的实体：如果疏散路径分析有结果但房间不在其中，标记为无路径
             # 如果分析结果为空（无出口/无拓扑），则不标记——让 EVAC 原子函数跳过判定
             elif ent.type in ("room", "corridor"):  # 分支
