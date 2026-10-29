@@ -62,16 +62,16 @@
 
 | 指标 | 治理前 | 精度治理后 | 召回恢复后 | EVAC 去重后 | 面积口径修复后 |
 |---|---|---|---|---|---|
-| findings 总数 | 846 | 196 | 202 | 170 | 176 |
-| 违规类 findings | 820 | 170 | 176 | 144 | 150 |
-| critical | 108 | 61 | 63 | 31 | 37 |
-| major | 523 | 37 | 39 | 39 | 39 |
-| minor | 189 | 72 | 74 | 74 | 74 |
-| low 区域提示 | 26 | 26 | 26 | 26 | 26（设计预期） |
-| 可证误报 | 650 | **0** | **0** | **0** | **0** |
-| 可证误报率 | 79.3% | **0%** | **0%** | **0%** | **0%** |
+| findings 总数 | 846 | 196 | 202 | 170 | 176 | 185 |
+| 违规类 findings | 820 | 170 | 176 | 144 | 150 | 159 |
+| critical | 108 | 61 | 63 | 31 | 37 | 46 |
+| major | 523 | 37 | 39 | 39 | 39 | 39 |
+| minor | 189 | 72 | 74 | 74 | 74 | 74 |
+| low 区域提示 | 26 | 26 | 26 | 26 | 26 | 26（设计预期） |
+| 可证误报 | 650 | **0** | **0** | **0** | **0** | **0** |
+| 可证误报率 | 79.3% | **0%** | **0%** | **0%** | **0%** | **0%** |
 
-剩余 150 条违规类 findings：DIM-006 121、EVAC 15（EVAC-001 5 / EVAC-002 4 / EVAC-003 4 / EVAC-004 2）、DIM-009 8、DIM-113 6 —— 均无机械可证前提不成立，进入领域复核队列。
+剩余 159 条违规类 findings：DIM-006 121、DIM-009 8、DIM-113 6、EVAC 15（EVAC-001 5 / EVAC-002 4 / EVAC-003 4 / EVAC-004 2）、AREA-018/019/021 各 3——均无机械可证前提不成立，进入领域复核队列。
 
 ### 5.1 召回恢复（Step 5.7 疏散门证据标注）
 
@@ -102,7 +102,27 @@
 
 复测：EVAC-001 5、EVAC-002 4、EVAC-003 4、EVAC-004 2（共 15），违规类 findings 144→150；全部为“恢复判定后暴露的真实候选”，可证误报率仍为 0%。
 
-全量回归：`python -m pytest src/tests -q` → **2814 passed, 26 skipped, 14 deselected**。
+全量回归：`python -m pytest src/tests -q` → **2832 passed, 26 skipped, 14 deselected**（含新增 `TestAreaGuards` 18 条）。
+
+### 5.4 AREA 类误报治理（AREA-003~AREA-022 通用分支 + 多层守卫）
+
+**问题**：`area_m2` 由语义层 Step 1.8 为单位归一产出，仅 `room`/`corridor` 等具有 polygon 面的实体有值；`antechamber`/`fire_elevator`/`window`/`rescue_window` 均为 CAD 标记实体（文字标注或 CIRCLE 符号），无 polygon 面积，`area_m2=0` 触发 bbox 兜底——对标记实体完全无物理意义。
+
+首轮通用分支上线（无守卫）时：findings 762，其中 AREA-013 38 条（window/rescue_window 全是 CAD 符号）、AREA-019 中 fire_elevator 14 条（电梯 ≠ 前室）、AREA-018/019/021 中 antechamber 12 条（bbox 0.18㎡ 是文字框非前室）——共约 64 条机械可证误报。
+
+修复方式（`src/baa_engine/atomic_functions.py::_extract_value` AREA 通用分支，叠加 5 层守卫 + 1 个合理性检查）：
+
+| # | 守卫 | 内容 | 拦截误报 |
+|---|---|---|---|
+| 1 | 适用性质守 | AREA-020 无人口数据、AREA-011/017 单窗无地面面积 → None | — |
+| 2 | 特化 subtype 守卫 | 普通 room 不触发 AREA-004/006/016/022 等特化阈值 | 东莞通 127 个普通 room × N 条规则 |
+| 3 | target_entities 语义修正 | `AREA-019` + `fire_elevator` → None；`AREA-013` + `window`/`rescue_window` → None | AREA-013 38 + AREA-019 fire_elevator 14 |
+| 4 | bbox 兜底白名单 | 仅 `room`/`corridor`/`antechamber`/`stair` 等 room-like 实体允许 bbox 兜底；`door`/`window`/`text` 标记实体 → None | 所有非白名单 entity_type |
+| 5 | bbox 合理性检查 | 权威口径缺失时，`val < 0.5 m²` 视为文字框/符号，跳过判定 | antechamber 12 条（0.18㎡ 文字框） |
+
+复测：findings 176→185，critical 37→46；净增 **+9**（3 个 antechamber 实体 bbox 2.59㎡ > 0.5 兜底生效，均小于规范阈值 4.5/6.0㎡，为**有意覆盖**的真实候选）；非 AREA findings 与面积口径修复后基线完全一致（176 条），零回归。
+
+新增单测：`test_atomic_functions_full.py::TestAreaGuards` 18 条，覆盖以上全部守卫路径。
 
 ## 6. 局限与后续
 
@@ -110,7 +130,7 @@
 2. **召回风险（部分解除）**：普通门 <0.9m 默认不判违规，现已由 Step 5.7 在“紧邻严格出口 / 位于非辅助房间疏散路径”两类确凿证据下放行（§5.1）。剩余风险：无这两种证据的疏散门（如仅通过防火墙间接相连）仍会漏判，需后续补房间-走廊连通证据。
 3. **DIM-006 doorway**：P108 明确"扫线法几何精度高于 YOLO，始终判定"，本轮不改；若领域复核判定为误报，需同步修改其单测口径。
 4. **EVAC 聚合口径（已治理）**：同一疏散路径的房间级重复已按“出口+路径长度”聚合（§5.2），一条路径只上报一次；跨防火分区的路径合并与 UI 展开仍在后续迭代。
-5. **面积单位口径（EVAC 已治理，AREA 待治理）**：EVAC 已改用 `area_m2`（§5.3）；AREA 类原子函数仍直接读原始 `area`，其对 mm² 值的比较同样失真（多为恒 PASS），需单独治理并同步复核其规则适用面（如 AREA-004/016 对普通 room 的最小面积要求会显著放大告警）。
+5. **面积单位口径（EVAC + AREA 均已治理）**：EVAC 已改用 `area_m2`（§5.3）；AREA 类原子函数通用分支已上线（§5.4），叠加 5 层守卫，当前 9 条 AREA FAIL 均为有合理 bbox 的真实候选（3 个 antechamber < 规范阈值）；AREA-004/006/016/022 对普通 room 的误报已由 subtype 守卫消除。仍有若干规则因数据源缺失暂跳过（AREA-020 需人口数据、AREA-011/017 需地面面积），属**有意跳过**，非误报。
 
 ## 7. 复现
 
