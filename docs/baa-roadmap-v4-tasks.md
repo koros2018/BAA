@@ -141,8 +141,8 @@
 
 **交付物**：闭环工作流 + 图元双向定位。
 **验收标准**
-- [x] 闭环端到端可演示（一次完整流转）。（**达标**：`test_workflow_loop.spec.ts` 12/12 real-run 通过——draft→送审→审查→整改登记→rectifying→复查 rechecking→整改 done→rejected→二次复查→approved→archived 终态，含非法流转 400 拒绝；单测 21/21；全量回归 2505 passed / 0 failed；DB 抽查 archived + 复查快照 + 整改记录落库；证据链 docs/tb6_acceptance/README.md）
-- [x] 违规项可跳转到对应图元，反之亦然。（**达标**：`GET /render/{file_id}/interactive` 每图元带 data-eid/data-bbox；违规卡片「📍 定位图元」→ locateEntity（data-eid 直查 + bbox IoU≥0.3 回退）；图元点击→违规卡片闪烁联动；审查成功自动载入 + 手动入口；tsc 0 错误 + vite build 285.41 kB；契约结论：entity_id 为合成 ID 非 handle，IoU 回退为主路径）
+- [x] 闭环端到端可演示（一次完整流转）。（**达标**：`test_workflow_loop.spec.ts` 14/14 real-run 通过——draft→送审→审查→整改登记→rectifying→复查 rechecking→整改 done→rejected→二次复查→approved→archived 终态，含非法流转 400 拒绝；新增 W13 会话详情交互图纸加载 + W14 双向定位断言；单测 21/21；全量回归 2832 passed / 0 failed；证据链 docs/tb6_acceptance/README.md）
+- [x] 违规项可跳转到对应图元，反之亦然。（**达标**：`GET /render/{file_id}/interactive` 每图元带 data-eid/data-bbox；违规卡片「📍 定位图元」→ locateEntity（data-eid 直查 + bbox IoU≥0.3 回退）；图元点击→违规卡片闪烁联动；审查成功自动载入 + 手动入口；collab 会话详情内嵌交互图纸区块；vite build 300.56 kB；契约结论：entity_id 为合成 ID 非 handle，IoU 回退为主路径）
 
 ---
 

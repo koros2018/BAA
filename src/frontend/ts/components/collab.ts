@@ -4,6 +4,7 @@
 import { getApiBase } from '../core/api-client';
 import { showToast } from '../core/toast';
 import { escHtml as esc, escHtml } from '../core/utils';
+import { loadInteractiveDrawing } from './drawing-viewer';
 
 let _token = localStorage.getItem('baa_collab_token') || '';
 let _user: Record<string, unknown> = {};
@@ -291,7 +292,13 @@ export function showReviewSessionDetail(sessionId: string): void {
     const approvalTools = '<div class="mt-2"><button id="rs-approval-create" class="modal-btn modal-btn-primary text-xs" onclick="showApprovalFlowForm(\'' + sessionId + '\')">+ 发起审批</button><div id="rs-approval-form" class="mt-2"></div></div>';
     const workflowSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">工作流流转</h4><div class="flex gap-2 flex-wrap">' + statusActions + '</div><div id="rs-recheck-result" class="mt-2"></div></div>';
     const rectSection = buildRectificationSection(sessionId, rects);
-    setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml(String(rs.name || '')) + ' ' + statusBadge + '</h3>' + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div>' + rectSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
+    // T-B6: 交互式图纸（session 有 file_ids 时显示）
+    const fileIds = (rs.file_ids as string[] | undefined) || [];
+    let drawingSection = '';
+    if (fileIds.length > 0) {
+      drawingSection = '<div class="mb-4 border-t pt-3"><h4 class="font-medium mb-2">🗺️ 交互式图纸</h4><div class="flex gap-2 mb-2"><button id="rs-load-interactive" class="modal-btn modal-btn-primary text-xs" onclick="loadInteractiveDrawing()">加载交互式图纸</button></div><div id="interactive-drawing-container" data-interactive-drawing="1" class="border rounded p-1 overflow-auto max-h-96 bg-white"></div></div>';
+    }
+    setModalBody('<h3 class="text-lg font-bold mb-4">审查会话: ' + escHtml(String(rs.name || '')) + ' ' + statusBadge + '</h3>' + workflowSection + '<div class="mb-4"><h4 class="font-medium mb-2">评论</h4>' + ch + commentForm + '</div>' + rectSection + drawingSection + '<div><h4 class="font-medium mb-2">审批流程</h4>' + fh + approvalTools + '</div><div class="flex gap-2 justify-end mt-4"><button class="modal-btn modal-btn-secondary" onclick="closeCollabModal()">关闭</button></div>');
   });
 }
 
