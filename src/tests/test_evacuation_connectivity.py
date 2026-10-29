@@ -253,5 +253,63 @@ class TestEvacuationRouteDedup:
         assert registry.get("EVAC-002").execute(primary) is not None
 
 
+class TestAreaUnitNormalization:
+    """EVAC 面积口径：area 双来源（mm²/m²）归一为 area_m2"""
+
+    def _room(self, area, width=4600, height=3000):
+        return SemanticEntity(
+            entity_id="room1",
+            entity_type="room",
+            bbox={"x": 0, "y": 0, "width": width, "height": height},
+            layer="general",
+            properties={"area": area},
+        )
+
+    def test_mm2_area_converted_and_original_kept(self):
+        ent = self._room(4355882.54)
+        SemanticAnalyzer()._normalize_area_units([ent])
+        assert ent.properties["area_m2"] == 4.36
+        # 原 area 保持不变，不影响 AREA 类规则既有口径
+        assert ent.properties["area"] == 4355882.54
+
+    def test_m2_area_kept_as_is(self):
+        ent = self._room(20.5)
+        SemanticAnalyzer()._normalize_area_units([ent])
+        assert ent.properties["area_m2"] == 20.5
+
+    def test_evac_002_compares_in_m2(self):
+        """mm² 大数不再被“面积>5000 跳过”误吞，EVAC-002 正常判定"""
+        from src.baa_engine.atomic_functions import FuncRegistry
+
+        registry = FuncRegistry()
+        entity = {
+            "id": "room1",
+            "type": "room",
+            "bbox": {"x": 0, "y": 0, "width": 4600, "height": 3000},
+            "properties": {
+                "area": 4355882.54,
+                "area_m2": 4.36,
+                "has_evacuation_route": True,
+                "evacuation_path_length": 40.0,
+            },
+        }
+        result = registry.get("EVAC-002").execute(entity)
+        assert result is not None and result.result == "FAIL"
+
+    def test_evac_002_still_skips_really_large_room(self):
+        from src.baa_engine.atomic_functions import FuncRegistry
+
+        entity = {
+            "id": "room2",
+            "type": "room",
+            "properties": {
+                "area_m2": 6000.0,
+                "has_evacuation_route": True,
+                "evacuation_path_length": 40.0,
+            },
+        }
+        assert FuncRegistry().get("EVAC-002").execute(entity) is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -240,6 +240,9 @@ class SemanticAnalyzer:
                     ent.properties["area"] = round(area_m2, 2)  # 操作
                     ent.properties["_area_source"] = "bbox_fallback"  # 操作
 
+        # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
+        self._normalize_area_units(entities)  # 操作
+
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
 
@@ -300,6 +303,13 @@ class SemanticAnalyzer:
             entities, relations, evacuation_routes
         )  # assign
 
+        # 拓扑证据度：房间仅有 ≤1 条空间关系时，其墙体未被识别进连通图，
+        # “无疏散路径/不连通”属证据不足（图纸解析缺口），不应判违规。
+        rel_degree = {}  # init: empty dict
+        for rel in relations:  # 循环
+            rel_degree[rel.source_id] = rel_degree.get(rel.source_id, 0) + 1  # 操作
+            rel_degree[rel.target_id] = rel_degree.get(rel.target_id, 0) + 1  # 操作
+
         # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
         route_by_room = {}  # init: empty dict
         for route in evacuation_routes:  # 循环
@@ -312,6 +322,9 @@ class SemanticAnalyzer:
                 ent.properties["is_dead_end"] = True  # 操作
             if ent.id in route_by_room:  # check: membership test
                 r = route_by_room[ent.id]  # assign
+                # 无路径且拓扑证据不足 → 跳过判定（避免把解析缺口报成违规）
+                if not r.get("has_route", False) and rel_degree.get(ent.id, 0) < 2:  # check
+                    continue  # 继续循环
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
                 if r.get("path_length") is not None:  # check: value is not None
                     ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
@@ -329,8 +342,10 @@ class SemanticAnalyzer:
             # 如果分析结果为空（无出口/无拓扑），则不标记——让 EVAC 原子函数跳过判定
             elif ent.type in ("room", "corridor"):  # 分支
                 if (
-                    "has_evacuation_route" not in ent.properties and evacuation_routes
-                ):  # check: membership test
+                    "has_evacuation_route" not in ent.properties
+                    and evacuation_routes
+                    and rel_degree.get(ent.id, 0) >= 2
+                ):  # check: 拓扑证据充分才判无路径
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
 
@@ -339,7 +354,7 @@ class SemanticAnalyzer:
         for item in connectivity:  # loop: for item in connectivity:
             conn_by_room[item["room_id"]] = item  # assign
         for ent in entities:  # loop: for ent in entities:
-            if ent.id in conn_by_room:  # check: membership test
+            if ent.id in conn_by_room and rel_degree.get(ent.id, 0) >= 2:  # check
                 c = conn_by_room[ent.id]  # assign
                 ent.properties["evacuation_connected"] = c.get("connected", False)  # assign
                 ent.properties["evacuation_bottleneck"] = c.get("bottleneck", False)  # assign
@@ -1101,6 +1116,26 @@ class SemanticAnalyzer:
     def _build_relations(self, entities):
         """构建实体间相邻关系。"""
         return _build_relations(self, entities)
+
+    def _normalize_area_units(self, entities) -> None:
+        """Step 1.8：把实体面积统一折算为 m² 写入 area_m2。
+
+        原始多边形面积（parsers/geometry.py）以图纸单位 mm² 记录，房间提取
+        （room.py）以 m² 记录，故 area 存在双口径。用 area/(bbox宽×高) 判别：
+        mm² 面积与 bbox 同量级（比值 >1e-3），m² 面积比值约 1e-6。
+        只写 area_m2，不改 area，避免影响既有 AREA 类规则。
+        """
+        for ent in entities:  # 循环
+            area = ent.properties.get("area", 0) or 0  # assign
+            if area <= 0:  # check
+                continue  # 继续循环
+            bbox = ent.bbox or {}  # assign
+            bw = bbox.get("width", 0) or 0  # assign
+            bh = bbox.get("height", 0) or 0  # assign
+            if bw > 0 and bh > 0 and area / (bw * bh) > 1e-3:  # check
+                ent.properties["area_m2"] = round(area / 1_000_000, 2)  # 操作
+            else:  # 分支
+                ent.properties["area_m2"] = round(area, 2)  # 操作
 
     def _infer_room_types(
         self,
