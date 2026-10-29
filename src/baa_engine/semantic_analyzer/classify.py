@@ -453,7 +453,10 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             # 弧线跨度 > 90° 视为房间轮廓
             if angle_span > 90:  # check: numeric comparison
                 return "room"
-        if 100 < radius < 2000:  # check: numeric comparison
+        # E6-T3: 装饰性微小弧线（hatch 填充轮廓等）→ other，避免误标为 window
+        if radius < 50:  # check: numeric comparison
+            return "other"
+        if 50 <= radius < 2000:  # check: numeric comparison
             return "door"
         return "window"
 
@@ -482,7 +485,8 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             ):  # check: membership test
                 return "evacuation_lighting"
             return "column"
-        return "column"
+        # E6-T3: 装饰性微小圆形（<50mm）→ other，避免误标为 column
+        return "other"
 
     # P34: SOLID/HATCH 实体可能是消防设备填充
     if dxf_type == "SOLID":  # condition: dxf_type == "SOLID":
