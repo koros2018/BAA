@@ -65,3 +65,6 @@ src/sdk/build/
 
 # T-C7 OCR 语言包（二进制产物，不入库）
 tessdata/
+
+# FP rate audit report
+data/fp_rate_audit_report.json
