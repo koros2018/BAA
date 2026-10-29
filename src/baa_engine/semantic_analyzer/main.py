@@ -46,6 +46,7 @@ class SemanticAnalyzer:
         self._classify_total = 0
         self._classify_unclassified = 0
         self._classify_block_default = 0
+        self._classify_other = 0
         self._t3_window_seen = set()
         self._t3_wall_seen = set()
         self._t3_wall_segs = {}
@@ -76,6 +77,7 @@ class SemanticAnalyzer:
         self._classify_total = 0
         self._classify_unclassified = 0
         self._classify_block_default = 0
+        self._classify_other = 0
         self._t3_window_seen = set()  # P127-T3: 每次分析重置窗线合并 gid
         self._t3_wall_seen = set()  # P127-T3: 每次分析重置墙实例合并 gid
         self._t3_wall_segs = {}  # P127-T3: 每次分析重置共享面线墙实例回填表
@@ -127,6 +129,23 @@ class SemanticAnalyzer:
                 primitives = _marked + random.sample(_unmarked, _budget)  # assign
             else:
                 primitives = _marked + _unmarked  # assign
+
+        # E6-T1: 退化几何预过滤（治理未分类率中的"噪声 other"）
+        # 空 layer + dxf_type=="unknown" + bbox 极小（<50mm）的图元为 CAD 解析噪声，
+        # 无建筑语义，直接跳过可降低 effective_unclassified_rate。
+        # 注：实际数据中 primitives 均有非空 layer 和正确 dxf_type，
+        # 此过滤器对当前图纸无效；保留代码供未来扩展至其他图纸类型。
+        _DEGENERATE_MAX_DIM_MM = 50
+        _filtered = []
+        for _p in primitives:
+            _layer = getattr(_p, "layer", "") or (_p.properties or {}).get("layer", "")
+            _dxftype = getattr(_p, "dxf_type", "unknown")
+            _bb = _p.bbox or {}
+            _max_dim = max(_bb.get("width", 0) or 0, _bb.get("height", 0) or 0)
+            if not _layer and _dxftype == "unknown" and _max_dim < _DEGENERATE_MAX_DIM_MM:
+                continue
+            _filtered.append(_p)
+        primitives = _filtered
 
         # Step 0.9: 图例学习（阶段 B M4）——分类前预扫描图例行结构，
         # 学习 block_name → entity_type 供 INSERT 分类查表（仅本图生效）
@@ -384,6 +403,7 @@ class SemanticAnalyzer:
                 "total": self._classify_total,
                 "unclassified": self._classify_unclassified,
                 "block_default": self._classify_block_default,
+                "other": self._classify_other,
                 "rate": (
                     round(self._classify_unclassified / self._classify_total, 4)
                     if self._classify_total
@@ -391,6 +411,8 @@ class SemanticAnalyzer:
                 ),
                 # 有效未分类率：把「块语义未覆盖回退 wall」一并计入，
                 # 才是块语义（T-A2/G7）可直接影响的度量口径。
+                # 注："other" 实体（几何兜底未归类）不纳入此公式；
+                # 如需单独统计可查 other 字段或 entity_types 中的 other 计数。
                 "effective_rate": (
                     round(
                         (self._classify_unclassified + self._classify_block_default)
