@@ -160,3 +160,149 @@ class TestAtomicFunctionsFull:
         """所有 func_id 都在 registry 中"""
         for func in ATOMIC_FUNCTIONS:
             assert REGISTRY.get(func.func_id) is not None
+
+
+# ── AREA 类守卫专项测试 ──────────────────────────────────────
+
+
+class TestAreaGuards:
+    """AREA 类原子函数的误报治理守卫专项测试。
+
+    验证 atomic_functions.py 通用 AREA 分支的多层守卫是否正确：
+    1. 适用性质守（人口密度、面积比）
+    2. 特化 subtype 守卫（普通 room 不触发特化 AREA 规则）
+    3. target_entities 语义修正（fire_elevator ≠ 前室）
+    4. bbox 兜底白名单 + 合理性检查
+    """
+
+    @staticmethod
+    def _entity(type_name: str, subtype: str = "", area_m2=None, area=None,
+                bbox=None, **props) -> dict:
+        ent = {"id": "E-001", "type": type_name}
+        if subtype:
+            ent["subtype"] = subtype
+        if bbox:
+            ent["bbox"] = bbox
+        p = dict(props)
+        if area_m2 is not None:
+            p["area_m2"] = area_m2
+        if area is not None:
+            p["area"] = area
+        ent["properties"] = p
+        return ent
+
+    def _val(self, func_id: str, entity: dict):
+        func = REGISTRY.get(func_id)
+        return func._extract_value(entity)
+
+    # ── 守卫 1：人口密度 AREA-020 无 people → None ───────────
+
+    def test_area020_no_people(self):
+        """AREA-020（5.0人/m²）无人口数据 → None"""
+        ent = self._entity("room", area_m2=100.0)
+        assert self._val("AREA-020", ent) is None
+
+    def test_area020_with_people(self):
+        """AREA-020 有 people → 返回密度"""
+        ent = self._entity("room", area_m2=100.0, people=200)
+        assert self._val("AREA-020", ent) == pytest.approx(2.0)
+
+    # ── 守卫 2：面积比 AREA-011/017 → 单窗实体无 floor_area → None ─
+
+    def test_area011_window_returns_none(self):
+        """AREA-011 排烟窗比 → 单 window 无地面面积 → None"""
+        ent = self._entity("window", area_m2=0.5)
+        assert self._val("AREA-011", ent) is None
+
+    def test_area017_window_returns_none(self):
+        """AREA-017 同 AREA-011 → None"""
+        ent = self._entity("window", area_m2=0.5)
+        assert self._val("AREA-017", ent) is None
+
+    # ── 守卫 3：特化 subtype 守卫 ────────────────────────────────
+
+    def test_area004_normal_room_returns_none(self):
+        """AREA-004（30㎡ 消防控制室）普通 room → None"""
+        ent = self._entity("room", subtype="", area_m2=50.0)
+        assert self._val("AREA-004", ent) is None
+
+    def test_area004_control_room_works(self):
+        """AREA-004 control_room 正常 → 返回面积"""
+        ent = self._entity("room", subtype="control_room", area_m2=50.0)
+        assert self._val("AREA-004", ent) == pytest.approx(50.0)
+
+    def test_area006_normal_room_returns_none(self):
+        """AREA-006（35㎡ 无障碍）普通 room → None"""
+        ent = self._entity("room", subtype="", area_m2=40.0)
+        assert self._val("AREA-006", ent) is None
+
+    def test_area016_normal_room_returns_none(self):
+        """AREA-016（20㎡ 消防控制室）普通 room → None"""
+        ent = self._entity("room", subtype="", area_m2=25.0)
+        assert self._val("AREA-016", ent) is None
+
+    # ── 守卫 4：target_entities 语义修正 ────────────────────────
+
+    def test_area019_fire_elevator_returns_none(self):
+        """AREA-019 消防电梯前室 → fire_elevator 实体是电梯标记而非前室 → None"""
+        ent = self._entity("fire_elevator", bbox={"width": 2000, "height": 2000})
+        assert self._val("AREA-019", ent) is None
+
+    def test_area013_window_returns_none(self):
+        """AREA-013 救援窗净面积 → window 是 CAD 符号 → None"""
+        ent = self._entity("window", bbox={"width": 2, "height": 2})
+        assert self._val("AREA-013", ent) is None
+
+    def test_area013_rescue_window_returns_none(self):
+        """AREA-013 → rescue_window 是文字标注 → None"""
+        ent = self._entity("rescue_window", bbox={"width": 397, "height": 265})
+        assert self._val("AREA-013", ent) is None
+
+    # ── 守卫 5：bbox 兜底白名单 ──────────────────────────────────
+
+    def test_area_bbox_door_returns_none(self):
+        """door 不在白名单 → bbox 兜底被拦截 → None"""
+        ent = self._entity("door", bbox={"width": 900, "height": 2100})
+        assert self._val("AREA-013", ent) is None
+
+    def test_area_bbox_text_returns_none(self):
+        """text 不在白名单 → None"""
+        ent = self._entity("text", bbox={"width": 500, "height": 300})
+        assert self._val("AREA-013", ent) is None
+
+    # ── 守卫 6：bbox 兜底合理性检查（<0.5㎡ 视为文字框） ────────
+
+    def test_area_bbox_tiny_antechamber_returns_none(self):
+        """antechamber bbox 0.18㎡（文字框）→ <0.5 → None"""
+        ent = self._entity("antechamber", bbox={"width": 525, "height": 350})
+        assert self._val("AREA-018", ent) is None
+
+    def test_area_bbox_small_antechamber_returns_none(self):
+        """antechamber bbox 0.4㎡ → <0.5 → None"""
+        ent = self._entity("antechamber", bbox={"width": 600, "height": 700})
+        assert self._val("AREA-018", ent) is None
+
+    def test_area_bbox_reasonable_antechamber_works(self):
+        """antechamber bbox 2.59㎡ → >0.5 → 正常返回"""
+        ent = self._entity(
+            "antechamber",
+            bbox={"width": 1971.52, "height": 1314.35},
+        )
+        val = self._val("AREA-018", ent)
+        assert val is not None
+        assert val == pytest.approx(2.59, rel=0.01)
+
+    def test_area_bbox_large_room_works(self):
+        """room bbox 100㎡ + 有效 subtype → 正常返回（AREA-004 需 control_room）"""
+        ent = self._entity("room", subtype="control_room",
+                           bbox={"width": 10000, "height": 10000})
+        val = self._val("AREA-004", ent)
+        assert val == pytest.approx(100.0)
+
+    def test_area_with_area_m2_bypasses_bbox_check(self):
+        """有 area_m2 权威口径时，不受 bbox 合理性检查影响"""
+        # 即使 area_m2=0.3 m²（小），也不应被 bbox 守卫拦截
+        # 因为 area_m2 是权威数据
+        ent = self._entity("room", subtype="control_room", area_m2=0.3)
+        val = self._val("AREA-004", ent)
+        assert val == pytest.approx(0.3)  # 权威数据直接返回

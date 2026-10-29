@@ -751,6 +751,110 @@ class AtomicFunction:  # class definition
                 return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
             return None
 
+        # ── 通用 AREA 类别分支 ────────────────────────────────
+        # 经验教训（100016220）：统一计算单位 + 单点换算，避免在多个 fun id handler
+        # 里反复判断数量级。AREA-003~AREA-022 此前无 handler → 全部返回 None。
+        if self.category == FuncCategory.AREA:
+            entity_type = entity.get("type", "")  # function call
+            entity_subtype = entity.get("subtype", "") or props.get("subtype", "")
+
+            # ── 适用性质守：单位/前提不匹配 → 跳过 ────────
+            # 1) 人口密度类（AREA-020 5.0人/m²）：需要 occupancy 数据
+            if func_id == "AREA-020":
+                people = props.get("people") or props.get("occupancy") or props.get("occupants")
+                if not people:
+                    return None  # 无人口数据，无法判人口密度
+                # 面积 = area_m2 或 area 换算
+                raw = props.get("area_m2", props.get("area", 0.0))
+                if raw > 10000:
+                    raw = raw / 1000000.0
+                if raw < 0.01:
+                    return None
+                # 返回人口密度 people/m²，与阈值 5.0 人/m² 比较
+                return people / raw
+
+            # 2) 面积比类（AREA-011/017 2% 排烟窗比）：需要 window_area + floor_area 比值
+            #    window_area 在 window 的 properties.area_m2；floor_area 不在
+            if func_id in ("AREA-011", "AREA-017"):
+                # 这两条规范实际需要"该窗户所属地面面积"——单窗实体无此数据，跳过
+                return None
+
+            # 3) 普通 room 被列入特化 AREA 目标时，需要 subtype 确认
+            #    如 AREA-004(control_room)、AREA-006(accessible_room)、
+            #    AREA-016(control_room)、AREA-022(alarm_center)、AREA-005(generator_room)
+            #    target_entities 含 "room" 是为了"识别不足时仍能覆盖"，但导致
+            #    30㎡/35㎡/20㎡ 等特化阈值被应用到所有普通 room → 大面积误报。
+            _specialty = {
+                "AREA-004": {"control_room", "fire_control_room"},
+                "AREA-006": {"accessible_room", "apartment"},
+                "AREA-016": {"control_room", "fire_control_room"},
+                "AREA-022": {"alarm_center", "control_room", "fire_control_room"},
+                "AREA-005": {"generator_room"},
+                "AREA-018": {"antechamber", "smoke_proof_lobby", "staircase_lobby"},
+                "AREA-019": {"antechamber", "fire_elevator_lobby", "elevator_lobby"},
+                "AREA-021": {"antechamber", "scissor_stair_lobby", "staircase_lobby"},
+                "AREA-002": {"elevator_lobby", "lobby"},
+            }
+            if func_id in _specialty:
+                specialty_subtypes = _specialty[func_id]
+                if entity_type == "room" and entity_subtype not in specialty_subtypes:
+                    return None  # 普通 room 不适用特化 AREA 规则
+
+            # 4) target_entities 语义修正：atomic 子包声明式注册的覆盖误差
+            #    AREA-019 包含 fire_elevator，但它是电梯标记而非前室 → 跳过
+            #    AREA-013 包含 window/rescue_window，但它们是 CAD 符号/文字标注
+            #    （window 来自 CIRCLE，bbox=2mm²；rescue_window 是规范文字）→ 跳过
+            if func_id == "AREA-019" and entity_type == "fire_elevator":
+                return None  # 电梯 ≠ 消防电梯前室
+            if func_id == "AREA-013" and entity_type in ("window", "rescue_window"):
+                return None  # CAD 符号/文字标注无物理面积
+
+            # 5) bbox 兜底白名单：bbox 对标记实体（文字框/CAD 符号）无物理意义。
+            #    只有 room-like 实体的 bbox 能近似代表空间范围。
+            #    先用权威口径（area_m2 / area）；都没有时才考虑 bbox 兜底，
+            #    但仅限白名单内实体类型。
+            _bbox_area_allowed = {
+                "room", "corridor", "stair", "antechamber", "lobby",
+                "fire_elevator_lobby", "elevator_lobby", "staircase_lobby",
+                "smoke_proof_lobby", "scissor_stair_lobby",
+                "refuge_floor", "refuge_area", "refuge_room",
+                "rescue_area", "rescue_ground", "floor", "fire_zone",
+                "natural_vent", "smoke_vent", "smoke_window",
+                "alarm_center", "control_room", "fire_control_room",
+                "generator_room", "accessible_room", "apartment",
+                "operating_room", "surgery_room", "bedroom",
+                "hospital_ward", "nursing_unit", "shelter",
+                "rescue_opening", "fire_platform",
+            }
+
+            # ── 面积提取（单位归一权威口径 area_m2 优先） ────────
+            val = props.get("area_m2", 0.0)
+            if val < 0.01:  # check: numeric comparison
+                raw_area = props.get("area", 0.0)
+                if raw_area < 0.01:
+                    # 权威口径都没值 → 尝试 bbox 兜底，但仅限白名单实体
+                    if entity_type not in _bbox_area_allowed:
+                        return None  # 标记实体，bbox 无物理意义，跳过
+                    bw = entity.get("bbox", {}).get("width", 0)
+                    bh = entity.get("bbox", {}).get("height", 0)
+                    if bw > 0 and bh > 0:
+                        raw_area = bw * bh  # mm²
+                    else:
+                        return None  # 无面积数据，跳过判定
+                if unit == "mm2":
+                    val = raw_area / 1000000.0
+                elif unit == "m2":
+                    val = raw_area
+                elif raw_area > 10000:  # mm² 启发式
+                    val = raw_area / 1000000.0
+                else:
+                    val = raw_area
+                # bbox 兜底合理性检查：面积过小（<0.5 m²）说明 bbox
+                # 来自文字框或符号标记，而非真实空间边界 → 跳过
+                if val < 0.5 and not props.get("area_m2") and not props.get("area"):
+                    return None
+            return val  # return: float
+
         # EVAC 类：疏散路径判定
         if func_id == "EVAC-001":  # 疏散路径是否存在
             if "has_evacuation_route" not in props:  # check: membership test
