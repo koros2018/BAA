@@ -34,6 +34,7 @@ from src.baa_engine.scope_aggregator import aggregate_exist_in_scopes, build_sco
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 
 REAL_DIR = PROJECT_ROOT / "data" / "drawings" / "real"
+FILES_DIR = PROJECT_ROOT / "data" / "files"
 REPORT_PATH = PROJECT_ROOT / "data" / "fp_rate_audit_report.json"
 
 # 测试夹具不是真实图纸，不计入误报评估
@@ -43,11 +44,15 @@ FIXTURE_PREFIXES = ("test_",)
 def _drawings(argv: list[str]) -> list[Path]:
     if argv:
         return [Path(p) for p in argv]
-    return [
-        p
-        for p in sorted(REAL_DIR.glob("*.dxf"))
-        if not p.name.startswith(FIXTURE_PREFIXES)
-    ]
+    drawings = []
+    # DXF from real dir
+    for p in sorted(REAL_DIR.glob("*.dxf")):
+        if not p.name.startswith(FIXTURE_PREFIXES):
+            drawings.append(p)
+    # DWG from files dir（E6-T4 ezdwg 直读保留图层信息）
+    for p in sorted(FILES_DIR.glob("*.dwg")):
+        drawings.append(p)
+    return drawings
 
 
 def run_review(dxf_path: Path) -> dict:
