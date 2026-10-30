@@ -5,7 +5,10 @@
 2. DIM-009 接受 doorway（target_entities 含 "doorway"）
 3. doorway gap_width_mm 单位转换正确（mm → m）
 4. 宽度阈值判定正确（PASS/FAIL/None）
-5. 过滤逻辑正确（<100mm→None, <0.8m→None, <1.3m 普通门→None for DIM-006）
+5. 过滤逻辑正确（<100mm→None, <0.8m→None, <1.3m 普通门/门洞→None for DIM-006）
+
+跨图纸治理（2026-10）：doorway 与普通 door 同口径，<1.3m 不判定（扫线法
+检出的标准门洞不具备人员密集场所疏散门语义）；>=1.3m 仍判定（保留召回）。
 """
 
 import pytest
@@ -33,20 +36,25 @@ class TestDIM006Doorway:
         assert result.result == "PASS"
         assert result.actual == pytest.approx(1.5)
 
-    def test_doorway_1000mm_fail(self, registry):
-        """doorway 1000mm → 1.0m < 1.4m → FAIL"""
+    def test_doorway_1000mm_skip(self, registry):
+        """doorway 1000mm < 1.3m → 标准门洞，跳过（None，跨图纸治理口径）"""
         f = registry.get("DIM-006")
         result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1000}})
-        assert result is not None
-        assert result.result == "FAIL"
-        assert result.actual == pytest.approx(1.0)
+        assert result is None
 
-    def test_doorway_1200mm_fail(self, registry):
-        """doorway 1200mm → 1.2m < 1.4m → FAIL（不受 1.3m 普通门过滤影响）"""
+    def test_doorway_1200mm_skip(self, registry):
+        """doorway 1200mm < 1.3m → 标准门洞，跳过（None，跨图纸治理口径）"""
         f = registry.get("DIM-006")
         result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1200}})
+        assert result is None
+
+    def test_doorway_1350mm_fail(self, registry):
+        """doorway 1350mm >= 1.3m → 候选疏散门，仍判定（1.35 < 1.4 → FAIL）"""
+        f = registry.get("DIM-006")
+        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1350}})
         assert result is not None
         assert result.result == "FAIL"
+        assert result.actual == pytest.approx(1.35)
 
     def test_doorway_narrow_too_small_skip(self, registry):
         """doorway 50mm < 100mm → 跳过（None）"""

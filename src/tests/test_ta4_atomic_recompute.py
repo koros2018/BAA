@@ -65,12 +65,14 @@ def test_dim004_corridor_width_dimension_source(registry):
 
 
 def test_dim001_stair_width_text_source(registry):
-    """楼梯净宽 ≥1.2m：TEXT 编码注入 width=1.3 → PASS；1.1 → FAIL。"""
+    """楼梯净宽 ≥1.1m（GB50016-5.5.18 通用最小值）：TEXT 编码注入 width=1.3 → PASS；1.05 → FAIL。"""
     func = registry._funcs["DIM-001"]
     ok = func.execute(_ent("stair", 0, 0, 2000, 1300, {"width": 1.3}))
     assert ok is not None and ok.result == "PASS"
-    bad = func.execute(_ent("stair", 0, 0, 2000, 1100, {"width": 1.1}))
+    bad = func.execute(_ent("stair", 0, 0, 2000, 1100, {"width": 1.05}))
     assert bad is not None and bad.result == "FAIL"
+    # 边界容差：1.09m（<2% 偏差，0.991*1.1）→ 测量误差跳过（None）
+    assert func.execute(_ent("stair", 0, 0, 2000, 1100, {"width": 1.09})) is None
 
 
 def test_dim113_door_mm_unit_auto_convert(registry):
