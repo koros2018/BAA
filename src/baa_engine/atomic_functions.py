@@ -534,16 +534,18 @@ class AtomicFunction:  # class definition
                 props.get("detection_source") == "yolo"
             ):  # condition: props.get("detection_source") == "yolo":
                 return None  # return: None
-            # DIM-006 疏散门净宽：exit_door 类型始终判定；普通 door/doorway 仅宽度 >= 1.3m 时判定
-            # 0.8~1.3m 的门是标准单开门/双开门，不是人员密集场所疏散门
-            if func_id == "DIM-006":  # condition: func_id == "DIM-006":
-                entity_type = entity.get("type", "")  # function call
-                # 跨图纸复测（2026-10，26 图）：doorway <1.3m 判定产生 1137 条
-                # FAIL（0.8~1.37m，avg 1.098m）——扫线法检出的是一切墙洞口，
-                # 标准门洞不具备人员密集场所疏散门语义。doorway 与普通 door
-                # 同口径：<1.3m 不判定；exit_door 有显式疏散语义，始终判定。
-                if entity_type != "exit_door" and val < 1.3:  # check: numeric comparison
-                    return None  # 普通门/门洞（<1.3m）不是疏散门，不适用此规范
+            # DIM-006 疏散门净宽：仅 exit_door 或显式标注为疏散门的实体判定
+            # 跨图纸复测（2026-10，32 图）：door 212条 + doorway 112条 FAIL
+            # （width 1.30~1.37m，CAD 标准单/双开门）。普通门/门洞不具备人员密集
+            # 场所疏散门语义，不应适用 GB50016-5.5.19（≥1.4m）。
+            # 修复：door/doorway 无 is_evacuation_door 标记一律跳过（Step 5.7
+            # 已为真·疏散门标注 is_evacuation_door=True）。
+            if func_id == "DIM-006":
+                entity_type = entity.get("type", "")
+                if entity_type != "exit_door":
+                    # 普通 door / doorway：有显式疏散语义才判定
+                    if not props.get("is_evacuation_door"):
+                        return None
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
                 return None  # return: None
