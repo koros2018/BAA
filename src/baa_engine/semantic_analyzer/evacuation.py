@@ -420,10 +420,15 @@ def _verify_evacuation_connectivity_impl(
                             "threshold": 1.2,  # code
                         }  # code
 
-            # 门宽度检查
+            # 门宽度检查（跨图纸复测：layer "0"/TEXT 误分类为 door 产生虚假窄门）
+            # 100% 的 EVAC-004 瓶颈来自 layer "0" 误分类实体（如 baa-file-0951e6c2f743: 136 房间全部来自 107 扇 layer-0 门）
+            # 跳过 layer "0" 的门；同时 < 0.5m 视为明显误分类（TEXT/LINE）不参与瓶颈判定
             if ent.type in ("door", "fire_door"):  # check: membership test
                 width = ent.properties.get("width", 0)  # assign
-                if width > 0 and width < 0.8:  # check: numeric comparison
+                layer = ent.layer  # assign
+                if layer == "0":  # condition: layer 0 = misclassified entity
+                    continue  # skip layer-0 doors (almost always misclassified LINE/TEXT)
+                if width >= 0.5 and width < 0.8:  # check: numeric comparison
                     bottleneck = True  # assign
                     bottleneck_details = {  # assign
                         "type": "door_too_narrow",  # code
