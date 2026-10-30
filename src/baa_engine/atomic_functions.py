@@ -876,6 +876,10 @@ class AtomicFunction:  # class definition
         if func_id == "EVAC-001":  # 疏散路径是否存在
             if "has_evacuation_route" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
+            # 跳过扫描法派生房间（line_chain_*/polyline_room_*），非真实房间
+            entity_id = entity.get("id", "")  # assign
+            if entity_id.startswith(("line_chain_", "polyline_room")):  # check: scanning artifact
+                return None  # 扫描法派生房间，不参与疏散判定
             # 大面积 room 疏散路径分析可能失败，跳过误报
             # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
             area = props.get("area_m2", props.get("area", 0.0))
