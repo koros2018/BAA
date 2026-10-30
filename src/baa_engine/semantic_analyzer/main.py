@@ -339,6 +339,26 @@ class SemanticAnalyzer:
         dead_end_ids = set(
             d["id"] for d in corridor_topology.get("dead_ends", [])
         )  # assign: membership check
+        # 疏散分析可靠性门控：
+        # 1. 稀疏度：evacuation_routes 覆盖 room 比例 <30% 时，整个拓扑分析不可靠，
+        #    不注入 has_evacuation_route=False（避免把解析缺口批量报成假负）
+        # 2. 最低置信度：即使 >=30%，若覆盖 <95% 也跳过 False 注入，
+        #    因为剩余未分析 room 的 rel_degree>=2 可能只是分析未完成而非真实无路径
+        # 诊断（2026-10）：baa-file-be6f4a6f84f3 覆盖率 87.1%，26 个未分析 room 全被判
+        # False → 误报；baa-file-c61a70fc6a5c 覆盖率 98.8%，只有 2 个未分析 room
+        total_rooms = sum(
+            1 for e in entities if e.type in ("room", "corridor")
+        )  # assign
+        covered_rooms = len(
+            set(r["room_id"] for r in evacuation_routes)
+        )  # assign
+        sparse_coverage = (
+            total_rooms > 0 and covered_rooms / total_rooms < 0.3
+        )  # assign
+        low_confidence = (
+            total_rooms > 0
+            and 0.3 <= covered_rooms / total_rooms < 0.95
+        )  # assign
         for ent in entities:  # 循环
             if ent.id in dead_end_ids:  # check: membership test
                 ent.properties["is_dead_end"] = True  # 操作
@@ -346,6 +366,9 @@ class SemanticAnalyzer:
                 r = route_by_room[ent.id]  # assign
                 # 无路径且拓扑证据不足 → 跳过判定（避免把解析缺口报成违规）
                 if not r.get("has_route", False) and rel_degree.get(ent.id, 0) < 2:  # check
+                    continue  # 继续循环
+                # 稀疏度门控：覆盖比例 <30% 时，拓扑分析整体不可靠
+                if not r.get("has_route", False) and sparse_coverage:  # check
                     continue  # 继续循环
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
                 if r.get("path_length") is not None:  # check: value is not None
@@ -362,24 +385,15 @@ class SemanticAnalyzer:
                         ent.properties["evacuation_route_secondary"] = True  # 操作
             # 对未找到路径的实体：如果疏散路径分析有结果但房间不在其中，标记为无路径
             # 如果分析结果为空（无出口/无拓扑），则不标记——让 EVAC 原子函数跳过判定
-            # 稀疏度门控：evacuation_routes 覆盖的 room 比例 <30% 时，
-            # 说明整个拓扑分析不可靠（DWG 图纸常见），未覆盖的 room 不注入 False
-            # （避免把解析缺口批量报成 449 条假负）
+            # 最低置信度门控：覆盖 30%~95% 时跳过 False 注入（诊断发现 be6f4a6f=87%
+            # 时 26 个未分析 room 全部误判为 False；c61a70fc=98.8% 时只有 2 个，可接受）
             elif ent.type in ("room", "corridor"):  # 分支
-                total_rooms = sum(
-                    1 for e in entities if e.type in ("room", "corridor")
-                )  # assign
-                covered_rooms = len(
-                    set(r["room_id"] for r in evacuation_routes)
-                )  # assign
-                sparse_coverage = (
-                    total_rooms > 0 and covered_rooms / total_rooms < 0.3
-                )  # assign
                 if (
                     "has_evacuation_route" not in ent.properties
                     and evacuation_routes
                     and rel_degree.get(ent.id, 0) >= 2
                     and not sparse_coverage
+                    and not low_confidence
                 ):  # check: 拓扑证据充分才判无路径
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
