@@ -577,17 +577,17 @@ class TestFuncExecute:  # class definition
         assert r.result == "FAIL"  # 断言
         assert r.severity == Severity.CRITICAL  # equality check
 
-    # 严重等级
+    # 严重等级（DIM-001 阈值 1.1m：偏差 ≤10% → MINOR，≤30% → MAJOR，否则 CRITICAL）
     def test_severity_minor(self, registry):  # function: def test_severity_minor(self, registry):
         r = registry.get("DIM-001").execute(
-            {"id": "S1", "type": "staircase", "properties": {"clear_width": 1.17}}
+            {"id": "S1", "type": "staircase", "properties": {"clear_width": 1.03}}
         )  # function call
         assert r.result == "FAIL"  # 断言
         assert r.severity == Severity.MINOR  # equality check
 
     def test_severity_major(self, registry):  # function: def test_severity_major(self, registry):
         r = registry.get("DIM-001").execute(
-            {"id": "S1", "type": "staircase", "properties": {"clear_width": 1.05}}
+            {"id": "S1", "type": "staircase", "properties": {"clear_width": 0.95}}
         )  # function call
         assert r.result == "FAIL"  # 断言
         assert r.severity == Severity.MAJOR  # equality check
@@ -2684,8 +2684,9 @@ class TestReviewScoring:  # class definition
     def test_confidence_threshold_edge(self):  # function: def test_confidence_threshold_edge(self):
         """结果极度接近阈值 → 置信度降权"""
         func = FuncRegistry().get("DIM-001")  # function call
-        # DIM-001 threshold=1.2, actual=1.19 → ratio 0.008 < 0.05
-        entity = {"type": "staircase", "properties": {"width": 1.19}}  # assignment
+        # DIM-001 threshold=1.1, actual=1.075 → ratio 0.023 < 0.05
+        # （1.075 < 0.98*1.1=1.078，不触发边界容差跳过）
+        entity = {"type": "staircase", "properties": {"width": 1.075}}  # assignment
         result = func.execute(entity)  # function call
         assert result is not None  # code
         assert result.confidence < 1.0  # code

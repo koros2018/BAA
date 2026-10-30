@@ -14,9 +14,12 @@ MODULE_FUNCS = [
         "疏散楼梯净宽判定",
         FuncCategory.DIMENSION,
         "GB50016-5.5.18",
-        "疏散楼梯净宽度不应小于1.2m",
+        # 5.5.18 通用最小净宽 1.1m（多层公建/住宅）；高层公共建筑 1.2m 由
+        # spec_data/gb50016_core.py 按建筑类型覆盖（跨图纸复测 2026-10：
+        # 1.2m 一刀切导致 254 条 1.1m 标准楼梯误报 FAIL）
+        "疏散楼梯净宽度不应小于1.1m",
         ">=",
-        1.2,
+        1.1,
         "m",
         target_entities=["staircase", "stair"],
     ),

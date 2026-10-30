@@ -386,6 +386,14 @@ class AtomicFunction:  # class definition
             # （真实图纸实测 0.397m 来自 TEXT 实体被误分类为 stair 的文本框长边）
             if func_id == "DIM-001" and val < 0.6:  # check: numeric comparison
                 return None
+            # DIM-001 边界容差：<2% 偏差视为测量误差，不报违规
+            # （与 DIM-004/DIM-113 同口径，用阈值而非硬编码，兼容建筑类型覆盖）
+            if (
+                func_id == "DIM-001"
+                and self.threshold > 0
+                and 0.98 <= (val / self.threshold) < 1.0
+            ):  # check: numeric comparison
+                return None  # 边界楼梯净宽，跳过判定
 
             # DIM-004 边界容差：<2% 偏差视为测量误差，不报违规
             if func_id == "DIM-004" and 0.98 <= (val / 1.1) < 1.0:  # check: numeric comparison
@@ -518,15 +526,16 @@ class AtomicFunction:  # class definition
                 props.get("detection_source") == "yolo"
             ):  # condition: props.get("detection_source") == "yolo":
                 return None  # return: None
-            # DIM-006 疏散门净宽：exit_door 类型始终判定；普通 door 仅宽度 >= 1.3m 时判定
+            # DIM-006 疏散门净宽：exit_door 类型始终判定；普通 door/doorway 仅宽度 >= 1.3m 时判定
             # 0.8~1.3m 的门是标准单开门/双开门，不是人员密集场所疏散门
             if func_id == "DIM-006":  # condition: func_id == "DIM-006":
                 entity_type = entity.get("type", "")  # function call
-                # P108: doorway 同 exit_door，始终判定（扫线法几何检测精度高于 YOLO）
-                if (
-                    entity_type not in ("exit_door", "doorway") and val < 1.3
-                ):  # check: numeric comparison
-                    return None  # 普通门（<1.3m）不是疏散门，不适用此规范
+                # 跨图纸复测（2026-10，26 图）：doorway <1.3m 判定产生 1137 条
+                # FAIL（0.8~1.37m，avg 1.098m）——扫线法检出的是一切墙洞口，
+                # 标准门洞不具备人员密集场所疏散门语义。doorway 与普通 door
+                # 同口径：<1.3m 不判定；exit_door 有显式疏散语义，始终判定。
+                if entity_type != "exit_door" and val < 1.3:  # check: numeric comparison
+                    return None  # 普通门/门洞（<1.3m）不是疏散门，不适用此规范
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
                 return None  # return: None
