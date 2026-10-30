@@ -367,8 +367,11 @@ class SemanticAnalyzer:
                 # 无路径且拓扑证据不足 → 跳过判定（避免把解析缺口报成违规）
                 if not r.get("has_route", False) and rel_degree.get(ent.id, 0) < 2:  # check
                     continue  # 继续循环
-                # 稀疏度门控：覆盖比例 <30% 时，拓扑分析整体不可靠
-                if not r.get("has_route", False) and sparse_coverage:  # check
+                # 稀疏度/最低置信度门控：覆盖比例 <95% 时整个分析不可靠，
+                # 即使 room 在 evacuation_routes 里也跳过 has_route=False 注入
+                # （诊断：be6f4a6f=87.1% 有 140 个 False 路由，其中 59 个
+                # rel_degree>=2 仍被判 EVAC-001；应视为分析缺口而非真实违规）
+                if not r.get("has_route", False) and (sparse_coverage or low_confidence):  # check
                     continue  # 继续循环
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
                 if r.get("path_length") is not None:  # check: value is not None
