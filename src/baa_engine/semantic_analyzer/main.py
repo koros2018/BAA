@@ -362,11 +362,24 @@ class SemanticAnalyzer:
                         ent.properties["evacuation_route_secondary"] = True  # 操作
             # 对未找到路径的实体：如果疏散路径分析有结果但房间不在其中，标记为无路径
             # 如果分析结果为空（无出口/无拓扑），则不标记——让 EVAC 原子函数跳过判定
+            # 稀疏度门控：evacuation_routes 覆盖的 room 比例 <30% 时，
+            # 说明整个拓扑分析不可靠（DWG 图纸常见），未覆盖的 room 不注入 False
+            # （避免把解析缺口批量报成 449 条假负）
             elif ent.type in ("room", "corridor"):  # 分支
+                total_rooms = sum(
+                    1 for e in entities if e.type in ("room", "corridor")
+                )  # assign
+                covered_rooms = len(
+                    set(r["room_id"] for r in evacuation_routes)
+                )  # assign
+                sparse_coverage = (
+                    total_rooms > 0 and covered_rooms / total_rooms < 0.3
+                )  # assign
                 if (
                     "has_evacuation_route" not in ent.properties
                     and evacuation_routes
                     and rel_degree.get(ent.id, 0) >= 2
+                    and not sparse_coverage
                 ):  # check: 拓扑证据充分才判无路径
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
