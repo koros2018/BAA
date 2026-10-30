@@ -335,6 +335,14 @@ class AtomicFunction:  # class definition
         if "floor" not in props:  # check: membership test
             confidence *= 0.95  # multiply
 
+        # 5. 宽度来源降权：bbox 推断的楼梯宽度系统性低估（P118 领域复核）
+        # STAIR bbox 长边 = 楼梯段水平投影长度（1.5~3m），短边 = 踏步宽（150~300mm）
+        # 实测值 0.60~1.06m 既非长边也非短边，是旋转后外接矩形的对角投影，
+        # 系统性低估真实净宽，置信度应从 1.0 降至 0.7
+        width_source = props.get("_width_source", "")  # function call
+        if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):  # condition: unreliable width source
+            confidence *= 0.7  # bbox 推断的楼梯宽度不可靠
+
         return round(max(0.1, min(1.0, confidence)), 2)  # return
 
     def _extract_value(
