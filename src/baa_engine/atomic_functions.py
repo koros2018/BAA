@@ -613,12 +613,12 @@ class AtomicFunction:  # class definition
                 val = props.get("width", props.get("clear_width", 0.0))  # function call
                 if val < 0.01:  # check: numeric comparison
                     return None  # 无宽度数据，跳过判定
-            # DIM-009 疏散出口宽度：仅适用于 exit/exit_door 或宽度 >= 1.3m 的 door
-            # 0.8~1.3m 的门是标准单开门，不是疏散出口
-            if (
-                entity_type not in ("exit", "exit_door", "doorway") and val < 1.3
-            ):  # check: numeric comparison
-                return None  # 普通门（<1.3m）不是疏散出口，不适用此规范
+            # DIM-009 疏散出口宽度：仅适用于 exit/exit_door；普通 door/doorway 仅宽度 >= 1.3m 时判定
+            # 0.8~1.3m 的门/门洞是标准单开门/建筑洞口，不是疏散出口
+            if entity_type != "exit" and entity_type != "exit_door" and val < 1.3:  # check: numeric comparison
+                # 跨图纸复测（2026-10，212 条）：doorway <1.3m 判定产生大量 FAIL
+                # （avg 0.836m，全 DWG 图纸上的标准门洞），doorway 与 door 同口径
+                return None  # 普通门/门洞（<1.3m）不是疏散出口，不适用此规范
             # 小门（<0.8m）不适用疏散出口宽度判定
             if val < 0.8:  # check: numeric comparison
                 return None  # return: None

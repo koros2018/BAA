@@ -77,26 +77,36 @@ class TestDIM006Doorway:
 
 
 class TestDIM009Doorway:
-    """DIM-009 疏散出口宽度（>=0.9m）对 doorway 的判定"""
+    """DIM-009 疏散出口宽度（>=0.9m）对 doorway 的判定
+
+    跨图纸治理（2026-10）：doorway 与 door 同口径，<1.3m 跳过
+    （标准门洞 0.8~0.9m 不是疏散出口）；>=1.3m 仍判定（保留召回）。
+    exit/exit_door 有显式疏散语义，始终判定。
+    """
 
     def test_target_entities_contains_doorway(self, registry):
         f = registry.get("DIM-009")
         assert "doorway" in f.target_entities
 
-    def test_doorway_1000mm_pass(self, registry):
-        """doorway 1000mm → 1.0m >= 0.9m → PASS"""
+    def test_doorway_1000mm_skip(self, registry):
+        """doorway 1000mm < 1.3m → 标准门洞，跳过（None，跨图纸治理口径）"""
         f = registry.get("DIM-009")
         result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1000}})
-        assert result is not None
-        assert result.result == "PASS"
-        assert result.actual == pytest.approx(1.0)
+        assert result is None
 
-    def test_doorway_800mm_fail(self, registry):
-        """doorway 800mm → 0.8m < 0.9m → FAIL"""
+    def test_doorway_800mm_skip(self, registry):
+        """doorway 800mm < 1.3m → 标准门洞，跳过（None）"""
         f = registry.get("DIM-009")
         result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 800}})
+        assert result is None
+
+    def test_doorway_1350mm_fail(self, registry):
+        """doorway 1350mm >= 1.3m → 候选疏散出口，仍判定（1.35 > 0.9 → PASS）"""
+        f = registry.get("DIM-009")
+        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1350}})
         assert result is not None
-        assert result.result == "FAIL"
+        assert result.result == "PASS"
+        assert result.actual == pytest.approx(1.35)
 
     def test_doorway_narrow_too_small_skip(self, registry):
         """doorway 50mm < 100mm → 跳过（None）"""
@@ -104,9 +114,17 @@ class TestDIM009Doorway:
         result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 50}})
         assert result is None
 
+    def test_exit_door_850mm_fail(self, registry):
+        """exit_door 850mm → 0.85m < 0.9m → FAIL（exit_door 始终判定）"""
+        f = registry.get("DIM-009")
+        result = f.execute({"type": "exit_door", "properties": {"clear_width": 0.85}})
+        assert result is not None
+        assert result.result == "FAIL"
+
     def test_doorway_entity_type_in_result(self, registry):
+        """doorway 1500mm >= 1.3m → 判定，entity_type 正确"""
         result = registry.get("DIM-009").execute(
-            {"type": "doorway", "properties": {"gap_width_mm": 1000}}
+            {"type": "doorway", "properties": {"gap_width_mm": 1500}}
         )
         assert result is not None
         assert result.entity_type == "doorway"
