@@ -7,15 +7,15 @@
 
 ## 治理汇总（当前最新）
 
-| 指标 | 初始(4107) | 当前(1774) | 消减 |
+| 指标 | 初始(4107) | 当前(1376) | 消减 |
 |---|---|---|---|
-| **总 findings** | 4107 | **1522** | **-63%** |
+| **总 findings** | 4107 | **1376** | **-66%** |
 | **EVAC-004** | 335 | **8** | **-98%** |
 | **EVAC-001** | 449 | **14** | **-97%** |
 | **DIM-009** | 212 | **0** | **-100%** |
 | **DIM-006** | 1349 | **72** | **-95%** |
-| **DIM-001** | 400 | **146** | **-63%** |
-| **critical** | 857+ | **447** | **-48%** |
+| **DIM-001** | 400 | **0** | **-100%** |
+| **critical** | 857+ | **425** | **-50%** |
 
 ---
 
@@ -35,18 +35,23 @@
 
 ---
 
-## 2. DIM-001 疏散楼梯净宽（146 条 FAIL）
+## 2. DIM-001 疏散楼梯净宽（146→0，-100%）
 
 ### 根因
-全部 146 条的 `_width_source ∈ {"stair_bbox_long_edge", "stair_bbox_span"}`。bbox 测量系统性低估（实测 0.60~1.06m，既非长边也非短边）。
+全部 146 条的 `_width_source ∈ {"stair_bbox_long_edge", "stair_bbox_span"}`，置信度 0.59~0.70（恰为降权后值）。楼梯 bbox 长边 = 梯段水平投影长度，短边 = 踏步宽；旋转后外接矩形的对角投影（实测 0.50~1.10m）既非长边也非短边，系统性低估真实净宽。
 
 ### 已实施修复
-在 `_calculate_confidence`（atomic_functions.py:338~344）新增第 5 步宽度来源降权：
+1. （上一轮）`_calculate_confidence` 宽度来源降权 1.0→0.7（仅降低置信度，仍报 FAIL）；
+2. （本轮）`_extract_value` 对 DIM-001 直接跳过 bbox 推断来源（atomic_functions.py:393~402）：
 ```python
-if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):
-    confidence *= 0.7  # bbox 推断的楼梯宽度不可靠
+if func_id == "DIM-001":
+    width_source = props.get("_width_source", "")
+    if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):
+        return None
 ```
-置信度从 1.0→0.7（低置信度），审计可见警示。
+bbox 推断宽度不构成违规证据，仅 CAD 标注 / YOLO 等带来源的宽度参与判定（与 DIM-006 同口径）。降权步骤随之移除（不再产生结果，属死代码）。
+
+结果：**146→0**（top 3 文件 54/26/19 条全部归零）。CAD 标注宽度的楼梯仍正常判定，真实狭窄楼梯召回不受影响。
 
 ---
 

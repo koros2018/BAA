@@ -5,10 +5,11 @@
 2. DIM-009 接受 doorway（target_entities 含 "doorway"）
 3. doorway gap_width_mm 单位转换正确（mm → m）
 4. 宽度阈值判定正确（PASS/FAIL/None）
-5. 过滤逻辑正确（<100mm→None, <0.8m→None, <1.3m 普通门/门洞→None for DIM-006）
+5. 过滤逻辑正确（<100mm→None, <0.8m→None, 无疏散语义的普通门/门洞→None）
 
-跨图纸治理（2026-10）：doorway 与普通 door 同口径，<1.3m 不判定（扫线法
-检出的标准门洞不具备人员密集场所疏散门语义）；>=1.3m 仍判定（保留召回）。
+跨图纸治理（2026-10）：DIM-006 仅对 exit_door 或显式标注
+is_evacuation_door=True 的实体判定——doorway 检出的一切墙洞口不具备
+人员密集场所疏散门语义（width 1.30~1.37m 的标准门洞曾被判 324 条误报）。
 """
 
 import pytest
@@ -29,12 +30,23 @@ class TestDIM006Doorway:
         assert "doorway" in f.target_entities
 
     def test_doorway_1500mm_pass(self, registry):
-        """doorway 1500mm → 1.5m >= 1.4m → PASS"""
+        """doorway 1500mm + 显式疏散语义 → 1.5m >= 1.4m → PASS"""
         f = registry.get("DIM-006")
-        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1500}})
+        result = f.execute(
+            {
+                "type": "doorway",
+                "properties": {"gap_width_mm": 1500, "is_evacuation_door": True},
+            }
+        )
         assert result is not None
         assert result.result == "PASS"
         assert result.actual == pytest.approx(1.5)
+
+    def test_doorway_1500mm_without_evac_skip(self, registry):
+        """doorway 1500mm 无疏散语义 → 标准门洞，跳过（None）"""
+        f = registry.get("DIM-006")
+        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1500}})
+        assert result is None
 
     def test_doorway_1000mm_skip(self, registry):
         """doorway 1000mm < 1.3m → 标准门洞，跳过（None，跨图纸治理口径）"""
@@ -49,9 +61,14 @@ class TestDIM006Doorway:
         assert result is None
 
     def test_doorway_1350mm_fail(self, registry):
-        """doorway 1350mm >= 1.3m → 候选疏散门，仍判定（1.35 < 1.4 → FAIL）"""
+        """doorway 1350mm + 显式疏散语义 → 1.35 < 1.4 → FAIL"""
         f = registry.get("DIM-006")
-        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1350}})
+        result = f.execute(
+            {
+                "type": "doorway",
+                "properties": {"gap_width_mm": 1350, "is_evacuation_door": True},
+            }
+        )
         assert result is not None
         assert result.result == "FAIL"
         assert result.actual == pytest.approx(1.35)
@@ -71,7 +88,12 @@ class TestDIM006Doorway:
     def test_doorway_entity_type_in_result(self, registry):
         """结果 entity_type 正确标注为 doorway"""
         f = registry.get("DIM-006")
-        result = f.execute({"type": "doorway", "properties": {"gap_width_mm": 1500}})
+        result = f.execute(
+            {
+                "type": "doorway",
+                "properties": {"gap_width_mm": 1500, "is_evacuation_door": True},
+            }
+        )
         assert result is not None
         assert result.entity_type == "doorway"
 

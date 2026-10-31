@@ -141,7 +141,8 @@ def test_count001_exit_count(registry):
 def test_recompute_deterministic(registry):
     """同一实体重复执行 N 次 → 结果与 actual 完全一致。"""
     func = registry._funcs["DIM-006"]
-    ent = _ent("door", 0, 0, 1500, 100, {"clear_width": 1.5})
+    # exit_door 具备显式疏散语义，DIM-006 始终判定（普通 door 无疏散语义时跳过）
+    ent = _ent("exit_door", 0, 0, 1500, 100, {"clear_width": 1.5})
     results = [func.execute(ent) for _ in range(5)]
     assert all(r is not None for r in results)
     assert len({(r.result, round(r.actual, 6)) for r in results}) == 1

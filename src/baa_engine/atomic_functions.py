@@ -335,14 +335,6 @@ class AtomicFunction:  # class definition
         if "floor" not in props:  # check: membership test
             confidence *= 0.95  # multiply
 
-        # 5. 宽度来源降权：bbox 推断的楼梯宽度系统性低估（P118 领域复核）
-        # STAIR bbox 长边 = 楼梯段水平投影长度（1.5~3m），短边 = 踏步宽（150~300mm）
-        # 实测值 0.60~1.06m 既非长边也非短边，是旋转后外接矩形的对角投影，
-        # 系统性低估真实净宽，置信度应从 1.0 降至 0.7
-        width_source = props.get("_width_source", "")  # function call
-        if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):  # condition: unreliable width source
-            confidence *= 0.7  # bbox 推断的楼梯宽度不可靠
-
         return round(max(0.1, min(1.0, confidence)), 2)  # return
 
     def _extract_value(
@@ -390,6 +382,16 @@ class AtomicFunction:  # class definition
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定
+            # DIM-001 楼梯净宽：bbox 推断宽度不是楼梯净宽的有效测量。
+            # 跨图纸复测（2026-10，32 图）：146 条 FAIL 全部来自
+            # stair_bbox_long_edge / stair_bbox_span（实测 0.50~1.10m）。
+            # 楼梯 bbox 长边 = 梯段水平投影长度，短边 = 踏步宽，旋转后外接矩形
+            # 对角投影既非长边也非短边，系统性低估真实净宽，不构成违规证据。
+            # 仅 CAD 标注 / YOLO 等带来源的宽度参与判定（DIM-006 同口径）。
+            if func_id == "DIM-001":
+                width_source = props.get("_width_source", "")
+                if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):
+                    return None
             # DIM-001 合理性下限：楼梯净宽 <0.6m 必为分类/测量错误
             # （真实图纸实测 0.397m 来自 TEXT 实体被误分类为 stair 的文本框长边）
             if func_id == "DIM-001" and val < 0.6:  # check: numeric comparison
