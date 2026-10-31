@@ -642,10 +642,26 @@ class AtomicFunction:  # class definition
                 return val / 1000.0  # return
             return val  # return
 
-        if func_id in ("DIST-002", "DIST-003"):  # 防火间距 / 袋形走道长度
-            val = props.get("distance", props.get("length", 0.0))  # function call
+        if func_id == "DIST-002":  # 防火间距：只认 building↔building 实测间距
+            # 跨图纸复测（2026-10，106 条）：building 实体均无 distance 属性，
+            # 旧逻辑回退到 length（建筑自身 bbox/LINE 长度，如 11800mm、200mm），
+            # 把建筑尺寸当成防火间距，产生 106 条误报（实测 0.11~11.8m）。
+            # 语义分析当前未计算建筑间距，无距离数据一律跳过。
+            val = props.get("distance", 0.0)  # function call
             if val < 0.01:  # check: numeric comparison
-                return None  # 无距离数据，跳过判定（语义分析未计算 building↔building 间距）
+                return None  # 无真实间距数据，跳过判定
+            if unit == "mm":  # condition: unit == "mm":
+                return val / 1000.0  # return
+            if unit == "m":  # condition: unit == "m":
+                return val  # return
+            if val > 100:  # check: numeric comparison
+                return val / 1000.0  # return
+            return val  # return
+
+        if func_id == "DIST-003":  # 袋形走道长度：length 即走道自身长度，语义正确
+            val = props.get("length", 0.0)  # function call
+            if val < 0.01:  # check: numeric comparison
+                return None  # 无长度数据，跳过判定
             if unit == "mm":  # condition: unit == "mm":
                 return val / 1000.0  # return
             if unit == "m":  # condition: unit == "m":
