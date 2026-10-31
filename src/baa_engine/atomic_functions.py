@@ -482,6 +482,13 @@ class AtomicFunction:  # class definition
             return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0  # return
 
         if func_id in ("DIM-005", "AREA-001"):  # 面积判定（窗/避难层）
+            # 跨图纸复测（2026-10，bca589）：111 个 COLU 层实体被误识别为 window，
+            # 全部 subtype=None / detection_source=None，bbox 面积被当窗面积。
+            # fire_window / rescue_window 由 TEXT 标注"防火窗"/"救援窗"创建；
+            # 无显式语义的纯 window 实体跳过（避免柱/线等误分类实体触发）。
+            if func_id == "DIM-005" and entity_type == "window":
+                if not props.get("subtype") and not props.get("detection_source"):
+                    return None  # 纯 window 无显式语义，跳过误分类实体
             val = props.get("area", props.get("width", 0) * props.get("height", 0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无面积数据，跳过判定
@@ -501,6 +508,10 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id in ("DIM-008", "DIM-010"):  # 排烟窗面积 / 消防救援窗面积
+            # DIM-010 窗口面积：仅对显式窗类型判定（同 DIM-005 修复逻辑）
+            if func_id == "DIM-010" and entity_type == "window":
+                if not props.get("subtype") and not props.get("detection_source"):
+                    return None  # 纯 window 无显式语义，跳过误分类实体
             val = props.get("area", props.get("width", 0) * props.get("height", 0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无面积数据，跳过判定
@@ -602,6 +613,9 @@ class AtomicFunction:  # class definition
 
         # L3 新增函数
         if func_id in ("DIM-008", "DIM-010"):  # 排烟窗面积 / 消防救援窗面积
+            if func_id == "DIM-010" and entity_type == "window":
+                if not props.get("subtype") and not props.get("detection_source"):
+                    return None  # 纯 window 无显式语义，跳过误分类实体
             val = props.get("area", props.get("width", 0) * props.get("height", 0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无面积数据，跳过判定
