@@ -571,7 +571,7 @@ class AtomicFunction:  # class definition
             # 小门（<0.8m）不适用疏散门净宽判定（设备门/检修门等）
             if func_id == "DIM-006" and val < 0.8:  # check: numeric comparison
                 return None  # return: None
-            # 设备门/管井门排除：图层含 设备/管线/管井/PIPE/喷淋/消防排水 等关键词
+            # 设备门/管井门排除：图层含 设备/管线/管井/PIPE/喷淋/消防排水/ EQUIP 等关键词
             # "SB" 是建筑通用图层（建筑=SB），排除会误杀所有建筑门，已移除
             if func_id == "DIM-006":  # condition: func_id == "DIM-006":
                 layer = entity.get("layer", "").upper()  # function call
@@ -582,8 +582,24 @@ class AtomicFunction:  # class definition
                     "PIPE",
                     "喷淋",
                     "消防排水",
+                    "EQUIP",  # 跨图纸复测（2026-10，6 条）：EQUIP_管件层误分类为 door
                 ]  # assignment
                 if any(kw.upper() in layer for kw in non_exit_layer_kw):  # check: membership test
+                    return None  # return: None
+            # DIM-006 bbox 合理性：非门实体（线/TEXT/hatch）误分类为 door 时，
+            # bbox 高度远低于真实门（真实门高度应 ≥1.8m）。
+            # 跨图纸复测（2026-10，9 条）：立-细/REIN/THIN 等层的线被误分类为 door，
+            # bbox_h≈0（线）或 bbox_h=850~900mm（异常矮），宽度过大（如 36600mm）。
+            # 真实疏散门宽度应在 0.7~2.5m 范围内；过宽或过窄均为误分类。
+            # 注意：bbox 尺寸为 mm，需先换算为 m 再比较。
+            if func_id == "DIM-006" and entity_type == "door":
+                bbox = entity.get("bbox") or {}
+                bh_m = bbox.get("height", 0) / 1000.0  # bbox 单位为 mm → m
+                bw_m = bbox.get("width", 0) / 1000.0  # bbox 单位为 mm → m
+                if bh_m < 0.5:  # check: 真实门高度应 >=1.8m，<0.5m 必为误分类
+                    return None  # 非门实体（线/hatch），跳过判定
+                # 过宽 bbox（>5m）或过窄宽度（<0.7m）均为异常
+                if bw_m > 5.0 or val < 0.7:  # check: bbox 异常
                     return None  # return: None
             # DIM-006 疏散门净宽边界容差：<2% 偏差视为测量误差，不报违规
             # 1.4m * 0.98 = 1.372m（含测量误差仍判定为合规）
