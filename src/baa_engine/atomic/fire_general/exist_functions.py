@@ -518,6 +518,7 @@ MODULE_FUNCS = [
         threshold=0,
         unit="",
         depends_on=[],
+        prerequisite_types={"smoke_exhaust", "smoke_vent", "fan"},  # 条件性规则：有排烟设施时触发（工业建筑走廊不要求排烟）
     ),
     AtomicFunction(
         func_id="EXIST-063",
@@ -671,6 +672,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="套",
         depends_on=[],
+        prerequisite_types={"smoke_exhaust", "smoke_vent", "fan"},  # 条件性规则：有排烟设施时才判定（工业建筑走廊不要求排烟）
     ),
     AtomicFunction(
         func_id="EXIST-076",
@@ -819,7 +821,6 @@ MODULE_FUNCS = [
             "gas_fire_suppression",
             "gas_extinguishing",
             "fire_extinguishing",
-            "equipment",
         },
         operator=">=",
         threshold=1.0,
