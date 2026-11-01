@@ -379,6 +379,15 @@ class AtomicFunction:  # class definition
                 )
                 if etype == "door" and not explicit:  # check: applicability
                     return None  # 普通门适用性未知，不判疏散门净宽
+            # DIM-113 bbox 合理性：非门实体（线/TEXT/hatch）误分类为 door 时，
+            # bbox 一边接近 0（如 bbox_h=0 的线，bbox_w=0 的线，或 TEXT 框）。
+            # 跨图纸复测（2026-10，35 条）：DOOR_FIRE_TEXT / THIN / COLU_HATCH /
+            # 抹灰 / fuzhu 等层误分类实体，bbox 一边≈0，宽度来自投影而非真实门宽。
+            if func_id == "DIM-113":
+                bbox = entity.get("bbox") or {}
+                bw, bh = bbox.get("width", 0), bbox.get("height", 0)
+                if bw < 0.05 or bh < 0.05:  # check: bbox 合理性
+                    return None  # 非门实体（线/TEXT/hatch），跳过判定
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定

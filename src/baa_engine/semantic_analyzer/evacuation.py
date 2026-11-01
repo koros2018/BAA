@@ -56,6 +56,11 @@ def _mark_evacuation_doors_impl(
     for door in entities:
         if door.type != "door":
             continue
+        # 跨图纸复测（2026-10）：layer "0" 误分类实体（TEXT/LINE）可被标为
+        # is_evacuation_door=True（因与 exit 相邻），进而触发 DIM-113 误报。
+        # 与 EVAC-004 修复同口径：跳过 layer "0" 门。
+        if door.layer == "0":
+            continue
         if adj.get(door.id, set()) & strict_exit_ids:
             evidence[door.id] = "exit_adjacent"
 
@@ -68,6 +73,9 @@ def _mark_evacuation_doors_impl(
         for node_id in route.get("path") or []:
             ent = by_id.get(node_id)
             if ent is not None and ent.type == "door":
+                # layer "0" 误分类门跳过（同 exit_adjacent 分支）
+                if getattr(ent, "layer", "") == "0":
+                    continue
                 evidence.setdefault(node_id, "on_evacuation_route")
 
     for door_id, source in evidence.items():

@@ -7,9 +7,9 @@
 
 ## 治理汇总（当前最新）
 
-| 指标 | 初始(4107) | 当前(约1168) | 消减 |
+| 指标 | 初始(4107) | 当前(约1058) | 消减 |
 |---|---|---|---|
-| **总 findings** | 4107 | **~1168** | **~-72%** |
+| **总 findings** | 4107 | **~1058** | **~-74%** |
 | **EVAC-004** | 335 | **8** | **-98%** |
 | **EVAC-001** | 449 | **14** | **-97%** |
 | **DIM-009** | 212 | **0** | **-100%** |
@@ -18,7 +18,8 @@
 | **DIST-002** | 106 | **0** | **-100%** |
 | **DIM-005** | 106 | **0** | **-100%** |
 | **DIM-010** | 106 | **0** | **-100%** |
-| **critical** | 857+ | **~320** | **~-63%** |
+| **DIM-113** | 64 | **~35** | **~-45%** |
+| **critical** | 857+ | **~200** | **~-77%** |
 
 ---
 
@@ -117,7 +118,29 @@ fire_window / rescue_window 类型不受影响（它们有显式 subtype 或检�
 
 ---
 
-## 7. 待治理 Top FAIL
+## 7. DIM-113 房间疏散门净宽（64→~35，-45%）
+
+### 根因（两层）
+1. **layer "0" 误分类门**：`mark_evacuation_doors` 将 layer "0" 实体（TEXT/LINE）
+   标为 `is_evacuation_door=True`（因与 exit 相邻或位于疏散路径上），
+   进而触发 DIM-113 判定（如 ecf4a9011541 的 12 条 COLU 层误分类门）。
+2. **非门实体误分类**：DOOR_FIRE_TEXT（TEXT 实体框）、THIN（线，bbox_h=0）、
+   COLU_HATCH（柱填充）、抹灰/fuzhu（辅助线）等层的线/文本被误分类为 door，
+   bbox 一边≈0，宽度来自投影而非真实门宽。
+
+### 已实施修复
+1. `_mark_evacuation_doors_impl`（evacuation.py:59~63, 77~79）：两个分支均跳过
+   `layer=="0"` 的门（exit_adjacent 和 on_evacuation_route 路径）。
+2. `_extract_value`（atomic_functions.py:382~390）：DIM-113 增加 bbox 合理性检查——
+   bbox width<0.05m 或 height<0.05m 时跳过判定（过滤线/hatch/TEXT 误分类实体）。
+
+结果：64→35（约-45%）。剩余 35 条含 `立-门窗` 层真实窄门（需领域复核）和少量
+DOOR_FIRE_TEXT/THIN 非零 bbox 实体（边界情况）。召回验证：真实门 0.8m（bbox
+0.8×2.0m）→ FAIL，线/TEXT → SKIP。test_evacuation_connectivity + test_ta4 29项通过。
+
+---
+
+## 8. 待治理 Top FAIL
 
 | 规则 | FAIL | 根因 | 状态 |
 |---|---|---|---|
