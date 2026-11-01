@@ -106,6 +106,7 @@ class AtomicFunction:  # class definition
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
     depends_on: List[str] = field(default_factory=list)  # 依赖的前置函数ID列表
     requires_global_context: bool = False  # P70: 需要全局上下文判定，不在逐实体循环中执行
+    prerequisite_types: List[str] = field(default_factory=list)  # 条件性规则：前置实体类型（如 EXIST-067 需 fire_wall 存在才判定）
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
@@ -1183,6 +1184,10 @@ class FuncRegistry:  # class definition
                 continue
             targets = set(f.target_entities) if f.target_entities else set()
             if targets and not targets.intersection(entity_types_in_drawing):
+                continue
+            # 条件性规则：前置实体类型缺失时跳过（如 EXIST-067 需 fire_wall 存在才判定）
+            prereqs = set(getattr(f, "prerequisite_types", []) or [])
+            if prereqs and not prereqs.intersection(entity_types_in_drawing):
                 continue
             to_check.append(f)
 

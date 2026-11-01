@@ -127,6 +127,10 @@ def run_review(dxf_path: Path) -> dict:
         targets = set(func.target_entities or [])
         if targets and not targets.intersection(entity_types_in_drawing):
             continue  # 目标类型在图中完全不存在 → 覆盖问题，不判违规
+        # 条件性规则：前置实体类型缺失时跳过（如 EXIST-067 需 fire_wall 存在才判定）
+        prereqs = set(getattr(func, "prerequisite_types", []) or [])
+        if prereqs and not prereqs.intersection(entity_types_in_drawing):
+            continue
         severity = "critical"
         scope_info = ""
         if targets:

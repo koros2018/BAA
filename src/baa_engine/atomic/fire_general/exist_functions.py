@@ -564,6 +564,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="级",
         depends_on=[],
+        prerequisite_types={"fire_wall"},  # 条件性规则：防火墙上必须开设洞口时才判定，无防火墙跳过
     ),
     AtomicFunction(
         func_id="EXIST-068",

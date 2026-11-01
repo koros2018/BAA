@@ -577,6 +577,10 @@ async def review(  # code
             func_targets = set(func.target_entities) if func.target_entities else set()
             if func_targets and not func_targets.intersection(entity_types_in_drawing):
                 continue
+            # 条件性规则：前置实体类型缺失时跳过（如 EXIST-067 需 fire_wall 存在才判定）
+            prereqs = set(getattr(func, "prerequisite_types", []) or [])
+            if prereqs and not prereqs.intersection(entity_types_in_drawing):
+                continue
             scope_info = ""
             severity = "critical"
             if func_targets:
