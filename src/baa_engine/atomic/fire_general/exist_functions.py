@@ -251,6 +251,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="个",
         depends_on=[],
+        prerequisite_types={"fire_alarm"},  # 条件性规则：设有火灾自动报警系统才判定，无则跳过
     ),
     AtomicFunction(
         func_id="EXIST-021",
@@ -263,6 +264,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="个",
         depends_on=[],
+        prerequisite_types={"exit_door"},  # 条件性规则：仅疏散门（exit_door）有开启方向要求，无则跳过
     ),
     AtomicFunction(
         func_id="EXIST-022",
