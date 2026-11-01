@@ -554,6 +554,7 @@ MODULE_FUNCS = [
         threshold=0,
         unit="",
         depends_on=[],
+        prerequisite_types={"staircase"},  # 条件性规则：疏散楼梯间存在才判定，无楼梯间跳过
     ),
     AtomicFunction(
         func_id="EXIST-067",
@@ -621,6 +622,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="个",
         depends_on=[],
+        prerequisite_types={"control_room", "fire_control_room"},  # 条件性规则：消防控制室存在才判定，无则跳过
     ),
     AtomicFunction(
         func_id="EXIST-072",
