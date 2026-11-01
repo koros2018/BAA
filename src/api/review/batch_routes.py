@@ -74,7 +74,9 @@ def _run_exist_scope_batch(entities, registry_funcs):
             if agg["overall"] == "pass":
                 continue
             if agg["overall"] == "partial":
-                # 分布不均 → 区域提示级（不算误报 FAIL 也不漏）
+                # 分布不均但目标实体在全局已存在 → 不是违规，跳过
+                if any(func.matches(e) for e in entities):
+                    continue
                 severity = "low"
                 scope_info = (
                     f"；以下区域未检出({len(agg['missing_scopes'])}"

@@ -591,7 +591,10 @@ async def review(  # code
                 if agg["overall"] == "pass":
                     continue  # 所有作用域均命中：不产生缺失 finding
                 if agg["overall"] == "partial":
-                    # 分布不均（网格≠防火分区，降级为区域提示，不算误报 FAIL 也不漏）
+                    # 分布不均但目标实体在全局已存在 → 不是违规，跳过
+                    if any(func.matches(e) for e in entities):
+                        continue
+                    # 纯 partial（全局也存在但作用域内分布不均）：降级为区域提示
                     severity = "low"
                     scope_info = (
                         f"；以下区域未检出({len(agg['missing_scopes'])}"
