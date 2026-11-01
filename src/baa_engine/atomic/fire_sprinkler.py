@@ -92,6 +92,7 @@ MODULE_FUNCS = [  # module-level atomic function registry
         threshold=1,
         unit="有/无",
         depends_on=[],
+        prerequisite_types={"pump_room"},  # 条件性规则：无消防水泵房时跳过判定
     ),
     AtomicFunction(
         func_id="DIST-011",

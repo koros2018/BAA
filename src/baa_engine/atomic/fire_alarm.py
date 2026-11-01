@@ -380,6 +380,7 @@ MODULE_FUNCS = [  # module-level atomic function registry
         threshold=1.0,
         unit="处",
         depends_on=[],
+        prerequisite_types={"fire_door"},  # 条件性规则：无常开防火门时跳过判定
     ),
     AtomicFunction(
         func_id="EXIST-114",

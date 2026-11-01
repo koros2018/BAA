@@ -861,6 +861,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="处",
         depends_on=[],
+        prerequisite_types={"fire_wall"},  # 条件性规则：无防火墙时跳过判定
     ),
     AtomicFunction(
         func_id="EXIST-091",
@@ -885,6 +886,7 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="处",
         depends_on=[],
+        prerequisite_types={"curtain_wall"},  # 条件性规则：无建筑幕墙时跳过判定
     ),
     AtomicFunction(
         func_id="EXIST-093",
