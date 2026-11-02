@@ -389,13 +389,13 @@ class AtomicFunction:  # class definition
                 bw, bh = bbox.get("width", 0), bbox.get("height", 0)
                 if bw < 0.05 or bh < 0.05:  # check: bbox 合理性
                     return None  # 非门实体（线/TEXT/hatch），跳过判定
-            # DIM-113 宽度下限：width < 0.5m 必为 bbox 投影误差（非真实门宽）
-            # 跨图纸复测（2026-10）：13 条 FAIL 中 0.18~0.50m 均为投影错误
+            # DIM-113 宽度下限：width <= 0.6m 视为非人员通行门（设备门/管井门/检修门）
+            # 跨图纸复测（2026-11）：DOOR_2805(0.58m)/5467/6002/8318(0.60m) 疑似设备门
             if func_id == "DIM-113":
                 val = props.get("width", props.get("clear_width", 0.0))
                 converted = val / 1000.0 if unit == "mm" else val
-                if converted < 0.5:
-                    return None  # bbox 投影误差，跳过判定
+                if converted <= 0.6:
+                    return None  # 非人员通行门（设备/管井/检修门），跳过判定
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定
@@ -903,6 +903,14 @@ class AtomicFunction:  # class definition
                 if not vf:
                     return None  # 无排烟量属性，跳过判定
 
+            # P130: AREA-018/019/021 前室面积：极小 ante chamber（<2m²）几乎一定是误分类
+            # 跨图纸复测（2026-11）：ANTECHAMBER_7087(0.77m²)/6314(1.0m²)/4915(1.87m²)
+            # 极小面积不符合前室功能需求（最小前室通常 ≥3m²），疑似管道井/设备间误标
+            if func_id in ("AREA-018", "AREA-019", "AREA-021") and entity_type in ("antechamber", "fire_elevator_lobby", "scissor_stair_lobby"):
+                area_val = props.get("area_m2") or props.get("area", 0.0)
+                if area_val and area_val < 2.0:  # check: numeric comparison
+                    return None  # 极小 ante chamber，疑似误分类，跳过判定
+
             # 5) bbox 兜底白名单：bbox 对标记实体（文字框/CAD 符号）无物理意义。
             #    只有 room-like 实体的 bbox 能近似代表空间范围。
             #    先用权威口径（area_m2 / area）；都没有时才考虑 bbox 兜底，
@@ -976,7 +984,12 @@ class AtomicFunction:  # class definition
             area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # return: None
-            return props.get("evacuation_path_length", props.get("travel_distance", 0.0))  # return
+            val = props.get("evacuation_path_length", props.get("travel_distance", 0.0))
+            # P130: BFS 路径长度使用 bbox 边缘距离累加，超过 80m 基本为路径计算 bug
+            # （如 ROOM_9100=176m、ROOM_4599=112m、ROOM_755=78m 均为异常值）
+            if val and val > 80.0:  # check: numeric comparison
+                return None  # 路径计算异常，跳过判定
+            return val  # return
         if func_id == "EVAC-003":  # 疏散路径是否超距
             if "evacuation_too_far" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
