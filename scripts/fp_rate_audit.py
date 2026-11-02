@@ -245,24 +245,83 @@ def main(argv: list[str]) -> int:
         if top:
             print(f"     Top 函数: {top}", flush=True)
 
-    print("\n=== 汇总 ===", flush=True)
+    print("\n=== 汇总（去重前）===")
     all_findings = [
         f for r in reports if r.get("success") for f in r["findings"]
     ]
     print(f"findings 总数: {len(all_findings)}", flush=True)
+
+    # ── 跨图纸去重 + 规则合并 ──────────────────────────
+    # 1. 同实体同规则跨文件去重：保留最高严重度
+    sev_order = {"critical": 0, "major": 1, "minor": 2, "low": 3}
+
+    deduped = {}
+    for r in reports:
+        if not r.get("success"): continue
+        for f in r["findings"]:
+            eid = f.get("entity_id", "")
+            fid = f["func_id"]
+            key = (eid, fid)
+            sev = sev_order.get(f.get("severity", "minor"), 9)
+            if key not in deduped or sev < sev_order.get(deduped[key]["_sev"], 9):
+                deduped[key] = {**f, "_dedup_keys": [(r["file"], eid)], "_sev": sev}
+            else:
+                deduped[key]["_dedup_keys"].append((r["file"], eid))
+
+    # 2. EVAC-002 + EVAC-003 合并（同房间疏散距离超标）
+    evac_merge = {}
+    merged_findings = []
+    for key, f in deduped.items():
+        eid, fid = key
+        if fid in ("EVAC-002", "EVAC-003") and eid:
+            grp = evac_merge.setdefault(eid, [])
+            grp.append(f)
+        else:
+            merged_findings.append(f)
+    for eid, items in evac_merge.items():
+        worst = min(items, key=lambda x: x["_sev"])
+        merged_findings.append({
+            **worst,
+            "func_id": "EVAC-002+003",
+            "explanation": (worst.get("explanation", "") + " [EVAC-002+003 合并]")[:160],
+            "_merged": ["EVAC-002", "EVAC-003"],
+            "_dedup_keys": [k for x in items for k in x.get("_dedup_keys", [])],
+        })
+
+    # 3. AREA-018/019/021 同 ante chamber 去重：只保留最严重一条
+    area_merge = {}
+    final_findings = []
+    for f in merged_findings:
+        eid = f.get("entity_id", "")
+        fid = f["func_id"]
+        if fid in ("AREA-018", "AREA-019", "AREA-021") and eid and "ANTECHAMBER" in eid.upper():
+            grp = area_merge.setdefault(eid, [])
+            grp.append(f)
+        else:
+            final_findings.append(f)
+    for eid, items in area_merge.items():
+        worst = min(items, key=lambda x: x["_sev"])
+        worst["_merged"] = [x["func_id"] for x in items]
+        final_findings.append(worst)
+
+    all_findings_deduped = final_findings
+    print(f"\n=== 汇总（去重后）===")
+    print(f"findings 总数: {len(all_findings_deduped)} (去重 {len(all_findings) - len(all_findings_deduped)} 条)", flush=True)
     print(
         "严重度分布: "
-        + str(dict(Counter(f["severity"] for f in all_findings).most_common())),
+        + str(dict(Counter(f["severity"] for f in all_findings_deduped).most_common())),
         flush=True,
     )
-    print(
-        "来源分布: "
-        + str(dict(Counter(f["source"] for f in all_findings).most_common())),
-        flush=True,
-    )
-    print("\n函数 FAIL 排行:", flush=True)
-    for fid, n in Counter(f["func_id"] for f in all_findings).most_common(15):
-        print(f"  {fid:<14} {n}", flush=True)
+    print("\n函数 FAIL 排行（去重后）:", flush=True)
+    for fid, n in Counter(f["func_id"] for f in all_findings_deduped).most_common(15):
+        print(f"  {fid:<18} {n}", flush=True)
+
+    print("\n合并详情:", flush=True)
+    for f in all_findings_deduped:
+        merged = f.get("_merged")
+        if merged:
+            keys = ", ".join(f"{k[0][:25]}" for k in f.get("_dedup_keys", [])[:3])
+            print(f"  {f['func_id']}: {merged} → {f['entity_id']} ({keys})", flush=True)
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT_PATH, "w", encoding="utf-8") as fh:

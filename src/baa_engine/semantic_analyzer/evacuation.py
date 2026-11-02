@@ -436,7 +436,7 @@ def _verify_evacuation_connectivity_impl(
                 layer = ent.layer  # assign
                 if layer == "0":  # condition: layer 0 = misclassified entity
                     continue  # skip layer-0 doors (almost always misclassified LINE/TEXT)
-                if width >= 0.5 and width < 0.8:  # check: numeric comparison
+                if width >= 0.5 and width < 0.79:  # 容差：>=0.79m（含浮点0.80≈0.7999）不判瓶颈
                     bottleneck = True  # assign
                     bottleneck_details = {  # assign
                         "type": "door_too_narrow",  # code
@@ -448,7 +448,7 @@ def _verify_evacuation_connectivity_impl(
             # P107: 扫线法门洞宽度检查（gap_width_mm 单位 mm）
             if ent.type == "doorway":  # check: membership test
                 gap_mm = ent.properties.get("gap_width_mm", 0)  # assign
-                if gap_mm > 0 and gap_mm < 800:  # check: numeric comparison <0.8m
+                if gap_mm > 0 and gap_mm < 790:  # 容差：>=790mm 不判瓶颈（对应 0.79m）
                     bottleneck = True  # assign
                     bottleneck_details = {  # assign
                         "type": "doorway_too_narrow",  # code
