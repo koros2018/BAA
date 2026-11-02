@@ -389,6 +389,13 @@ class AtomicFunction:  # class definition
                 bw, bh = bbox.get("width", 0), bbox.get("height", 0)
                 if bw < 0.05 or bh < 0.05:  # check: bbox 合理性
                     return None  # 非门实体（线/TEXT/hatch），跳过判定
+            # DIM-113 宽度下限：width < 0.5m 必为 bbox 投影误差（非真实门宽）
+            # 跨图纸复测（2026-10）：13 条 FAIL 中 0.18~0.50m 均为投影错误
+            if func_id == "DIM-113":
+                val = props.get("width", props.get("clear_width", 0.0))
+                converted = val / 1000.0 if unit == "mm" else val
+                if converted < 0.5:
+                    return None  # bbox 投影误差，跳过判定
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无宽度数据，跳过判定
@@ -699,6 +706,10 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "DIST-003":  # 袋形走道长度：length 即走道自身长度，语义正确
+            # 跳过扫描法派生走廊（polyline_corridor_*），非真实建筑走廊
+            entity_id = entity.get("id", "")
+            if entity_id.startswith("polyline_corridor_"):
+                return None
             val = props.get("length", 0.0)  # function call
             if val < 0.01:  # check: numeric comparison
                 return None  # 无长度数据，跳过判定
