@@ -896,6 +896,12 @@ class AtomicFunction:  # class definition
                 return None  # 电梯 ≠ 消防电梯前室
             if func_id == "AREA-013" and entity_type in ("window", "rescue_window"):
                 return None  # CAD 符号/文字标注无物理面积
+            # AREA-012 汽车库排烟量：需要 volumetric_flow（m³/h）属性
+            # fan 实体只有 bbox 面积（0.15~0.08m²），无排烟量数据 → 全部误报
+            if func_id == "AREA-012" and entity_type == "fan":
+                vf = props.get("volumetric_flow") or props.get("air_flow") or props.get("flow_rate")
+                if not vf:
+                    return None  # 无排烟量属性，跳过判定
 
             # 5) bbox 兜底白名单：bbox 对标记实体（文字框/CAD 符号）无物理意义。
             #    只有 room-like 实体的 bbox 能近似代表空间范围。
@@ -994,8 +1000,8 @@ class AtomicFunction:  # class definition
             # 连通性 = 1.0（连通），瓶颈 = 0.0（有瓶颈）
             connected = props.get("evacuation_connected", False)  # function call
             bottleneck = props.get("evacuation_bottleneck", False)  # function call
-            if not connected:  # check: negated condition
-                return 0.0  # 不连通
+            if not connected:  # 不连通 → EVAC-001 已报告，EVAC-004 跳过避免重复
+                return None
             if bottleneck:  # condition: bottleneck:
                 return 0.0  # 有瓶颈
             return 1.0  # 连通且无瓶颈
