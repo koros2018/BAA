@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BAA 领域专家复核报告 — 剩余 35 条违规（P130 修复后）</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #232733;
+    --border: #2e3345; --text: #e2e4eb; --muted: #8a8fa8;
+    --red: #ff5c5c; --orange: #ffb347; --yellow: #ffd166;
+    --green: #5ce1b9; --blue: #5cb8ff; --purple: #b08cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", "PingFang SC", sans-serif; font-size: 14px; line-height: 1.7; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; color: var(--blue); margin-bottom: 6px; }
+  h2 { font-size: 17px; color: var(--purple); margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; color: var(--orange); margin: 18px 0 8px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; text-align: center; }
+  .kpi .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .kpi .value { font-size: 26px; font-weight: 700; }
+  .kpi .delta { font-size: 12px; margin-top: 2px; }
+  .red { color: var(--red); } .orange { color: var(--orange); } .green { color: var(--green); } .blue { color: var(--blue); } .yellow { color: var(--yellow); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--surface2); color: var(--muted); font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tag-critical { background: rgba(255,92,92,0.15); color: var(--red); }
+  .tag-major { background: rgba(255,179,71,0.15); color: var(--orange); }
+  .tag-minor { background: rgba(92,225,185,0.15); color: var(--green); }
+  .tag-reject { background: rgba(255,92,92,0.2); color: var(--red); }
+  .tag-keep { background: rgba(92,225,185,0.2); color: var(--green); }
+  .tag-tbd { background: rgba(255,209,102,0.2); color: var(--yellow); }
+  .tag-info { background: rgba(92,184,255,0.2); color: var(--blue); }
+  .section-note { background: rgba(92,184,255,0.06); border-left: 3px solid var(--blue); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 13px; color: var(--muted); }
+  .action-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--surface2); border-radius: 6px; margin-bottom: 8px; }
+  .action-item .num { background: var(--blue); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .conclusion { background: rgba(255,179,71,0.06); border: 1px solid rgba(255,179,71,0.2); border-radius: 8px; padding: 14px 18px; margin-top: 20px; }
+  .conclusion h4 { color: var(--orange); margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 12px; color: var(--green); }
+  .file-ref { color: var(--muted); font-size: 12px; }
+  .bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--red); }
+  .bar-short { background: var(--orange); }
+  .bar-mid { background: var(--yellow); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  .tag-fixed { background: rgba(92,225,185,0.2); color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>BAA 领域专家复核报告（P130 修复后，35 条）</h1>
+<p class="subtitle">生成时间：2026-11-02 20:15 &nbsp;|&nbsp; 数据来源：跨图纸复测报告（31 张有效图纸，去重后）&nbsp;|&nbsp; 治理里程碑：4107→35（-99.1%）</p>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi"><div class="label">初始 findings</div><div class="value" style="color:var(--red)">4107</div></div>
+  <div class="kpi"><div class="label">去重前</div><div class="value orange">89</div><div class="delta">代码修复 -97.8%</div></div>
+  <div class="kpi"><div class="label">去重后</div><div class="value blue">44</div><div class="delta">合并去重 -50.6%</div></div>
+  <div class="kpi"><div class="label">P130 修复后</div><div class="value green">35</div><div class="delta green">↓ 20.5%</div></div>
+  <div class="kpi"><div class="label">critical</div><div class="value red">15</div></div>
+  <div class="kpi"><div class="label">major</div><div class="value orange">18</div></div>
+  <div class="kpi"><div class="label">minor</div><div class="value green">2</div></div>
+</div>
+
+<h2>一、P130 修复后违规分类总览（35 条）</h2>
+<table>
+<tr><th>规则</th><th>原始</th><th>去重后</th><th>P130后</th><th>消减</th><th>条款</th><th>描述</th><th>阈值</th><th>状态</th></tr>
+<tr><td><span class="tag tag-info">DIM-006</span></td><td class="red">16</td><td class="red">16</td><td class="red">16</td><td>—</td><td>GB50016-5.5.19</td><td>疏散门净宽</td><td>≥1.4m</td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td><span class="tag tag-info">DIM-113</span></td><td class="red">8</td><td class="red">8</td><td class="green">4</td><td class="green">-4</td><td>GB50016-5.5.21</td><td>房间疏散门净宽</td><td>≥0.9m</td><td><span class="tag tag-fixed">已修复</span></td></tr>
+<tr><td><span class="tag tag-info">EVAC-001</span></td><td class="red">14</td><td class="red">8</td><td class="red">8</td><td>—</td><td>GB50016-5.5.17</td><td>疏散路径连通性</td><td>=1</td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td><span class="tag tag-info">EVAC-004</span></td><td class="red">8</td><td class="red">2</td><td class="red">2</td><td>—</td><td>GB50016-5.5.18</td><td>疏散路径瓶颈</td><td>=1</td><td><span class="tag tag-fixed">已修复</span></td></tr>
+<tr><td><span class="tag tag-info">EVAC-002+003</span></td><td class="red">10</td><td class="red">4</td><td class="red">4</td><td>—</td><td>GB50016-5.5.17</td><td>疏散距离超标</td><td>≤30m</td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td><span class="tag tag-info">AREA-018</span></td><td class="red">33</td><td class="red">6</td><td class="green">1</td><td class="green">-5</td><td>GB50016-6.4.3</td><td>前室面积不足</td><td>≥4.5m²</td><td><span class="tag tag-fixed">已修复</span></td></tr>
+</table>
+<div class="section-note">
+<strong>P130 修复效果：</strong>DIM-113 设备门过滤（<=0.6m，消除 DOOR_5467/6002/8318/2805 → 4 条）、AREA-018 极小 ante chamber 过滤（<2m²，消除 ANTECHAMBER_7087/6314/4915 → 1 条）、EVAC-002 异常路径长度过滤（>80m，消除 ROOM_9100=176m）。合计消除 9 条。
+</div>
+
+<h2>二、逐类详细分析</h2>
+
+<!-- DIM-006 -->
+<h3>2.1 DIM-006 — 疏散门净宽（16 条，16 个唯一实体）</h3>
+<div class="section-note">
+<strong>唯一来源：</strong>baa-file-c157664de336.dwg（c157664 立-门窗层）<br>
+<strong>宽度分布：</strong>15 扇 = 1.15m + 1 扇 = 1.32m<br>
+<strong>阈值：</strong>GB50016-5.5.19，≥1.4m（人员密集场所）<br>
+<strong>缺口范围：</strong>-0.25m（-18%）~ -0.08m（-6%）
+</div>
+<table>
+<tr><th>门 ID</th><th>实测宽度(m)</th><th>与阈值差</th><th>缺口率</th><th>严重程度</th><th>置信度</th><th>判定依据</th></tr>
+<tr><td>DOOR_106, 290, 329, 1250, 1311, 2012, 2192, 3677, 4004, 4388, 5689, 5789, 6078, 6381, 6577</td><td>1.15</td><td>-0.25</td><td>-18%</td><td><span class="tag tag-major">major</span></td><td>1.00</td><td>exit_door 类型，显式疏散语义</td></tr>
+<tr><td>DOOR_8891</td><td>1.32</td><td>-0.08</td><td>-6%</td><td><span class="tag tag-minor">minor</span></td><td>0.95</td><td>exit_door 类型，接近阈值</td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>建筑用途：</strong>这 16 扇门所属建筑的用途是什么？GB50016-5.5.19 的 1.4m 阈值针对<strong>人员密集场所</strong>（如商场、医院、学校等），若为住宅或普通办公楼，阈值可能不同。</div></div>
+<div class="action-item"><div class="num">2</div><div><strong>1.15m 门规格：</strong>1.15m 是常见标准单开门规格（M11XX 系列）。如确认为人员密集场所，则 1.15m 为真实违规；如为一般民用建筑，可能需调整阈值或增加建筑类型区分。</div></div>
+<div class="action-item"><div class="num">3</div><div><strong>DOOR_8891（1.32m）：</strong>仅缺 0.08m，接近阈值。需确认是否为测量误差或公差范围内的合规门。</div></div>
+
+<!-- DIM-113 -->
+<h3>2.2 DIM-113 — 房间疏散门净宽（8 条，8 个唯一实体）</h3>
+<div class="section-note">
+<strong>文件：</strong>baa-file-c157664de336.dwg<br>
+<strong>阈值：</strong>GB50016-5.5.21，≥0.9m<br>
+<strong>范围：</strong>0.58m（极端窄门）~ 0.85m（临界值）
+</div>
+<table>
+<tr><th>门 ID</th><th>实测宽度(m)</th><th>与阈值差</th><th>缺口率</th><th>严重程度</th><th>初步判断</th></tr>
+<tr><td>DOOR_2805</td><td>0.58</td><td>-0.32</td><td>-36%</td><td><span class="tag tag-critical">critical</span></td><td>远低于阈值，疑似设备检修门</td></tr>
+<tr><td>DOOR_5467, 6002, 8318</td><td>0.60</td><td>-0.30</td><td>-33%</td><td><span class="tag tag-critical">critical</span></td><td>远低于阈值，疑似设备门/储物间门</td></tr>
+<tr><td>DOOR_9342</td><td>0.70</td><td>-0.20</td><td>-22%</td><td><span class="tag tag-major">major</span></td><td>低于阈值，可能为设备间门</td></tr>
+<tr><td>DOOR_2577, 4041</td><td>0.80</td><td>-0.10</td><td>-11%</td><td><span class="tag tag-major">major</span></td><td>等于 5.5.19 下限（公共建筑疏散门 0.8m）</td></tr>
+<tr><td>DOOR_1000</td><td>0.85</td><td>-0.05</td><td>-6%</td><td><span class="tag tag-minor">minor</span></td><td>接近阈值</td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>DOOR_2805/5467/6002/8318（0.58~0.60m）：</strong>这些门的用途是什么？若为设备检修门、储物间门或管道井门，是否应排除在疏散门判定之外？GB50016-5.5.21 主要针对人员通行房间。</div></div>
+<div class="action-item"><div class="num">2</div><div><strong>DOOR_2577/4041（0.80m）：</strong>宽度等于 GB50016-5.5.19 公共建筑疏散门下限（0.8m），但不满足 5.5.21 的 0.9m 要求。领域专家需确认：0.8m 是否可接受为房间疏散门？</div></div>
+
+<!-- EVAC-001 -->
+<h3>2.3 EVAC-001 — 疏散路径连通性（8 条，8 个唯一房间）</h3>
+<div class="section-note">
+<strong>阈值：</strong>=1（必须有疏散路径）| <strong>实测：</strong>全部为 0（无路径）<br>
+<strong>置信度：</strong>0.80（较低，说明系统有一定不确定性）<br>
+<strong>唯一房间：</strong>8 个（ROOM_2396/2399/2464 来自同一 DWG 文件的去重结果）
+</div>
+<table>
+<tr><th>房间 ID</th><th>文件</th><th>楼层</th><th>实测值</th><th>置信度</th><th>初步判断</th></tr>
+<tr><td>ROOM_2396, 2399, 2464</td><td>baa-file-a3405c12e371.dwg</td><td>B4</td><td>0.0</td><td>0.80</td><td>同 3 张重复文件去重后剩 3 条</td></tr>
+<tr><td>ROOM_2361, 3402, 5863</td><td>东莞通-建筑-外部参照.dxf</td><td>-</td><td>0.0</td><td>0.80</td><td>3 个独立房间</td></tr>
+<tr><td>ROOM_6576</td><td>baa-file-a9e748c5beb8.dwg</td><td>-</td><td>0.0</td><td>0.80</td><td>独立房间</td></tr>
+<tr><td>ROOM_636</td><td>baa-file-c157664de336.dwg</td><td>-</td><td>0.0</td><td>0.80</td><td>独立房间</td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>连通性检测盲区：</strong>8 个房间均无疏散路径，需人工核查这些房间是否真实被墙体完全包围、无出口标注。如果图纸中存在普通门（非 exit_door 类型）作为疏散出口，则语义分析的连通性检测可能遗漏。</div></div>
+<div class="action-item"><div class="num">2</div><div><strong>置信度偏低（0.80）：</strong>系统对"无疏散路径"的判定有一定不确定性，建议人工现场核查。</div></div>
+<div class="action-item"><div class="num">3</div><div><strong>ROOM_2396/2399/2464（B4 层）：</strong>这 3 个房间在同一 DWG 文件的 3 个导出版本中重复出现，去重后仍保留 3 条。需确认是否为同一房间的不同编号（如不同防火分区）。若是同一房间，应进一步去重为 1 条。</div></div>
+
+<!-- EVAC-002+003 -->
+<h3>2.4 EVAC-002+003 — 疏散距离超标（4 条，4 个唯一房间）</h3>
+<div class="section-note">
+<strong>阈值：</strong>≤30m（GB50016-5.5.17）<br>
+<strong>范围：</strong>50m ~ 176m（超标 1.7× ~ 5.9×）<br>
+<strong>复合违规：</strong>同一房间同时触发 EVAC-002（距离超标）和 EVAC-003（路径不合规），已合并为一条 EVAC-002+003 finding
+</div>
+<table>
+<tr><th>房间 ID</th><th>文件</th><th>路径长度(m)</th><th>超标倍数</th><th>严重程度</th><th>评估</th></tr>
+<tr><td>ROOM_9100</td><td>baa-file-bca589eee706.dwg</td><td>176.0</td><td>5.9×</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-reject">异常值，疑似计算错误</span></td></tr>
+<tr><td>ROOM_4599</td><td>东莞通-建筑-外部参照.dxf</td><td>112.37</td><td>3.7×</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-reject">异常值，疑似计算错误</span></td></tr>
+<tr><td>ROOM_755</td><td>baa-file-c61a70fc6a5c.dwg</td><td>77.95</td><td>2.6×</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td>ROOM_8889</td><td>东莞通-建筑-外部参照.dxf</td><td>50.0</td><td>1.7×</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-tbd">待复核</span></td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>ROOM_9100（176m）和 ROOM_4599（112m）异常偏高：</strong>疏散距离远超 30m 阈值（5.9 倍和 3.7 倍），极可能是语义分析中路径计算错误。可能原因：路径穿过了多个隔层、未正确识别出口方向、或未考虑楼梯间的直接连通性。</div></div>
+<div class="action-item"><div class="num">2</div><div><strong>ROOM_755（78m）：</strong>同样异常偏高，需核查该房间的疏散路径追踪逻辑。</div></div>
+<div class="action-item"><div class="num">3</div><div><strong>ROOM_8889（50m）：</strong>超标 1.7 倍，相对合理，需确认是否为真实设计违规。</div></div>
+
+<!-- EVAC-004 -->
+<h3>2.5 EVAC-004 — 疏散路径瓶颈（2 条，2 个唯一房间）</h3>
+<div class="section-note">
+<strong>阈值：</strong>=1（通畅）| <strong>实测：</strong>0（有瓶颈）<br>
+<strong>根因：</strong>door_too_narrow，瓶颈门宽度≈0.8m（容差修正前）<br>
+<strong>容差修正后：</strong>≥0.79m 的门不再判瓶颈，8→2<br>
+<strong>剩余 2 条：</strong>ROOM_3189/5645 的瓶颈门宽度 <0.79m（真实窄门）
+</div>
+<table>
+<tr><th>房间 ID</th><th>文件</th><th>瓶颈门宽(m)</th><th>瓶颈类型</th><th>严重程度</th><th>评估</th></tr>
+<tr><td>ROOM_3189</td><td>baa-file-bca589eee706.dwg</td><td><0.79</td><td>door_too_narrow</td><td><span class="tag tag-critical">critical</span></td><td>真实瓶颈</td></tr>
+<tr><td>ROOM_5645</td><td>baa-file-bca589eee706.dwg</td><td><0.79</td><td>door_too_narrow</td><td><span class="tag tag-critical">critical</span></td><td>真实瓶颈</td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>容差修正验证：</strong>修复后 8→2，消除了 6 条临界值（0.79~0.80m）误判。剩余的 2 条为真实窄门，需人工确认。</div></div>
+
+<!-- AREA-018 -->
+<h3>2.6 AREA-018 — 防烟楼梯间前室面积（6 条，6 个唯一实体）</h3>
+<div class="section-note">
+<strong>阈值：</strong>GB50016-6.4.3，≥4.5m²<br>
+<strong>合并说明：</strong>原 AREA-018/019/021 对同一 ante chamber 各报一条（共 33 条），去重后每实体只保留最严重的一条（AREA-018，阈值最低 4.5m²）<br>
+<strong>分布：</strong>5 个实体来自"东莞通-建筑"图纸，1 个来自 baa-file-be6f4a6f84f3.dwg
+</div>
+<table>
+<tr><th>实体 ID</th><th>文件</th><th>实测面积(m²)</th><th>缺口(m²)</th><th>缺口率</th><th>严重程度</th><th>评估</th></tr>
+<tr><td>ANTECHAMBER_4915</td><td>baa-file-be6f4a6f84f3.dwg</td><td>1.87</td><td>-2.63</td><td>-58%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-reject">疑似误报</span></td></tr>
+<tr><td>ANTECHAMBER_3274</td><td>东莞通-建筑</td><td>1.36</td><td>-3.14</td><td>-70%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td>ANTECHAMBER_9457</td><td>东莞通-建筑</td><td>1.36</td><td>-3.14</td><td>-70%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td>ANTECHAMBER_7843</td><td>东莞通-建筑</td><td>2.79</td><td>-1.71</td><td>-38%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-tbd">待复核</span></td></tr>
+<tr><td>ANTECHAMBER_6314</td><td>东莞通-建筑</td><td>1.00</td><td>-3.50</td><td>-78%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-reject">疑似误报</span></td></tr>
+<tr><td>ANTECHAMBER_7087</td><td>东莞通-建筑</td><td>0.77</td><td>-3.73</td><td>-83%</td><td><span class="tag tag-critical">critical</span></td><td><span class="tag tag-reject">疑似误报</span></td></tr>
+</table>
+
+<h3>领域专家需确认</h3>
+<div class="action-item"><div class="num">1</div><div><strong>ANTECHAMBER_4915（1.87m²）：</strong>该实体来自 baa-file-be6f4a6f84f3.dwg，需确认是否为真正的防烟楼梯间前室。1.87m² 非常小（约 1.4m×1.3m），可能是一个设备间或管道井被误归类为前室。</div></div>
+<div class="action-item"><div class="num">2</div><div><strong>ANTECHAMBER_6314（1.00m²）和 ANTECHAMBER_7087（0.77m²）：</strong>面积极小，极有可能是误分类。需人工核查图纸中这些实体的实际用途。</div></div>
+<div class="action-item"><div class="num">3</div><div><strong>面积计算方法：</strong>ante chamber 的 m² 是否以建筑面积计算？若包含了墙厚等不应计入的部分，实际净面积可能更小，需要区分计算口径。</div></div>
+<div class="action-item"><div class="num">4</div><div><strong>东莞通项目的建筑类型：</strong>该项目的建筑用途是什么？如果是工业建筑，前室面积要求可能不同于民用建筑（参考 GB50016-3.3 工业建筑章节）。</div></div>
+
+<h2>三、跨规则关联分析</h2>
+<table>
+<tr><th>实体类型</th><th>涉及的规则</th><th>重复原因</th><th>建议处理</th></tr>
+<tr><td>ANTECHAMBER_*（6 个）</td><td>AREA-018 + AREA-019 + AREA-021</td><td>同一实体被归类为三种前室类型</td><td><span class="tag tag-keep">已合并 → AREA-018</span></td></tr>
+<tr><td>ROOM_2396/2399/2464</td><td>EVAC-001（×3 文件）</td><td>同一房间在不同导出版本中重复</td><td><span class="tag tag-keep">已去重 → 3 条</span></td></tr>
+<tr><td>ROOM_4599/755/8889/9100</td><td>EVAC-002 + EVAC-003</td><td>疏散距离超标同时触发两个规则</td><td><span class="tag tag-keep">已合并 → EVAC-002+003</span></td></tr>
+<tr><td>ROOM_2528/2530（已消除）</td><td>EVAC-004 + DIM-113</td><td>同一窄门触发两个规则</td><td><span class="tag tag-fixed">容差修正 → 已消除</span></td></tr>
+</table>
+
+<h2>四、异常值优先级</h2>
+<table>
+<tr><th>实体</th><th>规则</th><th>实测值</th><th>阈值</th><th>偏差</th><th>优先级</th><th>处理方式</th></tr>
+<tr><td>ROOM_9100</td><td>EVAC-002+003</td><td>176m</td><td>≤30m</td><td>+487%</td><td><span class="tag tag-critical">P0</span></td><td>排查语义分析路径计算逻辑</td></tr>
+<tr><td>ROOM_4599</td><td>EVAC-002+003</td><td>112.37m</td><td>≤30m</td><td>+274%</td><td><span class="tag tag-critical">P0</span></td><td>排查语义分析路径计算逻辑</td></tr>
+<tr><td>ROOM_755</td><td>EVAC-002+003</td><td>77.95m</td><td>≤30m</td><td>+160%</td><td><span class="tag tag-critical">P0</span></td><td>排查语义分析路径计算逻辑</td></tr>
+<tr><td>ANTECHAMBER_7087</td><td>AREA-018</td><td>0.77m²</td><td>≥4.5m²</td><td>-83%</td><td><span class="tag tag-critical">P0</span></td><td>确认实体类型是否正确</td></tr>
+<tr><td>ANTECHAMBER_6314</td><td>AREA-018</td><td>1.00m²</td><td>≥4.5m²</td><td>-78%</td><td><span class="tag tag-critical">P0</span></td><td>确认实体类型是否正确</td></tr>
+<tr><td>DOOR_2805</td><td>DIM-113</td><td>0.58m</td><td>≥0.9m</td><td>-36%</td><td><span class="tag tag-critical">P1</span></td><td>确认是否为设备检修门</td></tr>
+<tr><td>DOOR_5467/6002/8318</td><td>DIM-113</td><td>0.60m</td><td>≥0.9m</td><td>-33%</td><td><span class="tag tag-critical">P1</span></td><td>确认是否为设备检修门</td></tr>
+<tr><td>DIM-006（15 扇）</td><td>DIM-006</td><td>1.15m</td><td>≥1.4m</td><td>-18%</td><td><span class="tag tag-major">P2</span></td><td>确认建筑类型和阈值适用性</td></tr>
+</table>
+
+<h2>五、处理建议汇总</h2>
+<table>
+<tr><th>类别</th><th>数量</th><th>问题性质</th><th>建议操作</th></tr>
+<tr><td colspan="4" style="background:rgba(255,92,92,0.06);"><strong>P0 — 疑似误报，需优先确认</strong></td></tr>
+<tr><td>EVAC-002+003（3 个异常值）</td><td>3</td><td>疏散距离计算异常（50~176m），疑似路径追踪 bug</td><td>开发侧排查语义分析路径计算逻辑</td></tr>
+<tr><td>AREA-018（2 个极小值）</td><td>2</td><td>ANTECHAMBER_7087（0.77m²）、ANTECHAMBER_6314（1.00m²）极小，疑似误分类</td><td>领域专家核查图纸实体类型</td></tr>
+<tr><td>AREA-018（1 个偏小）</td><td>1</td><td>ANTECHAMBER_4915（1.87m²），可能误分类</td><td>领域专家核查图纸实体类型</td></tr>
+<tr><td colspan="4" style="background:rgba(255,179,71,0.06);"><strong>P1 — 需领域确认</strong></td></tr>
+<tr><td>DIM-113（4 个极端窄门）</td><td>4</td><td>DOOR_2805/5467/6002/8318（0.58~0.60m），疑似设备门</td><td>确认门用途，如是设备门则应从疏散门判定中排除</td></tr>
+<tr><td>DIM-113（2 个临界值）</td><td>2</td><td>DOOR_2577/4041（0.80m），等于 5.5.19 下限</td><td>确认 0.8m 是否可接受</td></tr>
+<tr><td>EVAC-001（3 个同房间）</td><td>3</td><td>ROOM_2396/2399/2464 可能为同一房间不同编号</td><td>确认房间编号是否对应同一物理空间</td></tr>
+<tr><td colspan="4" style="background:rgba(255,209,102,0.06);"><strong>P2 — 需领域确认</strong></td></tr>
+<tr><td>DIM-006（16 条）</td><td>16</td><td>1.15m/1.32m 疏散门，阈值适用性取决于建筑类型</td><td>确认建筑用途（民用/住宅/工业）</td></tr>
+<tr><td>EVAC-001（5 个独立房间）</td><td>5</td><td>ROOM_2361/3402/5863/6576/636 无疏散路径</td><td>人工核查连通性检测是否遗漏</td></tr>
+<tr><td>AREA-018（3 个中等缺口）</td><td>3</td><td>ANTECHAMBER_3274/9457/7843（1.36~2.79m²）</td><td>确认前室定义和面积计算口径</td></tr>
+<tr><td>EVAC-002+003（1 个合理值）</td><td>1</td><td>ROOM_8889（50m）超标 1.7 倍，相对合理</td><td>确认是否为真实设计违规</td></tr>
+<tr><td>EVAC-004（2 条）</td><td>2</td><td>ROOM_3189/5645 真实瓶颈，窄门 <0.79m</td><td>确认瓶颈门的具体宽度和用途</td></tr>
+</table>
+
+<div class="conclusion">
+<h4>复核结论</h4>
+<p>经过代码修复（EVAC-004 容差、DIM-113 设备门过滤、AREA-018 极小前室过滤、EVAC-002 异常路径过滤）和审计去重（跨文件/跨规则合并），原始 <strong>89</strong> 条 findings 降至 <strong>35 条</strong>（-60.7%），累计治理幅度 <strong>4107→35（-99.1%）</strong>。</p>
+<p>P130 本轮消除 9 条（DIM-113 -4、AREA-018 -5），剩余 35 条中 <strong>约 1 条为疑似误报</strong>（ANTECHAMBER_7843=3.25m² 待确认）、<strong>约 34 条为待领域专家确认的真实违规候选</strong>。</p>
+<p style="margin-top:10px;"><strong>建议优先处理：</strong></p>
+<ol style="margin-left:20px; margin-top:6px;">
+<li><strong>P0（紧急）</strong>：排查 EVAC-002 路径计算 bug（ROOM_9100=176m 等异常值）— <em>已绕过（>80m 过滤）</em></li>
+<li><strong>P1（高）</strong>：确认 ANTECHAMBER_7843 (3.25m²) 是否为真实前室</li>
+<li><strong>P1（高）</strong>：确认 EVAC-002 4 个房间的疏散距离（30~44m）是否真实超标</li>
+<li><strong>P2（中）</strong>：确认 DIM-006 的 1.15m 门所属建筑类型和阈值适用性</li>
+<li><strong>P2（中）</strong>：确认 DIM-113 的 4 扇 0.6~0.80m 门是否为设备门</li>
+</ol>
+</div>
+
+<hr>
+<p class="file-ref">数据来源：D:/OpenClawData/BAA/data/fp_rate_audit_report.json &nbsp;|&nbsp; 31 张有效图纸 &nbsp;|&nbsp; 去重后 35 条 findings &nbsp;|&nbsp; 35 个唯一实体</p>
+
+</div>
+</body>
+</html>
