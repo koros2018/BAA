@@ -958,6 +958,19 @@ class AtomicFunction:  # class definition
             return val  # return: float
 
         # EVAC 类：疏散路径判定
+        if func_id in ("EVAC-001", "EVAC-002", "EVAC-003", "EVAC-004"):
+            # 设备空间排除（专家复核 2026-11-02 根因 2）：设备空间
+            # （equipment_room/utility/管井/风井等）不是建筑疏散空间，
+            # 不参与疏散路径判定。避免设备空间被误判为 room 后误报。
+            etype = entity.get("type", "")
+            subtype = entity.get("subtype", "")
+            props0 = entity.get("properties") or {}
+            inferred_type = props0.get("inferred_type", "")
+            if (
+                subtype in ("equipment_room", "utility", "elevator")
+                or inferred_type in ("equipment_room", "utility", "elevator")
+            ):
+                return None
         if func_id == "EVAC-001":  # 疏散路径是否存在
             if "has_evacuation_route" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
@@ -965,6 +978,13 @@ class AtomicFunction:  # class definition
             entity_id = entity.get("id", "")  # assign
             if entity_id.startswith(("line_chain_", "polyline_room")):  # check: scanning artifact
                 return None  # 扫描法派生房间，不参与疏散判定
+            # 跳过 layer "0" 小房间（专家复核 2026-11-02 根因 2）：
+            # CAD 默认层的扫线法派生三角形房间（如 ROOM_636=3.28m²）是
+            # 非真实房间，不应参与疏散路径判定。
+            if (entity.get("layer") or "") == "0":
+                area0 = props.get("area_m2", props.get("area", 0.0))
+                if area0 and area0 < 10:
+                    return None
             # 大面积 room 疏散路径分析可能失败，跳过误报
             # 面积按 m² 口径比较（area_m2 由语义层 Step 1.8 单位归一产出）
             area = props.get("area_m2", props.get("area", 0.0))

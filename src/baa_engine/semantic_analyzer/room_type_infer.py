@@ -55,6 +55,26 @@ ROOM_TYPE_RULES: List[Dict[str, Any]] = [
         "text_keywords": ["楼梯间前室", "staircase_lobby", "楼梯前室"],
         "override_type": True,
     },
+    # ── 设备房/配电房（专家复核 2026-11-02 根因 2 增强）──
+    # 设备空间（机房/配电间/管井/风井等）不是建筑疏散空间，
+    # 应优先识别为 equipment_room，避免被误判为 anteroom/room。
+    # 面积范围扩大至 (2, 150) 覆盖小面积管井/配电间。
+    # 置于 anteroom 之前：平分时设备空间胜出（避免「前室+设备」误判）。
+    {
+        "name": "equipment_room",
+        "area": (2, 150),
+        "aspect": (0.4, 5.0),
+        "min_corridor_adj": 0,
+        "text_keywords": [
+            "设备", "配电", "机房", "值班", "elevator_machine", "machine_room",
+            "管井", "风井", "水泵房", "风机房", "加压送风机房", "电梯机房",
+            "弱电机房", "强电机房", "配电间", "配电房", "设备间", "设备房",
+        ],
+        # 纯几何不足以判定设备空间（面积 2~150 m² 与商铺/办公房间重叠），
+        # 必须有文字/图层证据，避免把建筑空间大面积误判为设备空间。
+        "require_text": True,
+        "override_type": True,
+    },
     # ── 前室 ──
     {
         "name": "anteroom",
@@ -71,15 +91,6 @@ ROOM_TYPE_RULES: List[Dict[str, Any]] = [
         "aspect": (0.8, 5.0),
         "min_corridor_adj": 0,
         "text_keywords": ["泵房", "pump", "水泵"],
-        "override_type": True,
-    },
-    # ── 设备房/配电房 ──
-    {
-        "name": "equipment_room",
-        "area": (10, 150),
-        "aspect": (0.6, 5.0),
-        "min_corridor_adj": 0,
-        "text_keywords": ["设备", "配电", "机房", "值班", "elevator_machine", "machine_room"],
         "override_type": True,
     },
     # ── 大堂/门厅：大面积、多走廊相邻 ──
@@ -220,9 +231,13 @@ def infer_room_type(
         score += _score_aspect(aspect, rule["aspect"][0], rule["aspect"][1])
         score += _score_corridor(corridor_adj_count, rule.get("min_corridor_adj", 0))
         # 文本关键词匹配
+        hits = 0
         if text_total > 0:
             hits = sum(1 for kw in rule["text_keywords"] if kw.lower() in " ".join(texts_lower))
             score += _score_text(hits, text_total, rule["text_keywords"])
+        # 纯几何不足以判定的类型（如设备空间）必须有文字证据
+        if rule.get("require_text") and hits == 0:
+            continue
 
         if score > best_score:
             best_score = score

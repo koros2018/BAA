@@ -606,6 +606,21 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "pump"
         if "避难层" in text or "REFUGE_FLOOR" in text_upper:
             return "refuge_floor"
+        # ── 设备空间识别（专家复核 2026-11-02 根因 2）──
+        # 设备空间（机房/配电间/管井/风井等）不是建筑疏散空间，
+        # 应优先识别为 equipment_room，避免被误判为 ante chamber。
+        if any(
+            kw in text
+            for kw in [
+                "设备间", "设备房", "机房", "配电间", "配电房",
+                "管井", "风井", "水泵房", "风机房", "加压送风机房",
+                "电梯机房", "弱电机房", "强电机房",
+            ]
+        ) or any(
+            kw in text_upper
+            for kw in ["EQ_ROOM", "EQUIPMENT_ROOM", "MACHINE_ROOM", "UTILITY_ROOM"]
+        ):
+            return "equipment_room"
         if "前室" in text or "ANTEROOM" in text_upper:
             return "antechamber"
         if "消防车道" in text and "road" not in text_lower:
@@ -622,8 +637,6 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "fire_broadcast"
         if "楼梯间前室" in text or "STAIRCASE_LOBBY" in text_upper:
             return "staircase_lobby"
-        if "设备间" in text or "EQ_ROOM" in text_upper:
-            return "equipment_room"
         # ── P47 无障碍 TEXT 识别 ──
         if "坡道" in text or "RAMP" in text_upper:
             return "ramp"
