@@ -328,17 +328,25 @@ class DrawingParser:
                     self._parse_cache[file_hash] = result
                 return result
 
-            # 提取图层名用于分类
+            # 从 primitives 收集 layer 名（比 self._doc.layers 更可靠，DWG 下可能为空）
             layer_names = []
-            if self._doc is not None:
-                try:
-                    layer_names = [layer.name for layer in self._doc.layers]
-                except Exception:
-                    pass  # 忽略图层读取错误
+            try:
+                layer_set = set()
+                for p in (primitives or [])[:5000]:
+                    ln = getattr(p, "layer", None)
+                    if ln:
+                        layer_set.add(ln)
+                layer_names = sorted(layer_set)
+            except Exception:
+                pass
 
             drawing_type = classify_drawing(
                 filename=path.name,
                 layer_names=layer_names,
+                entity_types=[
+                    getattr(p, "dxf_type", "") or getattr(p, "type", "")
+                    for p in (primitives or [])[:2000]
+                ],
                 file_size_mb=path.stat().st_size / (1024 * 1024),
             )
         except Exception:

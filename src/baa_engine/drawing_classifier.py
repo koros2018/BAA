@@ -17,42 +17,64 @@ _FILENAME_RULES: Dict[str, list] = {
 }
 
 # 图层名关键词 → 类型
+# 权重策略：结构/电气/暖通关键词权重 1.5（精准、出现即强信号），
+# 建筑关键词权重 0.5（AXIS/DIM_ 等通用层在所有图纸都有，弱信号）
 _LAYER_RULES: Dict[str, list] = {
-    "结构": ["STR_", "BEAM", "COLUMN", "SLAB", "WALL_STR", "结构", "STR_LAYER", "柱", "梁", "板"],
+    "结构": ["STR_", "BEAM", "COLUMN", "SLAB", "WALL_STR", "结构", "STR_LAYER", "柱", "梁", "板", "REIN", "REBAR", "PUB_DIM", "1-梁", "2-板", "3-柱", "7-详图", "梁-TEXT", "板层", "板筋", "钢夹层"],
     "电气": [
-        "EL_",
-        "ELEC",
-        "POWER",
-        "LIGHT",
-        "配电",
-        "照明",
-        "电气",
-        "ELT",
-        "FE_",
-        "消防电气",
-        "火灾报警",
+        "EL_", "ELEC", "POWER", "LIGHT", "配电", "照明", "电气", "ELT", "FE_",
+        "消防电气", "火灾报警", "distribution",
     ],
     "暖通": [
-        "HVAC",
-        "DUCT",
-        "PIPE",
-        "给排水",
-        "暖通",
-        "水暖",
-        "MEP",
-        "PLUMB",
-        "VENT",
-        "风管",
-        "水管",
-        "水消防",
+        "HVAC", "DUCT", "PIPE", "给排水", "暖通", "水暖", "MEP", "PLUMB", "VENT",
+        "风管", "水管", "水消防", "消防系统", "给水系统", "喷淋", "风口", "A_HVAC",
     ],
-    "建筑": ["ARCH", "DWG_", "AXIS", "DIM_", "TEXT", "墙", "门", "窗", "房间", "楼板"],
+    # 建筑关键词权重最低（所有专业图纸都有 AXIS/DIM）
+    "建筑": ["ARCH", "DWG_", "墙", "门", "窗", "房间", "楼板"],
 }
 
+# 通用层关键词（所有图纸都可能有 → 权重 0，仅当无其他信号时兜底）
+_COMMON_LAYER_TOKENS = {"AXIS", "DIM_", "TEXT", "图层", "图框", "C-SHET"}
+
 # 实体类型分布特征 → 类型（基于解析后的实体统计）
-_ENTITY_SIGNATURES: Dict[str, list] = {
-    "建筑": ["room", "wall", "door", "window", "staircase", "corridor"],
+# key = "type比例过高即判为此类"
+_ENTITY_DOMINANCE_RULES: Dict[str, list] = {
     "结构": ["beam", "column", "slab", "rebar", "foundation"],
+}
+
+# 实体类型 → 非疏散图的辅助信号（出现即加结构/电气/暖通分）
+_ENTITY_HINTS: Dict[str, str] = {
+    "beam": "结构",
+    "column": "结构",
+    "slab": "结构",
+    "rebar": "结构",
+    "foundation": "结构",
+    "reinforcement": "结构",
+    "HVAC_EQUIPMENT": "暖通",
+    "hvac_equipment": "暖通",
+    "pipe": "暖通",
+    "pump": "暖通",
+    "fire_alarm": "电气",
+    "electrical": "电气",
+    "distribution_box": "电气",
+}
+
+# Layer 关键词 → 类型（设计院自定义命名常见模式）
+# 放在 _LAYER_RULES 之后、未知兜底之前，用于处理 conf=0 的 hash ID 文件
+_LAYER_PATTERN_HINTS: Dict[str, list] = {
+    "结构": [
+        "BEAM", "COLU", "SLAB", "REIN", "REBAR", "PUB_DIM",
+        "梁", "柱", "板", "钢筋", "结构", "详图",
+        "1-梁", "2-板", "3-柱", "7-详图",
+    ],
+    "暖通": [
+        "P-KX", "A_风口", "A_风口", "A_HVAC", "DUCT", "VENT",
+        "风管", "水管", "消防系统", "给水系统", "喷淋",
+    ],
+    "电气": [
+        "EL_", "ELEC", "distribution", "配电", "照明",
+        "火灾报警", "气体灭火",
+    ],
 }
 
 
@@ -84,30 +106,62 @@ def classify_drawing(
     scores: Dict[str, int] = {}
     reasons: Dict[str, list] = {}
 
-    # 1. 文件名匹配（权重最高）
+    # 1. 文件名匹配（权重最高，一次命中即盖过 layer 总和）
     for dtype, keywords in _FILENAME_RULES.items():
         for kw in keywords:
             if kw.lower() in filename_lower:
-                scores[dtype] = scores.get(dtype, 0) + 3
+                scores[dtype] = scores.get(dtype, 0) + 10
                 reasons.setdefault(dtype, []).append(f"文件名含'{kw}'")
 
-    # 2. 图层名匹配
-    if layer_names:
+    # 2. 图层名匹配（非建筑关键词权重 1.0，建筑通用层权重 0.3）
+    # filename 已命中则跳过 layer 匹配，避免信号稀释
+    if not scores and layer_names:
         for dtype, keywords in _LAYER_RULES.items():
+            weight = 1.0 if dtype != "建筑" else 0.3
             for kw in keywords:
                 for layer in layer_names:
                     if kw.lower() in layer.lower():
-                        scores[dtype] = scores.get(dtype, 0) + 1
+                        scores[dtype] = scores.get(dtype, 0) + weight
                         reasons.setdefault(dtype, []).append(f"图层'{layer}'匹配'{kw}'")
                         break  # 每个关键词只计一次
 
-    # 3. 实体类型签名
-    if entity_types:
-        entity_set = set(entity_types[:100])  # 采样前100
-        for dtype, expected in _ENTITY_SIGNATURES.items():
-            match_count = sum(1 for e in expected if e in entity_set)
-            if match_count >= 2:
-                scores[dtype] = scores.get(dtype, 0) + match_count
+    # 3. 实体类型提示（非疏散图辅助信号）—— 仅 filename 无信号时启用
+    if not scores and entity_types:
+        type_counts: Dict[str, int] = {}
+        for et in entity_types[:2000]:
+            type_counts[et] = type_counts.get(et, 0) + 1
+        total = sum(type_counts.values()) or 1
+        # 实体类型比例启发式：某类结构实体占比 > 15% 即判为结构
+        for dtype, expected in _ENTITY_DOMINANCE_RULES.items():
+            dom_count = sum(type_counts.get(e, 0) for e in expected)
+            if dom_count / total > 0.15:
+                scores[dtype] = scores.get(dtype, 0) + 2
+                reasons.setdefault(dtype, []).append(
+                    f"结构实体占比{dom_count/total*100:.0f}%"
+                )
+        # 实体类型提示（出现即加分，权重低）
+        seen = set()
+        for et in entity_types[:2000]:
+            hint = _ENTITY_HINTS.get(et)
+            if hint and hint not in seen:
+                seen.add(hint)
+                scores[hint] = scores.get(hint, 0) + 1
+                reasons.setdefault(hint, []).append(f"含实体'{et}'")
+
+    # 4. Layer 模式启发式（设计院自定义命名）—— 权重低，兜底用
+    if layer_names and not scores:
+        for dtype, patterns in _LAYER_PATTERN_HINTS.items():
+            matched_layers = []
+            for pattern in patterns:
+                for layer in layer_names:
+                    if pattern.lower() in layer.lower():
+                        matched_layers.append(layer)
+                        break
+            if matched_layers:
+                scores[dtype] = scores.get(dtype, 0) + len(matched_layers)
+                reasons.setdefault(dtype, []).extend(
+                    f"图层'{l}'匹配模式" for l in matched_layers[:3]
+                )
 
     # 判定
     if not scores:
