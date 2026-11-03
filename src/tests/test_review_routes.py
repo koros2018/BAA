@@ -300,3 +300,66 @@ def test_review_unauthorized():
     """review 未认证应返回 401/403"""
     response = client.post("/review")
     assert response.status_code in (401, 403, 422)
+
+
+# ── P0-2: 假满分治理（规则可达性 coverage） ──────────────────
+
+
+def test_review_coverage_field_present():
+    """/review 响应应包含 coverage 字段（P0-2）"""
+    import tempfile
+    from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType
+
+    p = os.path.join(tempfile.mkdtemp(), "cov_test.dxf")
+    ReverseEngine().generate_dxf(
+        RoomSpec(room_type=RoomType.OFFICE, width_mm=5000, height_mm=4000), p
+    )
+
+    with open(p, "rb") as fh:
+        response = client.post(
+            "/review",
+            files={"file": ("cov_test.dxf", fh, "application/dxf")},
+            headers={"Authorization": "Bearer test-review-key"},
+        )
+    assert response.status_code == 200, f"review failed: {response.text[:300]}"
+    data = response.json()
+    assert data.get("status") == "success", f"review error: {data.get('message')}"
+    coverage = data.get("summary", {}).get("coverage")
+    assert coverage is not None, "summary 应包含 coverage 字段"
+    assert "evaluated_rules" in coverage
+    assert "applicable_rules" in coverage
+    assert "ratio" in coverage
+    assert "insufficient_evidence" in coverage
+    # 有 wall/door 实体，应至少命中若干规则
+    assert coverage["evaluated_rules"] >= 0
+    assert coverage["applicable_rules"] >= 0
+
+
+def test_review_insufficient_evidence_no_fake_full_score():
+    """无可判定对象（仅 text 实体）时不应返回 100 分（P0-2 假满分治理）"""
+    import tempfile
+
+    lines = [
+        "0", "SECTION", "2", "ENTITIES",
+        "0", "TEXT", "8", "TEXT", "10", "0", "20", "0", "30", "0",
+        "40", "300", "1", "HELLO",
+        "0", "ENDSEC", "0", "EOF",
+    ]
+    dxf = "\n".join(lines)
+    p = os.path.join(tempfile.mkdtemp(), "text_only.dxf")
+    with open(p, "w") as f:
+        f.write(dxf)
+
+    with open(p, "rb") as fh:
+        response = client.post(
+            "/review",
+            files={"file": ("text_only.dxf", fh, "application/dxf")},
+            headers={"Authorization": "Bearer test-review-key"},
+        )
+    assert response.status_code == 200, f"review failed: {response.text[:300]}"
+    data = response.json()
+    coverage = data.get("summary", {}).get("coverage", {})
+    # text-only 图纸：无规则可命中 → 证据不足，score 不应是 100
+    if coverage.get("insufficient_evidence"):
+        assert data["summary"]["score"] == 0.0
+    assert "unrecognized_types" in coverage

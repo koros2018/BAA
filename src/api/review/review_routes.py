@@ -468,6 +468,8 @@ async def review(  # code
         clause_results = Counter()
         details = []
         registry_funcs = _get_fr().list_all()
+        # P0-2: 实际被判定过的函数 ID 集合（用于 coverage 统计）
+        evaluated_funcs: set = set()
 
         _strict_threshold_cache: dict = {}
 
@@ -506,6 +508,8 @@ async def review(  # code
                 threshold_val, unit, op = get_strict_threshold(func.clause_id)
                 if r is None:
                     continue
+                # P0-2: 该函数对当前实体产生了判定结果（非 None），计入 coverage
+                evaluated_funcs.add(fid)
                 # 分区级疏散总净宽判定（无用途数据时回退单门阈值）
                 if (
                     r.result != "PASS"
@@ -556,6 +560,7 @@ async def review(  # code
                 # P75: 无匹配实体 → PASS，不报违规（覆盖问题≠违规）
                 continue
             count = len(matching)
+            evaluated_funcs.add(func.func_id)
             clause_results[func.clause_id] += 1
             if count < func.threshold:
                 details.append(
@@ -625,6 +630,7 @@ async def review(  # code
             else:
                 has_match = any(func.matches(e) for e in entities)
             if not has_match:
+                evaluated_funcs.add(func.func_id)
                 r = _get_fr().execute_with_timeout(func, None)
                 if r is not None and r.result != "PASS":
                     clause = {
@@ -653,7 +659,7 @@ async def review(  # code
                         }
                     )
 
-        return clause_results, details
+        return clause_results, details, evaluated_funcs
 
     try:
         # ── P121 Phase 3: 原子函数阶段超时控制 ─────────────
@@ -678,6 +684,8 @@ async def review(  # code
                 self.clause_results = None
                 self.details = []
                 self.completed_entities = 0
+                # P0-2: 实际被判定过的函数 ID 集合（用于 coverage 统计）
+                self.evaluated_funcs: set = set()
 
         cr = _ClusteringResult()
 
@@ -728,6 +736,8 @@ async def review(  # code
                     threshold_val, unit, op = get_strict_threshold(func.clause_id)
                     if r is None:
                         continue
+                    # P0-2: 该函数对当前实体产生了判定结果（非 None），计入 coverage
+                    cr.evaluated_funcs.add(fid)
                     clause_results[func.clause_id] += 1
                     if r.result != "PASS":
                         clause = {
@@ -773,6 +783,7 @@ async def review(  # code
                 if not matching:
                     continue
                 count = len(matching)
+                cr.evaluated_funcs.add(func.func_id)
                 clause_results[func.clause_id] += 1
                 if count < func.threshold:
                     details.append(
@@ -802,6 +813,7 @@ async def review(  # code
                     continue
                 has_match = any(func.matches(e) for e in entities)
                 if not has_match:
+                    cr.evaluated_funcs.add(func.func_id)
                     r = _get_fr().execute_with_timeout(func, None)
                     if r is not None and r.result != "PASS":
                         clause = {
@@ -865,6 +877,30 @@ async def review(  # code
     entity_types = Counter(e["type"] for e in entities)  # 各类型实体数量
     violation_count = Counter(d["clause_id"] for d in details)  # 各规范条款违规数
 
+    # ── P0-2: 规则可达性（coverage）统计 ─────────────────────
+    # evaluated_funcs 由 _do_clustering_with_timeout 收集（实际产生判定结果的函数）
+    evaluated_func_ids = getattr(cr, "evaluated_funcs", set())
+    # registry_funcs 在 _do_clustering_with_timeout 内部局部定义，外层需重新获取
+    registry_funcs = _get_fr().list_all()
+    applicable_func_ids = set()
+    for f in registry_funcs:
+        if getattr(f, "requires_global_context", False):
+            continue
+        if not f.target_entities:
+            applicable_func_ids.add(f.func_id)  # 无类型限制，对所有实体适用
+        elif any(e["type"] in f.target_entities for e in entities):
+            applicable_func_ids.add(f.func_id)  # 图纸中存在匹配类型的实体
+    evaluated_count = len(evaluated_func_ids)
+    applicable_count = len(applicable_func_ids)
+    coverage_ratio = round(evaluated_count / applicable_count, 3) if applicable_count else 0.0
+    # 未识别的关键类型（图纸中有实体，但没有任何规则引用该类型）
+    all_types_in_drawing = set(entity_types.keys())
+    referenced_types = set()
+    for f in registry_funcs:
+        if f.target_entities:
+            referenced_types.update(f.target_entities)
+    unrecognized_types = sorted(all_types_in_drawing - referenced_types)
+
     # ── 计算综合评分（P36） ────────────────────────────────
     total_score = 100.0  # assignment
     if len(entities) > 0 and len(details) > 0:  # check: numeric comparison
@@ -874,6 +910,11 @@ async def review(  # code
         total_score = max(
             0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3
         )  # get maximum
+    # P0-2: 没有任何规则被实际判定（coverage=0）时，100 分是"假满分"——
+    # 改为"证据不足"语义，避免对不可判定的图纸给出误导性满分
+    insufficient_evidence = evaluated_count == 0 and len(entities) > 0
+    if insufficient_evidence:
+        total_score = 0.0
 
     avg_confidence = 1.0  # assignment
     confidences = [d.get("confidence", 1.0) for d in details if "confidence" in d]  # function call
@@ -913,6 +954,14 @@ async def review(  # code
             "score": total_score,  # 字段
             "avg_confidence": round(avg_confidence, 2),  # 字段
             "confidence_tier_counts": tier_counts,  # P61: 置信度分级统计
+            # P0-2: 规则可达性——命中/适用/覆盖率 + 未识别关键类型
+            "coverage": {
+                "evaluated_rules": evaluated_count,
+                "applicable_rules": applicable_count,
+                "ratio": coverage_ratio,
+                "unrecognized_types": unrecognized_types,
+                "insufficient_evidence": insufficient_evidence,
+            },  # 字段
         },  # code
         "structured_summary": structured_summary,  # P62
         "details": details[:100],  # 最多返回100条详情
