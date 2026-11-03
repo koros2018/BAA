@@ -24,6 +24,7 @@ prometheus-client>=0.20  # 指标导出 /metrics（T-C3 可观测）
 psycopg[binary]>=3.2  # PostgreSQL 驱动（T-C1 多副本共享存储）
 reportlab>=4.0.0  # PDF 报告生成（report_generator）
 openpyxl>=3.1.0  # Excel 报告导出（review xlsx_report，T-B4）
+python-docx>=1.1.0  # Word 报告导出（word_generator/correction_docx.py）
 PyMuPDF>=1.23.0  # 矢量 PDF 解析（parsers/pdf_parser.py，import fitz）
 pytesseract>=0.3.10  # OCR 包装器（P128 Phase 2，需系统 tesseract + chi_sim）
 ifcopenshell>=0.8  # IFC4 输出（T-C8，LGPL-3.0）
