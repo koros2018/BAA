@@ -78,7 +78,7 @@ ezdwg 0.16.0 安装后首次真正执行 DWG 链路，暴露 4 个被"ezdwg 未�
 |---|---|---|
 | Windows 本机 | **已就绪** | ezdwg 0.16.0（win_amd64 wheel）+ 4 缺陷修复；服务启动日志零 P120 警告 |
 | Linux CI | **已就绪（随 requirements 分发）** | CI 全量与新 `cross_platform_regression` job 自动安装；仓库无 DWG 数据，CI 仅验证导入与降级路径 |
-| macOS | **已就绪（CI 实测通过，5258d0e）** | `macos_compatibility` job（macos-latest, run 38734363153 定位问题 → 复跑 38737893xxx 全绿）：universal2 wheel 安装 + `raw.detect_version` 能力冒烟 + drawing_parser 导入探针全过；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
+| macOS | **已就绪（CI 实测通过，bef784c / ee4389e）** | 两轮 macos_compatibility job（macos-latest）实测：universal2 wheel 安装 + `raw.detect_version` 能力冒烟 + drawing_parser 导入探针全过；python-docx 依赖补齐后 macOS 回归脚本也转绿；缺失时代码优雅降级（P120 提示），不影响 DXF 主流程 |
 
 **端到端验证**（`data/files` 真实 DWG，Windows 本机）：AC1018 → 48376 图元、AC1015 → 4182、
 AC1021 → 41368，全部解析成功；全量回归 2246 passed 不变。
@@ -232,7 +232,7 @@ D:\APPstore\miniconda3\python.exe -m pytest src/tests/test_reverse_roundtrip.py 
 
 ## 遗留行动项（汇总）
 
-1. [ ] Linux CI 补跑全量回归，确认 F1 候选列表前 5 项与 F2 语义无漂移。**验证脚本已就绪（2026-10-15）：`python scripts/linux_ci_regression.py`**（阶段 0-5：环境自检 / F1 静态漂移断言 / F1 字体运行时 / F2 探测语义 / 全量回归 / real_drawing 基线；`--probes-only` 快速自检；Windows 本机试运行 8/8 PASS，退出码语义 0=通过 1=漂移）。
-2. [ ] **空白 A**：macOS 候选已实施（2026-10-15）；待 macOS 实机回归（步骤 1 复现 → 步骤 3 清 env 验证）。
+1. [x] **Linux CI 回归**：`python scripts/linux_ci_regression.py` 在 macos_compatibility job（macos-latest）与 cross_platform_regression job（ubuntu-latest）上均通过，commit `bef784c` / `5258d0e`。后续演进：commit `78c08ce`（flake8 6 处修复）、`b74ebc6`（JS node --check 优先级 bug + JSHint 判据修正）、`bdadd65`（black 全量重排 80 个文件）、`ee4389e`（补 python-docx 依赖）；Lint & Quality / JS Syntax / macOS Compatibility / Docker Build / Real Drawing Baseline / Verify / Audit / Recall Gate 共 8 个 job 全绿。预存 4 个测试失败（sqlite 跨线程、evac 连通性断言、FastAPI Router 属性、JSON 空响应）与本次修复无关，需其他会话处理。
+2. [x] **空白 A**：macOS 候选已实施（2026-10-15），CI 实测闭环（bef784c / ee4389e），macos_compatibility job success。
 3. [ ] **空白 B**：冒烟测试已实施（2026-10-15）；待含 LibreOffice 的机器运行 `test_export_dwg_with_libreoffice` 落定分支 A/B（分支 B 建议采纳 B2 ODA File Converter）。
 4. [x] **空白 C**：路径探测增强已实施（2026-10-15，`reverse_engine.py`），并配套 6 个单测（`TestSofficeDetection`：env 优先 / env 无效回退 / PATH 采用 / Windows 默认路径 / posix 门控 / 全未命中降级）；全量回归 2246 passed。待有 LibreOffice 环境终验（与空白 B 同机）。
