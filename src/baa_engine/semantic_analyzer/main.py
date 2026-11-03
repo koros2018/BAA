@@ -262,6 +262,11 @@ class SemanticAnalyzer:
         # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
         self._normalize_area_units(entities)  # 操作
 
+        # Step 1.8a: P131 未合龙 room 面积校正
+        # 墙体未合龙 → 扫线法只找到 3 个端点 → polygon 是极小三角形
+        # 当 polygon_area / bbox_area < 0.5 时改用 bbox_area 估算
+        self._correct_unclosed_room_area(entities)
+
         # Step 1.9: 将有效 room 的面积传播给附近无面积的标记实体（前室/电梯厅等）
         self._propagate_room_area(entities)  # 操作
 
@@ -1191,6 +1196,59 @@ class SemanticAnalyzer:
                 ent.properties["area_m2"] = round(area / 1_000_000, 2)  # 操作
             else:  # 分支
                 ent.properties["area_m2"] = round(area, 2)  # 操作
+
+    def _correct_unclosed_room_area(self, entities) -> None:
+        """Step 1.8a: P131 未合龙 room 面积校正。
+
+        墙体未合龙 → 扫线法只找到 3 个端点 → polygon 是极小三角形，
+        polygon 面积严重偏小（polygon_area / bbox_area < 0.5）。
+        用 bbox_area 作为更准确的估算。
+
+        触发条件（OR）：
+        - point_count ≤ 3（扫线法只找到 3 个端点，triangle 必是未合龙）
+        - polygon_area / bbox_area < 0.5（面积严重偏小）
+
+        不修改 original 'area' 字段（保持原始 polygon 面积供审计），
+        只覆盖 'area_m2'（原子函数读取的最终口径）。
+        """
+        corrected = 0
+        for ent in entities:
+            if ent.type != "room":
+                continue
+            area_m2 = ent.properties.get("area_m2", 0) or 0
+            if area_m2 <= 0:
+                continue
+            bbox = ent.bbox or {}
+            bw = bbox.get("width", 0) or 0
+            bh = bbox.get("height", 0) or 0
+            if bw <= 0 or bh <= 0:
+                continue
+
+            bbox_area_m2 = (bw * bh) / 1_000_000.0
+            if bbox_area_m2 < 0.5:  # 太小的 room 不处理
+                continue
+
+            ratio = area_m2 / bbox_area_m2
+            point_count = ent.properties.get("point_count", 0) or 0
+            closed = ent.properties.get("closed", None)
+
+            is_malformed = (point_count <= 3) or (ratio < 0.5)
+
+            if is_malformed:
+                # 用 bbox_area 作为估算，保留原 polygon 面积用于审计
+                old_area = area_m2
+                new_area = round(bbox_area_m2, 2)
+                ent.properties["area_m2"] = new_area
+                ent.properties["_polygon_area"] = old_area  # 保存原始值
+                ent.properties["_polygon_to_bbox_ratio"] = round(ratio, 3)
+                ent.properties["_area_correction"] = "bbox_unclosed"
+                corrected += 1
+
+        if corrected:
+            logger.info(
+                f"[P131] 未合龙 room 面积校正: {corrected} 个 "
+                f"（墙体未合龙 polygon→bbox 估算）"
+            )
 
     def _propagate_room_area(self, entities) -> None:
         """Step 1.9: 将有效 room 的面积传播给附近无面积的标记实体。
