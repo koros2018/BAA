@@ -10,6 +10,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _reset_templates():
     from src.baa_engine.report_generator.template import reset_template_registry_for_test
+
     reset_template_registry_for_test()
     yield
     reset_template_registry_for_test()
@@ -17,6 +18,7 @@ def _reset_templates():
 
 def test_builtin_templates_exist():
     from src.baa_engine.report_generator.template import get_template_registry
+
     reg = get_template_registry()
     codes = {t.code for t in reg.all()}
     assert "national" in codes
@@ -25,6 +27,7 @@ def test_builtin_templates_exist():
 
 def test_template_colors_flow_to_styles():
     from src.baa_engine.report_generator import ReviewReport
+
     r_national = ReviewReport(template_code="national")
     r_local = ReviewReport(template_code="local")
     # national 主色深蓝，local 主色棕黄，必须不同
@@ -35,12 +38,14 @@ def test_template_colors_flow_to_styles():
 
 def test_unknown_template_fallback():
     from src.baa_engine.report_generator import ReviewReport
+
     r = ReviewReport(template_code="nonexistent")
     assert r.template.code == "national"  # fallback
 
 
 def test_custom_template_from_dir(tmp_path):
     from src.baa_engine.report_generator.template import TemplateRegistry, ReportTemplate
+
     custom = {
         "code": "client_x",
         "name": "Client X 模板",
@@ -64,8 +69,11 @@ def test_custom_template_from_dir(tmp_path):
 def test_generate_with_template(tmp_path):
     """不同 template_code 生成 PDF，字节长度差异反映配色/章节不同。"""
     from src.baa_engine.report_generator import ReviewReport
+
     summary = {"total": 10, "critical": 1, "major": 2, "minor": 7}
-    details = [{"id": "f1", "severity": "critical", "func_id": "TEST", "clause": "C1", "description": "d"}]
+    details = [
+        {"id": "f1", "severity": "critical", "func_id": "TEST", "clause": "C1", "description": "d"}
+    ]
     corrections = []
     r1 = ReviewReport(template_code="national")
     buf1 = r1.generate("test", summary, details, corrections)

@@ -523,9 +523,7 @@ async def collab_create_rectifications(
 
 
 @router.get("/collab/review-sessions/{session_id}/rectifications")
-async def collab_list_rectifications(
-    session_id: str, user_id: str = Depends(verify_collab_token)
-):
+async def collab_list_rectifications(session_id: str, user_id: str = Depends(verify_collab_token)):
     """整改记录列表。"""
     from src.baa_engine.team_collab.rectification import list_rectifications
 

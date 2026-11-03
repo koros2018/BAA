@@ -64,6 +64,7 @@ def _ensure_schema(tmp_path, monkeypatch):
     import src.baa_engine.db.models.rbac  # noqa: F401
     import src.baa_engine.db.models.audit_log  # noqa: F401
     from src.baa_engine.db import ensure_schema
+
     ensure_schema()
     yield
 

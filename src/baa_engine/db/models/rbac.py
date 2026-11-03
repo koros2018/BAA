@@ -13,9 +13,13 @@ class Role(Base):
     __tablename__ = "rbac_roles"
 
     id = Column(String(64), primary_key=True)  # UUID hex
-    name = Column(String(50), nullable=False, unique=True, index=True)  # admin / engineer / auditor / custom
+    name = Column(
+        String(50), nullable=False, unique=True, index=True
+    )  # admin / engineer / auditor / custom
     description = Column(Text, nullable=True)
-    permission_level = Column(String(20), nullable=False, default="read")  # admin / write / read / custom
+    permission_level = Column(
+        String(20), nullable=False, default="read"
+    )  # admin / write / read / custom
     scopes = Column(Text, nullable=True)  # JSON 数组，custom 角色时有效
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())

@@ -20,8 +20,7 @@ async def generate_notice(review_id: str, api_key: str = Depends(verify_api_key)
 
     # 仅取 confirmed 的违规条目
     confirmed = [
-        d for d in detail.get("details", [])
-        if d.get("audit", {}).get("status") == "confirmed"
+        d for d in detail.get("details", []) if d.get("audit", {}).get("status") == "confirmed"
     ]
     if not confirmed:
         raise HTTPException(status_code=400, detail="No confirmed findings for this review")
@@ -55,12 +54,14 @@ async def generate_recheck(review_id: str, api_key: str = Depends(verify_api_key
         # 从 corrections 推导复查状态
         rechecks = []
         for c in detail.get("corrections", []):
-            rechecks.append({
-                "function_id": c.get("function_id", ""),
-                "entity_id": c.get("entity_id", ""),
-                "status": c.get("recheck_status", "pending"),
-                "opinion": c.get("recheck_opinion", "—"),
-            })
+            rechecks.append(
+                {
+                    "function_id": c.get("function_id", ""),
+                    "entity_id": c.get("entity_id", ""),
+                    "status": c.get("recheck_status", "pending"),
+                    "opinion": c.get("recheck_opinion", "—"),
+                }
+            )
 
     if not rechecks:
         raise HTTPException(status_code=400, detail="No recheck data for this review")

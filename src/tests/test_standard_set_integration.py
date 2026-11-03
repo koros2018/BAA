@@ -177,20 +177,14 @@ class TestReviewFromDataStandardSet:
 
         # 上海地标覆盖的 clause_ids（已在 _extract_value 列表里，可被 execute 到）
         landmark_clauses = {
-            "GB50016-5.5.18",    # DIM-001, DIM-004 (上海 civil=1.3)
-            "GB50016-7.1.1",     # DIM-003 (上海 civil=4.5)
+            "GB50016-5.5.18",  # DIM-001, DIM-004 (上海 civil=1.3)
+            "GB50016-7.1.1",  # DIM-003 (上海 civil=4.5)
         }
 
         # 严格断言：Shanghai 下至少一个地标覆盖 clause 的 violation 次数 > National
-        diff_clauses = {
-            k: v for k, v in v_sh.items() if k not in v_nat or v > v_nat.get(k, 0)
-        }
-        landmark_diff = {
-            k: v for k, v in diff_clauses.items() if k in landmark_clauses
-        }
-        assert (
-            len(landmark_diff) > 0
-        ), (
+        diff_clauses = {k: v for k, v in v_sh.items() if k not in v_nat or v > v_nat.get(k, 0)}
+        landmark_diff = {k: v for k, v in diff_clauses.items() if k in landmark_clauses}
+        assert len(landmark_diff) > 0, (
             f"地标覆盖的 clause 未在 diff 中出现！\n"
             f"National violations: {j_nat.get('summary', {}).get('violations')}\n"
             f"Shanghai violations: {j_sh.get('summary', {}).get('violations')}\n"
@@ -229,17 +223,11 @@ class TestReviewFromDataStandardSet:
         v_gd = j_gd.get("summary", {}).get("violation_by_clause", {}) or {}
 
         gd_landmark_clauses = {
-            "GB50016-5.5.17",    # DIST-001 (广东 civil=25.0, operator<=)
+            "GB50016-5.5.17",  # DIST-001 (广东 civil=25.0, operator<=)
         }
-        diff_clauses = {
-            k: v for k, v in v_gd.items() if k not in v_nat or v > v_nat.get(k, 0)
-        }
-        landmark_diff = {
-            k: v for k, v in diff_clauses.items() if k in gd_landmark_clauses
-        }
-        assert (
-            len(landmark_diff) > 0
-        ), (
+        diff_clauses = {k: v for k, v in v_gd.items() if k not in v_nat or v > v_nat.get(k, 0)}
+        landmark_diff = {k: v for k, v in diff_clauses.items() if k in gd_landmark_clauses}
+        assert len(landmark_diff) > 0, (
             f"广东地标 clause 未在 diff 中出现！\n"
             f"Nat violations: {j_nat.get('summary', {}).get('violations')}\n"
             f"GD violations: {j_gd.get('summary', {}).get('violations')}\n"

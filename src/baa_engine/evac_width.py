@@ -65,7 +65,7 @@ WIDTH_PER_100: Dict[str, float] = {
     "ground_3": 0.75,
     "ground_4_up": 1.00,
     "basement_shallow": 0.75,  # 室内地面与室外出入口地坪高差 ≤ 10m
-    "basement_deep": 1.00,     # 高差 > 10m
+    "basement_deep": 1.00,  # 高差 > 10m
 }
 
 # 实体子类型/类型 → 用途类别
@@ -361,9 +361,9 @@ class WidthContext:
             "compartments": len(self.compartments),
             "explicit_sum_compartments": 0,
             "all_doors_sum_compartments": 0,
-            "occupancy_based": 0,   # 按人数换算得到所需总净宽
+            "occupancy_based": 0,  # 按人数换算得到所需总净宽
             "threshold_fallback": 0,  # 无用途数据，回退单门阈值
-            "no_compartment": 0,      # 实体无分区归属
+            "no_compartment": 0,  # 实体无分区归属
         }
         self._build_width_sums()
 
@@ -444,9 +444,7 @@ class WidthContext:
             )
         if required is None and usage:
             area_m2 = compartment_area_m2(comp.get("bbox", {}))
-            required = required_total_width(
-                area_m2, usage, storey, is_basement, depth_m=depth
-            )
+            required = required_total_width(area_m2, usage, storey, is_basement, depth_m=depth)
 
         if required is None:
             # 数据不足：回退到「分区总宽 ≥ 单门阈值」的保守口径

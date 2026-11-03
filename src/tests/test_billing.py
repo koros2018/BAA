@@ -1,4 +1,5 @@
 """D4-T3 计费测试：BillingService + billing cycles + 超额检测。"""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -25,6 +26,7 @@ def _setup_db(tmp_path: Path):
 
     engine = create_engine(f"sqlite:///{tmp_path}/test.db")
     from src.baa_engine.db.models.base import Base
+
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session

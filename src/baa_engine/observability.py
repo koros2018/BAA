@@ -151,9 +151,7 @@ def collect_spec_stats() -> None:
 
         total_overrides = 0
         for s in StandardSet.all():
-            SPEC_STANDARDS_TOTAL.labels(code=s.code).set(
-                float(len(s.included_standards))
-            )
+            SPEC_STANDARDS_TOTAL.labels(code=s.code).set(float(len(s.included_standards)))
             total_overrides += len(s.scale_overrides)
         SPEC_SCALE_OVERRIDES_TOTAL.set(float(total_overrides))
         _spec_stats_collected_once = True
@@ -204,9 +202,7 @@ _ACCESS_LOGGER = logging.getLogger("baa.access")
 class JsonFormatter(logging.Formatter):
     """JSON 行日志：ts/level/logger/message + extras（可检索字段）。"""
 
-    _RESERVED = set(
-        logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()
-    ) | {"taskName"}
+    _RESERVED = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()) | {"taskName"}
 
     def format(self, record: logging.LogRecord) -> str:
         payload = {
@@ -245,9 +241,7 @@ def setup_structured_logging(force: bool = False) -> bool:
     return True
 
 
-def log_request(
-    method: str, route: str, status: int, duration_ms: float, client: str = ""
-) -> None:
+def log_request(method: str, route: str, status: int, duration_ms: float, client: str = "") -> None:
     """访问日志（JSON 模式下为结构化字段，便于按 route/status 检索）。"""
     _ACCESS_LOGGER.info(
         "%s %s -> %s (%.1fms)",

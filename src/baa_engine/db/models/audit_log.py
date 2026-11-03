@@ -13,9 +13,15 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(String(64), primary_key=True)  # UUID hex
-    event_type = Column(String(50), nullable=False, index=True)  # review_started / violation_confirmed / etc.
-    actor_id = Column(String(64), nullable=False, server_default="", index=True)  # API key / user id
-    actor_role = Column(String(20), nullable=False, server_default="system")  # system / admin / user
+    event_type = Column(
+        String(50), nullable=False, index=True
+    )  # review_started / violation_confirmed / etc.
+    actor_id = Column(
+        String(64), nullable=False, server_default="", index=True
+    )  # API key / user id
+    actor_role = Column(
+        String(20), nullable=False, server_default="system"
+    )  # system / admin / user
     resource_type = Column(String(50), nullable=False, index=True)  # review / violation / project
     resource_id = Column(String(255), nullable=False, server_default="", index=True)
     action = Column(String(50), nullable=False)  # create / update / confirm / dismiss

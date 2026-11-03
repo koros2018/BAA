@@ -20,7 +20,6 @@ from src.baa_engine.standards import (
 )
 from src.baa_engine.spec_data._repo import SpecRepository
 
-
 # ── Fixture：每次用 SpecRepository 新实例，避免全局状态污染 ──
 
 

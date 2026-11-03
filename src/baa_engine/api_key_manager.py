@@ -365,9 +365,7 @@ class ApiKeyManager:  # class definition
                 )
             # 用量只补建缺失行，绝不覆盖：计数器由 record_usage 的原子 UPSERT 推进，
             # 若在此写本地快照会以陈旧值回退其他副本已累计的数量（lost update）。
-            candidates = [
-                k for k in usage_snapshot if k not in deleted and k in keys_snapshot
-            ]
+            candidates = [k for k in usage_snapshot if k not in deleted and k in keys_snapshot]
             if candidates:
                 existing = {
                     row[0]
@@ -472,7 +470,9 @@ class ApiKeyManager:  # class definition
             "hash": key_hash,  # 字段
             "encrypted_raw": encrypted_raw,  # AES-GCM 密文，可解密为原始密钥
             "permission": permission,  # 字段
-            "scopes": list(scopes) if scopes else list(PERMISSION_SCOPES.get(permission, [])),  # T-C4
+            "scopes": (
+                list(scopes) if scopes else list(PERMISSION_SCOPES.get(permission, []))
+            ),  # T-C4
             "label": label,  # 字段
             "created_by": created_by,  # 字段
             "created_at": now.isoformat(),  # 字段

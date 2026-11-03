@@ -100,7 +100,9 @@ def test_illegal_transitions_rejected(mgr):
 def test_recheck_cycle_requires_rectifying(mgr):
     """rejected 后必须经 rectifying→rechecking 才能再次 approved/rejected。"""
     uid, rs = _make_session(mgr)
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.REJECTED])
+    _walk(
+        mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.REJECTED]
+    )
     ok, msg = mgr.update_review_session_status(rs["id"], uid, ReviewStatus.APPROVED.value)
     assert not ok
     assert "非法状态流转" in msg
@@ -130,7 +132,12 @@ def test_archived_is_terminal(mgr):
         mgr,
         rs["id"],
         uid,
-        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.APPROVED, ReviewStatus.ARCHIVED],
+        [
+            ReviewStatus.PENDING,
+            ReviewStatus.IN_PROGRESS,
+            ReviewStatus.APPROVED,
+            ReviewStatus.ARCHIVED,
+        ],
     )
     ok, msg = mgr.update_review_session_status(rs["id"], uid, ReviewStatus.PENDING.value)
     assert not ok
@@ -140,7 +147,9 @@ def test_archived_is_terminal(mgr):
 def test_completed_at_on_rejected(mgr):
     """rejected（初审/复查）同样写入 completed_at。"""
     uid, rs = _make_session(mgr)
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.REJECTED])
+    _walk(
+        mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.REJECTED]
+    )
     assert mgr.get_review_session(rs["id"], uid)["completed_at"] > 0
 
 
@@ -245,7 +254,12 @@ def test_recheck_baseline_and_counts(mgr, monkeypatch):
     """首次复查（无快照）：全部计为 new；状态流转到 rechecking；快照落盘。"""
     uid, rs = _make_session(mgr)
     # 先走合法路径到 rectifying：in_progress 直达整改
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING])
+    _walk(
+        mgr,
+        rs["id"],
+        uid,
+        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING],
+    )
     # 会话需关联 file_ids：直接置库
     db = mgr._get_session()
     row = db.query(ReviewSession).filter(ReviewSession.id == rs["id"]).first()
@@ -253,11 +267,17 @@ def test_recheck_baseline_and_counts(mgr, monkeypatch):
     db.commit()
     mgr._close_session(db)
 
-    monkeypatch.setattr(recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_B)])
+    monkeypatch.setattr(
+        recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_B)]
+    )
     result, msg = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result, msg
     cmp = result["comparison"]
-    assert cmp["new"]["count"] == 2 and cmp["resolved"]["count"] == 0 and cmp["persisted"]["count"] == 0
+    assert (
+        cmp["new"]["count"] == 2
+        and cmp["resolved"]["count"] == 0
+        and cmp["persisted"]["count"] == 0
+    )
     detail = mgr.get_review_session(rs["id"], uid)
     assert detail["status"] == ReviewStatus.RECHECKING.value
     assert len(detail["result_summary"]["details"]) == 2
@@ -266,14 +286,21 @@ def test_recheck_baseline_and_counts(mgr, monkeypatch):
 def test_recheck_resolved_persisted(mgr, monkeypatch):
     """二次复查：部分整改后 resolved/persisted 正确。"""
     uid, rs = _make_session(mgr)
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING])
+    _walk(
+        mgr,
+        rs["id"],
+        uid,
+        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING],
+    )
     db = mgr._get_session()
     row = db.query(ReviewSession).filter(ReviewSession.id == rs["id"]).first()
     row.file_ids = ["fake-file"]
     db.commit()
     mgr._close_session(db)
 
-    monkeypatch.setattr(recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_B)])
+    monkeypatch.setattr(
+        recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_B)]
+    )
     result, msg = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result, msg
     # rechecking→rejected→rectifying→再复查（仅 F_A 仍在）
@@ -282,14 +309,23 @@ def test_recheck_resolved_persisted(mgr, monkeypatch):
     result2, msg = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result2, msg
     cmp = result2["comparison"]
-    assert cmp["resolved"]["count"] == 1 and cmp["persisted"]["count"] == 1 and cmp["new"]["count"] == 0
+    assert (
+        cmp["resolved"]["count"] == 1
+        and cmp["persisted"]["count"] == 1
+        and cmp["new"]["count"] == 0
+    )
     assert cmp["resolved"]["items"][0]["func_id"] == "F2"
 
 
 def test_recheck_new_findings(mgr, monkeypatch):
     """复查发现新增违规：new 计数与明细正确。"""
     uid, rs = _make_session(mgr)
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING])
+    _walk(
+        mgr,
+        rs["id"],
+        uid,
+        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING],
+    )
     db = mgr._get_session()
     row = db.query(ReviewSession).filter(ReviewSession.id == rs["id"]).first()
     row.file_ids = ["fake-file"]
@@ -300,7 +336,9 @@ def test_recheck_new_findings(mgr, monkeypatch):
     result, _ = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result
     _walk(mgr, rs["id"], uid, [ReviewStatus.REJECTED, ReviewStatus.RECTIFYING])
-    monkeypatch.setattr(recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_C)])
+    monkeypatch.setattr(
+        recheck_mod, "run_findings_for_file", lambda fid, bt="civil": [dict(F_A), dict(F_C)]
+    )
     result2, msg = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result2, msg
     cmp = result2["comparison"]
@@ -326,7 +364,12 @@ def test_recheck_illegal_state(mgr, monkeypatch):
 def test_recheck_no_files(mgr):
     """未关联图纸的会话复查报错。"""
     uid, rs = _make_session(mgr)
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING])
+    _walk(
+        mgr,
+        rs["id"],
+        uid,
+        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING],
+    )
     result, msg = recheck_mod.recheck_session(mgr, rs["id"], uid)
     assert result is None
     assert "会话未关联图纸文件" in msg
@@ -337,7 +380,12 @@ def test_recheck_permission_and_missing_file(mgr, monkeypatch):
     uid, rs = _make_session(mgr)
     other, msg = mgr.register_user("outsider2", "pass123456")
     assert other, msg
-    _walk(mgr, rs["id"], uid, [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING])
+    _walk(
+        mgr,
+        rs["id"],
+        uid,
+        [ReviewStatus.PENDING, ReviewStatus.IN_PROGRESS, ReviewStatus.RECTIFYING],
+    )
     result, msg = recheck_mod.recheck_session(mgr, rs["id"], other["id"])
     assert result is None and msg == "无权限"
 

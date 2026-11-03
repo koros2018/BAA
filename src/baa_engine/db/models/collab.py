@@ -37,11 +37,7 @@ from .base import Base
 DEFAULT_COLLAB_DIR = os.path.join(
     os.path.dirname(  # src/baa_engine/db/models
         os.path.dirname(  # src/baa_engine/db
-            os.path.dirname(  # src/baa_engine
-                os.path.dirname(  # src
-                    os.path.abspath(__file__)
-                )
-            )
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # src/baa_engine  # src
         )
     ),
     "data",

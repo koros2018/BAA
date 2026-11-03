@@ -125,9 +125,7 @@ def list_review_history(
         if project_id:
             conditions.append(ReviewHistory.project_id == project_id)
 
-        total = session.scalar(
-            select(func.count()).select_from(ReviewHistory).where(*conditions)
-        )
+        total = session.scalar(select(func.count()).select_from(ReviewHistory).where(*conditions))
 
         rows = session.execute(
             select(
@@ -209,9 +207,7 @@ def delete_review_history(review_id: str) -> bool:
     sf = _session_factory()
     session = sf()
     try:
-        result = session.execute(
-            delete(ReviewHistory).where(ReviewHistory.id == review_id)
-        )
+        result = session.execute(delete(ReviewHistory).where(ReviewHistory.id == review_id))
         session.commit()
         return (result.rowcount or 0) > 0
     finally:

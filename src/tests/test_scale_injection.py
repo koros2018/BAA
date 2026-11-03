@@ -20,7 +20,6 @@ from src.baa_engine.standards import (
     build_func_standard_maps_for_all_sets,
 )
 
-
 # ── Fixture ──────────────────────────────────────────────
 
 
@@ -54,9 +53,7 @@ def test_safe_zero_threshold_returns_none(repo):
             break
     if zero_clause is None:
         pytest.skip("当前 repo 无 threshold=0 的 clause（数据已修正）")
-    result = repo.get_threshold_safe(
-        zero_clause.clause_id, "civil", zero_clause.standard
-    )
+    result = repo.get_threshold_safe(zero_clause.clause_id, "civil", zero_clause.standard)
     assert result is None, f"期望 None，实得 {result}"
 
 
@@ -70,9 +67,7 @@ def test_safe_zero_threshold_returns_none(repo):
 
 def test_safe_valid_threshold(repo):
     """GB50016-5.5.18（疏散走道宽度 ≥1.2m）有正常 threshold=1.2 → 返回 (1.2, 'm', '>=')。"""
-    val, unit, op = repo.get_threshold_safe(
-        "GB50016-5.5.18", "civil", "GB 50016-2014"
-    )
+    val, unit, op = repo.get_threshold_safe("GB50016-5.5.18", "civil", "GB 50016-2014")
     assert val == 1.2
     assert unit == "m"
     assert op == ">="
@@ -129,9 +124,7 @@ def test_get_threshold_legacy_unmodified(repo):
     """旧 SpecRepository.get_threshold(...) 不传 standard 参数时
     必须维持原有默认 "GB 50016-2014" 行为，零破坏存量。"""
     val1, u1, op1 = repo.get_threshold("GB50016-5.5.18", "civil")
-    val2, u2, op2 = repo.get_threshold_safe(
-        "GB50016-5.5.18", "civil", "GB 50016-2014"
-    )
+    val2, u2, op2 = repo.get_threshold_safe("GB50016-5.5.18", "civil", "GB 50016-2014")
     assert val1 == val2 == 1.2
     assert u1 == u2 == "m"
     assert op1 == op2 == ">="

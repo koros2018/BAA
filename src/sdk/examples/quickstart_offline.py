@@ -40,9 +40,7 @@ def main(argv: list[str]) -> int:
         kb = KnowledgeBundle.load(bundle_path)
 
         info = kb.summary()
-        print(
-            "      schema={schema_version} kb={kb_version} 生成于 {generated_at}".format(**info)
-        )
+        print("      schema={schema_version} kb={kb_version} 生成于 {generated_at}".format(**info))
         print(
             "      原子函数 {functions} 条 / 规范条文 {specs} 条 / 标准 {standards} 个".format(
                 **info["counts"]
@@ -54,7 +52,9 @@ def main(argv: list[str]) -> int:
         funcs = kb.functions
         sample = funcs[0]
         print(f"      原子函数示例: {sample['func_id']} - {sample['name']}（{sample['category']}）")
-        print(f"        关联条款: {sample['clause_id']}  判定: {sample['operator']} {sample['threshold']}{sample['unit']}")
+        print(
+            f"        关联条款: {sample['clause_id']}  判定: {sample['operator']} {sample['threshold']}{sample['unit']}"
+        )
 
         grouped = kb.specs_by_standard()
         print(f"      规范分组: {', '.join(f'{k}={len(v)}' for k, v in sorted(grouped.items()))}")

@@ -220,8 +220,12 @@ class TestEvacuationRouteDedup:
         room2 = self._entity("room2", "room", area=0)
         exit1 = self._entity("exit1", "exit")
         relations = [
-            SpatialRelation(source_id="room1", target_id="exit1", rel_type="adjacent", distance=40.0),
-            SpatialRelation(source_id="room2", target_id="exit1", rel_type="adjacent", distance=40.0),
+            SpatialRelation(
+                source_id="room1", target_id="exit1", rel_type="adjacent", distance=40.0
+            ),
+            SpatialRelation(
+                source_id="room2", target_id="exit1", rel_type="adjacent", distance=40.0
+            ),
         ]
         routes = analyzer.analyze_evacuation_routes([room1, room2, exit1], relations)
         assert len(routes) == 2

@@ -328,6 +328,7 @@ async def lifespan(app: FastAPI):  # function call
 
     # E4-T4：生产配置校验（启动时输出健康报告）
     from src.api.config_middleware import validate_env
+
     _cfg_report = validate_env()
     if _cfg_report["errors"]:
         for _e in _cfg_report["errors"]:
@@ -396,6 +397,7 @@ from src.api.projects.project_routes import router as project_router  # D3-T3 �
 app.include_router(project_router)  # D3-T3 客户成功
 
 from src.api.billing.billing_routes import router as billing_router  # D4-T3 计费
+
 app.include_router(billing_router)  # D4-T3 计费
 
 from src.api.render_endpoint import router as render_router  # import
@@ -417,9 +419,11 @@ from src.api.topology_routes import router as topology_router  # T-B1 拓扑显�
 app.include_router(topology_router)  # 路径已含 /api/v1 前缀
 
 from src.api.audit_routes import router as system_audit_router  # E2-T2 系统审计日志
+
 app.include_router(system_audit_router)  # E2-T2
 
 from src.api.rbac_routes import router as rbac_router  # E3-T3 接口级 RBAC
+
 app.include_router(rbac_router)  # E3-T3
 
 from .stats_routes import get_stats  # P72 统计仪表盘

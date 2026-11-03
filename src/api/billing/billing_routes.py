@@ -1,4 +1,5 @@
 """D4-T3 计费路由：billing cycles + payment webhooks."""
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +18,7 @@ router = APIRouter(tags=["Billing"])
 
 # ── Pydantic schemas ──────────────────────────────────────────
 
+
 class BillingSummaryResponse(BaseModel):
     key_id: str
     plan: str
@@ -28,6 +30,7 @@ class BillingSummaryResponse(BaseModel):
 
 
 # ── Endpoints ─────────────────────────────────────────────────
+
 
 @router.get("/api/v1/billing/summary", response_model=BillingSummaryResponse)
 async def get_billing_summary(api_key: str = Depends(verify_api_key)):
@@ -77,6 +80,7 @@ async def check_over_limit(api_key: str = Depends(verify_api_key)):
 
 # ── Payment webhooks ──────────────────────────────────────────
 
+
 @router.post("/api/v1/payments/stripe/webhook")
 async def stripe_webhook(request_body: bytes):
     """Stripe 支付回调（D4-T3）。"""
@@ -90,6 +94,7 @@ async def stripe_webhook(request_body: bytes):
 
     # 简化实现：直接解析 body
     import json
+
     try:
         event = json.loads(request_body)
     except json.JSONDecodeError:
@@ -123,7 +128,11 @@ async def wechat_webhook(request_body: dict):
     transaction_id = request_body.get("transaction_id", "")
 
     # out_trade_no 通常包含 cycle_id
-    cycle_id = out_trade_no.replace("baa_cycle_", "") if out_trade_no.startswith("baa_cycle_") else out_trade_no
+    cycle_id = (
+        out_trade_no.replace("baa_cycle_", "")
+        if out_trade_no.startswith("baa_cycle_")
+        else out_trade_no
+    )
 
     if cycle_id:
         svc.mark_paid(cycle_id, transaction_id)

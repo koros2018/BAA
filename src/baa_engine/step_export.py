@@ -80,12 +80,7 @@ def export_step(
         x0, y0, x1, y1 = rect
         cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
         r = max(x1 - x0, y1 - y0) / 2.0
-        return (
-            cq.Workplane("XY")
-            .circle(r)
-            .extrude(height)
-            .translate((cx, cy, 0.0))
-        )
+        return cq.Workplane("XY").circle(r).extrude(height).translate((cx, cy, 0.0))
 
     shapes = []
     counts = {"walls": 0, "columns": 0, "doors": 0, "windows": 0}

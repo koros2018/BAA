@@ -612,13 +612,22 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
         if any(
             kw in text
             for kw in [
-                "设备间", "设备房", "机房", "配电间", "配电房",
-                "管井", "风井", "水泵房", "风机房", "加压送风机房",
-                "电梯机房", "弱电机房", "强电机房",
+                "设备间",
+                "设备房",
+                "机房",
+                "配电间",
+                "配电房",
+                "管井",
+                "风井",
+                "水泵房",
+                "风机房",
+                "加压送风机房",
+                "电梯机房",
+                "弱电机房",
+                "强电机房",
             ]
         ) or any(
-            kw in text_upper
-            for kw in ["EQ_ROOM", "EQUIPMENT_ROOM", "MACHINE_ROOM", "UTILITY_ROOM"]
+            kw in text_upper for kw in ["EQ_ROOM", "EQUIPMENT_ROOM", "MACHINE_ROOM", "UTILITY_ROOM"]
         ):
             return "equipment_room"
         if "前室" in text or "ANTEROOM" in text_upper:

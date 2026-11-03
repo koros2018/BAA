@@ -30,12 +30,10 @@ HISTORY_DDL = [
         note TEXT DEFAULT '', reason TEXT DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, reviewed_at DATETIME)""",
 ]
-CACHE_DDL = [
-    """CREATE TABLE cache_entries (
+CACHE_DDL = ["""CREATE TABLE cache_entries (
         cache_key TEXT PRIMARY KEY, cache_type TEXT NOT NULL, value TEXT NOT NULL,
         created_at REAL NOT NULL, expires_at REAL NOT NULL,
-        access_count INTEGER DEFAULT 0, last_access_at REAL DEFAULT 0)"""
-]
+        access_count INTEGER DEFAULT 0, last_access_at REAL DEFAULT 0)"""]
 COLLAB_DDL = [
     """CREATE TABLE users (
         id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT,
@@ -167,9 +165,7 @@ def test_migrate_copies_all_and_converts(legacy_and_target):
         assert str(rh.created_at).startswith("2026-10-20 10:00:00")
     with engine.connect() as conn:
         # 审计域时间戳转换
-        aud = conn.execute(
-            text("SELECT created_at IS NOT NULL FROM review_audit_items")
-        ).scalar()
+        aud = conn.execute(text("SELECT created_at IS NOT NULL FROM review_audit_items")).scalar()
         assert aud == 1
         # 缓存 Float epoch 直拷
         ce = conn.execute(
@@ -202,7 +198,11 @@ def test_migrate_missing_source_reported(tmp_path):
     url = f"sqlite:///{(tmp_path / 't2.db').as_posix()}"
     report = migrate(
         target_url=url,
-        sources={"history": tmp_path / "nope.db", "cache": tmp_path / "nope2.db", "collab": tmp_path / "nope3.db"},
+        sources={
+            "history": tmp_path / "nope.db",
+            "cache": tmp_path / "nope2.db",
+            "collab": tmp_path / "nope3.db",
+        },
     )
     assert report["review_history"]["error"] == 1
     dispose_engine(url)

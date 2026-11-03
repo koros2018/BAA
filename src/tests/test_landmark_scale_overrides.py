@@ -163,14 +163,16 @@ def test_same_func_different_standard_sets_produce_diff(repo):
         nat = _resolve_threshold(cid, "CN-National-v1")
         sha = _resolve_threshold(cid, "CN-Shanghai-v1")
         if nat["threshold"] != sha["threshold"]:
-            diff.append({
-                "clause_id": cid,
-                "national": nat["threshold"],
-                "national_source": nat["source"],
-                "shanghai": sha["threshold"],
-                "shanghai_source": sha["source"],
-                "delta": round(sha["threshold"] - nat["threshold"], 3),
-            })
+            diff.append(
+                {
+                    "clause_id": cid,
+                    "national": nat["threshold"],
+                    "national_source": nat["source"],
+                    "shanghai": sha["threshold"],
+                    "shanghai_source": sha["source"],
+                    "delta": round(sha["threshold"] - nat["threshold"], 3),
+                }
+            )
 
     assert len(diff) == 3  # 3 条 clause 全变
     # 走道：1.1m → 1.2m，+0.1m

@@ -25,7 +25,9 @@ def _rgb(hex_color: str) -> RGBColor:
     return RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
-def _set_cn_font(run, name: str = "宋体", size_pt: int = 9, bold: bool = False, color: Optional[RGBColor] = None) -> None:
+def _set_cn_font(
+    run, name: str = "宋体", size_pt: int = 9, bold: bool = False, color: Optional[RGBColor] = None
+) -> None:
     run.font.name = name
     run._element.rPr.rFonts.set(qn("w:eastAsia"), name)
     run.font.size = Pt(size_pt)
@@ -115,7 +117,12 @@ def build_correction_notice_docx(
     doc.add_paragraph()
     p = doc.add_paragraph()
     _set_cn_font(p.add_run("说明："), size_pt=9, bold=True)
-    _set_cn_font(p.add_run("本通知单列出了经审查确认后需要整改的违规条目。请项目负责人按照规范要求完成整改，并在复查栏签署意见。"), size_pt=9)
+    _set_cn_font(
+        p.add_run(
+            "本通知单列出了经审查确认后需要整改的违规条目。请项目负责人按照规范要求完成整改，并在复查栏签署意见。"
+        ),
+        size_pt=9,
+    )
 
     _add_page_break(doc)
 
@@ -126,7 +133,12 @@ def build_correction_notice_docx(
         seq += 1
         sec_p = doc.add_paragraph()
         sec_p.paragraph_format.space_before = Pt(14)
-        _set_cn_font(sec_p.add_run(f"第 {seq} 项：{fid} ({len(entries)} 处)"), size_pt=11, bold=True, color=_rgb(template.primary_color))
+        _set_cn_font(
+            sec_p.add_run(f"第 {seq} 项：{fid} ({len(entries)} 处)"),
+            size_pt=11,
+            bold=True,
+            color=_rgb(template.primary_color),
+        )
 
         table = doc.add_table(rows=1, cols=4)
         table.style = "Light Grid Accent 1"
@@ -136,7 +148,12 @@ def build_correction_notice_docx(
             hdr[i].width = Cm([1.2, 4.5, 5.5, 5.5][i])
         for i, it in enumerate(entries):
             row = table.add_row().cells
-            vals = [str(i + 1), str(it.get("entity_id", "—")), str(it.get("note", "—")), f"按 {fid} 要求整改"]
+            vals = [
+                str(i + 1),
+                str(it.get("entity_id", "—")),
+                str(it.get("note", "—")),
+                f"按 {fid} 要求整改",
+            ]
             for j, v in enumerate(vals):
                 _set_cn_font(row[j].paragraphs[0].add_run(v), size_pt=9)
                 row[j].width = Cm([1.2, 4.5, 5.5, 5.5][j])
@@ -155,7 +172,9 @@ def build_correction_notice_docx(
     # ── 签字页 ──
     doc.add_paragraph()
     p = doc.add_paragraph()
-    _set_cn_font(p.add_run("项目负责人确认"), size_pt=16, bold=True, color=_rgb(template.primary_color))
+    _set_cn_font(
+        p.add_run("项目负责人确认"), size_pt=16, bold=True, color=_rgb(template.primary_color)
+    )
     doc.add_paragraph()
     p = doc.add_paragraph()
     _set_cn_font(p.add_run("本人已确认上述整改内容，将按要求完成整改。"), size_pt=9)
@@ -169,7 +188,11 @@ def build_correction_notice_docx(
     doc.add_paragraph()
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_cn_font(p.add_run("BAA 合规审查系统自动生成 · 请打印后签署"), size_pt=8, color=RGBColor(0x8C, 0x8C, 0x94))
+    _set_cn_font(
+        p.add_run("BAA 合规审查系统自动生成 · 请打印后签署"),
+        size_pt=8,
+        color=RGBColor(0x8C, 0x8C, 0x94),
+    )
 
     out = Path(output_path or f"correction_notice_{notice_id}.docx")
     doc.save(str(out))

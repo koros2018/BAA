@@ -67,7 +67,16 @@ def test_export_bundle_manifest_fields(tmp_path):
     zp = svc.build("r3", {"dxf": dxf})
     with zipfile.ZipFile(zp) as zf:
         m = json.loads(zf.read("manifest.json"))
-    required = {"review_id", "exported_at", "standard_set", "ifc_path", "step_path", "dxf_sha256", "report_version", "report_schema_version"}
+    required = {
+        "review_id",
+        "exported_at",
+        "standard_set",
+        "ifc_path",
+        "step_path",
+        "dxf_sha256",
+        "report_version",
+        "report_schema_version",
+    }
     assert required.issubset(m.keys())
 
 

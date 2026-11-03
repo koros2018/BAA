@@ -18,34 +18,58 @@ from typing import Any, Dict, List, Optional
 # (变量名, 是否必填, 默认值, 合法值校验函数, 提示文案)
 _CONFIG_SCHEMA: List[tuple] = [
     # 安全基线（T-C4）
-    ("BAA_ALLOW_ANONYMOUS", True, "0", lambda v: v in ("0", "1"),
-     "生产必须为 0；1=匿名放行（仅开发/E2E）"),
-    ("BAA_PDF_ISOLATION", True, "1", lambda v: v in ("0", "1"),
-     "AGPL 进程隔离开关，生产建议开启"),
-    ("BAA_VISION_ENABLED", False, "false", lambda v: v.lower() in ("true", "false", "1", "0"),
-     "YOLO/光栅视觉层开关，生产必须 false"),
+    (
+        "BAA_ALLOW_ANONYMOUS",
+        True,
+        "0",
+        lambda v: v in ("0", "1"),
+        "生产必须为 0；1=匿名放行（仅开发/E2E）",
+    ),
+    ("BAA_PDF_ISOLATION", True, "1", lambda v: v in ("0", "1"), "AGPL 进程隔离开关，生产建议开启"),
+    (
+        "BAA_VISION_ENABLED",
+        False,
+        "false",
+        lambda v: v.lower() in ("true", "false", "1", "0"),
+        "YOLO/光栅视觉层开关，生产必须 false",
+    ),
     # 认证
-    ("BAA_API_KEY", False, "", lambda v: len(v) >= 32 or v == "",
-     "管理密钥，生产建议 ≥32 字符"),
-    ("BAA_AUTH_SECRET", False, "", lambda v: len(v) >= 16 or v == "",
-     "内部认证密钥，逗号分隔多个"),
+    ("BAA_API_KEY", False, "", lambda v: len(v) >= 32 or v == "", "管理密钥，生产建议 ≥32 字符"),
+    ("BAA_AUTH_SECRET", False, "", lambda v: len(v) >= 16 or v == "", "内部认证密钥，逗号分隔多个"),
     # 日志与可观测
-    ("BAA_LOG_FORMAT", False, "text", lambda v: v in ("text", "json"),
-     "结构化日志格式（text/json），生产推荐 json"),
+    (
+        "BAA_LOG_FORMAT",
+        False,
+        "text",
+        lambda v: v in ("text", "json"),
+        "结构化日志格式（text/json），生产推荐 json",
+    ),
     # 数据库
-    ("BAA_DATABASE_URL", True, "", lambda v: len(v) > 0,
-     "数据库连接串（PostgreSQL/SQLite）"),
+    ("BAA_DATABASE_URL", True, "", lambda v: len(v) > 0, "数据库连接串（PostgreSQL/SQLite）"),
     # 运行时
-    ("BAA_PORT", False, "8000", lambda v: 1 <= int(v or 8000) <= 65535,
-     "HTTP 服务端口"),
-    ("BAA_WORKERS", False, "4", lambda v: int(v or 4) in (1, 2, 4, 8, 16),
-     "Gunicorn worker 数（1/2/4/8/16）"),
-    ("BAA_QUEUE_NAMESPACE", False, "default", lambda v: len(v) > 0,
-     "审查队列命名空间（多副本共享存储时区分）"),
-    ("BAA_DATA_DIR", False, "", lambda v: len(v) > 0 or True,
-     "数据目录（文件/密钥/日志/模型）"),
-    ("BAA_CORRECTION_MODE", False, "hybrid", lambda v: v in ("rule", "hybrid", "ml"),
-     "纠正模式：rule/hybrid/ml"),
+    ("BAA_PORT", False, "8000", lambda v: 1 <= int(v or 8000) <= 65535, "HTTP 服务端口"),
+    (
+        "BAA_WORKERS",
+        False,
+        "4",
+        lambda v: int(v or 4) in (1, 2, 4, 8, 16),
+        "Gunicorn worker 数（1/2/4/8/16）",
+    ),
+    (
+        "BAA_QUEUE_NAMESPACE",
+        False,
+        "default",
+        lambda v: len(v) > 0,
+        "审查队列命名空间（多副本共享存储时区分）",
+    ),
+    ("BAA_DATA_DIR", False, "", lambda v: len(v) > 0 or True, "数据目录（文件/密钥/日志/模型）"),
+    (
+        "BAA_CORRECTION_MODE",
+        False,
+        "hybrid",
+        lambda v: v in ("rule", "hybrid", "ml"),
+        "纠正模式：rule/hybrid/ml",
+    ),
 ]
 
 # 敏感字段：内容需脱敏后展示

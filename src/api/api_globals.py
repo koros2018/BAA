@@ -284,7 +284,9 @@ def require_scope(scope: str):
 def require_admin(request: Request, api_key: str = "") -> str:
     """验证 admin 权限"""
     # 优先使用中间件已注入的 api_key，其次使用显式参数
-    effective_key = (getattr(request, "state", None) and getattr(request.state, "api_key", "")) or api_key
+    effective_key = (
+        getattr(request, "state", None) and getattr(request.state, "api_key", "")
+    ) or api_key
     km = get_key_manager()
     key_info = km.validate_key(effective_key)
     if key_info and key_info.get("enabled", True) and key_info.get("permission") == "admin":

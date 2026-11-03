@@ -32,7 +32,6 @@ from .summary import build_summary_page, build_structured_summary_page
 from .violations import build_violation_pages, build_correction_pages
 from .template import get_template_registry, ReportTemplate
 
-
 # section_code -> builder callable name
 _SECTION_BUILDERS = {
     "cover": "cover",
@@ -110,6 +109,7 @@ class ReviewReport:
                     build_signature_page,
                     build_toc_page,
                 )
+
                 if sec == "toc":
                     buf.append(PageBreak())
                     build_toc_page(buf, self.styles, self.page_w, self.margin, details, lang)

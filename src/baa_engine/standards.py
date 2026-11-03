@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-
 # ── 内置标准集注册表（纯数据，无副作用）────────────────────────
 
 _BUILTIN_SETS: Dict[str, "StandardSet"] = {}
@@ -51,9 +50,7 @@ class StandardSet:
     def get(cls, code: str) -> "StandardSet":
         if code not in _BUILTIN_SETS:
             available = ", ".join(sorted(_BUILTIN_SETS.keys())) or "(none)"
-            raise KeyError(
-                f"未知 standard_set_code='{code}'，可用值：{available}"
-            )
+            raise KeyError(f"未知 standard_set_code='{code}'，可用值：{available}")
         return _BUILTIN_SETS[code]
 
     @classmethod
@@ -147,6 +144,7 @@ class ScaleContext:
 
 # ── 公开 API（函数形式，兼容模块级）─────────────────────────
 
+
 def list_sets() -> List[StandardSet]:
     return StandardSet.all()
 
@@ -168,33 +166,37 @@ def available_codes() -> List[str]:
 # 这里直接硬编码 standard 字符串（与 Clause.standard 字段对齐），
 # 不强依赖 spec_data 模块导入——导入副作用留给 SpecRepository 自己。
 
-StandardSet.register(StandardSet(
-    code="CN-National-v1",
-    name="中国国家级标准（v1）",
-    version="v1",
-    included_standards=[
-        "GB 50016-2014",   # 建筑防火设计规范
-        "GB 50016-2018",   # 建筑防火通用规范
-        "GB 50974-2014",   # 消防给水及消火栓系统技术规范
-        "GB 50763-2012",   # 无障碍设计规范
-        "GB 50067-2014",   # 住宅设计规范
-    ],
-    description="GB 防火 + 消防设施 + 无障碍 + 住宅四件套，当前生产默认集",
-))
+StandardSet.register(
+    StandardSet(
+        code="CN-National-v1",
+        name="中国国家级标准（v1）",
+        version="v1",
+        included_standards=[
+            "GB 50016-2014",  # 建筑防火设计规范
+            "GB 50016-2018",  # 建筑防火通用规范
+            "GB 50974-2014",  # 消防给水及消火栓系统技术规范
+            "GB 50763-2012",  # 无障碍设计规范
+            "GB 50067-2014",  # 住宅设计规范
+        ],
+        description="GB 防火 + 消防设施 + 无障碍 + 住宅四件套，当前生产默认集",
+    )
+)
 
 # NFPA 海外集保留（当前 Clause 里的 NFPA 系列含年份后缀）
-StandardSet.register(StandardSet(
-    code="US-NFPA-v1",
-    name="美国 NFPA 标准（v1）",
-    version="v1",
-    included_standards=[
-        "NFPA 101-2021",
-        "NFPA 5000-2021",
-        "NFPA 13-2021",
-        "NFPA 14-2021",
-    ],
-    description="NFPA 生命安全 + 建筑规范 + 消防喷淋 + 立管，海外项目使用",
-))
+StandardSet.register(
+    StandardSet(
+        code="US-NFPA-v1",
+        name="美国 NFPA 标准（v1）",
+        version="v1",
+        included_standards=[
+            "NFPA 101-2021",
+            "NFPA 5000-2021",
+            "NFPA 13-2021",
+            "NFPA 14-2021",
+        ],
+        description="NFPA 生命安全 + 建筑规范 + 消防喷淋 + 立管，海外项目使用",
+    )
+)
 
 
 # ── D1-T3：首批地标集（上海 / 广东）─────────────────────────
@@ -210,59 +212,63 @@ StandardSet.register(StandardSet(
 
 # 上海地标（DGJ08-20 住宅设计标准 + DG/TJ 08-2408 城市综合体消防技术标准
 #         + 人员密集场所疏散通道要点）
-StandardSet.register(StandardSet(
-    code="CN-Shanghai-v1",
-    name="中国 上海地方标准（v1）",
-    version="v1",
-    included_standards=[
-        "GB 50016-2014",
-        "GB 50016-2018",
-        "GB 50974-2014",
-        "GB 50763-2012",
-        "GB 50067-2014",
-    ],
-    scale_overrides={
-        # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 上海住宅走廊 ≥1.2m
-        # （来源：DGJ08-20-2018 住宅设计标准 5.3.1 条）
-        "GB50016-5.5.18-2": {"civil": 1.2},
-        # GB50016-7.1.1 消防车道宽度：国标 civil=4.0m → 上海综合体 ≥4.5m
-        # （来源：DG/TJ 08-2408-2022 城市综合体消防 3.2 加严要求）
-        "GB50016-7.1.1": {"civil": 4.5},
-        # GB50016-5.5.18 疏散楼梯净宽：国标 civil=1.2m → 上海大型建筑 ≥1.3m
-        # （来源：上海人员密集场所疏散通道技术要点 1.2.1 表，一/二级耐火
-        #  每百人 0.65m 推算 + 最小净宽加严）
-        "GB50016-5.5.18": {"civil": 1.3},
-    },
-    description="上海地标阈值覆盖：住宅走道+综合体消防车道+大型建筑楼梯净宽",
-))
+StandardSet.register(
+    StandardSet(
+        code="CN-Shanghai-v1",
+        name="中国 上海地方标准（v1）",
+        version="v1",
+        included_standards=[
+            "GB 50016-2014",
+            "GB 50016-2018",
+            "GB 50974-2014",
+            "GB 50763-2012",
+            "GB 50067-2014",
+        ],
+        scale_overrides={
+            # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 上海住宅走廊 ≥1.2m
+            # （来源：DGJ08-20-2018 住宅设计标准 5.3.1 条）
+            "GB50016-5.5.18-2": {"civil": 1.2},
+            # GB50016-7.1.1 消防车道宽度：国标 civil=4.0m → 上海综合体 ≥4.5m
+            # （来源：DG/TJ 08-2408-2022 城市综合体消防 3.2 加严要求）
+            "GB50016-7.1.1": {"civil": 4.5},
+            # GB50016-5.5.18 疏散楼梯净宽：国标 civil=1.2m → 上海大型建筑 ≥1.3m
+            # （来源：上海人员密集场所疏散通道技术要点 1.2.1 表，一/二级耐火
+            #  每百人 0.65m 推算 + 最小净宽加严）
+            "GB50016-5.5.18": {"civil": 1.3},
+        },
+        description="上海地标阈值覆盖：住宅走道+综合体消防车道+大型建筑楼梯净宽",
+    )
+)
 
 # 广东地标（DBJ15-31 建筑防火设计规程 + 广东省公安厅大中型商业建筑意见）
-StandardSet.register(StandardSet(
-    code="CN-Guangdong-v1",
-    name="中国 广东地方标准（v1）",
-    version="v1",
-    included_standards=[
-        "GB 50016-2014",
-        "GB 50016-2018",
-        "GB 50974-2014",
-        "GB 50763-2012",
-        "GB 50067-2014",
-    ],
-    scale_overrides={
-        # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 广东商业主通道 ≥3.0m
-        # （来源：广东省公安厅 2014 大中型商业建筑意见 第 1 条第 2 款）
-        # 注意：此值针对大中型商业建筑，非全建筑类型——MVP 阶段
-        # building_type 无 commercial 选项，暂用 civil 表示地标整体加严
-        "GB50016-5.5.18-2": {"civil": 3.0},
-        # GB50016-5.5.17 房间疏散距离：国标 civil=30m → 广东商业 ≤25m
-        # （来源：广东商业建筑消防设计审查要点，商业疏散距离比国标严 5m）
-        "GB50016-5.5.17": {"civil": 25.0},
-        # GB50016-5.5.18-3 疏散门净宽：国标 civil=0.9m → 广东 ≥1.0m
-        # （来源：DBJ15-31 系列地标消防设施配置加严）
-        "GB50016-5.5.18-3": {"civil": 1.0},
-    },
-    description="广东地标阈值覆盖：商业主通道+疏散距离+疏散门净宽",
-))
+StandardSet.register(
+    StandardSet(
+        code="CN-Guangdong-v1",
+        name="中国 广东地方标准（v1）",
+        version="v1",
+        included_standards=[
+            "GB 50016-2014",
+            "GB 50016-2018",
+            "GB 50974-2014",
+            "GB 50763-2012",
+            "GB 50067-2014",
+        ],
+        scale_overrides={
+            # GB50016-5.5.18-2 疏散走道净宽：国标 civil=1.1m → 广东商业主通道 ≥3.0m
+            # （来源：广东省公安厅 2014 大中型商业建筑意见 第 1 条第 2 款）
+            # 注意：此值针对大中型商业建筑，非全建筑类型——MVP 阶段
+            # building_type 无 commercial 选项，暂用 civil 表示地标整体加严
+            "GB50016-5.5.18-2": {"civil": 3.0},
+            # GB50016-5.5.17 房间疏散距离：国标 civil=30m → 广东商业 ≤25m
+            # （来源：广东商业建筑消防设计审查要点，商业疏散距离比国标严 5m）
+            "GB50016-5.5.17": {"civil": 25.0},
+            # GB50016-5.5.18-3 疏散门净宽：国标 civil=0.9m → 广东 ≥1.0m
+            # （来源：DBJ15-31 系列地标消防设施配置加严）
+            "GB50016-5.5.18-3": {"civil": 1.0},
+        },
+        description="广东地标阈值覆盖：商业主通道+疏散距离+疏散门净宽",
+    )
+)
 
 
 # ── 工具函数：SpecRepository 遍历入口 ──────────────────────
@@ -270,6 +276,7 @@ StandardSet.register(StandardSet(
 # 给 StandardSet.populate_func_standard_map 用——需要拿到 Clause 列表。
 # SpecRepository 提供了 to_json() / list_all() 等方法，这里再包一层
 # 拿到原生 Clause 对象列表，让上层直接调用。
+
 
 def build_func_standard_maps_for_all_sets(spec_repo_clauses_iterable) -> None:
     """初始化时一次性为所有已注册标准集填充 func→standard 映射。

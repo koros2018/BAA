@@ -30,9 +30,7 @@ def test_explicit_wins_over_env(monkeypatch):
 
 def test_blank_env_falls_back(monkeypatch):
     monkeypatch.setenv(DEFAULT_URL_ENV, "   ")
-    monkeypatch.setattr(
-        "src.baa_engine.db.database.DEFAULT_SQLITE_PATH", DEFAULT_SQLITE_PATH
-    )
+    monkeypatch.setattr("src.baa_engine.db.database.DEFAULT_SQLITE_PATH", DEFAULT_SQLITE_PATH)
     assert resolve_database_url().startswith("sqlite:///")
 
 

@@ -106,7 +106,9 @@ class AtomicFunction:  # class definition
     target_entities: List[str] = field(default_factory=list)  # 目标实体类型列表，空则匹配所有
     depends_on: List[str] = field(default_factory=list)  # 依赖的前置函数ID列表
     requires_global_context: bool = False  # P70: 需要全局上下文判定，不在逐实体循环中执行
-    prerequisite_types: List[str] = field(default_factory=list)  # 条件性规则：前置实体类型（如 EXIST-067 需 fire_wall 存在才判定）
+    prerequisite_types: List[str] = field(
+        default_factory=list
+    )  # 条件性规则：前置实体类型（如 EXIST-067 需 fire_wall 存在才判定）
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
@@ -416,9 +418,7 @@ class AtomicFunction:  # class definition
             # DIM-001 边界容差：<2% 偏差视为测量误差，不报违规
             # （与 DIM-004/DIM-113 同口径，用阈值而非硬编码，兼容建筑类型覆盖）
             if (
-                func_id == "DIM-001"
-                and self.threshold > 0
-                and 0.98 <= (val / self.threshold) < 1.0
+                func_id == "DIM-001" and self.threshold > 0 and 0.98 <= (val / self.threshold) < 1.0
             ):  # check: numeric comparison
                 return None  # 边界楼梯净宽，跳过判定
 
@@ -674,7 +674,9 @@ class AtomicFunction:  # class definition
                     return None  # 无宽度数据，跳过判定
             # DIM-009 疏散出口宽度：仅适用于 exit/exit_door；普通 door/doorway 仅宽度 >= 1.3m 时判定
             # 0.8~1.3m 的门/门洞是标准单开门/建筑洞口，不是疏散出口
-            if entity_type != "exit" and entity_type != "exit_door" and val < 1.3:  # check: numeric comparison
+            if (
+                entity_type != "exit" and entity_type != "exit_door" and val < 1.3
+            ):  # check: numeric comparison
                 # 跨图纸复测（2026-10，212 条）：doorway <1.3m 判定产生大量 FAIL
                 # （avg 0.836m，全 DWG 图纸上的标准门洞），doorway 与 door 同口径
                 return None  # 普通门/门洞（<1.3m）不是疏散出口，不适用此规范
@@ -906,7 +908,11 @@ class AtomicFunction:  # class definition
             # P130: AREA-018/019/021 前室面积：极小 ante chamber（<2m²）几乎一定是误分类
             # 跨图纸复测（2026-11）：ANTECHAMBER_7087(0.77m²)/6314(1.0m²)/4915(1.87m²)
             # 极小面积不符合前室功能需求（最小前室通常 ≥3m²），疑似管道井/设备间误标
-            if func_id in ("AREA-018", "AREA-019", "AREA-021") and entity_type in ("antechamber", "fire_elevator_lobby", "scissor_stair_lobby"):
+            if func_id in ("AREA-018", "AREA-019", "AREA-021") and entity_type in (
+                "antechamber",
+                "fire_elevator_lobby",
+                "scissor_stair_lobby",
+            ):
                 area_val = props.get("area_m2") or props.get("area", 0.0)
                 if area_val and area_val < 2.0:  # check: numeric comparison
                     return None  # 极小 ante chamber，疑似误分类，跳过判定
@@ -916,17 +922,40 @@ class AtomicFunction:  # class definition
             #    先用权威口径（area_m2 / area）；都没有时才考虑 bbox 兜底，
             #    但仅限白名单内实体类型。
             _bbox_area_allowed = {
-                "room", "corridor", "stair", "antechamber", "lobby",
-                "fire_elevator_lobby", "elevator_lobby", "staircase_lobby",
-                "smoke_proof_lobby", "scissor_stair_lobby",
-                "refuge_floor", "refuge_area", "refuge_room",
-                "rescue_area", "rescue_ground", "floor", "fire_zone",
-                "natural_vent", "smoke_vent", "smoke_window",
-                "alarm_center", "control_room", "fire_control_room",
-                "generator_room", "accessible_room", "apartment",
-                "operating_room", "surgery_room", "bedroom",
-                "hospital_ward", "nursing_unit", "shelter",
-                "rescue_opening", "fire_platform",
+                "room",
+                "corridor",
+                "stair",
+                "antechamber",
+                "lobby",
+                "fire_elevator_lobby",
+                "elevator_lobby",
+                "staircase_lobby",
+                "smoke_proof_lobby",
+                "scissor_stair_lobby",
+                "refuge_floor",
+                "refuge_area",
+                "refuge_room",
+                "rescue_area",
+                "rescue_ground",
+                "floor",
+                "fire_zone",
+                "natural_vent",
+                "smoke_vent",
+                "smoke_window",
+                "alarm_center",
+                "control_room",
+                "fire_control_room",
+                "generator_room",
+                "accessible_room",
+                "apartment",
+                "operating_room",
+                "surgery_room",
+                "bedroom",
+                "hospital_ward",
+                "nursing_unit",
+                "shelter",
+                "rescue_opening",
+                "fire_platform",
             }
 
             # ── 面积提取（单位归一权威口径 area_m2 优先） ────────
@@ -966,9 +995,10 @@ class AtomicFunction:  # class definition
             subtype = entity.get("subtype", "")
             props0 = entity.get("properties") or {}
             inferred_type = props0.get("inferred_type", "")
-            if (
-                subtype in ("equipment_room", "utility", "elevator")
-                or inferred_type in ("equipment_room", "utility", "elevator")
+            if subtype in ("equipment_room", "utility", "elevator") or inferred_type in (
+                "equipment_room",
+                "utility",
+                "elevator",
             ):
                 return None
         if func_id == "EVAC-001":  # 疏散路径是否存在

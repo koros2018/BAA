@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 
-def _write_report_zip(tmp_path: Path, schema_major: int = 1, extra_files: list | None = None) -> Path:
+def _write_report_zip(
+    tmp_path: Path, schema_major: int = 1, extra_files: list | None = None
+) -> Path:
     manifest = {
         "format": "baa-report-bundle",
         "schema_version": f"{schema_major}.0",

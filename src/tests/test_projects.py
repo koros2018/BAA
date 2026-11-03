@@ -9,6 +9,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def _ensure_schema():
     from src.baa_engine.db import ensure_schema
+
     ensure_schema()
     yield
 
@@ -112,7 +113,9 @@ class TestProjectDetailWithStats:
         proj_id = p.id
         sf.remove()
 
-        resp = client.get(f"/api/v1/projects/{proj_id}", headers={"Authorization": "Bearer test-api-key"})
+        resp = client.get(
+            f"/api/v1/projects/{proj_id}", headers={"Authorization": "Bearer test-api-key"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "review_stats" in data
@@ -232,9 +235,11 @@ class TestProjectStatusAudit:
         ag.API_KEYS.clear()
         ag.API_KEYS.add("test-api-key")
         from src.baa_engine.api_key_manager import reset_key_manager
+
         reset_key_manager()
 
         from src.baa_engine.db import ensure_schema
+
         ensure_schema()
 
         from fastapi.testclient import TestClient

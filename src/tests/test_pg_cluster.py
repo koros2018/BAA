@@ -30,7 +30,7 @@ pytestmark = [
 ]
 
 
-_WORKER_SRC = '''
+_WORKER_SRC = """
 import asyncio
 import json
 import os
@@ -164,7 +164,7 @@ MODES = {
 }
 MODES[mode]()
 dispose_all()
-'''.replace("__PROJECT_ROOT__", str(PROJECT_ROOT))
+""".replace("__PROJECT_ROOT__", str(PROJECT_ROOT))
 
 
 @pytest.fixture(autouse=True)
@@ -210,13 +210,16 @@ def _raw_engine():
 
 # ── 验收 1：限流跨副本一致 ────────────────────────────
 
+
 def test_tc2_01_rate_limit_consistent_across_replicas(worker_script, tmp_path):
     """4 个副本进程共抢 limit=5 的配额：总放行恰 5（存储层原子判定，不超发）。"""
     subject = f"key:pg-test-{uuid.uuid4().hex[:8]}"
     limit, window, replicas, tries = 5, 600.0, 4, 8
 
     procs = [
-        _spawn(worker_script, ["rate", PG_URL, subject, str(limit), str(tries), str(window)], tmp_path)
+        _spawn(
+            worker_script, ["rate", PG_URL, subject, str(limit), str(tries), str(window)], tmp_path
+        )
         for _ in range(replicas)
     ]
     outs = _collect(procs)
@@ -232,6 +235,7 @@ def test_tc2_01_rate_limit_consistent_across_replicas(worker_script, tmp_path):
 
 
 # ── 验收 2：任务跨副本互见 + 原子认领 ──────────────────
+
 
 def test_tc2_02_tasks_claimed_exactly_once(worker_script, tmp_path):
     """父进程入队的 8 个任务被 3 个副本进程各认领一次，无重复、无遗漏。"""
@@ -275,6 +279,7 @@ def test_tc2_02_tasks_claimed_exactly_once(worker_script, tmp_path):
 
 # ── 验收 3：密钥/用量跨副本可见 ────────────────────────
 
+
 def test_tc2_03_api_key_and_usage_visible_across_replicas(worker_script, tmp_path):
     """副本 A 建密钥 → 副本 B 验证并计用量 → 副本 C 读到累计用量。"""
     in_path = str(tmp_path / "key-info.json")
@@ -282,9 +287,7 @@ def test_tc2_03_api_key_and_usage_visible_across_replicas(worker_script, tmp_pat
     outs = _collect([_spawn(worker_script, ["key-create", PG_URL, in_path], tmp_path)])
     assert "CREATED" in outs[0]
 
-    outs = _collect(
-        [_spawn(worker_script, ["key-use", PG_URL, in_path, "3"], tmp_path)]
-    )
+    outs = _collect([_spawn(worker_script, ["key-use", PG_URL, in_path, "3"], tmp_path)])
     assert "USED 3 read" in outs[0]
 
     outs = _collect([_spawn(worker_script, ["key-stats", PG_URL, in_path], tmp_path)])
@@ -295,6 +298,7 @@ def test_tc2_03_api_key_and_usage_visible_across_replicas(worker_script, tmp_pat
 
 
 # ── 验收 4：吞吐随副本数上升 ──────────────────────────
+
 
 def test_tc2_04_throughput_scales_with_replicas(worker_script, tmp_path):
     """同一任务集（40 个 × 50ms）：2 副本耗时显著短于 1 副本。"""
@@ -334,6 +338,4 @@ def test_tc2_04_throughput_scales_with_replicas(worker_script, tmp_path):
     one = run_group(1)
     two = run_group(2)
 
-    assert two < one * 0.8, (
-        f"吞吐未随副本数上升：1 副本 {one:.2f}s vs 2 副本 {two:.2f}s"
-    )
+    assert two < one * 0.8, f"吞吐未随副本数上升：1 副本 {one:.2f}s vs 2 副本 {two:.2f}s"

@@ -106,9 +106,7 @@ class PersistentCache:  # persistent cache on unified data layer
 
                 if row.expires_at < now:  # check if entry has expired
                     # 过期条目，延迟删除
-                    session.execute(
-                        delete(CacheEntry).where(CacheEntry.cache_key == cache_key)
-                    )
+                    session.execute(delete(CacheEntry).where(CacheEntry.cache_key == cache_key))
                     session.commit()  # commit deletion
                     return None  # treat expired as miss
 
@@ -162,9 +160,9 @@ class PersistentCache:  # persistent cache on unified data layer
 
                 max_entries = MAX_ENTRIES_PER_TYPE.get(cache_type, 500)
                 count = session.scalar(
-                    select(func.count()).select_from(CacheEntry).where(
-                        CacheEntry.cache_type == cache_type
-                    )
+                    select(func.count())
+                    .select_from(CacheEntry)
+                    .where(CacheEntry.cache_type == cache_type)
                 )
 
                 if (count or 0) > max_entries:

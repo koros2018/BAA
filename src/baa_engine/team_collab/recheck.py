@@ -23,7 +23,6 @@ from .manager import CollaborationManager, _check_permission
 
 from .models import ProjectPermission, ReviewSession, ReviewStatus, REVIEW_STATUS_TRANSITIONS
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,9 +58,15 @@ def compare_findings(old_details: List[dict], new_details: List[dict]) -> dict:
         return [src[k] for k in sorted(keys)]
 
     return {
-        "resolved": {"count": len(old_keys - new_keys), "items": _items(old_keys - new_keys, old_map)},
+        "resolved": {
+            "count": len(old_keys - new_keys),
+            "items": _items(old_keys - new_keys, old_map),
+        },
         "new": {"count": len(new_keys - old_keys), "items": _items(new_keys - old_keys, new_map)},
-        "persisted": {"count": len(old_keys & new_keys), "items": _items(old_keys & new_keys, new_map)},
+        "persisted": {
+            "count": len(old_keys & new_keys),
+            "items": _items(old_keys & new_keys, new_map),
+        },
     }
 
 
@@ -364,8 +369,10 @@ def recheck_session(
 
             return None, f"复查失败: {msg}"
 
-        logger.info(f"[Collab] 复查完成: {session_id} 新{comparison['new']['count']} "
-                    f"解决{comparison['resolved']['count']} 持存{comparison['persisted']['count']}")
+        logger.info(
+            f"[Collab] 复查完成: {session_id} 新{comparison['new']['count']} "
+            f"解决{comparison['resolved']['count']} 持存{comparison['persisted']['count']}"
+        )
 
         return {
             "comparison": comparison,

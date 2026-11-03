@@ -5,7 +5,6 @@ import sys
 
 import pytest
 
-
 # ── 细粒度 RBAC ────────────────────────────────────────────
 
 
@@ -70,15 +69,11 @@ class TestRequireScopeEndpoint:
 
     def test_static_key_passes_scope_check(self, client):
         # 静态配置密钥（test-api-key 在 API_KEYS 中）视为全权限（向后兼容）
-        resp = client.post(
-            "/deconstruct", headers={"Authorization": "Bearer test-api-key"}
-        )
+        resp = client.post("/deconstruct", headers={"Authorization": "Bearer test-api-key"})
         assert resp.status_code in (400, 422)  # 缺文件参数 → 业务校验，非 401/403
 
     def test_invalid_key_401(self, client):
-        resp = client.post(
-            "/deconstruct", headers={"Authorization": "Bearer nope-nope-nope"}
-        )
+        resp = client.post("/deconstruct", headers={"Authorization": "Bearer nope-nope-nope"})
         assert resp.status_code == 401
 
 
@@ -153,10 +148,7 @@ class TestLicenseIsolation:
         gpl_family = [
             p["Name"]
             for p in pkgs
-            if any(
-                t in (p.get("License") or "")
-                for t in ("AGPL", "GPL", "LGPL", "Affero")
-            )
+            if any(t in (p.get("License") or "") for t in ("AGPL", "GPL", "LGPL", "Affero"))
         ]
         # 白名单：AGPL 仅 PyMuPDF（已进程隔离）；LGPL 动态链接合规
         allowed = {

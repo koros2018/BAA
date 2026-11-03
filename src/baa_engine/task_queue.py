@@ -530,9 +530,7 @@ class ReviewQueue:
                 task.status = "failed"
                 task.completed_at = now
                 self._release_slot(task_id)
-        self._write_fields(
-            task_id, status="failed", completed_at=now, error=error
-        )
+        self._write_fields(task_id, status="failed", completed_at=now, error=error)
         if task is None or not task.webhook_url:
             return
         # P71: 触发 webhook
@@ -701,10 +699,14 @@ class ReviewQueue:
             "running_count": self._running_count,
             "queued_count": self.queued_count,
             "total_count": self.total_count,
-            "completed_count": completed
-            if completed is not None
-            else sum(1 for t in self._tasks.values() if t.status == "completed"),
-            "failed_count": failed
-            if failed is not None
-            else sum(1 for t in self._tasks.values() if t.status == "failed"),
+            "completed_count": (
+                completed
+                if completed is not None
+                else sum(1 for t in self._tasks.values() if t.status == "completed")
+            ),
+            "failed_count": (
+                failed
+                if failed is not None
+                else sum(1 for t in self._tasks.values() if t.status == "failed")
+            ),
         }

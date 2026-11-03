@@ -17,6 +17,7 @@ def _ensure_rbac_schema(tmp_path, monkeypatch):
     # 先导入模型，确保 Base.metadata 包含新表
     import src.baa_engine.db.models.rbac  # noqa: F401
     from src.baa_engine.db import ensure_schema
+
     ensure_schema()
 
 
@@ -173,11 +174,13 @@ class TestRoleCRUD:
         try:
             # 创建一个 read-only key
             from src.baa_engine.api_key_manager import get_key_manager
+
             km = get_key_manager()
             key_info = km.generate_key(permission="read", label="read-only")
             ag.API_KEYS.add(key_info["raw_key"])
 
             from src.api.baa_api import app
+
             client = TestClient(app)
 
             resp = client.post(
@@ -207,6 +210,7 @@ class TestRoleMembers:
 
         # 创建一个 key 并获取其 key_id
         from src.baa_engine.api_key_manager import get_key_manager
+
         km = get_key_manager()
         key_info = km.generate_key(permission="read", label="test-member")
         ag.API_KEYS.add(key_info["raw_key"])
@@ -240,6 +244,7 @@ class TestRoleMembers:
         role_id = create_resp.json()["role"]["id"]
 
         from src.baa_engine.api_key_manager import get_key_manager
+
         km = get_key_manager()
         key_info = km.generate_key(permission="read", label="test-member")
         ag.API_KEYS.add(key_info["raw_key"])
@@ -275,6 +280,7 @@ class TestRoleMembers:
         role_id = create_resp.json()["role"]["id"]
 
         from src.baa_engine.api_key_manager import get_key_manager
+
         km = get_key_manager()
         key_info = km.generate_key(permission="read", label="test-member")
         ag.API_KEYS.add(key_info["raw_key"])

@@ -51,7 +51,9 @@ class ExportBundleService:
     def exists(self, review_id: str) -> bool:
         return self.zip_path(review_id).is_file()
 
-    def build(self, review_id: str, files: Dict[str, Path], standard_set: str = "CN-National-v1") -> Path:
+    def build(
+        self, review_id: str, files: Dict[str, Path], standard_set: str = "CN-National-v1"
+    ) -> Path:
         """收集文件 + 生成 manifest + 打包 zip。"""
         out = self.zip_path(review_id)
         manifest = {
@@ -60,7 +62,9 @@ class ExportBundleService:
             "standard_set": standard_set,
             "ifc_path": files.get("ifc", Path()).name if "ifc" in files else "",
             "step_path": files.get("step", Path()).name if "step" in files else "",
-            "dxf_sha256": _sha256_file(files["dxf"]) if "dxf" in files and files["dxf"].is_file() else "",
+            "dxf_sha256": (
+                _sha256_file(files["dxf"]) if "dxf" in files and files["dxf"].is_file() else ""
+            ),
             "report_version": REPORT_VERSION,
             "report_schema_version": REPORT_SCHEMA_VERSION,
         }

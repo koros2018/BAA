@@ -830,8 +830,7 @@ def _try_ezdwg_direct(path: Path) -> Optional[Any]:
         if entity_count > 10 and non_zero_count > 0:
             zero_pct = layer_counts.get("0", 0) / entity_count * 100
             logger.info(
-                "[E6-DWG] ezdwg 直读成功: %s → %d 实体, "
-                "layer='0': %.1f%%, 非零图层 %d 个",
+                "[E6-DWG] ezdwg 直读成功: %s → %d 实体, " "layer='0': %.1f%%, 非零图层 %d 个",
                 path.name,
                 entity_count,
                 zero_pct,

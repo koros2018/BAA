@@ -88,9 +88,7 @@ def test_setup_structured_logging_json_mode(monkeypatch):
     enabled = setup_structured_logging()
     assert enabled is True
     root = logging.getLogger()
-    json_handlers = [
-        h for h in root.handlers if h.formatter.__class__.__name__ == "JsonFormatter"
-    ]
+    json_handlers = [h for h in root.handlers if h.formatter.__class__.__name__ == "JsonFormatter"]
     assert json_handlers, "JSON handler 未挂载"
     # 清理：恢复无 JSON handler 状态，避免污染其他测试输出
     for h in json_handlers:
@@ -127,7 +125,9 @@ def test_middleware_records_route_template_not_raw_path():
     from src.api.baa_api import app
 
     client = TestClient(app)
-    client.get("/order/obs-test-12345", headers={"Authorization": "Bearer test-api-key"})  # 触发一次带路径参数的请求
+    client.get(
+        "/order/obs-test-12345", headers={"Authorization": "Bearer test-api-key"}
+    )  # 触发一次带路径参数的请求
     body = client.get("/metrics").text
     assert 'route="/order/{order_id}"' in body
     assert "obs-test-12345" not in body
@@ -158,6 +158,7 @@ def test_alert_rules_yaml_valid():
 
 
 # ── D1-T5：规范库规模指标断言 ──────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_spec_stats_flag():

@@ -264,7 +264,9 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="个",
         depends_on=[],
-        prerequisite_types={"exit_door"},  # 条件性规则：仅疏散门（exit_door）有开启方向要求，无则跳过
+        prerequisite_types={
+            "exit_door"
+        },  # 条件性规则：仅疏散门（exit_door）有开启方向要求，无则跳过
     ),
     AtomicFunction(
         func_id="EXIST-022",
@@ -518,7 +520,11 @@ MODULE_FUNCS = [
         threshold=0,
         unit="",
         depends_on=[],
-        prerequisite_types={"smoke_exhaust", "smoke_vent", "fan"},  # 条件性规则：有排烟设施时触发（工业建筑走廊不要求排烟）
+        prerequisite_types={
+            "smoke_exhaust",
+            "smoke_vent",
+            "fan",
+        },  # 条件性规则：有排烟设施时触发（工业建筑走廊不要求排烟）
     ),
     AtomicFunction(
         func_id="EXIST-063",
@@ -623,7 +629,10 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="个",
         depends_on=[],
-        prerequisite_types={"control_room", "fire_control_room"},  # 条件性规则：消防控制室存在才判定，无则跳过
+        prerequisite_types={
+            "control_room",
+            "fire_control_room",
+        },  # 条件性规则：消防控制室存在才判定，无则跳过
     ),
     AtomicFunction(
         func_id="EXIST-072",
@@ -672,7 +681,11 @@ MODULE_FUNCS = [
         threshold=1.0,
         unit="套",
         depends_on=[],
-        prerequisite_types={"smoke_exhaust", "smoke_vent", "fan"},  # 条件性规则：有排烟设施时才判定（工业建筑走廊不要求排烟）
+        prerequisite_types={
+            "smoke_exhaust",
+            "smoke_vent",
+            "fan",
+        },  # 条件性规则：有排烟设施时才判定（工业建筑走廊不要求排烟）
     ),
     AtomicFunction(
         func_id="EXIST-076",

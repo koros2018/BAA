@@ -71,9 +71,7 @@ def ocr_scanned_pdf(
 
     with tempfile.TemporaryDirectory(prefix="baa_ocr_") as tmp:
         out_png = str(Path(tmp) / f"page{page_index}_{dpi}dpi.png")
-        rendered = render_pdf_page_isolated(
-            pdf_path, out_png, page_index=page_index, dpi=dpi
-        )
+        rendered = render_pdf_page_isolated(pdf_path, out_png, page_index=page_index, dpi=dpi)
         if rendered is None:
             logger.warning("[T-C7] PDF 栅格化失败: %s", pdf_path)
             return None

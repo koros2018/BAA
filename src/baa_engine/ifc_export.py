@@ -235,9 +235,7 @@ def export_ifc4(
     )
     site = run("root.create_entity", f, ifc_class="IfcSite", name="Site")
     building = run("root.create_entity", f, ifc_class="IfcBuilding", name="Building")
-    storey = run(
-        "root.create_entity", f, ifc_class="IfcBuildingStorey", name="F1"
-    )
+    storey = run("root.create_entity", f, ifc_class="IfcBuildingStorey", name="F1")
     run("aggregate.assign_object", f, relating_object=project, products=[site])
     run("aggregate.assign_object", f, relating_object=site, products=[building])
     run("aggregate.assign_object", f, relating_object=building, products=[storey])
@@ -323,9 +321,12 @@ def verify_si_units(path: str) -> Dict:
                     prefix = unit.Prefix or ""
                     if prefix in ("META", "MILLI", "CENTI", "MICRO", ""):
                         linear_unit = prefix or "m"
-                        length_unit = {"META": 1.0, "MILLI": 1e-3, "CENTI": 1e-2, "MICRO": 1e-6}.get(
-                            prefix, 1.0
-                        )
+                        length_unit = {
+                            "META": 1.0,
+                            "MILLI": 1e-3,
+                            "CENTI": 1e-2,
+                            "MICRO": 1e-6,
+                        }.get(prefix, 1.0)
         if linear_unit is None:
             errors.append("未找到 IfcSIUnit LENGTHUNIT")
 

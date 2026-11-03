@@ -18,10 +18,14 @@ def _make_test_license(
     from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
 
     data = {
         "plan": plan,
@@ -110,7 +114,9 @@ def test_license_enterprise_features(tmp_path):
     pub = _make_test_license(
         lic,
         plan="enterprise",
-        overrides={"features": ["offline_export", "correction_docx", "recheck_opinion", "custom_template"]},
+        overrides={
+            "features": ["offline_export", "correction_docx", "recheck_opinion", "custom_template"]
+        },
     )
     mgr = LicenseManager(license_path=lic, public_key_pem=pub, online=False)
     info = mgr.validate()

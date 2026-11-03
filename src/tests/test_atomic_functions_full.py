@@ -176,8 +176,9 @@ class TestAreaGuards:
     """
 
     @staticmethod
-    def _entity(type_name: str, subtype: str = "", area_m2=None, area=None,
-                bbox=None, **props) -> dict:
+    def _entity(
+        type_name: str, subtype: str = "", area_m2=None, area=None, bbox=None, **props
+    ) -> dict:
         ent = {"id": "E-001", "type": type_name}
         if subtype:
             ent["subtype"] = subtype
@@ -294,8 +295,7 @@ class TestAreaGuards:
 
     def test_area_bbox_large_room_works(self):
         """room bbox 100㎡ + 有效 subtype → 正常返回（AREA-004 需 control_room）"""
-        ent = self._entity("room", subtype="control_room",
-                           bbox={"width": 10000, "height": 10000})
+        ent = self._entity("room", subtype="control_room", bbox={"width": 10000, "height": 10000})
         val = self._val("AREA-004", ent)
         assert val == pytest.approx(100.0)
 

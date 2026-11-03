@@ -255,9 +255,9 @@ def get_stats(review_id: str) -> Dict[str, int]:
     session = sf()
     try:
         total = session.scalar(
-            select(func.count()).select_from(ReviewAuditItem).where(
-                ReviewAuditItem.review_id == review_id
-            )
+            select(func.count())
+            .select_from(ReviewAuditItem)
+            .where(ReviewAuditItem.review_id == review_id)
         )
         rows = session.execute(
             select(ReviewAuditItem.status, func.count())

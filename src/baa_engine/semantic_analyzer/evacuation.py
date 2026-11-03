@@ -7,7 +7,6 @@ from collections import deque
 from typing import List, Dict, Any, Optional, Tuple
 from .models import SemanticEntity, SpatialRelation
 
-
 # 严格出口类型（与 analyze_evacuation_routes 的 strict_exits 口径一致）
 STRICT_EXIT_TYPES = ("exit", "exit_door", "stair", "staircase")
 

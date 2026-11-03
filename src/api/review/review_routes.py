@@ -1208,6 +1208,7 @@ async def review_from_data(  # code
 
     # 校验 standard_set_code 合法性（可选，未知 code 时 ScaleContext 会 gracefully 回退）
     from src.baa_engine.standards import available_codes
+
     if standard_set_code not in available_codes():
         return {
             "status": "error",
@@ -1289,7 +1290,11 @@ async def review_from_data(  # code
                         worst_val, worst_unit, worst_op = v, u, o
                 # 全部跳过 → 返回当前 func 的硬编码值
                 if worst_val is None:
-                    return func.threshold, getattr(func, "unit", ""), getattr(func, "operator", ">=")
+                    return (
+                        func.threshold,
+                        getattr(func, "unit", ""),
+                        getattr(func, "operator", ">="),
+                    )
                 return worst_val, worst_unit, worst_op
 
             for e in entities:

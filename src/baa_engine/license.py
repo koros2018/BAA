@@ -7,6 +7,7 @@
 - 权限字段映射到 ApiKeyPermission：free/standard/enterprise
 - 首次创建 API Key 自动激活 14 天试用（trial=true）
 """
+
 from __future__ import annotations
 
 import base64
@@ -47,6 +48,7 @@ HwIDAQAB
 @dataclass
 class LicenseInfo:
     """License 解析结果。"""
+
     plan: str = "free"  # free | standard | enterprise
     company: str = ""
     issued_at: str = ""

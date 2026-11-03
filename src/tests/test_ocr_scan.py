@@ -97,9 +97,7 @@ def test_otsu_threshold_separates_bimodal():
     import numpy as np
 
     # 双峰：一半 20（文字），一半 235（背景）
-    gray = np.concatenate(
-        [np.full(5000, 20, dtype=np.uint8), np.full(5000, 235, dtype=np.uint8)]
-    )
+    gray = np.concatenate([np.full(5000, 20, dtype=np.uint8), np.full(5000, 235, dtype=np.uint8)])
     t = _otsu_threshold(gray)
     assert 20 <= t < 235
 

@@ -351,19 +351,10 @@ class SemanticAnalyzer:
         #    因为剩余未分析 room 的 rel_degree>=2 可能只是分析未完成而非真实无路径
         # 诊断（2026-10）：baa-file-be6f4a6f84f3 覆盖率 87.1%，26 个未分析 room 全被判
         # False → 误报；baa-file-c61a70fc6a5c 覆盖率 98.8%，只有 2 个未分析 room
-        total_rooms = sum(
-            1 for e in entities if e.type in ("room", "corridor")
-        )  # assign
-        covered_rooms = len(
-            set(r["room_id"] for r in evacuation_routes)
-        )  # assign
-        sparse_coverage = (
-            total_rooms > 0 and covered_rooms / total_rooms < 0.3
-        )  # assign
-        low_confidence = (
-            total_rooms > 0
-            and 0.3 <= covered_rooms / total_rooms < 0.95
-        )  # assign
+        total_rooms = sum(1 for e in entities if e.type in ("room", "corridor"))  # assign
+        covered_rooms = len(set(r["room_id"] for r in evacuation_routes))  # assign
+        sparse_coverage = total_rooms > 0 and covered_rooms / total_rooms < 0.3  # assign
+        low_confidence = total_rooms > 0 and 0.3 <= covered_rooms / total_rooms < 0.95  # assign
         for ent in entities:  # 循环
             if ent.id in dead_end_ids:  # check: membership test
                 ent.properties["is_dead_end"] = True  # 操作
@@ -1246,8 +1237,7 @@ class SemanticAnalyzer:
 
         if corrected:
             logger.info(
-                f"[P131] 未合龙 room 面积校正: {corrected} 个 "
-                f"（墙体未合龙 polygon→bbox 估算）"
+                f"[P131] 未合龙 room 面积校正: {corrected} 个 " f"（墙体未合龙 polygon→bbox 估算）"
             )
 
     def _propagate_room_area(self, entities) -> None:
@@ -1267,20 +1257,29 @@ class SemanticAnalyzer:
             area = ent.properties.get("area_m2", 0) or 0
             if 0.5 <= area <= 500.0:
                 bbox = ent.bbox or {}
-                valid_rooms.append({
-                    "id": ent.id,
-                    "area": area,
-                    "cx": (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2,
-                    "cy": (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2,
-                })
+                valid_rooms.append(
+                    {
+                        "id": ent.id,
+                        "area": area,
+                        "cx": (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2,
+                        "cy": (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2,
+                    }
+                )
 
         if not valid_rooms:
             return
 
         # 对无 area_m2 的标记实体，找最近的有效 room 传播面积
-        propagate_types = {"antechamber", "fire_elevator", "elevator_lobby",
-                           "fire_elevator_lobby", "smoke_proof_lobby",
-                           "staircase_lobby", "scissor_stair_lobby", "lobby"}
+        propagate_types = {
+            "antechamber",
+            "fire_elevator",
+            "elevator_lobby",
+            "fire_elevator_lobby",
+            "smoke_proof_lobby",
+            "staircase_lobby",
+            "scissor_stair_lobby",
+            "lobby",
+        }
         max_dist_mm = 20_000  # 20m 距离上限
 
         for ent in entities:

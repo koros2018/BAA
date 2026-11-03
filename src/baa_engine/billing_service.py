@@ -1,4 +1,5 @@
 """D4-T3 计费服务：billing cycle 管理 + 结算 + 超额告警。"""
+
 from __future__ import annotations
 
 import logging
@@ -171,7 +172,9 @@ class BillingService:
                 }
         return None
 
-    def mark_paid(self, cycle_id: str, payment_intent_id: str, paid_at: Optional[str] = None) -> bool:
+    def mark_paid(
+        self, cycle_id: str, payment_intent_id: str, paid_at: Optional[str] = None
+    ) -> bool:
         """标记 cycle 已支付。"""
         from src.baa_engine.db.models.billing import BillingCycle
 
@@ -222,6 +225,7 @@ def get_billing_service():
     global _service
     if _service is None:
         from src.baa_engine.db import get_db_session_factory
+
         _service = BillingService(get_db_session_factory)
     return _service
 

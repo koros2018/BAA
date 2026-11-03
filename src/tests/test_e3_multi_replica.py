@@ -28,6 +28,7 @@ def _run_async(coro):
 
 # ── 辅助：队列清理 fixture ──────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def _clean_tasks():
     from sqlalchemy import delete
@@ -44,6 +45,7 @@ def _clean_tasks():
 
 
 # ── E3-T2 验收 1：队列 stats 跨副本一致（DB 视角） ────────────
+
 
 class TestCrossReplicaQueueVisibility:
     """queued_count / completed_count 来自 DB，跨副本一致。"""
@@ -127,6 +129,7 @@ class TestCrossReplicaQueueVisibility:
 
 # ── E3-T2 验收 2：worker_id 跨副本可见 ──────────────────────
 
+
 class TestWorkerIdTracking:
     """任务认领后 worker_id 写入 DB，其他副本可通过 DB 查询。"""
 
@@ -146,8 +149,9 @@ class TestWorkerIdTracking:
         engine = get_engine(resolve_database_url())
         with engine.connect() as conn:
             row = conn.execute(
-                select(ReviewTaskRecord.worker_id, ReviewTaskRecord.status)
-                .where(ReviewTaskRecord.task_id == task.task_id)
+                select(ReviewTaskRecord.worker_id, ReviewTaskRecord.status).where(
+                    ReviewTaskRecord.task_id == task.task_id
+                )
             ).first()
         assert row is not None
         assert row.worker_id is not None, "worker_id 应被写入数据库"
@@ -173,8 +177,9 @@ class TestWorkerIdTracking:
         engine = get_engine(resolve_database_url())
         with engine.connect() as conn:
             rows = conn.execute(
-                select(ReviewTaskRecord.worker_id, ReviewTaskRecord.file_id)
-                .where(ReviewTaskRecord.task_id.in_([task_a.task_id, task_b.task_id]))
+                select(ReviewTaskRecord.worker_id, ReviewTaskRecord.file_id).where(
+                    ReviewTaskRecord.task_id.in_([task_a.task_id, task_b.task_id])
+                )
             ).fetchall()
         assert len(rows) == 2
         worker_ids = {r[0] for r in rows}
@@ -182,6 +187,7 @@ class TestWorkerIdTracking:
 
 
 # ── E3-T2 验收 3：多实例并发竞争（无重复认领） ───────────────
+
 
 class TestNoDuplicateClaim:
     """多个实例竞争同一任务集，每个任务恰被一个实例认领。"""
@@ -236,10 +242,7 @@ class TestNoDuplicateClaim:
 
             _inner()
 
-        threads = [
-            threading.Thread(target=claim_one, args=(f"t{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=claim_one, args=(f"t{i}",)) for i in range(5)]
         for t in threads:
             t.start()
         for t in threads:
@@ -251,28 +254,26 @@ class TestNoDuplicateClaim:
 
 # ── E3-T2 验收 4：部署配置验证 ────────────────────────────
 
+
 class TestDeployConfig:
     """生产部署配置正确性。"""
 
     def test_docker_compose_baa_service_defined(self):
         import yaml
-        compose = yaml.safe_load(
-            (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        )
+
+        compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
         assert "baa" in compose["services"]
 
     def test_docker_compose_pg_service_defined(self):
         import yaml
-        compose = yaml.safe_load(
-            (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        )
+
+        compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
         assert "postgres" in compose["services"]
 
     def test_baa_depends_on_pg_healthy(self):
         import yaml
-        compose = yaml.safe_load(
-            (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        )
+
+        compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
         baa = compose["services"]["baa"]
         assert "depends_on" in baa
         deps = baa["depends_on"]
@@ -281,17 +282,15 @@ class TestDeployConfig:
 
     def test_pg_data_volume_persistent(self):
         import yaml
-        compose = yaml.safe_load(
-            (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        )
+
+        compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
         volumes = compose.get("volumes", {})
         assert "pg_data" in volumes
 
     def test_healthcheck_on_baa(self):
         import yaml
-        compose = yaml.safe_load(
-            (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-        )
+
+        compose = yaml.safe_load((PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
         baa = compose["services"]["baa"]
         # 至少有一个 depends_on with condition，隐含健康检查
         assert "healthcheck" in baa or "depends_on" in baa

@@ -45,7 +45,14 @@ def test_wall_rect_vertical_and_reversed_span():
 
 
 def test_wall_rect_single_face_default_thickness():
-    seg = {"orientation": "h", "pos": 0.0, "start": 0.0, "end": 3000.0, "thickness": None, "single": True}
+    seg = {
+        "orientation": "h",
+        "pos": 0.0,
+        "start": 0.0,
+        "end": 3000.0,
+        "thickness": None,
+        "single": True,
+    }
     assert wall_rect_mm(seg) == (0.0, -100.0, 3000.0, 100.0)
 
 
@@ -56,17 +63,26 @@ def test_wall_rect_missing_fields():
 
 def test_column_rect_variants():
     assert column_rect_mm({"x": 100.0, "y": 200.0, "source": "circle", "radius": 150.0}) == (
-        -50.0, 50.0, 250.0, 350.0
+        -50.0,
+        50.0,
+        250.0,
+        350.0,
     )
     assert column_rect_mm({"x": 0.0, "y": 0.0, "width": 400.0, "height": 600.0}) == (
-        -200.0, -300.0, 200.0, 300.0
+        -200.0,
+        -300.0,
+        200.0,
+        300.0,
     )
     assert column_rect_mm({"block": "_FZH"}) is None  # 无坐标
 
 
 def test_window_and_door_rect():
     assert window_rect_mm({"x": 1000.0, "y": 500.0, "width": 1200.0, "height": 200.0}) == (
-        400.0, 400.0, 1600.0, 600.0
+        400.0,
+        400.0,
+        1600.0,
+        600.0,
     )
     # 门 0° 沿 X 展开；90° 沿 Y 展开
     r0 = door_rect_mm({"x": 0.0, "y": 0.0, "rotation": 0.0})
@@ -326,7 +342,9 @@ def test_verify_si_units_valid(tmp_path):
 
     out_path = str(tmp_path / "si_test.ifc")
     components = {
-        "walls": [{"orientation": "h", "pos": 200.0, "start": 0.0, "end": 5000.0, "thickness": 200.0}],
+        "walls": [
+            {"orientation": "h", "pos": 200.0, "start": 0.0, "end": 5000.0, "thickness": 200.0}
+        ],
         "doors": [],
         "windows": [],
         "columns": [],

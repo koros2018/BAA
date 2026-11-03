@@ -260,6 +260,7 @@ async def bootstrap_admin_key():  # function call
 
 # ── E4-T4：生产配置管理 ─────────────────────────────────────────
 
+
 @router.get("/api/v1/admin/config", tags=["E4-T4"])
 async def get_admin_config(
     api_key: str = Depends(_ag.verify_api_key),
@@ -305,6 +306,7 @@ async def list_standard_sets():
 
 # ── D3-T1：报告模板查询（公开只读） ─────────────────────────
 
+
 @router.get("/api/v1/templates", tags=["D3-T1"])
 async def list_report_templates():
     """返回所有已注册报告模板（D3-T1 前端报告页下拉依赖此端点）。"""
@@ -330,6 +332,7 @@ async def list_report_templates():
 
 
 # ── D4-T2：License 状态查询（公开只读） ───────────────────────
+
 
 @router.get("/api/v1/license/status", tags=["D4-T2"])
 async def get_license_status():
@@ -466,9 +469,7 @@ async def _run_review_task(
                 # T-D2：ScaleContext 代理 StandardSet.resolve_standard
                 _std = _scale_ctx.resolve_standard(func.func_id)
                 # T-D2：get_threshold_safe 返回 None 时保留原子函数硬编码兜底
-                _safe = _ag._spec_repo.get_threshold_safe(
-                    func.clause_id, building_type, _std
-                )
+                _safe = _ag._spec_repo.get_threshold_safe(func.clause_id, building_type, _std)
                 # T-D2 接口预留：scale_overrides 优先级高于 SpecRepository
                 _override = _scale_ctx.get_override(func.clause_id, building_type)
                 if _override is not None:
@@ -675,9 +676,7 @@ async def create_review_task(  # code
 
     # 启动后台任务
     asyncio.create_task(
-        _run_review_task(
-            task_id, str(file_path), building_type, webhook_url, standard_set_code
-        )
+        _run_review_task(task_id, str(file_path), building_type, webhook_url, standard_set_code)
     )  # function call
 
     return {  # return: dict

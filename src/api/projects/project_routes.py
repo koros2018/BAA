@@ -121,9 +121,7 @@ async def get_project(project_id: str, api_key: str = Depends(verify_api_key)):
     review_count = hist.get("total", len(items))
     # list_review_history 返回 camelCase 字段（violationCount），此处按实际键名读取
     total_violations = sum(i.get("violationCount", 0) for i in items)
-    avg_score = (
-        sum(i.get("score", 0) for i in items) / len(items) if items else 0.0
-    )
+    avg_score = sum(i.get("score", 0) for i in items) / len(items) if items else 0.0
 
     out = {
         **_to_dict(p),
@@ -146,11 +144,7 @@ def _build_violation_distribution(sf, project_id: str) -> dict:
     by_clause: dict = {}
     by_entity_type: dict = {}
 
-    rows = (
-        sf.query(ReviewHistory.details)
-        .filter(ReviewHistory.project_id == project_id)
-        .all()
-    )
+    rows = sf.query(ReviewHistory.details).filter(ReviewHistory.project_id == project_id).all()
     for (details,) in rows:
         for d in details or []:
             sev = d.get("severity") or "minor"

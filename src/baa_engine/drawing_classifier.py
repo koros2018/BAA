@@ -20,14 +20,61 @@ _FILENAME_RULES: Dict[str, list] = {
 # 权重策略：结构/电气/暖通关键词权重 1.5（精准、出现即强信号），
 # 建筑关键词权重 0.5（AXIS/DIM_ 等通用层在所有图纸都有，弱信号）
 _LAYER_RULES: Dict[str, list] = {
-    "结构": ["STR_", "BEAM", "COLUMN", "SLAB", "WALL_STR", "结构", "STR_LAYER", "柱", "梁", "板", "REIN", "REBAR", "PUB_DIM", "1-梁", "2-板", "3-柱", "7-详图", "梁-TEXT", "板层", "板筋", "钢夹层"],
+    "结构": [
+        "STR_",
+        "BEAM",
+        "COLUMN",
+        "SLAB",
+        "WALL_STR",
+        "结构",
+        "STR_LAYER",
+        "柱",
+        "梁",
+        "板",
+        "REIN",
+        "REBAR",
+        "PUB_DIM",
+        "1-梁",
+        "2-板",
+        "3-柱",
+        "7-详图",
+        "梁-TEXT",
+        "板层",
+        "板筋",
+        "钢夹层",
+    ],
     "电气": [
-        "EL_", "ELEC", "POWER", "LIGHT", "配电", "照明", "电气", "ELT", "FE_",
-        "消防电气", "火灾报警", "distribution",
+        "EL_",
+        "ELEC",
+        "POWER",
+        "LIGHT",
+        "配电",
+        "照明",
+        "电气",
+        "ELT",
+        "FE_",
+        "消防电气",
+        "火灾报警",
+        "distribution",
     ],
     "暖通": [
-        "HVAC", "DUCT", "PIPE", "给排水", "暖通", "水暖", "MEP", "PLUMB", "VENT",
-        "风管", "水管", "水消防", "消防系统", "给水系统", "喷淋", "风口", "A_HVAC",
+        "HVAC",
+        "DUCT",
+        "PIPE",
+        "给排水",
+        "暖通",
+        "水暖",
+        "MEP",
+        "PLUMB",
+        "VENT",
+        "风管",
+        "水管",
+        "水消防",
+        "消防系统",
+        "给水系统",
+        "喷淋",
+        "风口",
+        "A_HVAC",
     ],
     # 建筑关键词权重最低（所有专业图纸都有 AXIS/DIM）
     "建筑": ["ARCH", "DWG_", "墙", "门", "窗", "房间", "楼板"],
@@ -63,17 +110,44 @@ _ENTITY_HINTS: Dict[str, str] = {
 # 放在 _LAYER_RULES 之后、未知兜底之前，用于处理 conf=0 的 hash ID 文件
 _LAYER_PATTERN_HINTS: Dict[str, list] = {
     "结构": [
-        "BEAM", "COLU", "SLAB", "REIN", "REBAR", "PUB_DIM",
-        "梁", "柱", "板", "钢筋", "结构", "详图",
-        "1-梁", "2-板", "3-柱", "7-详图",
+        "BEAM",
+        "COLU",
+        "SLAB",
+        "REIN",
+        "REBAR",
+        "PUB_DIM",
+        "梁",
+        "柱",
+        "板",
+        "钢筋",
+        "结构",
+        "详图",
+        "1-梁",
+        "2-板",
+        "3-柱",
+        "7-详图",
     ],
     "暖通": [
-        "P-KX", "A_风口", "A_风口", "A_HVAC", "DUCT", "VENT",
-        "风管", "水管", "消防系统", "给水系统", "喷淋",
+        "P-KX",
+        "A_风口",
+        "A_风口",
+        "A_HVAC",
+        "DUCT",
+        "VENT",
+        "风管",
+        "水管",
+        "消防系统",
+        "给水系统",
+        "喷淋",
     ],
     "电气": [
-        "EL_", "ELEC", "distribution", "配电", "照明",
-        "火灾报警", "气体灭火",
+        "EL_",
+        "ELEC",
+        "distribution",
+        "配电",
+        "照明",
+        "火灾报警",
+        "气体灭火",
     ],
 }
 
@@ -136,9 +210,7 @@ def classify_drawing(
             dom_count = sum(type_counts.get(e, 0) for e in expected)
             if dom_count / total > 0.15:
                 scores[dtype] = scores.get(dtype, 0) + 2
-                reasons.setdefault(dtype, []).append(
-                    f"结构实体占比{dom_count/total*100:.0f}%"
-                )
+                reasons.setdefault(dtype, []).append(f"结构实体占比{dom_count/total*100:.0f}%")
         # 实体类型提示（出现即加分，权重低）
         seen = set()
         for et in entity_types[:2000]:

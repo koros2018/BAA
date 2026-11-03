@@ -799,6 +799,7 @@ class ReportBundle:
     @classmethod
     def load(cls, path):
         import zipfile
+
         p = Path(path)
         if not p.exists():
             raise VersionMismatchError(f"交付物包不存在: {p}")

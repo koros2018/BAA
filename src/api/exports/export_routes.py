@@ -84,7 +84,9 @@ def _collect_files(review_id: str):
     except Exception as e:
         _logger.warning(f"[D2-T3] IFC/STEP export failed: {e}")
 
-    standard_set = detail.get("standard_set_code", "CN-National-v1") or detail.get("standard", "CN-National-v1")
+    standard_set = detail.get("standard_set_code", "CN-National-v1") or detail.get(
+        "standard", "CN-National-v1"
+    )
     return files, standard_set
 
 

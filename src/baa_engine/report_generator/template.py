@@ -3,6 +3,7 @@
 模板定义封面/报告标题/配色/章节顺序等元数据；ReviewReport 渲染时根据 template_code
 选择配色与章节编排。企业可通过 JSON 配置文件上传自定义模板。
 """
+
 from __future__ import annotations
 
 import json
@@ -37,7 +38,16 @@ BUILTIN_TEMPLATES: Dict[str, ReportTemplate] = {
         primary_color="#1a365d",
         accent_color="#2b6cb0",
         title="国家标准审查报告",
-        sections=["cover", "score", "summary", "violations", "corrections", "toc", "conclusion", "signature"],
+        sections=[
+            "cover",
+            "score",
+            "summary",
+            "violations",
+            "corrections",
+            "toc",
+            "conclusion",
+            "signature",
+        ],
         footer_text="依据 GB/T 系列国家标准",
     ),
     "local": ReportTemplate(
@@ -47,7 +57,16 @@ BUILTIN_TEMPLATES: Dict[str, ReportTemplate] = {
         primary_color="#744210",
         accent_color="#b7791f",
         title="地方标准审查报告",
-        sections=["cover", "score", "summary", "violations", "corrections", "toc", "conclusion", "signature"],
+        sections=[
+            "cover",
+            "score",
+            "summary",
+            "violations",
+            "corrections",
+            "toc",
+            "conclusion",
+            "signature",
+        ],
         footer_text="依据地方标准",
     ),
 }

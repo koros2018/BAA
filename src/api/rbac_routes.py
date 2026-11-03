@@ -47,16 +47,23 @@ async def create_role(
     name: str = Query(..., description="角色名称（唯一）"),
     permission_level: str = Query("read", description="admin | write | read | custom"),
     description: Optional[str] = None,
-    scopes_json: Optional[str] = Query(default=None, description="custom 角色的 scope 列表（JSON 字符串）"),
+    scopes_json: Optional[str] = Query(
+        default=None, description="custom 角色的 scope 列表（JSON 字符串）"
+    ),
     db: Session = Depends(_get_db),
     _key: str = Depends(require_scope("admin:write")),
 ):
     """创建角色。"""
     existing = db.execute(select(Role).where(Role.name == name)).scalar_one_or_none()
     if existing:
-        return {"status": "error", "error_code": "DUPLICATE_ROLE", "message": f"角色 '{name}' 已存在"}
+        return {
+            "status": "error",
+            "error_code": "DUPLICATE_ROLE",
+            "message": f"角色 '{name}' 已存在",
+        }
 
     import uuid
+
     role = Role(
         id=uuid.uuid4().hex,
         name=name,
@@ -128,8 +135,7 @@ async def get_role(
     members = []
     if include_members:
         rows = db.execute(
-            select(RoleMembership, Role.id.label("r_id"))
-            .where(RoleMembership.role_id == role_id)
+            select(RoleMembership, Role.id.label("r_id")).where(RoleMembership.role_id == role_id)
         ).all()
         members = [{"key_id": r[0].key_id, "granted_by": r[0].granted_by} for r in rows]
 

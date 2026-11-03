@@ -209,9 +209,7 @@ class SpecRepository:  # class definition
         unit = params.get("unit", "")
         operator = params.get("operator", ">=")
         if clause.threshold and clause.threshold.building_types:
-            bt = (
-                building_type if building_type in clause.threshold.building_types else "civil"
-            )
+            bt = building_type if building_type in clause.threshold.building_types else "civil"
             value = clause.threshold.building_types.get(bt, value)
         return value, unit, operator
 

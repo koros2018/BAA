@@ -47,7 +47,14 @@ class RBACMiddleware(BaseHTTPMiddleware):
 
         # 检查是否需要鉴权
         needs_auth = True
-        for prefix in ("/api/v1/public", "/health", "/docs", "/redoc", "/openapi.json", "/api/v1/standards"):
+        for prefix in (
+            "/api/v1/public",
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/api/v1/standards",
+        ):
             if path.startswith(prefix):
                 needs_auth = False
                 break

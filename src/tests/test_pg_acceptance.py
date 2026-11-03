@@ -61,6 +61,7 @@ pytestmark = [
 
 # ── 辅助 ──────────────────────────────────────────────
 
+
 def _raw_engine():
     return sqlalchemy.create_engine(PG_URL)
 
@@ -130,6 +131,7 @@ def _pg_engine_hygiene():
 
 # ── 验收 1：upgrade ×2 幂等 ──────────────────────────
 
+
 def test_pg_01_upgrade_idempotent():
     engine = _raw_engine()
     _reset_to_base(engine)  # 重复验收时先清场
@@ -146,7 +148,7 @@ def test_pg_01_upgrade_idempotent():
 
 # ── 验收 2：双进程并发三域读写 ────────────────────────
 
-_WORKER_SRC = '''
+_WORKER_SRC = """
 import os
 import sys
 
@@ -175,7 +177,7 @@ s.close()
 sf.remove()
 dispose_all()
 print("OK-" + tag)
-'''.replace("__PROJECT_ROOT__", str(PROJECT_ROOT))
+""".replace("__PROJECT_ROOT__", str(PROJECT_ROOT))
 
 
 def test_pg_02_concurrent_three_domains():
@@ -221,6 +223,7 @@ def test_pg_02_concurrent_three_domains():
 
 # ── 验收 3：downgrade 重建 ────────────────────────────
 
+
 def test_pg_03_downgrade_rebuild():
     engine = _raw_engine()
     assert sqlalchemy.inspect(engine).has_table("review_history")  # 前序用例已建
@@ -236,6 +239,7 @@ def test_pg_03_downgrade_rebuild():
 
 
 # ── 验收 4：真实 legacy 三库搬迁行数比对 ──────────────
+
 
 @pytest.mark.skipif(
     not (PROJECT_ROOT / "data" / "review_history.db").exists(),

@@ -301,8 +301,7 @@ def migrate_api_keys(
     幂等：按 key_id 插入忽略已存在行（不覆盖目标库更新后的记录）。
     """
     path = Path(
-        json_path
-        or os.getenv("BAA_API_KEYS_PATH", str(PROJECT_ROOT / "data" / "api_keys.json"))
+        json_path or os.getenv("BAA_API_KEYS_PATH", str(PROJECT_ROOT / "data" / "api_keys.json"))
     )
     report = {"source_keys": 0, "inserted_keys": 0, "inserted_usage": 0, "skipped": 0}
     if not path.exists():
@@ -349,9 +348,7 @@ def migrate_api_keys(
             )
             session.connection().execute(_insert_stmt(ApiKeyUsage, url), row)
         session.commit()
-        report["inserted_usage"] = (
-            session.scalar(func_count(ApiKeyUsage)) or 0
-        ) - before_usage
+        report["inserted_usage"] = (session.scalar(func_count(ApiKeyUsage)) or 0) - before_usage
         return report
     finally:
         sf.remove()
@@ -377,7 +374,9 @@ def func_count(model):
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="T-C1 存量数据搬迁：旧三库 → 统一数据层")
     parser.add_argument("--dry-run", action="store_true", help="仅统计，不写入")
-    parser.add_argument("--url", default=None, help="目标库 URL（默认 BAA_DATABASE_URL / 回退 SQLite）")
+    parser.add_argument(
+        "--url", default=None, help="目标库 URL（默认 BAA_DATABASE_URL / 回退 SQLite）"
+    )
     parser.add_argument(
         "--api-keys",
         action="store_true",

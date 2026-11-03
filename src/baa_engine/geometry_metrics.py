@@ -18,7 +18,12 @@ _SAMPLE_STEP_MM = 50.0
 def _sample_rect(rect: Rect, step: float = _SAMPLE_STEP_MM) -> List[Tuple[float, float]]:
     x0, y0, x1, y1 = rect
     pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
-    for a, b in (((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))):
+    for a, b in (
+        ((x0, y0), (x1, y0)),
+        ((x1, y0), (x1, y1)),
+        ((x1, y1), (x0, y1)),
+        ((x0, y1), (x0, y0)),
+    ):
         length = math.hypot(b[0] - a[0], b[1] - a[1])
         n = max(1, int(length / step))
         for i in range(1, n):

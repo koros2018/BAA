@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ── 辅助 fixture ──────────────────────────────────────
+
 
 @pytest.fixture
 def test_key():
@@ -25,12 +25,14 @@ def client(tmp_path, monkeypatch, test_key):
     monkeypatch.setenv("BAA_API_KEY", test_key)  # 静态 key 注入
 
     from src.baa_engine.db import ensure_schema
+
     ensure_schema()
 
     # 将 key 加入全局静态密钥集
     ag.API_KEYS.add(test_key)
 
     from src.api.baa_api import app
+
     yield TestClient(app)
 
     # 清理
@@ -38,6 +40,7 @@ def client(tmp_path, monkeypatch, test_key):
 
 
 # ── E2-T2 测试：审计日志写入 ──────────────────────────
+
 
 class TestAuditMiddleware:
     """验证 AuditMiddleware 在审查请求前后写入 audit_logs。"""
@@ -59,11 +62,15 @@ class TestAuditMiddleware:
 
         sf = get_session_factory()
         session = sf()
-        logs = session.execute(
-            sa.select(AuditLog).where(
-                AuditLog.event_type.in_(["review_started", "review_completed", "review_failed"])
+        logs = (
+            session.execute(
+                sa.select(AuditLog).where(
+                    AuditLog.event_type.in_(["review_started", "review_completed", "review_failed"])
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         sf.remove()
 
         assert len(logs) >= 1
@@ -85,9 +92,11 @@ class TestAuditMiddleware:
 
         sf = get_session_factory()
         session = sf()
-        logs = session.execute(
-            sa.select(AuditLog).where(AuditLog.actor_id == test_key)
-        ).scalars().all()
+        logs = (
+            session.execute(sa.select(AuditLog).where(AuditLog.actor_id == test_key))
+            .scalars()
+            .all()
+        )
         sf.remove()
 
         # 如果 actor_id 正确提取，应至少有一条
@@ -96,6 +105,7 @@ class TestAuditMiddleware:
 
 
 # ── E2-T2 测试：审计日志 API ──────────────────────────
+
 
 class TestAuditLogsAPI:
     """验证 GET /api/v1/admin/audit/logs 查询接口。"""
@@ -130,17 +140,19 @@ class TestAuditLogsAPI:
         sf = get_session_factory()
         session = sf()
         log_id = uuid.uuid4().hex
-        session.add(AuditLog(
-            id=log_id,
-            event_type="test_event",
-            actor_id="test_actor",
-            actor_role="admin",
-            resource_type="review",
-            resource_id="test-review-1",
-            action="create",
-            detail='{"test": true}',
-            ip_address="127.0.0.1",
-        ))
+        session.add(
+            AuditLog(
+                id=log_id,
+                event_type="test_event",
+                actor_id="test_actor",
+                actor_role="admin",
+                resource_type="review",
+                resource_id="test-review-1",
+                action="create",
+                detail='{"test": true}',
+                ip_address="127.0.0.1",
+            )
+        )
         session.commit()
         sf.remove()
 
@@ -176,17 +188,19 @@ class TestAuditLogsAPI:
         sf = get_session_factory()
         session = sf()
         log_id = uuid.uuid4().hex
-        session.add(AuditLog(
-            id=log_id,
-            event_type="review_started",
-            actor_id="key-abc",
-            actor_role="user",
-            resource_type="review",
-            resource_id="rev-123",
-            action="start",
-            detail=None,
-            ip_address="192.168.1.1",
-        ))
+        session.add(
+            AuditLog(
+                id=log_id,
+                event_type="review_started",
+                actor_id="key-abc",
+                actor_role="user",
+                resource_type="review",
+                resource_id="rev-123",
+                action="start",
+                detail=None,
+                ip_address="192.168.1.1",
+            )
+        )
         session.commit()
         sf.remove()
 
