@@ -429,9 +429,20 @@ class TestOdetection:
         assert engine._detect_oda() == sys.executable
 
     def test_windows_default_install_path(self, tmp_path):
-        """Windows: PATH 无结果时探测默认安装路径"""
+        """Windows: PATH 无结果时探测默认安装路径（无版本子目录）"""
         self.which_result = {}
         installed = tmp_path / "pf-empty" / "ODA" / "ODAFileConverter.exe"
+        installed.parent.mkdir(parents=True)
+        installed.write_bytes(b"")
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() == str(installed)
+
+    def test_windows_versioned_subdir(self, tmp_path):
+        """Windows: ODA 安装在版本号子目录（如 ODAFileConverter 27.10.0）"""
+        self.which_result = {}
+        versioned = tmp_path / "pf-empty" / "ODA" / "ODAFileConverter 27.10.0"
+        installed = versioned / "ODAFileConverter.exe"
         installed.parent.mkdir(parents=True)
         installed.write_bytes(b"")
 

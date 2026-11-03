@@ -205,9 +205,7 @@ class ReverseEngine:
 
         返回 DWG 输出路径（或降级返回 DXF 路径）。
         """
-        import subprocess
         import os
-        import shutil
 
         os.makedirs(os.path.dirname(os.path.abspath(dwg_path)) or ".", exist_ok=True)
 
@@ -297,7 +295,9 @@ class ReverseEngine:
         查找顺序：
         1. BAA_ODA_PATH 环境变量（显式指定）
         2. PATH 中的 ODAFileConverter（shutil.which）
-        3. Windows 默认安装路径 C:\\Program Files\\ODA\\
+        3. Windows 默认安装路径 C:\\Program Files\\ODA\\（支持版本号子目录）
+
+        注意：ODA File Converter 官方仅发布 MSI 安装包（无便携版/EXE 版）。
         """
         # 1. 环境变量
         env_path = os.environ.get("BAA_ODA_PATH")
@@ -307,12 +307,24 @@ class ReverseEngine:
         oda = shutil.which("ODAFileConverter")
         if oda and os.path.exists(oda):
             return oda
-        # 3. Windows 默认安装路径
+        # 3. Windows 默认安装路径（含版本号子目录，如 ODAFileConverter 27.10.0）
         if os.name == "nt":
-            pf = os.environ.get("ProgramFiles", r"C:\Program Files")
-            oda_exe = os.path.join(pf, "ODA", "ODAFileConverter.exe")
-            if os.path.exists(oda_exe):
-                return oda_exe
+            for base in (
+                os.environ.get("ProgramFiles", r"C:\Program Files"),
+                os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+            ):
+                oda_dir = os.path.join(base, "ODA")
+                if not os.path.isdir(oda_dir):
+                    continue
+                # 精确路径
+                exact = os.path.join(oda_dir, "ODAFileConverter.exe")
+                if os.path.exists(exact):
+                    return exact
+                # 版本号子目录（如 ODAFileConverter 27.10.0）
+                for entry in os.listdir(oda_dir):
+                    candidate = os.path.join(oda_dir, entry, "ODAFileConverter.exe")
+                    if os.path.exists(candidate):
+                        return candidate
         return None
 
     def _export_via_oda(self, dxf_path: str, dwg_path: str) -> bool:
