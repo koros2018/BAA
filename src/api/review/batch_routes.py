@@ -31,6 +31,11 @@ import asyncio
 import time
 from collections import Counter
 
+from ...baa_engine.evac_width import WidthContext
+
+# 防火分区疏散宽度聚合（专家复核 2026-11-02 根因 1）
+_AGG_WIDTH_FUNCS = {"DIM-006", "DIM-113"}
+
 # P87: 批量审查并发限制
 # 限制同一批次内并发处理的文件数，防止大文件同时解析导致内存/磁盘压力
 _BATCH_SEMAPHORE = asyncio.Semaphore(4)  # 最多 4 个文件同时处理
@@ -183,6 +188,23 @@ async def batch_review(
                     "message": f"图纸解析失败: {result.error}",
                 }
 
+            # P130 图纸类型过滤：结构/电气/暖通图跳过原子函数（无疏散语义）
+            drawing_type = getattr(result, "drawing_type", {})
+            if drawing_type.get("type") in ("结构", "电气", "暖通"):
+                completed_files += 1
+                entity_count = len(result.primitives or [])
+                return {
+                    "filename": file.filename,
+                    "status": "skipped",
+                    "error_code": "NON_ARCHITECTURAL",
+                    "message": (
+                        f"{drawing_type.get('type')}图暂不支持AI审查，"
+                        f"已解析 {entity_count} 个图元"
+                    ),
+                    "drawing_type": drawing_type,
+                    "suggested_action": drawing_type.get("suggested_action", ""),
+                }
+
             semantic = await loop.run_in_executor(
                 _get_pool(),
                 lambda: _get_sa().analyze(
@@ -207,10 +229,17 @@ async def batch_review(
 
             # P87: 并发执行 entity×func 判定，替代串行嵌套循环
             func_specs = [(f, *get_strict_threshold(f.clause_id)) for f in registry_funcs]
+            # 防火分区疏散宽度聚合（专家复核 2026-11-02 根因 1）：
+            # GB50016-5.5.19/5.5.21 的疏散门净宽要求本质是「防火分区疏散总净宽」
+            # 约束。实现见 src/baa_engine/evac_width.py（含疏散人数换算）。
+            width_ctx = WidthContext(entities)
+
             for e in entities:
                 batch = _get_fr().execute_batch(e, func_specs)
                 for r in batch.values():
                     if r.result == "PASS":
+                        continue
+                    if r.func_id in _AGG_WIDTH_FUNCS and width_ctx.aggregate_pass(e, r.threshold):
                         continue
                     clause = {
                         "standard": "GB50016",

@@ -50,6 +50,7 @@ from ._shared import (
 )
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
+from ...baa_engine.evac_width import WidthContext
 import uuid
 import time
 import asyncio
@@ -484,6 +485,11 @@ async def review(  # code
         global_funcs = [
             f for f in registry_funcs if getattr(f, "requires_global_context", False)
         ]  # 需要全局上下文的函数
+        # 分区级疏散总净宽（专家复核 2026-11-02）：DIM-006/DIM-113 按
+        # 防火分区汇总疏散门净宽，并与「疏散人数 → 所需总净宽」比较。
+        _AGG_WIDTH_FUNCS = {"DIM-006", "DIM-113"}
+        width_ctx = WidthContext(entities)
+
         for e in entities:
             chained_results = _get_fr().execute_chained(func_ids, e)
             for fid, r in chained_results.items():
@@ -492,6 +498,13 @@ async def review(  # code
                     continue
                 threshold_val, unit, op = get_strict_threshold(func.clause_id)
                 if r is None:
+                    continue
+                # 分区级疏散总净宽判定（无用途数据时回退单门阈值）
+                if (
+                    r.result != "PASS"
+                    and fid in _AGG_WIDTH_FUNCS
+                    and width_ctx.aggregate_pass(e, r.threshold)
+                ):
                     continue
                 clause_results[func.clause_id] += 1
                 if r.result != "PASS":

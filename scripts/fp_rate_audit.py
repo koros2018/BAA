@@ -30,8 +30,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.baa_engine.atomic_functions import FuncRegistry
 from src.baa_engine.drawing_parser import DrawingParser
+from src.baa_engine.evac_width import WidthContext
 from src.baa_engine.scope_aggregator import aggregate_exist_in_scopes, build_scopes
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+
+# 防火分区疏散宽度聚合（专家复核 2026-11-02）：DIM-006/DIM-113 的净宽要求
+# 本质是「防火分区疏散总净宽」约束，实现见 src/baa_engine/evac_width.py。
+_AGGREGATE_WIDTH_FUNCS = {"DIM-006", "DIM-113"}
+
 
 REAL_DIR = PROJECT_ROOT / "data" / "drawings" / "real"
 FILES_DIR = PROJECT_ROOT / "data" / "files"
@@ -61,6 +67,23 @@ def run_review(dxf_path: Path) -> dict:
     result = parser.parse(str(dxf_path), f"fp_audit_{dxf_path.stem}")
     if not result.success:
         return {"file": dxf_path.name, "success": False, "error": result.error}
+
+    # P130 图纸类型过滤：结构/电气/暖通图跳过原子函数（无疏散语义）
+    drawing_type = getattr(result, "drawing_type", {})
+    if drawing_type.get("type") in ("结构", "电气", "暖通"):
+        return {
+            "file": dxf_path.name,
+            "success": True,
+            "skipped": True,
+            "skip_reason": f"{drawing_type.get('type')}图无疏散语义，跳过审查",
+            "entity_count": len(result.primitives or []),
+            "scope_count": 0,
+            "scope_mode": "skipped",
+            "findings": [],
+            "entity_types": {},
+            "drawing_type": drawing_type,
+            "classification": {"counts": {}, "method": "skipped"},
+        }
 
     semantic = SemanticAnalyzer().analyze(result.primitives, result.dimensions)
     entities = [
@@ -101,12 +124,21 @@ def run_review(dxf_path: Path) -> dict:
         )
 
     # ── 1. 逐实体本地函数（同 review_routes._do_clustering）──
+    # 疏散宽度聚合上下文：按防火分区汇总疏散门净宽，并按疏散人数换算
+    # 所需总净宽（GB50016-5.5.21），用于 DIM-006/DIM-113 的分区级判定。
+    width_ctx = WidthContext(entities)
+
     for e in entities:
         for fid, r in registry.execute_chained(local_ids, e).items():
             if r is None or r.result == "PASS":
                 continue
             func = registry.get(fid)
             if func is None:
+                continue
+            # 分区级疏散总净宽判定（专家复核 2026-11-02 根因 1）：
+            # 同一防火分区内多扇疏散门宽度求和后与所需总净宽比较，
+            # 替代逐门判定；无用途数据时回退单门阈值口径。
+            if fid in _AGGREGATE_WIDTH_FUNCS and width_ctx.aggregate_pass(e, r.threshold):
                 continue
             _record(
                 func,
@@ -165,6 +197,7 @@ def run_review(dxf_path: Path) -> dict:
         "primitive_count": len(result.primitives),
         "entity_count": len(entities),
         "entity_types": dict(type_counts.most_common()),
+        "evac_width_stats": width_ctx.stats,
         "scope_mode": scopes["mode"],
         "scope_count": len(scopes["scopes"]),
         "findings": findings,
