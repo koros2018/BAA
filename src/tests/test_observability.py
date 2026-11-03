@@ -206,16 +206,21 @@ def test_spec_metrics_exposed_via_metrics_endpoint():
     assert 'code="US-NFPA-v1"' in body
 
 
+def _filter_spec_lines(text: str) -> str:
+    """过滤出 baa_spec_* 指标行，排除 HTTP_REQUESTS 等动态计数器。"""
+    return "\n".join(line for line in text.splitlines() if "baa_spec_" in line)
+
+
 def test_spec_metrics_idempotent_short_circuit():
-    """D1-T5: 幂等短路——首次 render 后重复调用不再遍历注册表，但值不变。"""
+    """D1-T5: 幂等短路——首次 render 后重复调用不再遍历注册表，spec 指标值不变。"""
     from src.baa_engine import observability as obs
 
     obs.collect_spec_stats()
-    first = obs.render_metrics().decode()
+    first = _filter_spec_lines(obs.render_metrics().decode())
 
-    # 重置 flag 前再 render——应复用已采集值
-    second = obs.render_metrics().decode()
-    assert first == second, "幂等短路后 render_metrics() 输出应完全一致"
+    # 重置 flag 前再 render——应复用已采集值，spec 指标一致
+    second = _filter_spec_lines(obs.render_metrics().decode())
+    assert first == second, "幂等短路后 spec 指标输出应完全一致"
 
     # 重置后再次采集——输出仍相同（标准集注册表启动后不变）
     obs._reset_spec_stats_for_test()

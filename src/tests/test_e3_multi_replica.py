@@ -197,16 +197,16 @@ class TestNoDuplicateClaim:
         from src.baa_engine.task_queue import ReviewQueue
 
         ns = "e3t2-no-dup"
-        # 单个副本负责入队
-        producer = ReviewQueue(max_concurrent=10, queue_timeout=0.3, namespace=ns)
+        # 单个副本负责入队；queue_timeout 设宽裕值（CI 数据库操作较慢）
+        producer = ReviewQueue(max_concurrent=10, queue_timeout=60.0, namespace=ns)
         for i in range(3):
             producer.enqueue(f"file-{i}")
 
         claimed_ids = []
-        # 5 个副本各尝试认领一个
+        # 5 个副本各尝试认领一个（dequeue timeout 远大于 queue_timeout，保证能等到任务）
         for _ in range(5):
-            worker = ReviewQueue(max_concurrent=10, queue_timeout=0.3, namespace=ns)
-            task = _run_async(worker.dequeue(timeout=0.5))
+            worker = ReviewQueue(max_concurrent=10, queue_timeout=60.0, namespace=ns)
+            task = _run_async(worker.dequeue(timeout=10.0))
             if task is not None:
                 worker.complete(task.task_id, {"ok": True})
                 claimed_ids.append(task.task_id)

@@ -83,20 +83,21 @@ def test_to_dict_helper():
 def test_project_api_routes_registered():
     from src.api.baa_api import app
 
-    # 递归展开 _IncludedRouter 等复合路由对象，收集所有 leaf 路径
-    def collect_paths(routes, depth=0):
+    def _iter_api_routes(routes, depth=0):
+        """递归遍历 FastAPI routes（含 _IncludedRouter 的 original_router）。"""
         if depth > 5:
             return
-        for r in routes:
-            path = getattr(r, "path", None)
-            if path is not None:
-                yield path
-            # _IncludedRouter 等容器无 .path，递归其 .routes
-            sub = getattr(r, "routes", None)
-            if sub is not None:
-                yield from collect_paths(sub, depth + 1)
+        for route in routes:
+            if type(route).__name__ == "_IncludedRouter":
+                orig = getattr(route, "original_router", None)
+                if orig is not None:
+                    yield from _iter_api_routes(orig.routes, depth + 1)
+            elif hasattr(route, "routes"):
+                yield from _iter_api_routes(route.routes, depth + 1)
+            elif hasattr(route, "path"):
+                yield route.path
 
-    paths = set(collect_paths(app.routes))
+    paths = set(_iter_api_routes(app.routes))
     assert "/api/v1/projects" in paths
     assert "/api/v1/projects/{project_id}" in paths
     assert "/api/v1/projects/{project_id}/status" in paths
