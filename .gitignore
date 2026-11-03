@@ -13,6 +13,12 @@ htmlcov/
 .pytest_cache/
 *.db-journal
 
+# 密钥与本地环境配置（严禁入库；模板见 .env.example）
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # 日志
 data/*.dwg
 data/*.rar
