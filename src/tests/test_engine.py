@@ -2008,7 +2008,7 @@ class TestEvacuationConnectivity:  # class definition
         assert result.result == "PASS"  # equality check
 
     def test_evac004_not_connected(self):  # function: def test_evac004_not_connected(self):
-        """EVAC-004 不连通 → FAIL"""
+        """EVAC-004 不连通 → 跳过（None）——由 EVAC-001 单独报告，避免重复。"""
         registry = FuncRegistry()  # function call
         func = registry.get("EVAC-004")  # function call
         entity = {  # assignment
@@ -2020,8 +2020,7 @@ class TestEvacuationConnectivity:  # class definition
             },  # code
         }  # code
         result = func.execute(entity)  # function call
-        assert result is not None  # code
-        assert result.result == "FAIL"  # equality check
+        assert result is None  # 不连通时跳过，由 EVAC-001 负责
 
     def test_evac004_has_bottleneck(self):  # function: def test_evac004_has_bottleneck(self):
         """EVAC-004 有瓶颈 → FAIL"""

@@ -83,7 +83,8 @@ def test_to_dict_helper():
 def test_project_api_routes_registered():
     from src.api.baa_api import app
 
-    paths = {r.path for r in app.routes}
+    # _IncludedRouter 等复合路由对象无 .path，用 getattr 容错
+    paths = {getattr(r, "path", None) for r in app.routes} - {None}
     assert "/api/v1/projects" in paths
     assert "/api/v1/projects/{project_id}" in paths
     assert "/api/v1/projects/{project_id}/status" in paths

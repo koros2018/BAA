@@ -36,11 +36,13 @@ def test_blank_env_falls_back(monkeypatch):
 
 def test_sqlite_engine_cross_thread():
     """SQLite 回退保留旧行为：check_same_thread=False（连接可跨线程使用）。"""
+    import tempfile
     import threading
 
     from sqlalchemy import text
 
-    engine = get_engine("sqlite:///D:/tmp/tc1_thread_probe.db")
+    db_path = tempfile.mktemp(suffix=".db")
+    engine = get_engine(f"sqlite:///{db_path}")
     errs = []
 
     def worker():
@@ -54,7 +56,7 @@ def test_sqlite_engine_cross_thread():
     t.start()
     t.join()
     assert not errs, errs
-    dispose_engine("sqlite:///D:/tmp/tc1_thread_probe.db")
+    dispose_engine(f"sqlite:///{db_path}")
 
 
 def test_pg_engine_pool_pre_ping(monkeypatch):
