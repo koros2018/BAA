@@ -83,8 +83,20 @@ def test_to_dict_helper():
 def test_project_api_routes_registered():
     from src.api.baa_api import app
 
-    # _IncludedRouter 等复合路由对象无 .path，用 getattr 容错
-    paths = {getattr(r, "path", None) for r in app.routes} - {None}
+    # 递归展开 _IncludedRouter 等复合路由对象，收集所有 leaf 路径
+    def collect_paths(routes, depth=0):
+        if depth > 5:
+            return
+        for r in routes:
+            path = getattr(r, "path", None)
+            if path is not None:
+                yield path
+            # _IncludedRouter 等容器无 .path，递归其 .routes
+            sub = getattr(r, "routes", None)
+            if sub is not None:
+                yield from collect_paths(sub, depth + 1)
+
+    paths = set(collect_paths(app.routes))
     assert "/api/v1/projects" in paths
     assert "/api/v1/projects/{project_id}" in paths
     assert "/api/v1/projects/{project_id}/status" in paths
