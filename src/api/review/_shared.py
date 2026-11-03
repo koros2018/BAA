@@ -184,113 +184,22 @@ THERMAL_THRESHOLDS = {
 
 
 # ── P78: 审查共享逻辑（standard + multi_sheet 共用） ──────
+#   _build_findings 已删除（P0-4，2026-11-04）：
+#   该函数是为 review_routes.py 抽取的共享执行循环，但实际实现时
+#   _do_clustering_with_timeout 以闭环形式写入了 review_routes.py，
+#   _build_findings 从未被调用（grep 确认仅定义、无调用点）。
+#
+#   当前三条规则执行路径的职责划分：
+#   1. baa_api.py::_do_deconstruct_step3
+#      用途：/deconstruct 端点，输出 attribution findings（含归属分析）
+#      特点：execute_with_timeout 单层，无 chaining，无集群计数
+#   2. review_routes.py::_do_clustering_with_timeout
+#      用途：/review 端点（主路径），输出 clause_results + details
+#      特点：execute_chained 支持依赖链，超时控制，线程安全结果收集
+#   3. batch_routes.py::_run_exist_scope_batch + 内联执行循环
+#      用途：/batch-review / /review/project/summary
+#      特点：复用 _shared 常量，有自己的阈值预计算 (_func_specs)
+#
+#   三套实现各有独立职责，统一为单一 rule_runner 属于架构重构，
+#   留待 P1 专项处理（评估报告 §5 P1-4）。
 
-
-def _build_findings(
-    entities: list,
-    registry_funcs: list,
-    repo,
-    get_strict_threshold,
-    _get_fr,
-    _get_aa,
-    standard: str,
-) -> list[dict]:
-    """对 entities 逐一跑原子函数，返回 details 列表 + clause_results Counter。
-
-    供 standard review 和 multi-sheet review 复用。
-    """
-    from collections import Counter
-
-    clause_results = Counter()
-    details = []
-    global_funcs = [f for f in registry_funcs if getattr(f, "requires_global_context", False)]
-    local_funcs = [f for f in registry_funcs if not getattr(f, "requires_global_context", False)]
-    # 阈值只与 clause 有关：按 clause 预热一次，避免 n×m 次重复查库
-    threshold_cache = {}
-
-    for e in entities:
-        etype_fast = e.get("type", "")
-        for func in local_funcs:
-            # 类型门控前置：execute() 内部同样因 matches 返回 None，
-            # 提前跳过可省去每个 (实体, 函数) 组合的线程派生与查库开销
-            if func.target_entities and etype_fast not in func.target_entities:
-                continue
-            cache_key = func.clause_id
-            if cache_key not in threshold_cache:
-                threshold_cache[cache_key] = get_strict_threshold(func.clause_id)
-            tv, u, op = threshold_cache[cache_key]
-            func.threshold = tv
-            func.unit = u
-            func.operator = op
-            r = _get_fr().execute_with_timeout(func, e)
-            if r is None:
-                continue
-            clause_results[func.clause_id] += 1
-            if r.result != "PASS":
-                clause = {
-                    "standard": standard,
-                    "clause_id": func.clause_id,
-                    "title": func.name,
-                    "text": func.description,
-                    "category": func.category.value,
-                }
-                f = _get_aa().build_finding(r, clause, e, entities[:5])
-                details.append(
-                    {
-                        "entity_id": e.get("id", e.get("type", "")),
-                        "entity_type": e["type"],
-                        "clause_id": func.clause_id,
-                        "clause_title": func.name,
-                        "func_id": func.func_id,
-                        "result": f.judgement["result"],
-                        "extracted_value": f.extracted_params["extracted_value"],
-                        "required_value": f.extracted_params.get("required_value", 1.2),
-                        "difference": f.extracted_params.get("difference", 0),
-                        "severity": f.judgement.get("severity", "major"),
-                        "explanation": f.explanation[:120],
-                        "confidence": r.confidence,
-                        "confidence_tier": _confidence_tier(r.confidence),
-                    }
-                )
-
-    # 全局函数：仅 target_entities 缺失时告警
-    entity_types_in_drawing = set(e.get("type", "") for e in entities)
-    for func in registry_funcs:
-        if func.category.value != "exist":
-            continue
-        func_targets = set(func.target_entities) if func.target_entities else set()
-        if func_targets and not func_targets.intersection(entity_types_in_drawing):
-            # 目标类型在图中完全没有 → 跳过（不是真违规，是识别问题）
-            continue
-        # target_entities 为空或已匹配部分 → 继续检查
-        has_match = any(func.matches(e) for e in entities) if func_targets else True
-        if not has_match:
-            r = _get_fr().execute_with_timeout(func, None)
-            if r is not None and r.result != "PASS":
-                clause = {
-                    "standard": standard,
-                    "clause_id": func.clause_id,
-                    "title": func.name,
-                    "text": func.description,
-                    "category": func.category.value,
-                }
-                f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                details.append(
-                    {
-                        "entity_id": "",
-                        "entity_type": "missing",
-                        "clause_id": f.clause.get("clause_id", ""),
-                        "clause_title": f.clause.get("title", ""),
-                        "func_id": f.clause.get("func_id", ""),
-                        "result": f.judgement.get("result", "FAIL"),
-                        "severity": f.judgement.get("severity", "critical"),
-                        "extracted_value": f.extracted_params.get("extracted_value", 0.0),
-                        "required_value": f.extracted_params.get("required_value", 1.0),
-                        "difference": -(f.extracted_params.get("required_value", 1.0) or 1.0),
-                        "explanation": f.explanation[:120],
-                        "confidence": r.confidence,
-                        "confidence_tier": _confidence_tier(r.confidence),
-                    }
-                )
-
-    return details, dict(clause_results)
