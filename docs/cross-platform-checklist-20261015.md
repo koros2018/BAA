@@ -75,6 +75,16 @@ ezdwg 0.16.0 安装后首次真正执行 DWG 链路，暴露 4 个被"ezdwg 未�
 | D3 | 模块无 `import ezdxf`，9 处 `ezdxf.*` 依赖调用方命名空间 | 独立调用必 NameError，第 5 级 raw 解码全灭 |
 | D4 | — | 依赖声明缺失：`ezdwg>=0.16.0` 已加入 `requirements.txt` 核心依赖组 |
 
+**DWG→DXF / DXF→DWG 互转完整闭环（2026-11-03）**：
+
+| 方向 | 工具 | 入口 |
+|---|---|---|
+| DWG → DXF | LibreCAD CLI / ezdwg raw | `parsers/dwg_convert.py` 多级兜底 |
+| DXF → DWG | LibreOffice（无 DWG filter，降级）→ **ODA File Converter**（B2） | `reverse_engine._export_via_libreoffice()` → `_export_via_oda()` |
+| ODA 探测 | 三级：`BAA_ODA_PATH` env → `shutil.which("ODAFileConverter")` → Windows 默认路径 | `reverse_engine._detect_oda()` |
+| ODA CLI | `ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1` | `reverse_engine._export_via_oda()` |
+| 单测覆盖 | `TestOdetection` 6/6 | `test_reverse_roundtrip.py` |
+
 | 环境 | 状态 | 说明 |
 |---|---|---|
 | Windows 本机 | **已就绪** | ezdwg 0.16.0（win_amd64 wheel）+ 4 缺陷修复；服务启动日志零 P120 警告 |
@@ -162,25 +172,29 @@ python -m pytest src/tests/test_pdf_report.py src/tests/test_p119_correction_not
 **验证步骤**（在含 LibreOffice 的机器上执行）：
 
 ```bash
-# 1. 隔离验证转换能力（不经引擎，最小 DXF）
+# 1. 隔离验证 LibreOffice DWG 导出能力（不经引擎，最小 DXF）
 soffice --headless --convert-to dwg --outdir /tmp/out /tmp/min.dxf
 echo "rc=$?"
 ls -la /tmp/out/
 
-# 2. rc=0 且产出 .dwg → 分支 A：跑引擎级回归闭环
-python -m pytest src/tests/test_reverse_roundtrip.py -q
+# 2. 验证 ODA File Converter 能力（分支 B2 已实施）
+ODAFileConverter /tmp/min.dxf /tmp/out ACAD2018 DWG 0 1
+echo "rc=$?"
+ls -la /tmp/out/
 
-# 3. rc≠0（大概率报 no export filter for dwg）→ 分支 B：记录 stderr 留档
+# 3. rc≠0（LibreOffice 报 no export filter for dwg）→ 分支 B1：记录 stderr 留档
+#    rc=0（ODA 产出 .dwg）→ 分支 B2：引擎回归闭环
 ```
 
 **分支处置**：
 
-- **分支 A（确有 DWG filter）**：F3 成功路径真实可达，引擎级测试通过即闭环。
-- **分支 B（无 filter，现实概率较大）**，二选一：
-  - **B1 保守**：维持现状（降级 DXF），在本清单 F2 表格注明"LibreOffice 无 DWG 导出 filter"；F3 定性为防御性修复。
-  - **B2 进阶（推荐）**：DXF→DWG 换用 **ODA File Converter**（ODA 官方免费工具，DWG/DXF 互转事实标准），CLI 明确：`ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1`。与现有 LibreCAD（DWG→DXF，见 `parsers/dwg_convert.py`）形成完整互转闭环。
+- **分支 A（LibreOffice 有 DWG filter）**：F3 成功路径真实可达，引擎级测试通过即闭环。
+- **分支 B1（LibreOffice 无 DWG filter）**：F3 定性为防御性修复，DXF→DWG 降级走 ODA（B2）。
+- **分支 B2（推荐，2026-11-03 已实施）**：DXF→DWG 换用 **ODA File Converter**（ODA 官方免费工具，DWG/DXF 互转事实标准），CLI：`ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1`。与现有 LibreCAD（DWG→DXF，见 `parsers/dwg_convert.py`）形成完整互转闭环。探测逻辑 6 个单测覆盖（`TestOdetection`：env 优先 / env 无效回退 / PATH 探测 / Windows 默认路径 / 全未命中 / 降级 False）。
 
 **补充单测**（冒烟覆盖成功路径，无 LibreOffice 环境自动跳过）——**已实施（2026-10-15）**：`test_reverse_roundtrip.py::TestExportDwg::test_export_dwg_with_libreoffice`，skipif 复用 `_soffice_available()` 三级探测口径；断言契约"非空 .dwg 或 .dxf 降级"。**在含 LibreOffice 的机器上运行该测试即可落定分支 A/B**（产出 .dwg → 分支 A；降级 .dxf → 分支 B1 现场证据）。
+
+**ODA 探测单测**（2026-11-03 已实施）：`test_reverse_roundtrip.py::TestOdetection` 6/6 通过，覆盖 env 优先 / env 无效回退 / PATH 探测 / Windows 默认路径 / 全未命中 / 降级 False。
 
 **完成判定**：分支 A/B 落定，F2 表格"待验证"行状态更新，不再有"从未执行"路径。
 
@@ -235,5 +249,5 @@ D:\APPstore\miniconda3\python.exe -m pytest src/tests/test_reverse_roundtrip.py 
 
 1. [x] **Linux CI 回归**：`python scripts/linux_ci_regression.py` 在 macos_compatibility job（macos-latest）与 cross_platform_regression job（ubuntu-latest）上均通过，commit `bef784c` / `5258d0e`。后续演进：commit `78c08ce`（flake8 6 处修复）、`b74ebc6`（JS node --check 优先级 bug + JSHint 判据修正）、`bdadd65`（black 全量重排 80 个文件）、`ee4389e`（补 python-docx 依赖）；Lint & Quality / JS Syntax / macOS Compatibility / Docker Build / Real Drawing Baseline / Verify / Audit / Recall Gate 共 8 个 job 全绿。预存 4 个测试失败（sqlite 跨线程、evac 连通性断言、FastAPI Router 属性、JSON 空响应）与本次修复无关，需其他会话处理。
 2. [x] **空白 A**：macOS 候选已实施（2026-10-15），CI 实测闭环（bef784c / ee4389e），macos_compatibility job success。
-3. [x] **空白 B**：F3 成功路径分支 B1 已落定（2026-11-03）。验证：本机无 LibreOffice 环境下，`_export_via_libreoffice(dxf, dwg)` 返回 `False`（优雅降级），`test_export_dwg_with_libreoffice` skipif 门控跳过（非失败）。结论：**LibreOffice Draw 无 DWG 导出 filter，F3 成功路径在现有实现中不可达，定性为防御性修复**。F2 表格状态更新为"防御性修复"。若未来需真实 DWG 导出，采纳清单建议的 B2（ODA File Converter）或等 LibreOffice 官方支持。
+3. [x] **空白 B**：F3 成功路径分支 B1 落定（2026-11-03）。验证：本机无 LibreOffice 环境下，`_export_via_libreoffice(dxf, dwg)` 返回 `False`（优雅降级），`test_export_dwg_with_libreoffice` skipif 门控跳过（非失败）。结论：**LibreOffice Draw 无 DWG 导出 filter，F3 成功路径在现有实现中不可达，定性为防御性修复**。分支 B2 已实施（commit `631eba3`）：新增 `_detect_oda()` 三级探测（env → PATH → Windows 默认路径）+ `_export_via_oda()` CLI 转换（`ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1`），`_export_via_libreoffice()` 末尾自动降级到 ODA；配套 `TestOdetection` 6/6 通过。完整互转闭环：DWG→DXF（LibreCAD/ezdwg）+ DXF→DWG（LibreOffice→ODA 降级）。
 4. [x] **空白 C**：路径探测增强已实施（2026-10-15，`reverse_engine.py`），并配套 6 个单测（`TestSofficeDetection`：env 优先 / env 无效回退 / PATH 采用 / Windows 默认路径 / posix 门控 / 全未命中降级）；全量回归 2246 passed。`TestSofficeDetection` 6/6 通过（mock subprocess，无需 LibreOffice 环境）。
