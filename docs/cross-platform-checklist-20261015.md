@@ -52,6 +52,7 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 | Windows | 有 LibreOffice（在 PATH） | `shutil.which` 命中 → headless 转换 → `shutil.copy2` 拷贝 .dwg；冒烟测试 `test_export_dwg_with_libreoffice`（skipif 门控）已就位 | 装 LibreOffice 后跑 `test_reverse_roundtrip.py` | 分支 B1 落定（2026-11-03）：LibreOffice Draw 无 DWG export filter，降级 DXF；F3 定性为防御性修复 |
 | Linux | 有 soffice | 修复前 `which` 命中、行为不变；注意 F3 使成功路径首次真正可用；冒烟测试同上可覆盖 | Linux CI + LibreOffice 环境 | 待验证（F3 成功路径此前从未实际执行过） |
 | Linux | 无 soffice | 修复前 `which` rc!=0 → return False；现在 `shutil.which` 返回 None → return False，语义一致 | Linux CI 全量 | 待验证（CI 回归）；脚本阶段 3 已就绪（降级探针） |
+| 全平台 | 无 LibreOffice 但有 ODA | 降级路径：LibreOffice 不可用 → ODA File Converter；完整互转闭环（DWG→DXF LibreCAD / DXF→DWG ODA） | ODA 安装后回归 | **已实施（2026-11-03，commit 含 `reverse_engine.py` + `TestOdetection`）** |
 | 全平台 | soffice 已装但不在 PATH | 处置方案 C 已实施（2026-10-15）：`BAA_SOFFICE_PATH` env 优先 → PATH → Windows 常见安装路径兜底；探测逻辑 6 个单测覆盖（`test_reverse_roundtrip.py::TestSofficeDetection`） | 未装环境回归 + env 回退探针 + 6 个探测单测 | 已实施（17+6 passed）；有 LibreOffice 环境待验 |
 
 ## F4 yolo_entities 预绑定

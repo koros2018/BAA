@@ -381,6 +381,78 @@ class TestSofficeDetection:
         assert self.subprocess_called is False
 
 
+class TestOdetection:
+    """验证 _detect_oda 三级探测优先级与平台门控
+
+    手法：patch shutil.which + monkeypatch env，只测探测逻辑。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("BAA_ODA_PATH", raising=False)
+        monkeypatch.setenv("ProgramFiles", str(tmp_path / "pf-empty"))
+        monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path / "pf86-empty"))
+        import shutil
+
+        self._which_calls = []
+        monkeypatch.setattr(shutil, "which", self._fake_which)
+
+    def _fake_which(self, name):
+        self._which_calls.append(name)
+        return self.which_result.get(name)
+
+    which_result = {}
+
+    def test_env_var_priority(self, tmp_path, monkeypatch):
+        """env 指向真实文件时应优先"""
+        fake_oda = tmp_path / "ODAFileConverter.exe"
+        fake_oda.write_bytes(b"")
+        monkeypatch.setenv("BAA_ODA_PATH", str(fake_oda))
+        self.which_result = {"ODAFileConverter": "C:/elsewhere/ODAFileConverter.exe"}
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() == str(fake_oda)
+
+    def test_env_invalid_falls_through(self, monkeypatch):
+        """env 指向不存在路径时回退 PATH"""
+        monkeypatch.setenv("BAA_ODA_PATH", "C:/notexist/ODAFileConverter.exe")
+        self.which_result = {"ODAFileConverter": sys.executable}
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() == sys.executable
+
+    def test_path_lookup_used(self):
+        """无 env 时采用 PATH 探测结果"""
+        self.which_result = {"ODAFileConverter": sys.executable}
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() == sys.executable
+
+    def test_windows_default_install_path(self, tmp_path):
+        """Windows: PATH 无结果时探测默认安装路径"""
+        self.which_result = {}
+        installed = tmp_path / "pf-empty" / "ODA" / "ODAFileConverter.exe"
+        installed.parent.mkdir(parents=True)
+        installed.write_bytes(b"")
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() == str(installed)
+
+    def test_nothing_found_returns_none(self):
+        """全部未命中返回 None"""
+        self.which_result = {}
+
+        engine = ReverseEngine()
+        assert engine._detect_oda() is None
+
+    def test_export_via_oda_no_converter(self):
+        """ODA 不可用时优雅降级返回 False"""
+        self.which_result = {}
+
+        engine = ReverseEngine()
+        assert engine._export_via_oda("in.dxf", "out.dwg") is False
+
+
 # ════════════════════════════════════════════════════════════
 # 5. 异常输入
 # ════════════════════════════════════════════════════════════

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Tuple
 from enum import Enum
 import logging
+import os
+import shutil
 from .atomic_functions import FuncRegistry
 
 logger = logging.getLogger(__name__)
@@ -285,7 +287,78 @@ class ReverseEngine:
                 proc.returncode,
                 proc.stderr[:200],
             )
+
+        # ── 降级：ODA File Converter（空白 B B2，2026-11-03 引入）──
+        return self._export_via_oda(dxf_path, dwg_path)
+
+    def _detect_oda(self) -> Optional[str]:
+        """探测 ODA File Converter 可执行文件。
+
+        查找顺序：
+        1. BAA_ODA_PATH 环境变量（显式指定）
+        2. PATH 中的 ODAFileConverter（shutil.which）
+        3. Windows 默认安装路径 C:\\Program Files\\ODA\\
+        """
+        # 1. 环境变量
+        env_path = os.environ.get("BAA_ODA_PATH")
+        if env_path and os.path.exists(env_path):
+            return env_path
+        # 2. PATH
+        oda = shutil.which("ODAFileConverter")
+        if oda and os.path.exists(oda):
+            return oda
+        # 3. Windows 默认安装路径
+        if os.name == "nt":
+            pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+            oda_exe = os.path.join(pf, "ODA", "ODAFileConverter.exe")
+            if os.path.exists(oda_exe):
+                return oda_exe
+        return None
+
+    def _export_via_oda(self, dxf_path: str, dwg_path: str) -> bool:
+        """通过 ODA File Converter 将 DXF 转换为 DWG。
+
+        ODA File Converter CLI:
+            ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1
+        返回 True 表示转换成功。
+        """
+        import subprocess
+
+        oda = self._detect_oda()
+        if not oda:
+            logger.debug("P67: ODA File Converter 不可用")
             return False
+
+        # ODA 要求 output dir 存在
+        out_dir = os.path.dirname(os.path.abspath(dwg_path))
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+
+        cmd = [oda, dxf_path, out_dir, "ACAD2018", "DWG", "0", "1"]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            logger.warning("P67: ODA File Converter 转换超时")
+            return False
+        except FileNotFoundError:
+            logger.debug("P67: ODA File Converter 可执行文件不存在: %s", oda)
+            return False
+
+        if proc.returncode == 0:
+            # ODA 输出文件命名：原文件名.dwg（同目录）
+            base_name = os.path.basename(dxf_path)
+            output_dwg = os.path.join(out_dir, base_name.rsplit(".", 1)[0] + ".dwg")
+            if os.path.exists(output_dwg):
+                shutil.copy2(output_dwg, dwg_path)
+                logger.info("P67: ODA File Converter 导出 DWG 成功: %s", dwg_path)
+                return True
+
+        logger.debug(
+            "P67: ODA File Converter 转换失败 (rc=%d): %s",
+            proc.returncode,
+            proc.stderr[:200],
+        )
+        return False
 
     def _line(self, x1, y1, x2, y2, layer):
         """绘制线条。"""
