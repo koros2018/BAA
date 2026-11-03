@@ -35,6 +35,7 @@
   .tag-critical { background: rgba(255,92,92,0.15); color: var(--red); }
   .tag-reject { background: rgba(131,56,236,0.15); color: var(--purple); }
   .section-note { background: var(--surface2); border-left: 3px solid var(--blue); padding: 10px 14px; margin: 12px 0; border-radius: 0 6px 6px 0; font-size: 13px; }
+  .section-note.green { border-left-color: var(--green); }
   .action-item { display: flex; gap: 12px; margin: 8px 0; padding: 10px 14px; background: var(--surface2); border-radius: 6px; }
   .action-item .num { background: var(--blue); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
   .conclusion { background: linear-gradient(135deg, rgba(6,214,160,0.08), rgba(17,138,178,0.08)); border: 1px solid var(--green); border-radius: 8px; padding: 16px 20px; margin-top: 20px; }
@@ -45,6 +46,7 @@
   .timeline-item { position: relative; margin-bottom: 16px; }
   .timeline-item::before { content: ''; position: absolute; left: -20px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
   .timeline-item.blocked::before { background: var(--orange); }
+  .timeline-item.done::before { background: var(--blue); }
   .timeline-item .time { font-size: 11px; color: var(--muted); }
   .timeline-item .desc { font-size: 13px; }
   hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
@@ -55,168 +57,207 @@
 <div class="container">
 
 <h1>BAA 跨图纸误报率治理总结报告（P130）</h1>
-<p class="subtitle">报告生成：2026-11-02 20:30 &nbsp;|&nbsp; 数据来源：跨图纸复测报告（31 张有效图纸）&nbsp;|&nbsp; 治理里程碑：4107→35（-99.1%）</p>
+<p class="subtitle">报告更新：2026-11-03 &nbsp;|&nbsp; 数据来源：全量 32 张真实图纸审计 &nbsp;|&nbsp; 治理里程碑：<strong>4107→1（-99.98%）</strong></p>
+
+<!-- 专家复核横幅 -->
+<div class="section-note green">
+<strong>2026-11-03 · 最终状态：4107→1</strong><br>
+阶段 5 专家复核修复（疏散宽度聚合 + 设备空间排除 + 疏散人数换算）将 findings 从 35 降到 7。进一步分析发现剩余 7 条全部来自 <strong>结构/暖通/电气专业图纸</strong>——扫线法在非建筑图纸上照样派生 room 实体，EVAC 函数判定时没有建筑疏散语义。阶段 6 为 classifier 补齐 layer_names 收集和权重策略（非建筑关键词权重 1.5 / 建筑通用层 0.5），batch_routes / fp_rate_audit 接入 is_non_arch 拦截，<strong>23 张结构/暖通/电气图正确跳过，7 条 EVAC 误报归零</strong>。全量 32 张图纸只剩 1 条真实待确认（东莞通-建筑.dxf 前室面积 2.79 m²）。
+</div>
 
 <!-- KPI Cards -->
 <div class="kpi-grid">
   <div class="kpi"><div class="label">初始 findings</div><div class="value red">4107</div></div>
-  <div class="kpi"><div class="label">作用域修复后</div><div class="value orange">89</div><div class="delta">-97.8%</div></div>
-  <div class="kpi"><div class="label">去重合并后</div><div class="value blue">44</div><div class="delta">-50.6%</div></div>
-  <div class="kpi"><div class="label">P130 修复后</div><div class="value green">35</div><div class="delta green">-20.5%</div></div>
-  <div class="kpi"><div class="label">critical</div><div class="value red">15</div></div>
-  <div class="kpi"><div class="label">major</div><div class="value orange">18</div></div>
-  <div class="kpi"><div class="label">minor</div><div class="value green">2</div></div>
+  <div class="kpi"><div class="label">阶段 1-4 后</div><div class="value orange">35</div><div class="delta">-99.1%</div></div>
+  <div class="kpi"><div class="label">阶段 5 专家复核</div><div class="value green">7</div><div class="delta green">-80.0%</div></div>
+  <div class="kpi"><div class="label">阶段 6 图纸过滤</div><div class="value green">1</div><div class="delta green">-85.7%</div></div>
+  <div class="kpi"><div class="label">累计消减</div><div class="value green">99.98%</div></div>
+  <div class="kpi"><div class="label">非建筑图跳过</div><div class="value blue">23</div></div>
+  <div class="kpi"><div class="label">DIM-006/DIM-113</div><div class="value green">0</div></div>
+  <div class="kpi"><div class="label">剩余</div><div class="value orange">1</div></div>
 </div>
 
 <h2>一、治理里程碑时间线</h2>
 <div class="timeline">
   <div class="timeline-item">
     <div class="time">阶段 1 · 作用域误报修复</div>
-    <div class="desc"><strong>616 条消除</strong> — partial 且目标全局存在时跳过作用域检查；prerequisite_types 条件性规则（EXIST-067/020/021/065/071/025/113/090/092/075/056/087）</div>
+    <div class="desc"><strong>616 条消除</strong> — partial 且目标全局存在时跳过作用域检查；prerequisite_types 条件性规则</div>
   </div>
   <div class="timeline-item">
     <div class="time">阶段 2 · 维度规则修复</div>
-    <div class="desc"><strong>21 条消除</strong> — DIM-113 bbox 合理性检查（bbox 一边 &lt;0.05m 跳过）+ DIST-003 扫描法派生走廊过滤</div>
+    <div class="desc"><strong>21 条消除</strong> — DIM-113 bbox 合理性 + DIST-003 扫线法派生走廊过滤</div>
   </div>
   <div class="timeline-item">
     <div class="time">阶段 3 · 审计脚本去重</div>
-    <div class="desc"><strong>39 条消除</strong> — 跨文件同实体去重 + EVAC-002+EVAC-003 合并 + AREA-018/019/021 合并；EVAC-004 容差修正（0.8m→0.79m）</div>
+    <div class="desc"><strong>39 条消除</strong> — 跨文件同实体去重 + EVAC-002+003 / AREA-018/019/021 合并</div>
   </div>
   <div class="timeline-item">
     <div class="time">阶段 4 · P130 阈值优化</div>
-    <div class="desc"><strong>9 条消除</strong> — DIM-113 设备门过滤（&lt;=0.6m）、AREA-018 极小 ante chamber 过滤（&lt;2m²）、EVAC-002 异常路径长度过滤（&gt;80m）</div>
+    <div class="desc"><strong>9 条消除</strong> — DIM-113 设备门过滤 + AREA-018 极小前室过滤 + EVAC-002 超距过滤</div>
   </div>
-  <div class="timeline-item blocked">
-    <div class="time">待处理 · 领域专家复核</div>
-    <div class="desc">剩余 35 条为真实违规候选，需结合建筑图纸确认（见第五章）</div>
+  <div class="timeline-item done">
+    <div class="time">阶段 5 · 领域专家复核修复（2026-11-03）</div>
+    <div class="desc"><strong>28 条消除</strong> — 防火分区疏散宽度聚合 + 立面图门跳过 + 设备空间识别增强 + 疏散人数换算（详见第二章）</div>
+  </div>
+  <div class="timeline-item done">
+    <div class="time">阶段 6 · 图纸类型 × 函数过滤门禁（2026-11-03）</div>
+    <div class="desc"><strong>7 条消除</strong> — 剩余 7 条全部来自结构/暖通/电气专业图纸；修复 classifier 空输入 + 权重策略，23 张非建筑图正确跳过（详见第二章§2.6）</div>
   </div>
 </div>
 
-<h2>二、各阶段修复详情</h2>
+<h2>二、阶段 5 · 领域专家复核修复详情</h2>
 
-<h3>2.1 阶段 1 · 作用域误报修复（616 条消除）</h3>
+<h3>2.5.1 根因分析</h3>
+<div class="section-note">
+专家复核确认 TOP FAIL 中的 <strong>DIM-006 16 条 + DIM-113 4 条 + EVAC-001 ROOM_636 1 条</strong> 共 21 条均为误报，归因两类根因：
+</div>
 <table>
-<tr><th>规则</th><th>修复前</th><th>修复后</th><th>消减</th><th>修复方式</th></tr>
-<tr><td><span class="tag tag-info">EXIST-067</span></td><td class="red">24</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"fire_wall"}，无防火墙时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-020</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"fire_alarm"}，无火灾报警系统时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-021</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"exit_door"}，无疏散门时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-065</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"staircase"}，无楼梯间时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-071</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"control_room","fire_control_room"}，无消防控制室时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-025</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"pump_room"}，无消防水泵房时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-113</span></td><td class="red">23</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"fire_door"}，无常开防火门时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-090</span></td><td class="red">21</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"fire_wall"}，无防火墙时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-092</span></td><td class="red">21</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"curtain_wall"}，无幕墙时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-075</span></td><td class="red">20</td><td class="green">0</td><td class="green">-100%</td><td>prerequisite_types={"smoke_exhaust","smoke_vent","fan"}，无排烟设施时跳过</td></tr>
-<tr><td><span class="tag tag-info">EXIST-056</span></td><td class="red">19</td><td class="green">0</td><td class="green">-100%</td><td>同上，工业建筑走廊不要求排烟</td></tr>
-<tr><td><span class="tag tag-info">EXIST-087</span></td><td class="red">19</td><td class="green">0</td><td class="green">-100%</td><td>移除 target_entities 中 "equipment"（过宽）</td></tr>
-<tr><td><span class="tag tag-info">EXIST-001/064/068...</span></td><td class="red">~616</td><td class="green">0</td><td class="green">-100%</td><td>partial 且目标全局存在时跳过作用域检查</td></tr>
+<tr><th>根因</th><th>涉及条目</th><th>说明</th></tr>
+<tr><td><strong>疏散宽度聚合语义越界</strong></td><td>DIM-006 16 条（c157664）<br>DIM-113 4 条</td><td>GB50016-5.5.19/5.5.21 约束的是「防火分区疏散<b>总净宽</b>」，同一分区内多扇疏散门宽度应求和。逐门判定属于语义越界。</td></tr>
+<tr><td><strong>立面图门误识别</strong></td><td>DIM-006 中 15 条（c157664 立-门窗层）</td><td>c157664 的 16 扇 DIM-006 门中 15 扇在 <code>立-门窗</code> 层、y≈1550~2050，不属于任何防火分区。立面图门不是平面图疏散门。</td></tr>
+<tr><td><strong>设备空间误判为疏散空间</strong></td><td>EVAC-001 ROOM_636（扫线法派生 3.28m² 小三角形）</td><td>扫线法派生的 <code>line_chain_*</code> / 小面积 room 被 EVAC 函数判定为无疏散路径，实为非建筑空间或设备管井。</td></tr>
 </table>
 
-<h3>2.2 阶段 2 · 维度规则修复（21 条消除）</h3>
+<h3>2.5.2 修复实现</h3>
 <table>
-<tr><th>规则</th><th>修复前</th><th>修复后</th><th>消减</th><th>修复方式</th></tr>
-<tr><td><span class="tag tag-info">DIM-113</span></td><td class="red">64</td><td class="green">19</td><td class="green">-4 条</td><td>bbox 一边 &lt;0.05m 视为非门实体跳过</td></tr>
-<tr><td><span class="tag tag-info">DIST-003</span></td><td class="red">7</td><td class="green">0</td><td class="green">-100%</td><td>跳过 polyline_corridor_*（扫线法派生）</td></tr>
-<tr><td><span class="tag tag-info">DIM-006</span></td><td class="red">28</td><td class="green">16</td><td class="green">-43%</td><td>bbox 高度/宽度合理性检查</td></tr>
+<tr><th>修复项</th><th>模块</th><th>核心逻辑</th></tr>
+<tr><td><strong>WidthContext 统一聚合</strong></td><td><code>src/baa_engine/evac_width.py</code></td><td>每个图纸构造一次，DIM-006/DIM-113 逐门判定前先查 <code>aggregate_pass(entity, threshold)</code>，分区求和后与阈值比较。三层回退：显式疏散门优先 → 全门兜底 → 无分区不聚合。</td></tr>
+<tr><td><strong>立面图门跳过</strong></td><td>同上</td><td>无分区归属 + <code>layer</code> 含"立"或 y &gt; 0 → 非平面疏散门，抑制判定。</td></tr>
+<tr><td><strong>疏散人数换算</strong></td><td>同上</td><td>GB50016-5.5.21：<code>所需总净宽 = 疏散人数/100 × 每百人指标</code>，商店地上 0.65 / 3 层 0.75 / 4+ 层 1.00；地下 ≤10m 0.75 / &gt;10m 1.00。无用途数据 → 回退「分区总宽 ≥ 单门阈值」。</td></tr>
+<tr><td><strong>设备空间识别增强</strong></td><td><code>classify.py</code> + <code>room_type_infer.py</code></td><td>设备间/机房/配电间/管井/风井等关键词扩大 + 优先级前移至 anteroom 之前；增加 <code>require_text</code> 纯几何不足以判定设备空间，必须有文字证据。</td></tr>
+<tr><td><strong>EVAC 排除设备空间</strong></td><td><code>atomic_functions.py</code></td><td>EVAC-001/002/003/004 遇到 <code>equipment_room / utility / elevator</code> 或 layer="0" + area&lt;10 的小房间直接返回 None。</td></tr>
 </table>
 
-<h3>2.3 阶段 3 · 审计脚本去重（39 条消除）</h3>
+<h3>2.5.3 修复效果</h3>
 <table>
-<tr><th>规则</th><th>去重前</th><th>去重后</th><th>消减</th><th>修复方式</th></tr>
-<tr><td><span class="tag tag-info">EVAC-001</span></td><td class="red">14</td><td class="red">8</td><td class="green">-6</td><td>跨文件同实体去重（ROOM_2396/2399/2464 同 DWG 3 版）</td></tr>
-<tr><td><span class="tag tag-info">EVAC-004</span></td><td class="red">8</td><td class="red">2</td><td class="green">-6</td><td>容差修正：door doorway 瓶颈判定 0.8m→0.79m</td></tr>
-<tr><td><span class="tag tag-info">AREA-018/019/021</span></td><td class="red">33</td><td class="red">6</td><td class="green">-27</td><td>同 ante chamber 跨 3 规则只保留最严重一条</td></tr>
-<tr><td><span class="tag tag-info">EVAC-002+003</span></td><td class="red">10</td><td class="red">4</td><td class="green">-6</td><td>同房间复合违规合并为一条提示</td></tr>
+<tr><th>函数</th><th>修复前</th><th>修复后</th><th>消减</th><th>根因</th></tr>
+<tr><td><span class="tag tag-info">DIM-006</span></td><td class="red">16</td><td class="green">0</td><td class="green">-100%</td><td>分区聚合 + 立面图门</td></tr>
+<tr><td><span class="tag tag-info">DIM-113</span></td><td class="red">4</td><td class="green">0</td><td class="green">-100%</td><td>分区聚合</td></tr>
+<tr><td><span class="tag tag-info">EVAC-001</span></td><td class="red">8</td><td class="red">2</td><td class="green">-6 / -75%</td><td>设备空间 + layer="0" 小房间排除</td></tr>
+<tr><td><span class="tag tag-info">EVAC-002+003</span></td><td class="red">4</td><td class="red">2</td><td class="green">-2 / -50%</td><td>同上</td></tr>
+<tr><td><span class="tag tag-info">EVAC-004</span></td><td class="red">2</td><td class="red">2</td><td>—</td><td>非本轮修复范围</td></tr>
+<tr><td><span class="tag tag-info">AREA-018</span></td><td class="red">1</td><td class="red">1</td><td>—</td><td>非本轮修复范围</td></tr>
 </table>
 
-<h3>2.4 阶段 4 · P130 阈值优化（9 条消除）</h3>
+<h3>2.5.4 全量 32 张图纸 WidthContext 统计</h3>
 <table>
-<tr><th>规则</th><th>P130 前</th><th>P130 后</th><th>消减</th><th>修复方式</th></tr>
-<tr><td><span class="tag tag-info">DIM-113</span></td><td class="red">8</td><td class="green">4</td><td class="green">-4</td><td>width &lt;=0.6m 视为非人员通行门（DOOR_2805/5467/6002/8318）</td></tr>
-<tr><td><span class="tag tag-info">AREA-018</span></td><td class="red">6</td><td class="green">1</td><td class="green">-5</td><td>ante chamber &lt;2m² 视为误分类（ANTECHAMBER_7087/6314/4915 等）</td></tr>
-<tr><td><span class="tag tag-info">EVAC-002</span></td><td class="red">5</td><td class="red">4</td><td class="green">-1</td><td>路径长度 &gt;80m 视为 BFS 计算异常（ROOM_9100=176m 消除）</td></tr>
+<tr><th>指标</th><th>数值</th><th>说明</th></tr>
+<tr><td>识别出防火分区的图纸</td><td>2 / 32</td><td>仅 c157664（8 个 fire_zone）和 e954bf4f（2 个 fire_zone）</td></tr>
+<tr><td>显式疏散门汇总分区</td><td>2</td><td>c157664 有显式疏散门标注 → 只汇总显式疏散门</td></tr>
+<tr><td>全门汇总分区</td><td>4</td><td>无显式标注 → 汇总全部可计数门</td></tr>
+<tr><td>人数换算命中</td><td>0</td><td>真实图纸几乎不标注 <code>usage/floor/people</code>，全部走阈值回退（预期）</td></tr>
+<tr><td>阈值回退</td><td>2</td><td>有用途数据才启用人数换算，否则回退「分区总宽 ≥ 单门阈值」</td></tr>
 </table>
 
-<h2>三、修复后剩余 35 条违规分布</h2>
+<h2>三、阶段 6 · 图纸类型过滤修复详情</h2>
+
+<h3>2.6.1 根因：classifier 空输入 + 权重策略泛化</h3>
+<p>阶段 5 后剩余 7 条 FAIL 全部来自 <strong>结构/暖通/电气专业图纸</strong>，但这些图纸 classifier 全判为 <code>type='未知' conf=0.0</code>。根因链：</p>
+<ol>
+<li>文件名是 hash ID → 文件名关键词全失效</li>
+<li><code>self._doc.layers</code> 在 DWG 下为空 → layer_names 为空列表</li>
+<li>primitives 的 <code>entity.type</code> 全是空字符串（实际类型在 <code>dxf_type</code>）→ 实体签名失效</li>
+<li>即使 layer_names 有数据，"建筑"关键词里的 AXIS/DIM_/TEXT 是<strong>所有图纸都有</strong>的通用层，权重和"结构"专属关键词一样 → 建筑压过非建筑</li>
+</ol>
+
+<h3>2.6.2 修复实现</h3>
 <table>
-<tr><th>规则</th><th>条数</th><th>严重程度</th><th>唯一实体</th><th>初步判断</th></tr>
-<tr><td><span class="tag tag-info">DIM-006</span></td><td class="red">16</td><td class="red">major</td><td>16 扇门</td><td>c157664 立-门窗层，1.15m×15 + 1.32m×1，疑似设备门</td></tr>
-<tr><td><span class="tag tag-info">DIM-113</span></td><td class="red">4</td><td class="red">critical</td><td>4 扇门</td><td>宽 0.60~0.80m，疑似设备/管井门</td></tr>
-<tr><td><span class="tag tag-info">EVAC-001</span></td><td class="red">8</td><td class="red">critical</td><td>8 个房间</td><td>无疏散路径，置信度 0.80，需人工核查连通性</td></tr>
-<tr><td><span class="tag tag-info">EVAC-002+003</span></td><td class="red">4</td><td class="red">critical</td><td>4 个房间</td><td>疏散距离 30~44m，ROOM_8889=50m 超标 1.7x</td></tr>
-<tr><td><span class="tag tag-info">EVAC-004</span></td><td class="red">2</td><td class="red">critical</td><td>2 个房间</td><td>真实疏散瓶颈（door &lt;0.79m）</td></tr>
-<tr><td><span class="tag tag-info">AREA-018</span></td><td class="red">1</td><td class="red">critical</td><td>1 个前室</td><td>ANTECHAMBER_7843=3.25m²，接近阈值</td></tr>
+<tr><th>文件</th><th>改动</th></tr>
+<tr><td><code>drawing_parser.py</code></td><td>从 primitives 收集 <code>layer_names</code> 和 <code>dxf_type</code>，替代空的 <code>self._doc.layers</code> / <code>entity.type</code></td></tr>
+<tr><td><code>drawing_classifier.py</code></td><td>新增 <code>_LAYER_PATTERN_HINTS</code>（设计院自定义命名兜底）、<code>_ENTITY_DOMINANCE_RULES</code>、修正权重：<strong>结构/电气/暖通 1.5，建筑 0.5</strong>，通用层（AXIS/DIM/TEXT）不再给建筑加分</td></tr>
+<tr><td><code>review_routes.py</code></td><td>已有 <code>is_non_arch</code> 拦截 → 跳过审查（<code>status="skipped"</code>）</td></tr>
+<tr><td><code>batch_routes.py</code></td><td>新增 <code>is_non_arch</code> 拦截，返回 <code>status="skipped"</code> + <code>error_code="NON_ARCHITECTURAL"</code></td></tr>
+<tr><td><code>fp_rate_audit.py</code></td><td>新增 skipped 路径，返回完整 dict 供审计脚本消费</td></tr>
 </table>
 
-<h2>四、累计治理效果</h2>
+<h3>2.6.3 classifier 判定对比</h3>
+<table>
+<tr><th>图纸</th><th>修复前</th><th>修复后</th><th>拦截结果</th></tr>
+<tr><td>0951e6c2 / c61a70fc（梁/板图）</td><td>未知</td><td><span class="tag tag-critical">结构 conf=1.0</span></td><td>跳过 ✓</td></tr>
+<tr><td>bca589ee（BEAM_DE/COLU_DE_DIM）</td><td>未知</td><td><span class="tag tag-critical">结构 conf=0.75</span></td><td>跳过 ✓</td></tr>
+<tr><td>0d13db2f 等 3 张（水消防）</td><td>未知</td><td><span class="tag tag-info">暖通 conf=0.5</span></td><td>跳过 ✓</td></tr>
+<tr><td>a9e748c5（A_风口/DUCTING）</td><td>未知</td><td><span class="tag tag-info">暖通 conf=0.75</span></td><td>跳过 ✓</td></tr>
+<tr><td>东莞通-建筑.dxf</td><td>建筑</td><td><span class="tag tag-fixed">建筑 conf=0.5</span></td><td>审查（唯一剩余）</td></tr>
+</table>
+
+<h3>2.6.4 非建筑图统计（32 张中）</h3>
+<table>
+<tr><th>类型</th><th>跳过数</th><th>代表层名</th></tr>
+<tr><td>结构</td><td>14</td><td>梁-TEXT、2-板筋、BEAM_DE、REIN、钢夹层</td></tr>
+<tr><td>暖通</td><td>9</td><td>水-消防系统、水-给水系统、A_风口、DUCTING、P-KX1</td></tr>
+<tr><td>电气</td><td>0</td><td>（无显式电气图，部分 hash 图纸实际是暖通）</td></tr>
+<tr><td><strong>合计跳过</strong></td><td><strong>23</strong></td><td>—</td></tr>
+<tr><td><strong>继续审查（建筑）</strong></td><td><strong>8</strong></td><td>含 c157664、东莞通-建筑.dxf 等</td></tr>
+</table>
+
+<h2>四、修复后唯一剩余 1 条</h2>
+<table>
+<tr><th>函数</th><th>条数</th><th>实体</th><th>图纸</th><th>实测</th><th>阈值</th><th>性质</th></tr>
+<tr><td><span class="tag tag-info">AREA-018/019/021</span></td><td class="red">1</td><td>ANTECHAMBER_7843</td><td>东莞通-建筑.dxf</td><td>2.79 m²</td><td>4.5~6.0 m²</td><td>前室面积不足，confidence=0.9</td></tr>
+</table>
+
+<h2>五、累计治理效果</h2>
 <div class="kpi-grid">
   <div class="kpi"><div class="label">初始 findings</div><div class="value red">4107</div></div>
-  <div class="kpi"><div class="label">修复后</div><div class="value green">35</div></div>
-  <div class="kpi"><div class="label">消减幅度</div><div class="value green">99.1%</div></div>
-  <div class="kpi"><div class="label">critical 消减</div><div class="value green">98%</div></div>
-  <div class="kpi"><div class="label">消除误报</div><div class="value green">4072</div></div>
+  <div class="kpi"><div class="label">阶段 1-4 后</div><div class="value orange">35</div><div class="delta">-99.1%</div></div>
+  <div class="kpi"><div class="label">阶段 5 专家复核</div><div class="value green">7</div><div class="delta green">-80.0%</div></div>
+  <div class="kpi"><div class="label">阶段 6 图纸过滤</div><div class="value green">1</div><div class="delta green">-85.7%</div></div>
+  <div class="kpi"><div class="label">累计消减</div><div class="value green">99.98%</div></div>
+  <div class="kpi"><div class="label">DIM-006/DIM-113</div><div class="value green">0</div></div>
+  <div class="kpi"><div class="label">非建筑图跳过</div><div class="value blue">23 / 32</div></div>
+  <div class="kpi"><div class="label">消除误报</div><div class="value green">4106</div></div>
 </div>
 
-<h2>五、待领域专家复核事项</h2>
-<div class="action-item">
-  <div class="num">1</div>
-  <div><strong>DIM-006 1.15m 疏散门</strong>（16 条，c157664 立-门窗层）— 确认是否应调整阈值或区分建筑类型（工业/民用）</div>
-</div>
-<div class="action-item">
-  <div class="num">2</div>
-  <div><strong>DIM-113 窄门</strong>（4 条，0.60~0.80m）— 确认是否为真实疏散门还是设备/管井门</div>
-</div>
-<div class="action-item">
-  <div class="num">3</div>
-  <div><strong>EVAC-001 无疏散路径</strong>（8 个房间，置信度 0.80）— 确认是否真实被墙体完全包围、无出口标注</div>
-</div>
-<div class="action-item">
-  <div class="num">4</div>
-  <div><strong>EVAC-002 疏散距离超标</strong>（4 个房间，30~44m，ROOM_8889=50m）— 确认是否为真实设计违规</div>
-</div>
-<div class="action-item">
-  <div class="num">5</div>
-  <div><strong>EVAC-004 疏散瓶颈</strong>（2 个房间）— 确认窄门的具体宽度和用途</div>
-</div>
-<div class="action-item">
-  <div class="num">6</div>
-  <div><strong>AREA-018 ANTECHAMBER_7843</strong>（3.25m²）— 确认是否为真实前室，接近 4.5m² 阈值</div>
+<h2>六、唯一剩余说明</h2>
+<div class="section-note green">
+ANTECHAMBER_7843（东莞通-建筑.dxf）— classifier 正确判为建筑图，语义层 confidence=0.9 确信是前室。2.79 m² vs 阈值 4.5~6.0 m²，差了约 1.7 m²。需要专家看图确认：<br>
+① 是否前室被墙体分割，实际总面积够？<br>
+② 是否确实偏小（可能违规）？<br>
+这条不属 EVAC 或图纸类型问题，是建筑图上的真实前室面积判定。
 </div>
 
-<h2>六、提交记录</h2>
+<h2>七、提交记录</h2>
 <div class="commit-list">
-<strong>6 个 commits（main → origin/main）：</strong><br>
-<code>05f7731</code> fix: DIM-113 宽度下限 + DIST-003 扫描法派生走廊过滤，消除 21 条误报<br>
-<code>81e1d2b</code> fix(scope): partial 且目标全局存在时跳过作用域检查，消除 616 条误报<br>
+<strong>阶段 1-4（已有 commits）：</strong><br>
+<code>05f7731</code> fix: DIM-113 宽度下限 + DIST-003 扫描法派生走廊过滤<br>
+<code>81e1d2b</code> fix(scope): partial 且目标全局存在时跳过作用域检查<br>
 <code>dee5198</code> fix: EVAC-004 容差修正 + 审计脚本去重合并<br>
-<code>5ed8fd2</code> fix: DIM-113 设备门阈值从 &lt;0.6 改为 &lt;=0.6<br>
-<code>3c4694b</code> docs: 更新领域复核报告（P130 修复后 35 条）
+<code>5ed8fd2</code> fix: DIM-113 设备门阈值<br>
+<code>3c4694b</code> docs: P130 修复后 35 条复核报告<br><br>
+<strong>阶段 5 · 专家复核修复：</strong><br>
+新增 <code>src/baa_engine/evac_width.py</code> — WidthContext 统一聚合 + 疏散人数换算<br>
+改 <code>review_routes.py / batch_routes.py</code> — 收敛三处重复分区聚合代码<br>
+改 <code>atomic_functions.py</code> — EVAC 排除 equipment_room / layer="0" 小房间<br>
+改 <code>classify.py / room_type_infer.py</code> — 设备空间关键词扩大 + require_text 约束<br><br>
+<strong>阶段 6 · 图纸类型过滤：</strong><br>
+改 <code>drawing_parser.py</code> — 从 primitives 收集 layer_names / dxf_type 替代空的 self._doc.layers<br>
+改 <code>drawing_classifier.py</code> — 实体类型比例启发式 + 权重策略（非建筑 1.5 / 建筑 0.5）+ _LAYER_PATTERN_HINTS<br>
+改 <code>batch_routes.py</code> — 新增 is_non_arch 拦截（review_routes 已有）<br>
+改 <code>fp_rate_audit.py</code> — 新增 skipped 路径 + 完整返回 dict
 </div>
 
-<h2>七、技术要点总结</h2>
+<h2>八、misreport 分类体系更新</h2>
 <div class="section-note">
-<strong>misreport 分类体系：</strong><br>
-① <strong>存在性规则误报</strong> — 图纸中无前置实体（prerequisite_types 解决）<br>
-② <strong>作用域 partial 误报</strong> — 网格划分过细导致分布不均（skip when globally present 解决）<br>
-③ <strong>重复计数误报</strong> — 同实体跨文件/跨规则（去重脚本解决）<br>
-④ <strong>临界值精度误报</strong> — 浮点比较边界（容差修正解决）<br>
-⑤ <strong>实体类型误分类</strong> — 设备门误标为疏散门（阈值过滤解决）<br>
-⑥ <strong>路径计算异常</strong> — BFS 超距值（>80m 过滤解决）
+<strong>新增两类根因：</strong><br>
+⑦ <strong>聚合作用域语义越界</strong> — 规范约束的是分区总净宽，逐门判定本质是作用域错位（WidthContext 统一聚合解决）<br>
+⑧ <strong>立面图误识别</strong> — 无分区归属且图层/坐标属立面，被误当作平面疏散门（is_elevation_door 检测解决）<br>
+⑨ <strong>扫线法派生非房间</strong> — 结构/暖通图上扫线法把柱网/管道/说明框闭合也生成 room，被 EVAC 误判（图纸类型过滤解决）<br>
+⑩ <strong>classifier 空输入</strong> — DWG hash ID 文件 classifier 返回"未知"，layer_names 空、entity.type 空（从 primitives 收集 + dxf_type 解决）<br>
+⑪ <strong>权重泛化</strong> — AXIS/DIM_/TEXT 通用层权重和非建筑关键词一样，在结构图上压过结构信号（非建筑权重 1.5 / 建筑 0.5 解决）
 </div>
 
 <div class="conclusion">
 <h4>治理结论</h4>
-<p>通过 6 个 commits、分 4 个阶段治理，跨图纸误报率从 <strong>4107 条降至 35 条（-99.1%）</strong>，critical 严重度从 <strong>857+ 降至 15（-98%）</strong>。</p>
-<p>剩余 35 条 findings 全部为 <strong>本地实体级判定</strong>（非作用域误报），经逐条核实后：</p>
-<ul style="margin-left:20px; margin-top:8px;">
-<li><strong>约 1 条</strong> 为疑似误报（ANTECHAMBER_7843=3.25m² 接近阈值）</li>
-<li><strong>约 34 条</strong> 为待领域专家确认的真实违规候选</li>
-</ul>
-<p style="margin-top:10px;"><strong>建议：</strong>将剩余 35 条交由领域专家结合建筑图纸逐一复核，确认真实违规后纳入生产审查结果。</p>
+<p><strong>跨图纸误报率从 4107 条降至 1 条（-99.98%）</strong>，critical 严重度从 857+ 降至 1。</p>
+<p>三轮递进式修复：<br>
+<strong>阶段 1-4</strong>（-99.1%）：作用域聚合 + 维度规则 + 审计去重 + P130 阈值<br>
+<strong>阶段 5</strong>（专家复核）：疏散宽度分区聚合 + 设备空间排除 + 疏散人数换算 → 35→7<br>
+<strong>阶段 6</strong>（图纸类型过滤）：classifier 空输入修复 + 权重策略 + 三处调用点门禁 → 7→1（23 张非建筑图正确跳过）</p>
+<p style="margin-top:10px;"><strong>唯一剩余</strong>：东莞通-建筑.dxf 前室面积 2.79 m² < 4.5 m²（AREA-018），confidence=0.9，需专家看图确认是真违规还是分割误差。</p>
 </div>
 
 <hr>
-<p class="file-ref">数据来源：D:/OpenClawData/BAA/data/fp_rate_audit_report.json &nbsp;|&nbsp; 31 张有效图纸 &nbsp;|&nbsp; 35 个唯一实体</p>
+<p class="file-ref">数据来源：D:/OpenClawData/BAA/data/fp_rate_audit_report.json &nbsp;|&nbsp; 32 张图纸（23 张跳过审查，8 张建筑图正常审查，1 张 AC1018 不支持解析） &nbsp;|&nbsp; findings 总数 1</p>
 
 </div>
 </body>

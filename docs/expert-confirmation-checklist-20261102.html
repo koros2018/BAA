@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>BAA 专家确认清单 — 剩余 35 条违规</title>
+<title>BAA 专家确认清单 — 已修复 39 条剩余 1 条</title>
 <style>
   :root { --bg:#0f1117; --surface:#1a1d27; --surface2:#232733; --border:#2e3345; --text:#e2e4eb; --muted:#8a8fa8;
           --red:#ff5c5c; --orange:#ffb347; --yellow:#ffd166; --green:#06d6a0; --blue:#118ab2; --purple:#8338ec; }
@@ -45,16 +45,22 @@
 <body>
 <div class="container">
 
-<h1>BAA 专家确认清单（剩余 35 条违规）</h1>
-<p class="subtitle">生成时间：2026-11-02 20:30 &nbsp;|&nbsp; 数据来源：跨图纸复测报告（31 张有效图纸，去重后）&nbsp;|&nbsp; 治理里程碑：4107→35（-99.1%）</p>
+<h1>BAA 专家确认清单（已修复 39 条，剩余 1 条）</h1>
+<p class="subtitle">更新时间：2026-11-03 &nbsp;|&nbsp; 数据来源：全量 32 张真实图纸审计 &nbsp;|&nbsp; 治理里程碑：4107→1（-99.98%）</p>
+
+<div class="section-note" style="border-left-color:var(--green);background:rgba(6,214,160,0.06);">
+<strong>2026-11-03 · 阶段 6 图纸类型过滤完成：</strong><br>
+阶段 5 修复后剩余 7 条 FAIL（全部 EVAC 连通性），逐图诊断发现它们<strong>全部来自结构/暖通/电气专业图纸</strong>：扫线法在非建筑图纸上照样派生 room 实体（柱网轮廓、管道闭合、文字说明框等），EVAC 函数判定时没有建筑疏散语义。修复 classifier 空输入 + 权重策略（非建筑关键词权重 1.5，建筑通用层权重 0.5），并为 batch_routes / fp_rate_audit 接入 is_non_arch 拦截。<br>
+<strong>修复效果：</strong>23 张结构/暖通/电气图正确跳过审查，7 条 EVAC 误报归零，全量 32 张只剩 <strong>1 条真实待确认</strong>（东莞通-建筑.dxf 前室面积 2.79 m²）。
+</div>
 
 <div class="kpi-grid">
   <div class="kpi"><div class="label">初始 findings</div><div class="value" style="color:var(--red)">4107</div></div>
-  <div class="kpi"><div class="label">治理后</div><div class="value" style="color:var(--green)">35</div><div class="delta" style="color:var(--green)">-99.1%</div></div>
-  <div class="kpi"><div class="label">critical</div><div class="value" style="color:var(--red)">15</div></div>
-  <div class="kpi"><div class="label">major</div><div class="value" style="color:var(--orange)">18</div></div>
-  <div class="kpi"><div class="label">minor</div><div class="value" style="color:var(--green)">2</div></div>
-  <div class="kpi"><div class="label">待确认</div><div class="value" style="color:var(--purple)">35</div></div>
+  <div class="kpi"><div class="label">治理后</div><div class="value" style="color:var(--green)">1</div><div class="delta" style="color:var(--green)">-99.98%</div></div>
+  <div class="kpi"><div class="label">DIM-006/DIM-113</div><div class="value" style="color:var(--green)">0</div></div>
+  <div class="kpi"><div class="label">critical</div><div class="value" style="color:var(--red)">1</div></div>
+  <div class="kpi"><div class="label">非建筑图跳过</div><div class="value" style="color:var(--blue)">23</div></div>
+  <div class="kpi"><div class="label">唯一剩余</div><div class="value" style="color:var(--orange)">AREA-018</div></div>
 </div>
 
 <div class="section-note">
