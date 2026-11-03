@@ -221,4 +221,3 @@ def test_spec_metrics_idempotent_short_circuit():
     third = obs.render_metrics().decode()
     assert 'code="CN-National-v1"' in third
     assert "baa_spec_scale_overrides_total 6.0" in third
-

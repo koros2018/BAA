@@ -233,7 +233,7 @@ def main(argv=None):
         print("未找到任何 .dxf 文件，请检查路径。")
         return 1
     if args.skip and args.skip > 0:
-        files = files[args.skip:]
+        files = files[args.skip :]
     if args.limit and args.limit > 0:
         files = files[: args.limit]
 
@@ -268,9 +268,7 @@ def main(argv=None):
         }
         out_path = Path(args.json)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"证据链 JSON 已写入: {out_path}")
     return 0
 

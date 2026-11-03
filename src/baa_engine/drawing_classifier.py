@@ -160,7 +160,7 @@ def classify_drawing(
             if matched_layers:
                 scores[dtype] = scores.get(dtype, 0) + len(matched_layers)
                 reasons.setdefault(dtype, []).extend(
-                    f"图层'{l}'匹配模式" for l in matched_layers[:3]
+                    f"图层'{layer}'匹配模式" for layer in matched_layers[:3]
                 )
 
     # 判定

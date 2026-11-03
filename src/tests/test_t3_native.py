@@ -13,7 +13,6 @@ from src.baa_engine.parsers.t3_native import (
 from src.baa_engine.drawing_parser import DrawingParser, RawPrimitive
 from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
 
-
 # ── 合成 T3 图纸 ────────────────────────────────────────────
 
 
@@ -48,8 +47,9 @@ def _make_t3_doc():
     door_blk = doc.blocks.new(name="$DorLib2D$00000002")
     door_blk.add_line((0, 0), (900, 0))
     door_blk.add_line((0, 0), (0, 900))
-    msp.add_blockref("$DorLib2D$00000002", (3750, 100),
-                     dxfattribs={"layer": "WINDOW", "rotation": 0})
+    msp.add_blockref(
+        "$DorLib2D$00000002", (3750, 100), dxfattribs={"layer": "WINDOW", "rotation": 0}
+    )
 
     # 门联窗侧亮：WINDOW 层两条水平平行线（1500x200）
     for y in (0, 200):
@@ -59,8 +59,7 @@ def _make_t3_doc():
     win_blk = doc.blocks.new(name="$WINLIB2D$00000001")
     win_blk.add_line((0, 0), (1200, 0))
     win_blk.add_line((0, 200), (1200, 200))
-    msp.add_blockref("$WINLIB2D$00000001", (2400, 4100),
-                     dxfattribs={"layer": "WINDOW"})
+    msp.add_blockref("$WINLIB2D$00000001", (2400, 4100), dxfattribs={"layer": "WINDOW"})
 
     # 柱：_FZH 块挂 COLUMN 层（旧图层规则 COLUMN→wall）
     col_blk = doc.blocks.new(name="_FZH")
@@ -154,8 +153,16 @@ def _make_exploded_column_room(width=300.0, *, closed=False, col_layer="COLUMN")
         wall(x, 0, x, 4200)
 
     x0, y0, s = 400.0, 3400.0, width
-    pts = [(x0, y0), (x0, y0), (x0 + s, y0), (x0 + s, y0),
-           (x0 + s, y0 + s), (x0 + s, y0 + s), (x0, y0 + s), (x0, y0)]
+    pts = [
+        (x0, y0),
+        (x0, y0),
+        (x0 + s, y0),
+        (x0 + s, y0),
+        (x0 + s, y0 + s),
+        (x0 + s, y0 + s),
+        (x0, y0 + s),
+        (x0, y0),
+    ]
     msp.add_lwpolyline(pts, close=closed, dxfattribs={"layer": col_layer})
     return doc
 
@@ -188,14 +195,17 @@ class TestExplodedPolylineColumns:
         # 2 点"多段线"（引出线）
         msp.add_lwpolyline([(0, 0), (1000, 0)], dxfattribs={"layer": "COLUMN"})
         # 60x60 过小
-        msp.add_lwpolyline([(0, 0), (60, 0), (60, 60), (0, 0)],
-                           close=True, dxfattribs={"layer": "COLUMN"})
+        msp.add_lwpolyline(
+            [(0, 0), (60, 0), (60, 60), (0, 0)], close=True, dxfattribs={"layer": "COLUMN"}
+        )
         # 3000x200 细长（长宽比 15）
-        msp.add_lwpolyline([(0, 0), (3000, 0), (3000, 200), (0, 0)],
-                           close=True, dxfattribs={"layer": "COLUMN"})
+        msp.add_lwpolyline(
+            [(0, 0), (3000, 0), (3000, 200), (0, 0)], close=True, dxfattribs={"layer": "COLUMN"}
+        )
         # 300x300 但在 COLUMN-LINE 层（尾段名不精确匹配）
-        msp.add_lwpolyline([(0, 0), (300, 0), (300, 300), (0, 0)],
-                           close=True, dxfattribs={"layer": "COLUMN-LINE"})
+        msp.add_lwpolyline(
+            [(0, 0), (300, 0), (300, 300), (0, 0)], close=True, dxfattribs={"layer": "COLUMN-LINE"}
+        )
         t3 = extract_t3(doc, force=True)
         assert t3["columns"] == []
 
@@ -204,8 +214,12 @@ class TestExplodedPolylineColumns:
         t3 = extract_t3(doc)
         col = t3["columns"][0]
         prims = [
-            _prim("LWPOLYLINE", "COLUMN", col["handle"],
-                  {"x": 400, "y": 3400, "width": 300, "height": 300})
+            _prim(
+                "LWPOLYLINE",
+                "COLUMN",
+                col["handle"],
+                {"x": 400, "y": 3400, "width": 300, "height": 300},
+            )
         ]
         attach_t3_markers(prims, t3)
         assert prims[0].properties["_t3_native"] == "column"
@@ -228,8 +242,12 @@ class _FakeEnt:
 
 class TestProxyEntityDiagnosis:
     def test_counter_covers_both_dxftypes(self):
-        msp = [_FakeEnt("LINE"), _FakeEnt("PROXY_ENTITY"),
-               _FakeEnt("ACAD_PROXY_ENTITY"), _FakeEnt("LWPOLYLINE")]
+        msp = [
+            _FakeEnt("LINE"),
+            _FakeEnt("PROXY_ENTITY"),
+            _FakeEnt("ACAD_PROXY_ENTITY"),
+            _FakeEnt("LWPOLYLINE"),
+        ]
         assert t3_native._count_proxy_entities(msp) == 2
 
     def test_counter_swallows_iter_errors(self):
@@ -269,7 +287,9 @@ class TestT3ClassifyOverride:
         col_handle = t3["columns"][0]["handle"]
         prims = [
             _prim("INSERT", "WINDOW", door_handle, {"x": 3750, "y": 100, "width": 0, "height": 0}),
-            _prim("INSERT", "COLUMN", col_handle, {"x": 200, "y": 3800, "width": 400, "height": 400}),
+            _prim(
+                "INSERT", "COLUMN", col_handle, {"x": 200, "y": 3800, "width": 400, "height": 400}
+            ),
         ]
         attach_t3_markers(prims, t3)
         assert prims[0].properties["_t3_native"] == "door"
@@ -284,14 +304,25 @@ class TestT3ClassifyOverride:
         c = t3["columns"][0]
         line_handles = [h for w in t3["windows"] if w["source"] == "lines" for h in w["handles"]]
         prims = [
-            _prim("INSERT", "WINDOW", d["handle"],
-                  {"x": d["x"], "y": d["y"], "width": 0, "height": 0}),
-            _prim("INSERT", "COLUMN", c["handle"],
-                  {"x": c["x"], "y": c["y"], "width": 400, "height": 400}),
+            _prim(
+                "INSERT", "WINDOW", d["handle"], {"x": d["x"], "y": d["y"], "width": 0, "height": 0}
+            ),
+            _prim(
+                "INSERT",
+                "COLUMN",
+                c["handle"],
+                {"x": c["x"], "y": c["y"], "width": 400, "height": 400},
+            ),
         ]
         for i, h in enumerate(line_handles):
-            prims.append(_prim("LINE", "WINDOW", h,
-                               {"x": 3000, "y": 0 if i == 0 else 200, "width": 1500, "height": 0}))
+            prims.append(
+                _prim(
+                    "LINE",
+                    "WINDOW",
+                    h,
+                    {"x": 3000, "y": 0 if i == 0 else 200, "width": 1500, "height": 0},
+                )
+            )
         attach_t3_markers(prims, t3)
 
         out = SemanticAnalyzer().analyze(prims, [], max_entities=100000)
@@ -307,9 +338,17 @@ class TestT3ClassifyOverride:
         t3 = extract_t3(doc)
         wall = next(w for w in t3["walls"] if not w["single"] and w["orientation"] == "h")
         prims = [
-            _prim("LINE", "WALL", h,
-                  {"x": wall["start"], "y": wall["pos"],
-                   "width": wall["end"] - wall["start"], "height": 0})
+            _prim(
+                "LINE",
+                "WALL",
+                h,
+                {
+                    "x": wall["start"],
+                    "y": wall["pos"],
+                    "width": wall["end"] - wall["start"],
+                    "height": 0,
+                },
+            )
             for h in wall["handles"]
         ]
         assert len(prims) == 2  # 双线：两个面
@@ -330,14 +369,37 @@ class TestT3ClassifyOverride:
         t3 = {
             "walls": [
                 # 中段墙：两根面线 A/B 分别被下段/上段墙共享，自身无独占面线
-                {"orientation": "v", "pos": 100.0, "start": 2000.0, "end": 4000.0,
-                 "thickness": 200.0, "single": False, "handles": ["A", "B"]},
-                {"orientation": "v", "pos": 100.0, "start": 0.0, "end": 1800.0,
-                 "thickness": 200.0, "single": False, "handles": ["C", "A"]},
-                {"orientation": "v", "pos": 100.0, "start": 4200.0, "end": 6000.0,
-                 "thickness": 200.0, "single": False, "handles": ["D", "B"]},
+                {
+                    "orientation": "v",
+                    "pos": 100.0,
+                    "start": 2000.0,
+                    "end": 4000.0,
+                    "thickness": 200.0,
+                    "single": False,
+                    "handles": ["A", "B"],
+                },
+                {
+                    "orientation": "v",
+                    "pos": 100.0,
+                    "start": 0.0,
+                    "end": 1800.0,
+                    "thickness": 200.0,
+                    "single": False,
+                    "handles": ["C", "A"],
+                },
+                {
+                    "orientation": "v",
+                    "pos": 100.0,
+                    "start": 4200.0,
+                    "end": 6000.0,
+                    "thickness": 200.0,
+                    "single": False,
+                    "handles": ["D", "B"],
+                },
             ],
-            "doors": [], "windows": [], "columns": [],
+            "doors": [],
+            "windows": [],
+            "columns": [],
         }
         prims = [
             _prim("LINE", "WALL", "A", {"x": 0, "y": 0, "width": 0, "height": 5400}),
@@ -351,8 +413,11 @@ class TestT3ClassifyOverride:
         assert prims[1].properties["_t3_wall_gids"] == [0, 2]
 
         out = SemanticAnalyzer().analyze(prims, [], max_entities=100000)
-        segs = [e["properties"]["_t3_wall_seg"] for e in out["entities"]
-                if e["type"] == "wall" and e.get("properties", {}).get("_t3_wall_seg")]
+        segs = [
+            e["properties"]["_t3_wall_seg"]
+            for e in out["entities"]
+            if e["type"] == "wall" and e.get("properties", {}).get("_t3_wall_seg")
+        ]
         spans = sorted((s["start"], s["end"]) for s in segs)
         assert spans == [(0.0, 1800.0), (2000.0, 4000.0), (4200.0, 6000.0)]
 
@@ -364,10 +429,15 @@ class TestT3ClassifyOverride:
         d = t3["doors"][0]
         c = t3["columns"][0]
         prims = [
-            _prim("INSERT", "WINDOW", d["handle"],
-                  {"x": d["x"], "y": d["y"], "width": 0, "height": 0}),
-            _prim("INSERT", "COLUMN", c["handle"],
-                  {"x": c["x"], "y": c["y"], "width": 400, "height": 400}),
+            _prim(
+                "INSERT", "WINDOW", d["handle"], {"x": d["x"], "y": d["y"], "width": 0, "height": 0}
+            ),
+            _prim(
+                "INSERT",
+                "COLUMN",
+                c["handle"],
+                {"x": c["x"], "y": c["y"], "width": 400, "height": 400},
+            ),
         ]
         out = SemanticAnalyzer().analyze(prims, [], max_entities=100000)
         types = [e["type"] for e in out["entities"]]
@@ -391,23 +461,20 @@ class TestDrawingParserIntegration:
         assert result.t3_components is not None
         assert result.parse_status["component_counts"]["doors"] == 1
 
-        marked_doors = [p for p in result.primitives
-                        if p.properties.get("_t3_native") == "door"]
-        marked_cols = [p for p in result.primitives
-                       if p.properties.get("_t3_native") == "column"]
+        marked_doors = [p for p in result.primitives if p.properties.get("_t3_native") == "door"]
+        marked_cols = [p for p in result.primitives if p.properties.get("_t3_native") == "column"]
         assert len(marked_doors) == 1
         assert len(marked_cols) == 1
 
-        out = SemanticAnalyzer().analyze(result.primitives, result.dimensions,
-                                         block_refs=result.block_refs,
-                                         max_entities=100000)
+        out = SemanticAnalyzer().analyze(
+            result.primitives, result.dimensions, block_refs=result.block_refs, max_entities=100000
+        )
         types = [e["type"] for e in out["entities"]]
         assert "door" in types and "column" in types
 
         # 墙实例接入分类输出：识别器每面墙（双线/单面）合并为一个实体
         wall_entities = [e for e in out["entities"] if e["type"] == "wall"]
-        seg_walls = [e for e in wall_entities
-                     if e.get("properties", {}).get("_t3_wall_seg")]
+        seg_walls = [e for e in wall_entities if e.get("properties", {}).get("_t3_wall_seg")]
         assert len(seg_walls) == len(result.t3_components["walls"])
         assert len(seg_walls) >= 4
         for e in seg_walls:
@@ -415,8 +482,7 @@ class TestDrawingParserIntegration:
             if not seg["single"]:
                 assert abs(seg["thickness"] - 200) < 1
         # 立面干扰视图的 10 根 WALL 线无实例标记，仍走旧图层路径逐根成墙
-        plain_walls = [e for e in wall_entities
-                       if not e.get("properties", {}).get("_t3_wall_seg")]
+        plain_walls = [e for e in wall_entities if not e.get("properties", {}).get("_t3_wall_seg")]
         assert len(plain_walls) == 10
 
     def test_layer_tail_variants(self):

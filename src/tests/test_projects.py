@@ -274,7 +274,7 @@ class TestProjectStatusAudit:
         )
         sf.remove()
         assert logs, "项目状态变更未写入审计日志"
-        assert any("onboarding -> first_review" in (l.detail or "") for l in logs)
+        assert any("onboarding -> first_review" in (log.detail or "") for log in logs)
         assert status_resp.json()["status"] == "first_review"
 
         ag.API_KEYS.update(saved)

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 # ── 内置模板 ────────────────────────────────────────────────
 
+
 @dataclass
 class ReportTemplate:
     code: str

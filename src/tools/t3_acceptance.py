@@ -47,7 +47,9 @@ GATE_OPENING_F1 = 0.75  # 门+窗合并 micro F1
 # ── 匹配 ────────────────────────────────────────────────────
 
 
-def match_points(gold: List[dict], pred: List[dict], tol: float) -> Tuple[List[dict], List[dict], List[dict]]:
+def match_points(
+    gold: List[dict], pred: List[dict], tol: float
+) -> Tuple[List[dict], List[dict], List[dict]]:
     """一对一贪心最近邻；返回 (pairs, fp, fn)。"""
     pairs = []
     dists = []
@@ -104,6 +106,7 @@ def _point_seg_dist(px, py, w) -> float:
 
 def wall_metrics(gold_walls: List[dict], pred_walls: List[dict], tol: float = WALL_TOL) -> Dict:
     """双向采样覆盖率：金标准采样→预测（recall），预测采样→金标准（precision）。"""
+
     def _cover(src, dst):
         total = hit = 0
         miss_points = []
@@ -169,7 +172,9 @@ def native_predictions(result, t3: dict, region_idx: int, box: List[float]) -> D
             out["window"].append({"x": w["x"], "y": w["y"], "source": w.get("source")})
     # 柱/墙：带 T3 标记跑完整 SemanticAnalyzer，验证 标记→分类覆盖 生产链路
     analyzed = SemanticAnalyzer().analyze(
-        result.primitives, result.dimensions, block_refs=result.block_refs,
+        result.primitives,
+        result.dimensions,
+        block_refs=result.block_refs,
         max_entities=1000000,
     )
     for e in analyzed["entities"]:
@@ -196,9 +201,7 @@ def baseline_predictions(result, box: List[float]) -> Dict[str, list]:
     # 柱基线口径：T-A3 根因修复把核心图层规则 COLUMN: wall→column。
     # baseline 代表「改造前」对照组，必须钉回 COLUMN→wall，否则修复泄漏进
     # 对照组，柱改进幅度被低估（baseline F1 由真实的 ~0.07 虚高到 ~0.89）。
-    with patch.dict(
-        "src.baa_engine.semantic_analyzer.classify.LAYER_RULES", {"COLUMN": "wall"}
-    ):
+    with patch.dict("src.baa_engine.semantic_analyzer.classify.LAYER_RULES", {"COLUMN": "wall"}):
         out = SemanticAnalyzer().analyze(
             stripped, result.dimensions, block_refs=result.block_refs, max_entities=1000000
         )
@@ -222,11 +225,19 @@ def baseline_predictions(result, box: List[float]) -> Dict[str, list]:
             continue
         if q.dxf_type == "LINE" and (bb["width"] < 1.0 or bb["height"] < 1.0):
             if bb["width"] >= bb["height"]:
-                ww = {"orientation": "h", "pos": cy,
-                      "start": max(bb["x"], box[0]), "end": min(bb["x"] + bb["width"], box[2])}
+                ww = {
+                    "orientation": "h",
+                    "pos": cy,
+                    "start": max(bb["x"], box[0]),
+                    "end": min(bb["x"] + bb["width"], box[2]),
+                }
             else:
-                ww = {"orientation": "v", "pos": cx,
-                      "start": max(bb["y"], box[1]), "end": min(bb["y"] + bb["height"], box[3])}
+                ww = {
+                    "orientation": "v",
+                    "pos": cx,
+                    "start": max(bb["y"], box[1]),
+                    "end": min(bb["y"] + bb["height"], box[3]),
+                }
             if ww["end"] - ww["start"] >= 300:
                 walls.append(ww)
     preds["wall"] = walls
@@ -251,8 +262,13 @@ def evaluate(gold_path: str, drawing_root: str, modes: Tuple[str, ...]) -> Dict:
         "column": [{"x": float(d["x"]), "y": float(d["y"])} for d in gold["columns"]],
         "wall": gold["walls"],
     }
-    report = {"id": gold["id"], "drawing": gold["drawing"], "audit_box": box,
-              "parse_status": result.parse_status, "modes": {}}
+    report = {
+        "id": gold["id"],
+        "drawing": gold["drawing"],
+        "audit_box": box,
+        "parse_status": result.parse_status,
+        "modes": {},
+    }
 
     preds_by_mode = {}
     if "native" in modes:
@@ -266,9 +282,15 @@ def evaluate(gold_path: str, drawing_root: str, modes: Tuple[str, ...]) -> Dict:
             pairs, fp, fn = match_points(gold_sets[cls], preds[cls], TOL[cls])
             mode_report[cls] = {
                 **prf(len(gold_sets[cls]), len(preds[cls]), len(pairs)),
-                "false_positives": [{"x": round(p["x"], 1), "y": round(p["y"], 1),
-                                     "layer": p.get("layer", ""), "source": p.get("source", "")}
-                                    for p in fp],
+                "false_positives": [
+                    {
+                        "x": round(p["x"], 1),
+                        "y": round(p["y"], 1),
+                        "layer": p.get("layer", ""),
+                        "source": p.get("source", ""),
+                    }
+                    for p in fp
+                ],
                 "false_negatives": [{"x": round(g["x"], 1), "y": round(g["y"], 1)} for g in fn],
             }
         mode_report["wall"] = wall_metrics(gold_sets["wall"], preds["wall"])
@@ -299,19 +321,31 @@ def aggregate(reports: List[dict]) -> Dict[str, Dict[str, float]]:
         # 墙采样汇总
         gs = sum(r["modes"][mode]["wall"]["gold_samples"] for r in reports if mode in r["modes"])
         ps = sum(r["modes"][mode]["wall"]["pred_samples"] for r in reports if mode in r["modes"])
-        gh = round(sum(
-            r["modes"][mode]["wall"]["recall"] * r["modes"][mode]["wall"]["gold_samples"]
-            for r in reports if mode in r["modes"]))
-        ph = round(sum(
-            r["modes"][mode]["wall"]["precision"] * r["modes"][mode]["wall"]["pred_samples"]
-            for r in reports if mode in r["modes"]))
+        gh = round(
+            sum(
+                r["modes"][mode]["wall"]["recall"] * r["modes"][mode]["wall"]["gold_samples"]
+                for r in reports
+                if mode in r["modes"]
+            )
+        )
+        ph = round(
+            sum(
+                r["modes"][mode]["wall"]["precision"] * r["modes"][mode]["wall"]["pred_samples"]
+                for r in reports
+                if mode in r["modes"]
+            )
+        )
         agg[mode]["wall"] = prf(gs, ps, 0)  # placeholder, replaced below
         recall = gh / gs if gs else 0.0
         precision = ph / ps if ps else 0.0
         f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
-        agg[mode]["wall"] = {"gold_samples": gs, "pred_samples": ps,
-                             "precision": round(precision, 4), "recall": round(recall, 4),
-                             "f1": round(f1, 4)}
+        agg[mode]["wall"] = {
+            "gold_samples": gs,
+            "pred_samples": ps,
+            "precision": round(precision, 4),
+            "recall": round(recall, 4),
+            "f1": round(f1, 4),
+        }
     return agg
 
 
@@ -335,18 +369,24 @@ def main(argv=None):
         reports.append(rep)
 
     summary = aggregate(reports)
-    out = {"tolerance": TOL, "wall": {"sample_step_mm": WALL_SAMPLE_STEP, "tol_mm": WALL_TOL},
-           "gates": {"wall_f1>=": GATE_WALL_F1, "opening_micro_f1>=": GATE_OPENING_F1},
-           "aggregate": summary, "drawings": reports}
+    out = {
+        "tolerance": TOL,
+        "wall": {"sample_step_mm": WALL_SAMPLE_STEP, "tol_mm": WALL_TOL},
+        "gates": {"wall_f1>=": GATE_WALL_F1, "opening_micro_f1>=": GATE_OPENING_F1},
+        "aggregate": summary,
+        "drawings": reports,
+    }
 
     os.makedirs(os.path.dirname(args.json), exist_ok=True)
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
 
     for mode, agg in summary.items():
-        print(f"[{mode}] wall F1={agg['wall']['f1']}  door F1={agg['door']['f1']} "
-              f"window F1={agg['window']['f1']} opening-micro F1={agg['opening_micro']['f1']} "
-              f"column F1={agg['column']['f1']}")
+        print(
+            f"[{mode}] wall F1={agg['wall']['f1']}  door F1={agg['door']['f1']} "
+            f"window F1={agg['window']['f1']} opening-micro F1={agg['opening_micro']['f1']} "
+            f"column F1={agg['column']['f1']}"
+        )
     if "native" in summary:
         nat = summary["native"]
         ok = nat["wall"]["f1"] >= GATE_WALL_F1 and nat["opening_micro"]["f1"] >= GATE_OPENING_F1

@@ -150,7 +150,6 @@ def test_draft_start_state(mgr):
     assert rs["status"] == ReviewStatus.DRAFT.value
 
 
-
 # ---------------- T2 整改记录 ----------------
 
 from src.baa_engine.team_collab.rectification import (  # noqa: E402
@@ -230,7 +229,6 @@ def test_rectification_session_not_found(mgr):
     listed, msg = list_rectifications(mgr, "no-such-session", uid)
     assert listed is None
     assert msg == "会话不存在"
-
 
 
 # ---------------- T3 复查 ----------------

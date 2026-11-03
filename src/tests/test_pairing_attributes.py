@@ -19,9 +19,7 @@ from src.baa_engine.semantic_analyzer.pairing_attributes import (
 
 
 def _ent(entity_id, etype, x, y, w, h, props=None, layer="WALL"):
-    e = SemanticEntity(
-        entity_id, etype, {"x": x, "y": y, "width": w, "height": h}, layer=layer
-    )
+    e = SemanticEntity(entity_id, etype, {"x": x, "y": y, "width": w, "height": h}, layer=layer)
     if props:
         e.properties.update(props)
     return e

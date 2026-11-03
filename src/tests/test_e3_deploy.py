@@ -95,7 +95,8 @@ class TestHealthCheckEndpoints:
 
     @pytest.mark.skip(reason="需要 docker compose up -d 运行环境")
     def test_anonymous_request_blocked(self):
-        import urllib.request, urllib.error
+        import urllib.error
+        import urllib.request
 
         try:
             urllib.request.urlopen("http://127.0.0.1:8000/api/v1/functions", timeout=5)

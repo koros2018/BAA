@@ -76,22 +76,13 @@ def _scan_dxf(
     files = [
         p
         for p in sorted(root.rglob("*.dxf"))
-        if p.stat().st_size >= min_size
-        and not any(h in p.name for h in SKIP_NAME_HINTS)
+        if p.stat().st_size >= min_size and not any(h in p.name for h in SKIP_NAME_HINTS)
     ]
     # 目录筛选：relative path 命中任一 include hint 才保留；命中任一 exclude hint 剔除
     if include_hints:
-        files = [
-            p
-            for p in files
-            if any(h in str(p.relative_to(root)) for h in include_hints)
-        ]
+        files = [p for p in files if any(h in str(p.relative_to(root)) for h in include_hints)]
     if exclude_hints:
-        files = [
-            p
-            for p in files
-            if not any(h in str(p.relative_to(root)) for h in exclude_hints)
-        ]
+        files = [p for p in files if not any(h in str(p.relative_to(root)) for h in exclude_hints)]
     if limit > 0:
         # 优先取中等体积文件：过小常为空壳，过大解析慢
         files.sort(key=lambda p: p.stat().st_size)
@@ -117,9 +108,7 @@ def _run_once(path: Path, parser: DrawingParser, baseline: bool) -> Optional[Tup
     """
     with ExitStack() as stack:
         if baseline:
-            stack.enter_context(
-                patch(BLOCK_NAME_PATCH_TARGET, new=_classify_block_name_v1)
-            )
+            stack.enter_context(patch(BLOCK_NAME_PATCH_TARGET, new=_classify_block_name_v1))
             stack.enter_context(patch(LEGEND_PATCH_TARGET, return_value=None))
             stack.enter_context(patch(LEARNER_PATCH_TARGET, new=lambda prims: {}))
         result = parser.parse(str(path), f"ta2_{path.stem}")
@@ -171,9 +160,7 @@ def _evaluate_file(path: Path, parser: DrawingParser) -> Optional[dict]:
         bn = str(ref.get("block_name", ""))
         block_names[bn] = block_names.get(bn, 0) + 1
         if ref.get("attribs") and len(attrib_samples) < 8:
-            attrib_samples.append(
-                {"block_name": bn, "attribs": dict(ref.get("attribs") or {})}
-            )
+            attrib_samples.append({"block_name": bn, "attribs": dict(ref.get("attribs") or {})})
 
     base_stats = base_sem.get("classification_stats", {})
     cur_stats = cur_sem.get("classification_stats", {})
@@ -314,9 +301,7 @@ def main() -> int:
 
     include_hints = [h.strip() for h in args.include_hints.split(",") if h.strip()]
     exclude_hints = [h.strip() for h in args.exclude_hints.split(",") if h.strip()]
-    files = _scan_dxf(
-        root, args.limit, args.min_size, include_hints, exclude_hints
-    )
+    files = _scan_dxf(root, args.limit, args.min_size, include_hints, exclude_hints)
     if not files:
         print(
             f"[FAIL] {root} 下未找到可用 DXF（min-size={args.min_size}, "
@@ -372,12 +357,7 @@ def main() -> int:
     print(f"  其他类型变化(不计失败): {len(all_changes)} 个")
     print("-" * 78)
     for r in reports:
-        if (
-            r["reclassified_blocks"]
-            or r["regressions"]
-            or r["guard_removed"]
-            or r["changes"]
-        ):
+        if r["reclassified_blocks"] or r["regressions"] or r["guard_removed"] or r["changes"]:
             print(
                 f"  {r['drawing_id']}: eff {r['base']['effective_rate']:.4f} → "
                 f"{r['current']['effective_rate']:.4f} "
@@ -391,9 +371,7 @@ def main() -> int:
                     f"{rb['from']}→{rb['to']}"
                 )
             for ch in r["changes"][:5]:
-                print(
-                    f"      变化: id={ch['id']} {ch.get('base')}→{ch.get('current')}"
-                )
+                print(f"      变化: id={ch['id']} {ch.get('base')}→{ch.get('current')}")
             for g in r["guard_removed"][:5]:
                 print(f"      守卫: block={g['block_name']!r} {g['base']}→wall")
             for g in r["regressions"][:5]:
@@ -413,9 +391,7 @@ def main() -> int:
         for r in reports:
             global_blocks.update(r["block_names"])
             attrib_total += sum(r["block_names"].values())
-            attrib_cov += sum(
-                1 for ref in r["attrib_samples"] if ref.get("attribs")
-            )
+            attrib_cov += sum(1 for ref in r["attrib_samples"] if ref.get("attribs"))
             samples.extend(r["attrib_samples"][:2])
         print(f"块引用 Top-{args.dump_blocks}（共 {sum(global_blocks.values())} 条）：")
         for bn, cnt in global_blocks.most_common(args.dump_blocks):

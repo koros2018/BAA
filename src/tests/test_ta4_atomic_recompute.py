@@ -55,9 +55,18 @@ def test_dim006_exit_door_width_injected(registry):
 def test_dim004_corridor_width_dimension_source(registry):
     """走道净宽 ≥1.1m：_dimension_source 注入 width=1.2 → PASS，可追溯。"""
     func = registry._funcs["DIM-004"]
-    ent = _ent("corridor", 0, 0, 12000, 1200, {
-        "width": 1.2, "_dimension_source": "relations_bind", "_dimension_raw": 1200.0,
-    })
+    ent = _ent(
+        "corridor",
+        0,
+        0,
+        12000,
+        1200,
+        {
+            "width": 1.2,
+            "_dimension_source": "relations_bind",
+            "_dimension_raw": 1200.0,
+        },
+    )
     res = func.execute(ent)
     assert res is not None and res.result == "PASS"
     # 可复算：从追溯字段复算注入值（_dimension_raw 1200mm → 1.2m）
@@ -167,12 +176,15 @@ def test_injected_value_traceable(registry):
 # ── 5. 无属性不误判 ──────────────────────────────────────
 
 
-@pytest.mark.parametrize("func_id,etype", [
-    ("DIM-001", "stair"),
-    ("DIM-004", "corridor"),
-    ("DIM-006", "door"),
-    ("DIM-113", "door"),
-])
+@pytest.mark.parametrize(
+    "func_id,etype",
+    [
+        ("DIM-001", "stair"),
+        ("DIM-004", "corridor"),
+        ("DIM-006", "door"),
+        ("DIM-113", "door"),
+    ],
+)
 def test_missing_width_skips_judgment(registry, func_id, etype):
     """退化实体无宽度数据 → None 跳过判定，不产生误报违规。"""
     func = registry._funcs[func_id]
@@ -186,8 +198,14 @@ def test_t3_native_wall_width_end_to_end():
     面线 bbox 须真实退化（水平墙面线 height=0）：此时 bbox 策略只写 length，
     width 只能由 Step 3.7 从 _t3_wall_seg.thickness 注入并盖章 t3_native。
     """
-    seg = {"orientation": "h", "pos": 100.0, "start": 0.0, "end": 3000.0,
-           "thickness": 200.0, "single": False}
+    seg = {
+        "orientation": "h",
+        "pos": 100.0,
+        "start": 0.0,
+        "end": 3000.0,
+        "thickness": 200.0,
+        "single": False,
+    }
     prim = RawPrimitive(
         dxf_type="LINE",
         layer="WALL",

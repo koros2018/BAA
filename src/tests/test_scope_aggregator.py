@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """聚合作用域判定引擎测试（Roadmap v4 T-B2 / B2a）。"""
 
-
 from src.baa_engine.scope_aggregator import (
     aggregate_exist_in_scopes,
     build_scopes,
@@ -34,7 +33,9 @@ class TestBuildScopes:
         assert sc["assignment"]["s1"] != sc["assignment"]["s2"]
 
     def test_same_grid_cell_grouping(self):
-        sc = build_scopes([_e("a", "room", 1000, 1000), _e("b", "room", 3000, 2000)], grid_size_mm=50000)
+        sc = build_scopes(
+            [_e("a", "room", 1000, 1000), _e("b", "room", 3000, 2000)], grid_size_mm=50000
+        )
         assert sc["mode"] == "grid"
         assert len(sc["scopes"]) == 1
         assert sc["assignment"]["a"] == sc["assignment"]["b"]
@@ -42,7 +43,7 @@ class TestBuildScopes:
     def test_unscoped_entities_in_compartment_mode(self):
         ents = [
             _e("c1", "fire_compartment", 0, 0, 50000, 40000),
-            _e("s1", "sprinkler", 10000, 10000),   # 在 c1 内
+            _e("s1", "sprinkler", 10000, 10000),  # 在 c1 内
             _e("s2", "sprinkler", 200000, 200000),  # 在所有分区外
         ]
         sc = build_scopes(ents)
@@ -151,8 +152,8 @@ class TestAggregateExist:
     def test_single_fragment_keeps_only_its_scope(self):
         """分类噪声场景：一个碎片 sprinkler 不再保整图 pass（网格模式下只保所在格）。"""
         ents = [
-            _e("frag", "sprinkler", 0, 0),       # 噪声碎片
-            _e("x1", "exit_sign", 120000, 0),    # 其它区域无 sprinkler
+            _e("frag", "sprinkler", 0, 0),  # 噪声碎片
+            _e("x1", "exit_sign", 120000, 0),  # 其它区域无 sprinkler
         ]
         sc = build_scopes(ents, grid_size_mm=50000)
         r = aggregate_exist_in_scopes("EXIST-004", ["exit_sign", "sign"], ents, sc)

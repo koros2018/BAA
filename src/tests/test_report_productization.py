@@ -64,9 +64,7 @@ def test_pdf_report_empty_details(tmp_path):
     from src.baa_engine.report_generator import ReviewReport
 
     rep = ReviewReport()
-    pdf_bytes = rep.generate(
-        filename="t.dxf", summary=SUMMARY, details=[], corrections=[]
-    )
+    pdf_bytes = rep.generate(filename="t.dxf", summary=SUMMARY, details=[], corrections=[])
     assert pdf_bytes[:4] == b"%PDF"
 
 

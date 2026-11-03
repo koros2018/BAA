@@ -44,32 +44,35 @@ def _semantic_points(gold_path: str) -> dict:
         raise RuntimeError(f"{gold.get('id', gold_path)} 解析失败: {result.error}")
     x0, y0, x1, y1 = box
     out = {"door": [], "window": [], "column": []}
-    ents = SemanticAnalyzer().analyze(
-        result.primitives, result.dimensions, block_refs=result.block_refs
-    ).get("entities", [])
+    ents = (
+        SemanticAnalyzer()
+        .analyze(result.primitives, result.dimensions, block_refs=result.block_refs)
+        .get("entities", [])
+    )
     for e in ents:
         et = e.get("type")
         if et not in out:
             continue
         b = e.get("bbox") or {}
-        cx = (float(b.get("x", 0)) + float(b.get("width", 0)) / 2)
-        cy = (float(b.get("y", 0)) + float(b.get("height", 0)) / 2)
+        cx = float(b.get("x", 0)) + float(b.get("width", 0)) / 2
+        cy = float(b.get("y", 0)) + float(b.get("height", 0)) / 2
         if x0 <= cx <= x1 and y0 <= cy <= y1:
             out[et].append({"x": cx, "y": cy, "id": e.get("id", "")})
     # 墙：T3 native 与 baseline 双源在 t3_acceptance 内实现，此处复用其
     # native_predictions（当前主干即 T3 native 覆盖式路径）
     from src.tools.t3_acceptance import native_predictions
+
     preds = native_predictions(result, result.t3_components, region_idx, box)
     out["wall"] = preds["wall"]
     return {"gold": gold, "preds": out}
 
 
 def evaluate(gold_files, modes=("current",)) -> dict:
-    files = [os.path.join(GOLD_DIR, f) for f in gold_files] if isinstance(gold_files, list) else None
+    files = (
+        [os.path.join(GOLD_DIR, f) for f in gold_files] if isinstance(gold_files, list) else None
+    )
     if files is None:
-        files = sorted(
-            str(p) for p in Path(GOLD_DIR).glob("*.json")
-        )
+        files = sorted(str(p) for p in Path(GOLD_DIR).glob("*.json"))
     report = {"files": len(files), "per_drawing": [], "aggregate": {}}
     agg = {cls: {"gold": 0, "pred": 0, "tp": 0} for cls in ("door", "window", "column")}
     for fp in files:
@@ -126,9 +129,15 @@ def _git_sha() -> str:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="漏报率量化管线（T-B3）")
     ap.add_argument("--json", default="", help="报表输出路径")
-    ap.add_argument("--history", default="", help="历史 JSONL 追加路径（每行 timestamp+sha+aggregate）")
-    ap.add_argument("--gate-recall", type=float, default=0.0,
-                    help="CI 门槛：opening_micro recall 低于该值退出码 1（0=不启用）")
+    ap.add_argument(
+        "--history", default="", help="历史 JSONL 追加路径（每行 timestamp+sha+aggregate）"
+    )
+    ap.add_argument(
+        "--gate-recall",
+        type=float,
+        default=0.0,
+        help="CI 门槛：opening_micro recall 低于该值退出码 1（0=不启用）",
+    )
     args = ap.parse_args(argv)
 
     report = evaluate(None)
@@ -137,8 +146,10 @@ def main(argv=None) -> int:
     report["git_sha"] = _git_sha()
 
     micro = report["aggregate"]["opening_micro"]
-    print(f"黄金标准 {report['files']} 张 | opening_micro recall={micro['recall']} "
-          f"(gold={micro['gold']}, fn={micro['gold'] - micro['tp']}) miss_rate={micro['miss_rate']}")
+    print(
+        f"黄金标准 {report['files']} 张 | opening_micro recall={micro['recall']} "
+        f"(gold={micro['gold']}, fn={micro['gold'] - micro['tp']}) miss_rate={micro['miss_rate']}"
+    )
     for cls in ("door", "window", "column", "wall"):
         m = report["aggregate"].get(cls) or {}
         if m:
@@ -159,7 +170,8 @@ def main(argv=None) -> int:
         hp = Path(args.history)
         hp.parent.mkdir(parents=True, exist_ok=True)
         rec = {
-            "ts": report["generated_at"], "sha": report["git_sha"],
+            "ts": report["generated_at"],
+            "sha": report["git_sha"],
             "files": report["files"],
             "aggregate": {k: v for k, v in report["aggregate"].items()},
         }

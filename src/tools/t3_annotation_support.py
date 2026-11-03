@@ -96,7 +96,9 @@ def render_audit(doc, t3, box, region_idx, out_png):
         if t in ("LINE", "LWPOLYLINE", "POLYLINE"):
             if tail not in RENDER_LAYERS:
                 continue
-            color = {"WALL": "0.55", "WINDOW": "#1f77b4", "COLUMN": "#d62728", "AXIS": "#cccccc"}[tail]
+            color = {"WALL": "0.55", "WINDOW": "#1f77b4", "COLUMN": "#d62728", "AXIS": "#cccccc"}[
+                tail
+            ]
             lw = 1.3 if tail == "WALL" else 0.8
             for sx1, sy1, sx2, sy2 in _segments_of(e):
                 mx, my = (sx1 + sx2) / 2.0, (sy1 + sy2) / 2.0
@@ -114,25 +116,58 @@ def render_audit(doc, t3, box, region_idx, out_png):
                 ax.plot(p.x, p.y, "s", mfc="none", mec="#2ca02c", ms=9, mew=1.6)
             elif tail == "COLUMN":
                 ax.add_patch(
-                    plt.Rectangle((p.x - 200, p.y - 200), 400, 400, fc="#d62728", ec="none", alpha=0.5)
+                    plt.Rectangle(
+                        (p.x - 200, p.y - 200), 400, 400, fc="#d62728", ec="none", alpha=0.5
+                    )
                 )
 
     for i, d in enumerate(doors):
-        ax.annotate(f"D{i}", (d["x"], d["y"]), textcoords="offset points",
-                    xytext=(7, 5), color="#c2185b", fontsize=11, weight="bold")
+        ax.annotate(
+            f"D{i}",
+            (d["x"], d["y"]),
+            textcoords="offset points",
+            xytext=(7, 5),
+            color="#c2185b",
+            fontsize=11,
+            weight="bold",
+        )
     for i, w in enumerate(wins):
-        ax.annotate(f"W{i}", (w["x"], w["y"]), textcoords="offset points",
-                    xytext=(7, -11), color="#2ca02c", fontsize=10)
+        ax.annotate(
+            f"W{i}",
+            (w["x"], w["y"]),
+            textcoords="offset points",
+            xytext=(7, -11),
+            color="#2ca02c",
+            fontsize=10,
+        )
     for i, c in enumerate(cols):
-        ax.annotate(f"C{i}", (c["x"], c["y"]), textcoords="offset points",
-                    xytext=(7, 5), color="#d62728", fontsize=10)
+        ax.annotate(
+            f"C{i}",
+            (c["x"], c["y"]),
+            textcoords="offset points",
+            xytext=(7, 5),
+            color="#d62728",
+            fontsize=10,
+        )
     for i, wl in enumerate(walls):
         if wl["orientation"] == "h":
-            ax.annotate(str(i), ((wl["start"] + wl["end"]) / 2.0, wl["pos"]),
-                        color="0.25", fontsize=7, ha="center", va="center")
+            ax.annotate(
+                str(i),
+                ((wl["start"] + wl["end"]) / 2.0, wl["pos"]),
+                color="0.25",
+                fontsize=7,
+                ha="center",
+                va="center",
+            )
         else:
-            ax.annotate(str(i), (wl["pos"], (wl["start"] + wl["end"]) / 2.0),
-                        color="0.25", fontsize=7, ha="center", va="center")
+            ax.annotate(
+                str(i),
+                (wl["pos"], (wl["start"] + wl["end"]) / 2.0),
+                color="0.25",
+                fontsize=7,
+                ha="center",
+                va="center",
+            )
 
     ax.set_xlim(x0, x1)
     ax.set_ylim(y0, y1)

@@ -242,7 +242,8 @@ class TestLandscapeLayerGuard:
     def test_landscape_layer_legend_hit_wins(self):
         # 图例命中优先级高于图层守卫
         prim = _make_insert_prim(
-            "UNKNOWN_X", layer="LA-小铺装",
+            "UNKNOWN_X",
+            layer="LA-小铺装",
             extra_props={"block_attribs": {"TAG": "消火栓"}},
         )
         assert SemanticAnalyzer()._classify_by_geometry(prim) == "fire_hydrant"

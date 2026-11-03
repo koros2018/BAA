@@ -25,7 +25,9 @@ def _ent(entity_id, etype, x, y, w, h, props=None):
 
 
 def _text(text, x, y, w=200, h=200):
-    return RawPrimitive("TEXT", "标注", "t", {"x": x, "y": y, "width": w, "height": h}, {"text": text})
+    return RawPrimitive(
+        "TEXT", "标注", "t", {"x": x, "y": y, "width": w, "height": h}, {"text": text}
+    )
 
 
 # ── 1. 厚度解析 ─────────────────────────────────────────
@@ -159,7 +161,9 @@ def test_no_text_no_action():
     """无 TEXT/MTEXT 时实体属性不变、无来源标记。"""
     wall = _ent("W1", "wall", 0, 0, 3000, 200)
     prims = [
-        RawPrimitive("LINE", "WALL", "l1", {"x": 0, "y": 0, "width": 3000, "height": 0}, {"angle": 0})
+        RawPrimitive(
+            "LINE", "WALL", "l1", {"x": 0, "y": 0, "width": 3000, "height": 0}, {"angle": 0}
+        )
     ]
     out = _inject_text_attributes(None, [wall], prims)
     assert out[0].properties.get("width") is None
