@@ -92,55 +92,86 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 # 基线日期: 2026-10-15 (room 刷新; P104/P105 面过滤后的 room 语义)
 ENTITY_BASELINE = {  # assignment
     # ── 东莞通建筑图（唯一在 drawings/real/ 中有真实数据的图纸） ──
+    # 2026-11-03 P0-3 基线刷新：door 2644→3248（含 doorway=277 新分类）；
+    # window 265→10（部分归入 rescue_window=3）；column 172→95
     "东莞通-建筑-外部参照（不打印）.dxf": {  # code
         "wall": 1482,
-        "door": 2644,
-        "window": 265,
-        "column": 172,
+        "door": 3248,
+        "doorway": 277,
+        "rescue_window": 3,
+        "window": 10,
+        "column": 95,
         "room": 127,
-        "text": 638,
-        "other": 4439,
+        "text": 620,
+        "other": 4164,
         "antechamber": 15,
+        "corridor": 3,
+        "equipment_room": 18,
+        "exit": 1,
         "fire_elevator": 14,
+        "floor": 2,
         "stair": 4,
+        "water_reservoir": 3,
     },  # code
     # ── 建筑/结构图纸 (data/files/) ──
+    # 2026-11-03 P0-3 基线刷新：door 231→328（P83 门宽阈值 700→500mm）；
+    # window 27→0（全部重新分类）；新增 floor/sprinkler/pump 等消防设备
     "baa-file-00582518a28e.dxf": {  # code
-        "room": 0,  # P130: 表格/图框区域排除后，原 9 个为图例表格单元格伪影
+        "room": 0,
         "dimension": 543,
         "text": 320,
-        "door": 231,
+        "door": 328,
         "wall": 108,
-        "column": 104,
-        "window": 27,
+        "column": 98,
         "fire_extinguisher": 14,
         "fire_hydrant": 8,
         "fire_alarm": 4,
         "sprinkler": 2,
+        "floor": 7,
+        "equipment": 1,
+        "other": 3,
+        "pump": 3,
+        "siamese_connection": 1,
+        "speaker": 2,
+        "water_reservoir": 1,
+        "water_tank": 1,
     },  # code
+    # 2026-11-03 P0-3 基线刷新：door 321→394（+73，P83 门宽阈值放宽）；
+    # window 107→0（全部重新分类）；新增 doorway/floor/corridor/slab
     "baa-file-00b3795cf6c2.dxf": {  # code
-        "other": 1141,
+        "other": 1107,
         "text": 363,
-        "door": 321,
-        "wall": 180,
+        "door": 394,
+        "doorway": 5,
+        "wall": 179,
         "dimension": 124,
-        "window": 107,
         "room": 7,
-        "column": 57,
+        "column": 39,
         "stair": 3,
+        "floor": 10,
+        "corridor": 1,
+        "slab": 1,
     },  # code
     "baa-file-016c23eb4018.dxf": {  # code
         "dimension": 369,
-        "text": 328,
-        "wall": 278,
+        "text": 324,
+        "wall": 252,
         "stair": 100,
-        "column": 88,
+        "column": 97,
         "facade": 86,
-        "window": 80,
-        "other": 49,
+        "window": 72,
+        "other": 51,
         "equipment": 23,
         "room": 6,
         "floor": 21,
+        "door": 14,
+        "doorway": 17,
+        "fire_door": 2,
+        "exit": 1,
+        "equipment_room": 4,
+        "ramp": 1,
+        "titleblock": 8,
+        "structure": 11,
     },  # code
     "baa-file-007a2fa192ad.dxf": {  # code
         "wall": 158,
@@ -269,7 +300,9 @@ def test_all_files_dir_parseable(
     paths = sorted(FILES_DIR.glob("*.dxf"))  # assignment
     assert len(paths) >= 10, f"data/files/ 至少需要 10 个 DXF, 找到 {len(paths)}"  # get length
 
-    # data/files/ 下有很多 0B/mock 垃圾文件，过滤掉 < 50KB 的
+    # data/files/ 下有很多测试桩文件（16B 或仅 DXF 头），过滤掉小体积无效文件
+    # P0-3 后：测试上传目录已隔离到 BAA_DATA_DIR 临时目录，
+    # data/files/ 应仅含真实图纸；≥50KB 排除残留的合成桩文件（~14-20KB）
     min_size = 50 * 1024  # 50KB
     paths_above_min = [p for p in paths if p.stat().st_size >= min_size]  # assignment
     assert (
