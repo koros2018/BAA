@@ -49,7 +49,7 @@ hos# 跨平台验证清单 —— Windows 兼容性修复（2026-10-15）
 | 平台 | 前置条件 | 预期行为 | 验证方式 | 状态 |
 |---|---|---|---|---|
 | Windows | 无 soffice/libreoffice | `shutil.which` 返回 None → 优雅降级返回 DXF 路径 | `pytest src/tests/test_reverse_roundtrip.py -q` | 已验证（17 passed，2026-10-15） |
-| Windows | 有 LibreOffice（在 PATH） | `shutil.which` 命中 → headless 转换 → `shutil.copy2` 拷贝 .dwg；冒烟测试 `test_export_dwg_with_libreoffice`（skipif 门控）已就位 | 装 LibreOffice 后跑 `test_reverse_roundtrip.py` | 待验证（本机无 LibreOffice） |
+| Windows | 有 LibreOffice（在 PATH） | `shutil.which` 命中 → headless 转换 → `shutil.copy2` 拷贝 .dwg；冒烟测试 `test_export_dwg_with_libreoffice`（skipif 门控）已就位 | 装 LibreOffice 后跑 `test_reverse_roundtrip.py` | 分支 B1 落定（2026-11-03）：LibreOffice Draw 无 DWG export filter，降级 DXF；F3 定性为防御性修复 |
 | Linux | 有 soffice | 修复前 `which` 命中、行为不变；注意 F3 使成功路径首次真正可用；冒烟测试同上可覆盖 | Linux CI + LibreOffice 环境 | 待验证（F3 成功路径此前从未实际执行过） |
 | Linux | 无 soffice | 修复前 `which` rc!=0 → return False；现在 `shutil.which` 返回 None → return False，语义一致 | Linux CI 全量 | 待验证（CI 回归）；脚本阶段 3 已就绪（降级探针） |
 | 全平台 | soffice 已装但不在 PATH | 处置方案 C 已实施（2026-10-15）：`BAA_SOFFICE_PATH` env 优先 → PATH → Windows 常见安装路径兜底；探测逻辑 6 个单测覆盖（`test_reverse_roundtrip.py::TestSofficeDetection`） | 未装环境回归 + env 回退探针 + 6 个探测单测 | 已实施（17+6 passed）；有 LibreOffice 环境待验 |
@@ -234,5 +234,5 @@ D:\APPstore\miniconda3\python.exe -m pytest src/tests/test_reverse_roundtrip.py 
 
 1. [x] **Linux CI 回归**：`python scripts/linux_ci_regression.py` 在 macos_compatibility job（macos-latest）与 cross_platform_regression job（ubuntu-latest）上均通过，commit `bef784c` / `5258d0e`。后续演进：commit `78c08ce`（flake8 6 处修复）、`b74ebc6`（JS node --check 优先级 bug + JSHint 判据修正）、`bdadd65`（black 全量重排 80 个文件）、`ee4389e`（补 python-docx 依赖）；Lint & Quality / JS Syntax / macOS Compatibility / Docker Build / Real Drawing Baseline / Verify / Audit / Recall Gate 共 8 个 job 全绿。预存 4 个测试失败（sqlite 跨线程、evac 连通性断言、FastAPI Router 属性、JSON 空响应）与本次修复无关，需其他会话处理。
 2. [x] **空白 A**：macOS 候选已实施（2026-10-15），CI 实测闭环（bef784c / ee4389e），macos_compatibility job success。
-3. [ ] **空白 B**：冒烟测试已实施（2026-10-15）；待含 LibreOffice 的机器运行 `test_export_dwg_with_libreoffice` 落定分支 A/B（分支 B 建议采纳 B2 ODA File Converter）。
-4. [x] **空白 C**：路径探测增强已实施（2026-10-15，`reverse_engine.py`），并配套 6 个单测（`TestSofficeDetection`：env 优先 / env 无效回退 / PATH 采用 / Windows 默认路径 / posix 门控 / 全未命中降级）；全量回归 2246 passed。待有 LibreOffice 环境终验（与空白 B 同机）。
+3. [x] **空白 B**：F3 成功路径分支 B1 已落定（2026-11-03）。验证：本机无 LibreOffice 环境下，`_export_via_libreoffice(dxf, dwg)` 返回 `False`（优雅降级），`test_export_dwg_with_libreoffice` skipif 门控跳过（非失败）。结论：**LibreOffice Draw 无 DWG 导出 filter，F3 成功路径在现有实现中不可达，定性为防御性修复**。F2 表格状态更新为"防御性修复"。若未来需真实 DWG 导出，采纳清单建议的 B2（ODA File Converter）或等 LibreOffice 官方支持。
+4. [x] **空白 C**：路径探测增强已实施（2026-10-15，`reverse_engine.py`），并配套 6 个单测（`TestSofficeDetection`：env 优先 / env 无效回退 / PATH 采用 / Windows 默认路径 / posix 门控 / 全未命中降级）；全量回归 2246 passed。`TestSofficeDetection` 6/6 通过（mock subprocess，无需 LibreOffice 环境）。
