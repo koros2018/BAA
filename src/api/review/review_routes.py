@@ -469,14 +469,21 @@ async def review(  # code
         details = []
         registry_funcs = _get_fr().list_all()
 
+        _strict_threshold_cache: dict = {}
+
         def get_strict_threshold(clause_id: str) -> tuple:
             """获取条款严格模式阈值。"""
+            cached = _strict_threshold_cache.get(clause_id)
+            if cached is not None:
+                return cached
             worst_val, worst_unit, worst_op = None, None, None
             for bt in _effective_types:
                 v, u, o = repo.get_threshold(clause_id, bt)
                 if worst_val is None or v > worst_val:
                     worst_val, worst_unit, worst_op = v, u, o
-            return worst_val, worst_unit, worst_op
+            result = (worst_val, worst_unit, worst_op)
+            _strict_threshold_cache[clause_id] = result
+            return result
 
         # 链式依赖执行
         func_ids = [

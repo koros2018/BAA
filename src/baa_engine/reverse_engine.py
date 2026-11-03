@@ -250,7 +250,8 @@ class ReverseEngine:
 
         if not soffice:
             logger.debug("P67: LibreOffice 不可用")
-            return False
+            # 不要在此直接返回 False，否则下面的 ODA 降级分支永远不可达
+            return self._export_via_oda(dxf_path, dwg_path)
 
         # 使用临时目录接收 LibreOffice 的输出
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -330,46 +331,53 @@ class ReverseEngine:
     def _export_via_oda(self, dxf_path: str, dwg_path: str) -> bool:
         """通过 ODA File Converter 将 DXF 转换为 DWG。
 
-        ODA File Converter CLI:
-            ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1
+        ODA File Converter CLI（注意前两个参数必须是目录，不是文件）:
+            ODAFileConverter <indir> <outdir> ACAD2018 DWG 0 1 [<input filter>]
         返回 True 表示转换成功。
         """
         import subprocess
+        import tempfile
 
         oda = self._detect_oda()
         if not oda:
             logger.debug("P67: ODA File Converter 不可用")
             return False
 
-        # ODA 要求 output dir 存在
         out_dir = os.path.dirname(os.path.abspath(dwg_path))
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, exist_ok=True)
 
-        cmd = [oda, dxf_path, out_dir, "ACAD2018", "DWG", "0", "1"]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        except subprocess.TimeoutExpired:
-            logger.warning("P67: ODA File Converter 转换超时")
-            return False
-        except FileNotFoundError:
-            logger.debug("P67: ODA File Converter 可执行文件不存在: %s", oda)
-            return False
+        # ODA 只接受目录：用临时目录隔离输入/输出，避免与同目录其它文件串味
+        with tempfile.TemporaryDirectory() as tmpdir:
+            in_dir = os.path.join(tmpdir, "in")
+            oda_out = os.path.join(tmpdir, "out")
+            os.makedirs(in_dir, exist_ok=True)
+            os.makedirs(oda_out, exist_ok=True)
+            shutil.copy2(dxf_path, in_dir)
 
-        if proc.returncode == 0:
-            # ODA 输出文件命名：原文件名.dwg（同目录）
-            base_name = os.path.basename(dxf_path)
-            output_dwg = os.path.join(out_dir, base_name.rsplit(".", 1)[0] + ".dwg")
-            if os.path.exists(output_dwg):
-                shutil.copy2(output_dwg, dwg_path)
-                logger.info("P67: ODA File Converter 导出 DWG 成功: %s", dwg_path)
-                return True
+            cmd = [oda, in_dir, oda_out, "ACAD2018", "DWG", "0", "1", "*.dxf"]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                logger.warning("P67: ODA File Converter 转换超时")
+                return False
+            except FileNotFoundError:
+                logger.debug("P67: ODA File Converter 可执行文件不存在: %s", oda)
+                return False
 
-        logger.debug(
-            "P67: ODA File Converter 转换失败 (rc=%d): %s",
-            proc.returncode,
-            proc.stderr[:200],
-        )
+            if proc.returncode == 0:
+                base_name = os.path.basename(dxf_path)
+                expected = os.path.join(oda_out, base_name.rsplit(".", 1)[0] + ".dwg")
+                if os.path.exists(expected):
+                    shutil.copy2(expected, dwg_path)
+                    logger.info("P67: ODA File Converter 导出 DWG 成功: %s", dwg_path)
+                    return True
+
+            logger.debug(
+                "P67: ODA File Converter 转换失败 (rc=%d): %s",
+                proc.returncode,
+                proc.stderr[:200],
+            )
         return False
 
     def _line(self, x1, y1, x2, y2, layer):

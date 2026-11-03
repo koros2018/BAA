@@ -121,6 +121,23 @@ class TestCorruptDetection:
         r = is_likely_corrupt(str(dxf))
         assert r["corrupt"] is False
 
+    def test_small_but_structurally_valid(self, tmp_path):
+        """回归：合法的小体积 DXF（单房间 ~754B）不应被判损坏
+
+        引擎反向生成的简易房间 DXF 仅 754 字节，曾因 min_size_bytes=10000
+        被判 corrupt，导致自身产物无法回灌 /review 闭环。
+        """
+        from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType
+
+        dxf = tmp_path / "small_room.dxf"
+        ReverseEngine().generate_dxf(
+            RoomSpec(room_type=RoomType.OFFICE, width_mm=5000, height_mm=4000), str(dxf)
+        )
+        assert dxf.stat().st_size < 10000
+        r = is_likely_corrupt(str(dxf))
+        assert r["corrupt"] is False
+        assert r["recoverable"] is True
+
 
 class TestIntegration:
     def test_full_parse_with_classification(self):

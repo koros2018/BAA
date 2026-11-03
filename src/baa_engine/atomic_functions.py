@@ -1098,6 +1098,9 @@ class FuncRegistry:  # class definition
         self._executor = None
         # P94: 缓存拓扑排序结果，避免每个实体重算
         self._ordered_func_ids: List[str] = []
+        # 拓扑排序按「函数集合」缓存：同一实体类型在不同实体上复现时直接命中，
+        # 避免 resolve_dependencies 的 O(n²) 全量重排（真实图纸曾因此耗时数十秒）
+        self._resolve_cache: Dict[Tuple[str, ...], List[str]] = {}
         # P7: 从 atomic/ 子包导入所有原子函数（去重后按 func_id 注册）
         from .atomic import ATOMIC_FUNCTIONS  # import from atomic subpackage
 
@@ -1121,9 +1124,15 @@ class FuncRegistry:  # class definition
         self._funcs[func.func_id] = func  # assignment
         if func.depends_on:
             self._dependency_graph[func.func_id] = list(func.depends_on)
+        # 注册新函数会改变依赖图，旧拓扑序缓存失效
+        self._resolve_cache.clear()
 
     def resolve_dependencies(self, func_ids: List[str]) -> List[str]:
         """拓扑排序：确保依赖函数在目标函数之前执行"""
+        cache_key = tuple(sorted(func_ids))
+        cached = self._resolve_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         all_deps: Dict[str, List[str]] = {}
         for fid in func_ids:
@@ -1152,6 +1161,7 @@ class FuncRegistry:  # class definition
 
         if len(result) != len(func_ids):
             return func_ids
+        self._resolve_cache[cache_key] = result
         return result
 
     def check_dependencies(self, func: AtomicFunction, results: Dict[str, FuncResult]) -> bool:

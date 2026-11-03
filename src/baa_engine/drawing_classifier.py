@@ -303,8 +303,17 @@ def is_likely_corrupt(filepath: str, min_size_bytes: int = 10000) -> Dict[str, A
     except Exception:
         return {"corrupt": True, "reason": "无法读取文件头", "recoverable": False}
 
-    # 过小的 DXF 文件（有效 DXF 通常 >10KB）
+    # 过小的 DXF：仅当结构不完整时才判损坏
+    # 单房间/局部详图的合法 DXF 可以只有几百字节（本引擎反向生成的简易房间
+    # 仅 ~754B），不能只按体积否掉；有 ENTITIES + EOF 闭合即可视为有效
     if size < min_size_bytes:
+        try:
+            with open(filepath, "rb") as f:
+                body = f.read()
+        except Exception:
+            body = b""
+        if b"ENTITIES" in body and b"EOF" in body:
+            return {"corrupt": False, "reason": "", "recoverable": True}
         return {
             "corrupt": True,
             "reason": f"文件大小仅 {size} 字节（有效 DXF 通常 >{min_size_bytes}B），疑似占位或损坏",

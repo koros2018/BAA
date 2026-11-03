@@ -164,8 +164,6 @@ class TestMultiRoomEngine:
         _, v, layout = self._generate_multi(specs)
         assert v.get("success") is True
         assert len(layout.rooms) == 3
-        # 疏散路径应存在
-        evac_lines = [e for e in (v.get("findings", [])) if "EVAC" in str(e)]
         # 至少应有 room + door 实体
         ents = v.get("entities", {})
         assert any("room" in k or "wall" in k for k in ents)
@@ -264,6 +262,28 @@ class TestExportDwg:
         else:
             # 降级路径：无 DWG filter（空白 B 分支 B1 现场证据）
             assert result.endswith(".dxf")
+
+    @pytest.mark.skipif(
+        ReverseEngine()._detect_oda() is None,
+        reason="需要 ODA File Converter（BAA_ODA_PATH / PATH / Windows 默认安装路径任一命中）",
+    )
+    def test_export_dwg_with_oda(self, tmp_path):
+        """有 ODA 时的真实转换冒烟
+
+        覆盖 ODA CLI 契约：前两个参数必须是目录，不是文件。
+        回归保护：曾因把 DXF 文件路径当作 indir 传参，导致 ODA 弹 GUI 挂起
+        直至超时，DXF→DWG 实际永远失败。
+        """
+        engine = ReverseEngine()
+        dxf_path = str(tmp_path / "room.dxf")
+        dwg_path = str(tmp_path / "room.dwg")
+        engine.generate_dxf(
+            RoomSpec(room_type=RoomType.OFFICE, width_mm=5000, height_mm=4000), dxf_path
+        )
+
+        assert engine._export_via_oda(dxf_path, dwg_path) is True
+        assert os.path.exists(dwg_path)
+        assert os.path.getsize(dwg_path) > 0
 
 
 # ════════════════════════════════════════════════════════════

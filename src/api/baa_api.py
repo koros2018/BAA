@@ -767,14 +767,25 @@ async def deconstruct(  # code
         registry_funcs = _func_registry.list_all()
         total_checks = 0
         seen_violations = set()
+        # 阈值只与 (clause, 建筑类型, 规范) 有关，与实体无关：按函数预热一次，
+        # 避免原实现 n×m 次重复查库（真实图纸 3000 图元 × 422 函数 = 127 万次）
+        threshold_cache = {}
 
         # 遍历处理
         for e in entities:
+            etype_fast = e.get("type", "")
             for func in registry_funcs:
+                # 类型门控前置：execute() 内部同样会因 matches 失败返回 None，
+                # 但这里提前跳过可省去每个 (实体, 函数) 组合的线程派生开销
+                if func.target_entities and etype_fast not in func.target_entities:
+                    continue
                 total_checks += 1
-                threshold_val, unit, op = repo.get_threshold(
-                    func.clause_id, building_type, standard
-                )
+                cache_key = (func.func_id, func.clause_id)
+                if cache_key not in threshold_cache:
+                    threshold_cache[cache_key] = repo.get_threshold(
+                        func.clause_id, building_type, standard
+                    )
+                threshold_val, unit, op = threshold_cache[cache_key]
                 func.threshold = threshold_val
                 func.unit = unit
                 func.operator = op

@@ -205,10 +205,20 @@ def _build_findings(
     details = []
     global_funcs = [f for f in registry_funcs if getattr(f, "requires_global_context", False)]
     local_funcs = [f for f in registry_funcs if not getattr(f, "requires_global_context", False)]
+    # 阈值只与 clause 有关：按 clause 预热一次，避免 n×m 次重复查库
+    threshold_cache = {}
 
     for e in entities:
+        etype_fast = e.get("type", "")
         for func in local_funcs:
-            tv, u, op = get_strict_threshold(func.clause_id)
+            # 类型门控前置：execute() 内部同样因 matches 返回 None，
+            # 提前跳过可省去每个 (实体, 函数) 组合的线程派生与查库开销
+            if func.target_entities and etype_fast not in func.target_entities:
+                continue
+            cache_key = func.clause_id
+            if cache_key not in threshold_cache:
+                threshold_cache[cache_key] = get_strict_threshold(func.clause_id)
+            tv, u, op = threshold_cache[cache_key]
             func.threshold = tv
             func.unit = u
             func.operator = op
