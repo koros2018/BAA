@@ -51,8 +51,8 @@ def _drawings(argv: list[str]) -> list[Path]:
     if argv:
         return [Path(p) for p in argv]
     drawings = []
-    # DXF from real dir
-    for p in sorted(REAL_DIR.glob("*.dxf")):
+    # DXF from real dir（递归含子目录：nasji/cype 等外部样本）
+    for p in sorted(REAL_DIR.rglob("*.dxf")):
         if not p.name.startswith(FIXTURE_PREFIXES):
             drawings.append(p)
     # DWG from files dir（E6-T4 ezdwg 直读保留图层信息）
@@ -68,12 +68,43 @@ def run_review(dxf_path: Path) -> dict:
     if not result.success:
         return {"file": dxf_path.name, "success": False, "error": result.error}
 
+    # ── 样本内容有效性门槛（P2-6）──
+    # ezdxf 新建后未写入实体的空壳 DXF（如 data/drawings/real 下的 15KB 占位）
+    # 解析出 0 图元。若不剔除，会以「0 实体 / 0 违规」混入基线统计，
+    # 造成「图纸全部通过」的假象。
+    primitive_count = len(result.primitives or [])
+    if primitive_count == 0:
+        file_size = dxf_path.stat().st_size if dxf_path.exists() else 0
+        return {
+            "file": dxf_path.name,
+            "success": True,
+            "valid": False,
+            "content_validity": "empty_stub" if file_size < 65536 else "parse_failed",
+            "file_size": file_size,
+            "primitive_count": 0,
+            "entity_count": 0,
+            "scope_count": 0,
+            "scope_mode": "invalid",
+            "findings": [],
+            "entity_types": {},
+            "coverage": {
+                "evaluated_rules": 0,
+                "applicable_rules": 0,
+                "ratio": 0.0,
+                "unrecognized_types": [],
+                "evaluated_func_ids": [],
+                "applicable_func_ids": [],
+            },
+            "classification": {"counts": {}, "method": "invalid"},
+        }
+
     # P130 图纸类型过滤：结构/电气/暖通图跳过原子函数（无疏散语义）
     drawing_type = getattr(result, "drawing_type", {})
     if drawing_type.get("type") in ("结构", "电气", "暖通"):
         return {
             "file": dxf_path.name,
             "success": True,
+            "valid": True,
             "skipped": True,
             "skip_reason": f"{drawing_type.get('type')}图无疏散语义，跳过审查",
             "entity_count": len(result.primitives or []),
@@ -83,6 +114,14 @@ def run_review(dxf_path: Path) -> dict:
             "entity_types": {},
             "drawing_type": drawing_type,
             "classification": {"counts": {}, "method": "skipped"},
+            "coverage": {
+                "evaluated_rules": 0,
+                "applicable_rules": 0,
+                "ratio": 0.0,
+                "unrecognized_types": [],
+                "evaluated_func_ids": [],
+                "applicable_func_ids": [],
+            },
         }
 
     semantic = SemanticAnalyzer().analyze(result.primitives, result.dimensions)
@@ -93,8 +132,14 @@ def run_review(dxf_path: Path) -> dict:
     registry = FuncRegistry()
     funcs = registry.list_all()
 
-    local_ids = [f.func_id for f in funcs if not getattr(f, "requires_global_context", False)]
+    local_ids = [
+        f.func_id
+        for f in funcs
+        if not getattr(f, "requires_global_context", False)
+        and f.category.value != "exist"  # EXIST 缺失检查单独处理，不逐实体执行
+    ]
     findings: list[dict] = []
+    evaluated_ids: set[str] = set()  # P0-2: 实际产出判定结果的函数 id
 
     def _record(
         func,
@@ -130,7 +175,10 @@ def run_review(dxf_path: Path) -> dict:
 
     for e in entities:
         for fid, r in registry.execute_chained(local_ids, e).items():
-            if r is None or r.result == "PASS":
+            if r is None:
+                continue
+            evaluated_ids.add(fid)  # 有判定结果（PASS/FAIL）即视为可达
+            if r.result == "PASS":
                 continue
             func = registry.get(fid)
             if func is None:
@@ -168,6 +216,7 @@ def run_review(dxf_path: Path) -> dict:
         if targets:
             agg = aggregate_exist_in_scopes(func.func_id, sorted(targets), entities, scopes)
             if agg["overall"] == "pass":
+                evaluated_ids.add(func.func_id)  # 规则被判定且通过，计入可达
                 continue
             if agg["overall"] == "partial":
                 # 分布不均但目标实体在全局已存在 → 不是违规，跳过
@@ -179,7 +228,10 @@ def run_review(dxf_path: Path) -> dict:
                     f"/{len(agg['scope_results'])} 个作用域)"
                 )
         r = registry.execute_with_timeout(func, None)
-        if r is None or r.result == "PASS":
+        if r is None:
+            continue
+        evaluated_ids.add(func.func_id)
+        if r.result == "PASS":
             continue
         _record(
             func,
@@ -191,15 +243,45 @@ def run_review(dxf_path: Path) -> dict:
             "exist_scope",
         )
 
+    # ── P0-2: 规则可达性（coverage）──
+    # 与 review_routes 同口径：applicable = matches()（含类型别名归并）命中，
+    # evaluated = 实际产出判定结果（PASS/FAIL 均计入）。
+    entity_type_set = set(type_counts)
+    applicable_ids: set[str] = set()
+    referenced_types: set[str] = set()
+    for f in funcs:
+        if getattr(f, "requires_global_context", False):
+            continue
+        targets = set(f.target_entities or [])
+        if targets:
+            referenced_types.update(targets)
+            # P0-1: 用 matches() 而非裸类型匹配，与 execute_chained 判定口径一致
+            if any(f.matches(e) for e in entities):
+                applicable_ids.add(f.func_id)
+        else:
+            applicable_ids.add(f.func_id)
+    evaluated_count = len(evaluated_ids)
+    applicable_count = len(applicable_ids)
+    coverage = {
+        "evaluated_rules": evaluated_count,
+        "applicable_rules": applicable_count,
+        "ratio": round(evaluated_count / applicable_count, 3) if applicable_count else 0.0,
+        "unrecognized_types": sorted(entity_type_set - referenced_types),
+        "evaluated_func_ids": sorted(evaluated_ids),
+        "applicable_func_ids": sorted(applicable_ids),
+    }
+
     return {
         "file": dxf_path.name,
         "success": True,
+        "valid": True,
         "primitive_count": len(result.primitives),
         "entity_count": len(entities),
         "entity_types": dict(type_counts.most_common()),
         "evac_width_stats": width_ctx.stats,
         "scope_mode": scopes["mode"],
         "scope_count": len(scopes["scopes"]),
+        "coverage": coverage,
         "findings": findings,
     }
 
@@ -266,11 +348,22 @@ def main(argv: list[str]) -> int:
         if not rep["success"]:
             print(f"[FAIL] {p.name}: {rep['error']}", flush=True)
             continue
+        # P2-6: 内容空壳（解析出 0 图元）不计入基线，避免「0 实体 = 0 违规」假通过
+        if not rep.get("valid", True):
+            print(
+                f"[INVALID] {p.name}: 样本无效（{rep.get('content_validity')}，"
+                f"{rep.get('file_size', 0)}B），已排除出基线统计",
+                flush=True,
+            )
+            continue
         cls = rep["classification"]["counts"]
         total = len(rep["findings"])
+        cov = rep.get("coverage", {})
         print(
             f"[OK] {p.name}: 实体={rep['entity_count']}, 作用域={rep['scope_count']}"
-            f"({rep['scope_mode']}), findings={total}, 分类={cls}",
+            f"({rep['scope_mode']}), findings={total}, 分类={cls}, "
+            f"可达={cov.get('evaluated_rules', 0)}/{cov.get('applicable_rules', 0)}"
+            f"({cov.get('ratio', 0.0):.1%})",
             flush=True,
         )
         by_func = Counter(f["func_id"] for f in rep["findings"])
@@ -278,10 +371,47 @@ def main(argv: list[str]) -> int:
         if top:
             print(f"     Top 函数: {top}", flush=True)
 
+    valid_reports = [r for r in reports if r.get("success") and r.get("valid", True)]
+    invalid_reports = [r for r in reports if r.get("success") and not r.get("valid", True)]
+
+    # ── P2-6: 样本库有效性 + P0-2: 跨图规则可达性（并集）──
+    print("\n=== 样本有效性 ===")
+    print(
+        f"有效图纸: {len(valid_reports)} / {len(reports)}"
+        f"（无效 {len(invalid_reports)}）",
+        flush=True,
+    )
+    for r in invalid_reports:
+        print(f"  [剔除] {r['file']}: {r.get('content_validity')}", flush=True)
+
+    if valid_reports:
+        total_funcs = len(FuncRegistry().list_all())
+        applicable_union: set[str] = set()
+        evaluated_union: set[str] = set()
+        for r in valid_reports:
+            cov = r.get("coverage", {})
+            applicable_union |= set(cov.get("applicable_func_ids", []))
+            evaluated_union |= set(cov.get("evaluated_func_ids", []))
+        print("\n=== 规则可达性（有效图纸并集）===")
+        print(
+            f"适用规则(别名归并): {len(applicable_union)} / {total_funcs} "
+            f"({len(applicable_union) / total_funcs:.1%})",
+            flush=True,
+        )
+        print(
+            f"实际判定可达: {len(evaluated_union)} / {len(applicable_union)} "
+            f"({len(evaluated_union) / len(applicable_union):.1%})",
+            flush=True,
+        )
+        # 产品力评估口径：适用性可达 = 别名归并后能匹配到实体的规则占比
+        # （前序 P0-1 报告 62.6% 即此口径；评估报告 40.8% 为裸类型匹配口径）
+        print(
+            f"[产品力口径] 适用性可达: {len(applicable_union) / total_funcs:.1%}",
+            flush=True,
+        )
+
     print("\n=== 汇总（去重前）===")
-    all_findings = [
-        f for r in reports if r.get("success") for f in r["findings"]
-    ]
+    all_findings = [f for r in valid_reports for f in r["findings"]]
     print(f"findings 总数: {len(all_findings)}", flush=True)
 
     # ── 跨图纸去重 + 规则合并 ──────────────────────────
@@ -289,8 +419,7 @@ def main(argv: list[str]) -> int:
     sev_order = {"critical": 0, "major": 1, "minor": 2, "low": 3}
 
     deduped = {}
-    for r in reports:
-        if not r.get("success"): continue
+    for r in valid_reports:
         for f in r["findings"]:
             eid = f.get("entity_id", "")
             fid = f["func_id"]

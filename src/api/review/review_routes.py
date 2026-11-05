@@ -225,6 +225,47 @@ def _build_structured_summary(details: list[dict]) -> dict:
 # ── End P62 ────────────────────────────────────────────────
 
 
+def _rule_runner(entities, func_ids, resolve_threshold, evaluate_func, pre_execute=None):
+    """核心实体处理循环：执行非全局函数 + 构建 findings。
+
+    由三个 _do_clustering 变体共用，消除重复代码。
+    全局函数处理 + 缺失检查由各调用方在调用后执行。
+
+    pre_execute(func, entity): 在 execute_chained 之前调用，可用于修改 func.threshold 等。
+    evaluate_func(e, r, func): 处理每个函数的执行结果。
+    """
+    clause_results = Counter()
+    details = []
+    _strict_threshold_cache: dict = {}
+
+    def get_threshold(clause_id):
+        cached = _strict_threshold_cache.get(clause_id)
+        if cached is not None:
+            return cached
+        val, unit, op = resolve_threshold(clause_id)
+        _strict_threshold_cache[clause_id] = (val, unit, op)
+        return val, unit, op
+
+    for e in entities:
+        # pre_execute 钩子：允许调用方在执行前修改 func（如应用阈值覆盖）
+        if pre_execute is not None:
+            for fid in func_ids:
+                func = _get_fr().get(fid)
+                if func is not None:
+                    pre_execute(func, e)
+        chained_results = _get_fr().execute_chained(func_ids, e)
+        for fid, r in chained_results.items():
+            func = _get_fr().get(fid)
+            if func is None:
+                continue
+            get_threshold(func.clause_id)
+            if r is None:
+                continue
+            evaluate_func(e, r, func)
+
+    return clause_results, details
+
+
 @router.post("/review")  # function call
 async def review(  # code
     request: Request,
@@ -459,6 +500,39 @@ async def review(  # code
     # 避免 gunicorn worker 因 120s timeout 被 SIGKILL。
     _effective_types = building_types if building_types else [building_type]
 
+    def _rule_runner(entities, func_ids, resolve_threshold, evaluate_func):
+        """核心实体处理循环：执行非全局函数 + 构建 findings。
+
+        由三个 _do_clustering 变体共用，消除重复代码。
+        全局函数处理 + 缺失检查由各调用方在调用后执行。
+
+        evaluate_func(e, r, func) -> finding dict 或 None（用于宽度聚合跳过等）
+        """
+        clause_results = Counter()
+        details = []
+        _strict_threshold_cache: dict = {}
+
+        def get_threshold(clause_id):
+            cached = _strict_threshold_cache.get(clause_id)
+            if cached is not None:
+                return cached
+            val, unit, op = resolve_threshold(clause_id)
+            _strict_threshold_cache[clause_id] = (val, unit, op)
+            return val, unit, op
+
+        for e in entities:
+            chained_results = _get_fr().execute_chained(func_ids, e)
+            for fid, r in chained_results.items():
+                func = _get_fr().get(fid)
+                if func is None:
+                    continue
+                get_threshold(func.clause_id)
+                if r is None:
+                    continue
+                evaluate_func(e, r, func)
+
+        return clause_results, details
+
     def _do_clustering(entities):
         """在线程池中执行规范判定 + 缺失检查"""
         from src.baa_engine.spec_repository import SpecRepository
@@ -488,64 +562,60 @@ async def review(  # code
             return result
 
         # 链式依赖执行
+        # 排除 EXIST 类：缺失检查由下方 execute_missing_batch/作用域聚合单独处理，
+        # 若在实体级循环执行会对每个匹配实体判 FAIL（如 stadium 看台楼梯逐条误报）。
         func_ids = [
-            f.func_id for f in registry_funcs if not getattr(f, "requires_global_context", False)
+            f.func_id
+            for f in registry_funcs
+            if not getattr(f, "requires_global_context", False)
+            and f.category.value != "exist"
         ]
         global_funcs = [
             f for f in registry_funcs if getattr(f, "requires_global_context", False)
         ]  # 需要全局上下文的函数
+
         # 分区级疏散总净宽（专家复核 2026-11-02）：DIM-006/DIM-113 按
         # 防火分区汇总疏散门净宽，并与「疏散人数 → 所需总净宽」比较。
         _AGG_WIDTH_FUNCS = {"DIM-006", "DIM-113"}
         width_ctx = WidthContext(entities)
 
-        for e in entities:
-            chained_results = _get_fr().execute_chained(func_ids, e)
-            for fid, r in chained_results.items():
-                func = _get_fr().get(fid)
-                if func is None:
-                    continue
-                threshold_val, unit, op = get_strict_threshold(func.clause_id)
-                if r is None:
-                    continue
-                # P0-2: 该函数对当前实体产生了判定结果（非 None），计入 coverage
-                evaluated_funcs.add(fid)
-                # 分区级疏散总净宽判定（无用途数据时回退单门阈值）
-                if (
-                    r.result != "PASS"
-                    and fid in _AGG_WIDTH_FUNCS
-                    and width_ctx.aggregate_pass(e, r.threshold)
-                ):
-                    continue
-                clause_results[func.clause_id] += 1
-                if r.result != "PASS":
-                    clause = {
-                        "standard": "GB50016",
-                        "clause_id": func.clause_id,
-                        "title": func.name,
-                        "text": func.description,
-                        "category": func.category.value,
-                    }
-                    f = _get_aa().build_finding(r, clause, e, entities[:5])
-                    details.append(
-                        {
-                            "entity_id": e.get("id", e.get("type", "")),
-                            "entity_type": e["type"],
-                            "clause_id": f.clause.get("clause_id", ""),
-                            "clause_title": f.clause.get("title", ""),
-                            "func_id": func.func_id,
-                            "result": f.judgement["result"],
-                            "extracted_value": f.extracted_params["extracted_value"],
-                            "required_value": f.extracted_params.get("required_value", 1.2),
-                            "difference": f.extracted_params.get("difference", 0),
-                            "severity": f.judgement.get(
-                                "severity", "major"
-                            ),  # P62: 透传 severity 供优先级判定
-                            "explanation": f.explanation[:120],
-                            "confidence": r.confidence,
-                            "confidence_tier": _confidence_tier(r.confidence),
-                        }
-                    )
+        def _evaluate(e, r, func):
+            evaluated_funcs.add(func.func_id)
+            threshold_val, unit, op = get_strict_threshold(func.clause_id)
+            # 分区级疏散总净宽判定（无用途数据时回退单门阈值）
+            if (
+                r.result != "PASS"
+                and func.func_id in _AGG_WIDTH_FUNCS
+                and width_ctx.aggregate_pass(e, r.threshold)
+            ):
+                return
+            clause_results[func.clause_id] += 1
+            if r.result != "PASS":
+                clause = {
+                    "standard": "GB50016",
+                    "clause_id": func.clause_id,
+                    "title": func.name,
+                    "text": func.description,
+                    "category": func.category.value,
+                }
+                finding = _get_aa().build_finding(r, clause, e, entities[:5])
+                details.append({
+                    "entity_id": e.get("id", e.get("type", "")),
+                    "entity_type": e["type"],
+                    "clause_id": finding.clause.get("clause_id", ""),
+                    "clause_title": finding.clause.get("title", ""),
+                    "func_id": func.func_id,
+                    "result": finding.judgement["result"],
+                    "extracted_value": finding.extracted_params["extracted_value"],
+                    "required_value": finding.extracted_params.get("required_value", 1.2),
+                    "difference": finding.extracted_params.get("difference", 0),
+                    "severity": finding.judgement.get("severity", "major"),  # P62
+                    "explanation": finding.explanation[:120],
+                    "confidence": r.confidence,
+                    "confidence_tier": _confidence_tier(r.confidence),
+                })
+
+        _rule_runner(entities, func_ids, get_strict_threshold, _evaluate)
 
         # ── P70: requires_global_context 函数全局聚合判定 ──
         # P75 修复：实体类型与图纸完全不交时 PASS（不报"缺失"违规）
@@ -563,31 +633,26 @@ async def review(  # code
             evaluated_funcs.add(func.func_id)
             clause_results[func.clause_id] += 1
             if count < func.threshold:
-                details.append(
-                    {
-                        "entity_id": "",
-                        "entity_type": ",".join(func_targets),
-                        "clause_id": func.clause_id,
-                        "clause_title": func.name,
-                        "func_id": func.func_id,
-                        "result": "FAIL",
-                        "extracted_value": float(count),
-                        "required_value": float(func.threshold),
-                        "difference": float(count - func.threshold),
-                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                        "severity": "critical",
-                        "confidence": 1.0,
-                        "confidence_tier": "confirmed",
-                    }
-                )
+                details.append({
+                    "entity_id": "",
+                    "entity_type": ",".join(func_targets),
+                    "clause_id": func.clause_id,
+                    "clause_title": func.name,
+                    "func_id": func.func_id,
+                    "result": "FAIL",
+                    "extracted_value": float(count),
+                    "required_value": float(func.threshold),
+                    "difference": float(count - func.threshold),
+                    "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                    "severity": "critical",
+                    "confidence": 1.0,
+                    "confidence_tier": "confirmed",
+                })
 
         # 缺失检查：对 EXIST-* 函数检查是否有匹配实体
         # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
         # 如果图纸类型完全不包含该函数关心的实体类型（如泵房图纸不含汽车库），跳过
         # T-B2: 整图二值 → 作用域内聚合（scope_aggregator）。
-        # 语义保证：partial 在旧逻辑（any() 为 False）下同样 FAIL，仅 explanation
-        # 更精确；pass 不产生 finding（误报收敛点）；missing 与旧 FAIL 等价——
-        # 无新增 FAIL 场景，漏报不上升。
         from src.baa_engine.scope_aggregator import (
             _COMPARTMENT_TYPES,
             aggregate_exist_in_scopes,
@@ -609,24 +674,20 @@ async def review(  # code
             scope_info = ""
             severity = "critical"
             if func_targets:
-                # 网格基准用全实体（空间结构铺格），目标实体仅作归属统计——
-                # 若用 targets 自身铺格则每格天然命中，聚合恒 pass 形同虚设
                 sc = build_scopes(entities)
                 agg = aggregate_exist_in_scopes(func.func_id, list(func_targets), entities, sc)
                 if agg["overall"] == "pass":
+                    evaluated_funcs.add(func.func_id)  # 规则被判定且通过，计入可达
                     continue  # 所有作用域均命中：不产生缺失 finding
                 if agg["overall"] == "partial":
-                    # 分布不均但目标实体在全局已存在 → 不是违规，跳过
                     if any(func.matches(e) for e in entities):
                         continue
-                    # 纯 partial（全局也存在但作用域内分布不均）：降级为区域提示
                     severity = "low"
                     scope_info = (
                         f"；以下区域未检出({len(agg['missing_scopes'])}"
                         f"/{len(agg['scope_results'])} 个作用域)"
                     )
-                # missing → critical（全图确缺，真缺失语义不变）
-                has_match = False  # pass 已 continue；partial/missing 均产生 finding
+                has_match = False
             else:
                 has_match = any(func.matches(e) for e in entities)
             if not has_match:
@@ -640,24 +701,22 @@ async def review(  # code
                         "text": func.description,
                         "category": func.category.value,
                     }
-                    f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                    details.append(
-                        {
-                            "entity_id": "",
-                            "entity_type": "missing",
-                            "clause_id": f.clause.get("clause_id", ""),
-                            "clause_title": f.clause.get("title", ""),
-                            "func_id": func.func_id,
-                            "result": f.judgement["result"],
-                            "extracted_value": 0.0,
-                            "required_value": f.extracted_params.get("required_value", 1.0),
-                            "difference": -f.extracted_params.get("required_value", 1.0),
-                            "explanation": (f.explanation + scope_info)[:160],
-                            "severity": severity,
-                            "confidence": r.confidence,
-                            "confidence_tier": _confidence_tier(r.confidence),
-                        }
-                    )
+                    finding = _get_aa().build_finding(r, clause, {}, entities[:5])
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": "missing",
+                        "clause_id": finding.clause.get("clause_id", ""),
+                        "clause_title": finding.clause.get("title", ""),
+                        "func_id": func.func_id,
+                        "result": finding.judgement["result"],
+                        "extracted_value": 0.0,
+                        "required_value": finding.extracted_params.get("required_value", 1.0),
+                        "difference": -finding.extracted_params.get("required_value", 1.0),
+                        "explanation": (finding.explanation + scope_info)[:160],
+                        "severity": severity,
+                        "confidence": r.confidence,
+                        "confidence_tier": _confidence_tier(r.confidence),
+                    })
 
         return clause_results, details, evaluated_funcs
 
@@ -714,30 +773,28 @@ async def review(  # code
                 f.func_id
                 for f in registry_funcs
                 if not getattr(f, "requires_global_context", False)
+                and f.category.value != "exist"
             ]
             global_funcs = [
                 f for f in registry_funcs if getattr(f, "requires_global_context", False)
             ]
-            # 主循环：每个实体处理完后检查超时
+
+            # 超时检查包装：主循环分步执行，每 10 个实体检查一次
             total_entities = len(entities)
-            for idx, e in enumerate(entities):
-                # 每 10 个实体检查一次超时信号
-                if idx % 10 == 0 and timeout_event.is_set():
-                    # 超时：返回已收集的 details 和实体计数
-                    cr.clause_results = clause_results
-                    cr.details = details
-                    cr.completed_entities = idx
-                    return cr.clause_results, cr.details
-                chained_results = _get_fr().execute_chained(func_ids, e)
-                for fid, r in chained_results.items():
-                    func = _get_fr().get(fid)
-                    if func is None:
-                        continue
-                    threshold_val, unit, op = get_strict_threshold(func.clause_id)
-                    if r is None:
-                        continue
-                    # P0-2: 该函数对当前实体产生了判定结果（非 None），计入 coverage
-                    cr.evaluated_funcs.add(fid)
+            batch_size = 10
+
+            def _make_evaluator():
+                idx = [0]  # mutable index
+                def evaluate(e, r, func):
+                    # 每 10 个实体检查超时
+                    if idx[0] % batch_size == 0 and timeout_event.is_set():
+                        cr.clause_results = clause_results
+                        cr.details = details
+                        cr.completed_entities = idx[0]
+                        return cr.clause_results, cr.details
+                    idx[0] += 1
+                    cr.evaluated_funcs.add(func.func_id)
+                    get_strict_threshold(func.clause_id)
                     clause_results[func.clause_id] += 1
                     if r.result != "PASS":
                         clause = {
@@ -747,25 +804,35 @@ async def review(  # code
                             "text": func.description,
                             "category": func.category.value,
                         }
-                        f = _get_aa().build_finding(r, clause, e, entities[:5])
-                        details.append(
-                            {
-                                "entity_id": e.get("id", e.get("type", "")),
-                                "entity_type": e["type"],
-                                "clause_id": f.clause.get("clause_id", ""),
-                                "clause_title": f.clause.get("title", ""),
-                                "func_id": func.func_id,
-                                "result": f.judgement["result"],
-                                "extracted_value": f.extracted_params["extracted_value"],
-                                "required_value": f.extracted_params.get("required_value", 1.2),
-                                "difference": f.extracted_params.get("difference", 0),
-                                "severity": f.judgement.get("severity", "major"),
-                                "explanation": f.explanation[:120],
-                                "confidence": r.confidence,
-                                "confidence_tier": _confidence_tier(r.confidence),
-                            }
-                        )
-                cr.completed_entities = idx + 1
+                        finding = _get_aa().build_finding(r, clause, e, entities[:5])
+                        details.append({
+                            "entity_id": e.get("id", e.get("type", "")),
+                            "entity_type": e["type"],
+                            "clause_id": finding.clause.get("clause_id", ""),
+                            "clause_title": finding.clause.get("title", ""),
+                            "func_id": func.func_id,
+                            "result": finding.judgement["result"],
+                            "extracted_value": finding.extracted_params["extracted_value"],
+                            "required_value": finding.extracted_params.get("required_value", 1.2),
+                            "difference": finding.extracted_params.get("difference", 0),
+                            "severity": finding.judgement.get("severity", "major"),
+                            "explanation": finding.explanation[:120],
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
+                return evaluate
+
+            cr.evaluated_funcs = set()
+            cr.clause_results = None
+            cr.details = None
+            cr.completed_entities = 0
+
+            result = _rule_runner(entities, func_ids, get_strict_threshold, _make_evaluator())
+            if isinstance(result, tuple) and len(result) == 2:
+                clause_results, details = result
+            # 超时中途退出时 cr 已有部分结果
+            if cr.clause_results is not None:
+                return cr.clause_results, cr.details
 
             # 全局函数 + 缺失检查（超时则跳过）
             if timeout_event.is_set():
@@ -786,24 +853,23 @@ async def review(  # code
                 cr.evaluated_funcs.add(func.func_id)
                 clause_results[func.clause_id] += 1
                 if count < func.threshold:
-                    details.append(
-                        {
-                            "entity_id": "",
-                            "entity_type": ",".join(func_targets),
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": float(count),
-                            "required_value": float(func.threshold),
-                            "difference": float(count - func.threshold),
-                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        }
-                    )
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": ",".join(func_targets),
+                        "clause_id": func.clause_id,
+                        "clause_title": func.name,
+                        "func_id": func.func_id,
+                        "result": "FAIL",
+                        "extracted_value": float(count),
+                        "required_value": float(func.threshold),
+                        "difference": float(count - func.threshold),
+                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                        "severity": "critical",
+                        "confidence": 1.0,
+                        "confidence_tier": "confirmed",
+                    })
 
+            # 缺失检查（简化版，无 scope_aggregator）
             entity_types_in_drawing = set(e.get("type", "") for e in entities)
             for func in registry_funcs:
                 if func.category.value != "exist":
@@ -823,24 +889,22 @@ async def review(  # code
                             "text": func.description,
                             "category": func.category.value,
                         }
-                        f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                        details.append(
-                            {
-                                "entity_id": "",
-                                "entity_type": "missing",
-                                "clause_id": f.clause.get("clause_id", ""),
-                                "clause_title": f.clause.get("title", ""),
-                                "func_id": func.func_id,
-                                "result": f.judgement["result"],
-                                "extracted_value": 0.0,
-                                "required_value": f.extracted_params.get("required_value", 1.0),
-                                "difference": -f.extracted_params.get("required_value", 1.0),
-                                "explanation": f.explanation[:120],
-                                "severity": "critical",
-                                "confidence": r.confidence,
-                                "confidence_tier": _confidence_tier(r.confidence),
-                            }
-                        )
+                        finding = _get_aa().build_finding(r, clause, {}, entities[:5])
+                        details.append({
+                            "entity_id": "",
+                            "entity_type": "missing",
+                            "clause_id": finding.clause.get("clause_id", ""),
+                            "clause_title": finding.clause.get("title", ""),
+                            "func_id": func.func_id,
+                            "result": finding.judgement["result"],
+                            "extracted_value": 0.0,
+                            "required_value": finding.extracted_params.get("required_value", 1.0),
+                            "difference": -finding.extracted_params.get("required_value", 1.0),
+                            "explanation": finding.explanation[:120],
+                            "severity": "critical",
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
 
             cr.clause_results = clause_results
             cr.details = details
@@ -888,7 +952,11 @@ async def review(  # code
             continue
         if not f.target_entities:
             applicable_func_ids.add(f.func_id)  # 无类型限制，对所有实体适用
-        elif any(e["type"] in f.target_entities for e in entities):
+        elif any(f.matches(e) for e in entities):
+            # P0-1: 用 matches()（含类型别名归并）而非裸类型匹配，
+            # 使 applicable 口径与 execute_chained 的真实判定一致。
+            # 裸匹配会漏掉 stair→staircase、corridor→hallway 等别名归并，
+            # 造成 coverage.ratio 系统性低估（40.8% vs 实际 62.6%）。
             applicable_func_ids.add(f.func_id)  # 图纸中存在匹配类型的实体
     evaluated_count = len(evaluated_func_ids)
     applicable_count = len(applicable_func_ids)
@@ -1353,44 +1421,51 @@ async def review_from_data(  # code
                     )
                 return worst_val, worst_unit, worst_op
 
-            for e in entities:
-                for func in [
-                    f for f in registry_funcs if not getattr(f, "requires_global_context", False)
-                ]:
-                    threshold_val, unit, op = _resolve_threshold(func, _effective_types_from_data)
-                    func.threshold = threshold_val
-                    func.unit = unit
-                    func.operator = op
-                    r = _get_fr().execute_with_timeout(func, e)
-                    if r is None:
-                        continue
-                    clause_results[func.clause_id] += 1
-                    if r.result != "PASS":
-                        clause = {
-                            "standard": "GB50016",
-                            "clause_id": func.clause_id,
-                            "title": func.name,
-                            "text": func.description,
-                            "category": func.category.value,
-                        }
-                        f = _get_aa().build_finding(r, clause, e, entities[:5])
-                        details.append(
-                            {
-                                "entity_id": e.get("id", e.get("type", "")),
-                                "entity_type": e["type"],
-                                "clause_id": f.clause.get("clause_id", ""),
-                                "clause_title": f.clause.get("title", ""),
-                                "func_id": func.func_id,
-                                "result": f.judgement["result"],
-                                "extracted_value": f.extracted_params["extracted_value"],
-                                "required_value": f.extracted_params.get("required_value", 1.2),
-                                "difference": f.extracted_params.get("difference", 0),
-                                "severity": f.judgement.get("severity", "major"),
-                                "explanation": f.explanation[:120],
-                                "confidence": r.confidence,
-                                "confidence_tier": _confidence_tier(r.confidence),
-                            }
-                        )
+            func_ids = [
+                f.func_id
+                for f in registry_funcs
+                if not getattr(f, "requires_global_context", False)
+                and f.category.value != "exist"
+            ]
+            evaluated_funcs: set = set()  # P0-2: 从 _do_clustering 补齐 coverage 追踪
+
+            def _evaluate(e, r, func):
+                evaluated_funcs.add(func.func_id)
+                clause_results[func.clause_id] += 1
+                if r.result != "PASS":
+                    clause = {
+                        "standard": "GB50016",
+                        "clause_id": func.clause_id,
+                        "title": func.name,
+                        "text": func.description,
+                        "category": func.category.value,
+                    }
+                    finding = _get_aa().build_finding(r, clause, e, entities[:5])
+                    details.append({
+                        "entity_id": e.get("id", e.get("type", "")),
+                        "entity_type": e["type"],
+                        "clause_id": finding.clause.get("clause_id", ""),
+                        "clause_title": finding.clause.get("title", ""),
+                        "func_id": func.func_id,
+                        "result": finding.judgement["result"],
+                        "extracted_value": finding.extracted_params["extracted_value"],
+                        "required_value": finding.extracted_params.get("required_value", 1.2),
+                        "difference": finding.extracted_params.get("difference", 0),
+                        "severity": finding.judgement.get("severity", "major"),
+                        "explanation": finding.explanation[:120],
+                        "confidence": r.confidence,
+                        "confidence_tier": _confidence_tier(r.confidence),
+                    })
+
+            def _pre_execute(func, e):
+                """执行前应用阈值覆盖（D1-T4）"""
+                tv, unit, op = _resolve_threshold(func, _effective_types_from_data)
+                func.threshold = tv
+                func.unit = unit
+                func.operator = op
+
+            _rule_runner(entities, func_ids, lambda cid: (None, "", ">="), _evaluate,
+                         pre_execute=_pre_execute)
 
             # P70: requires_global_context 函数全局聚合判定
             # P75 修复：无匹配实体 → PASS
@@ -1404,25 +1479,24 @@ async def review_from_data(  # code
                 if not matching:
                     continue  # P75: 无匹配 → PASS
                 count = len(matching)
+                evaluated_funcs.add(func.func_id)
                 clause_results[func.clause_id] += 1
                 if count < func.threshold:
-                    details.append(
-                        {
-                            "entity_id": "",
-                            "entity_type": ",".join(func_targets),
-                            "clause_id": func.clause_id,
-                            "clause_title": func.name,
-                            "func_id": func.func_id,
-                            "result": "FAIL",
-                            "extracted_value": float(count),
-                            "required_value": float(func.threshold),
-                            "difference": float(count - func.threshold),
-                            "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
-                            "severity": "critical",
-                            "confidence": 1.0,
-                            "confidence_tier": "confirmed",
-                        }
-                    )
+                    details.append({
+                        "entity_id": "",
+                        "entity_type": ",".join(func_targets),
+                        "clause_id": func.clause_id,
+                        "clause_title": func.name,
+                        "func_id": func.func_id,
+                        "result": "FAIL",
+                        "extracted_value": float(count),
+                        "required_value": float(func.threshold),
+                        "difference": float(count - func.threshold),
+                        "explanation": f"全局共检出{count}个，要求≥{func.threshold}",
+                        "severity": "critical",
+                        "confidence": 1.0,
+                        "confidence_tier": "confirmed",
+                    })
 
             # 缺失检查
             # 仅当函数的目标实体类型与图纸实体类型有交集时才执行缺失检查
@@ -1436,6 +1510,7 @@ async def review_from_data(  # code
                     continue
                 has_match = any(func.matches(e) for e in entities)
                 if not has_match:
+                    evaluated_funcs.add(func.func_id)
                     r = _get_fr().execute_with_timeout(func, None)
                     if r is not None and r.result != "PASS":
                         clause = {
@@ -1445,33 +1520,31 @@ async def review_from_data(  # code
                             "text": func.description,
                             "category": func.category.value,
                         }
-                        f = _get_aa().build_finding(r, clause, {}, entities[:5])
-                        details.append(
-                            {
-                                "entity_id": "",
-                                "entity_type": "missing",
-                                "clause_id": f.clause.get("clause_id", ""),
-                                "clause_title": f.clause.get("title", ""),
-                                "func_id": func.func_id,
-                                "result": f.judgement["result"],
-                                "severity": "critical",
-                                "extracted_value": 0.0,
-                                "required_value": f.extracted_params.get("required_value", 1.0),
-                                "difference": -f.extracted_params.get("required_value", 1.0),
-                                "explanation": f.explanation[:120],
-                                "confidence": r.confidence,
-                                "confidence_tier": _confidence_tier(r.confidence),
-                            }
-                        )
+                        finding = _get_aa().build_finding(r, clause, {}, entities[:5])
+                        details.append({
+                            "entity_id": "",
+                            "entity_type": "missing",
+                            "clause_id": finding.clause.get("clause_id", ""),
+                            "clause_title": finding.clause.get("title", ""),
+                            "func_id": func.func_id,
+                            "result": finding.judgement["result"],
+                            "severity": "critical",
+                            "extracted_value": 0.0,
+                            "required_value": finding.extracted_params.get("required_value", 1.0),
+                            "difference": -finding.extracted_params.get("required_value", 1.0),
+                            "explanation": finding.explanation[:120],
+                            "confidence": r.confidence,
+                            "confidence_tier": _confidence_tier(r.confidence),
+                        })
 
-            return clause_results, details
+            return clause_results, details, evaluated_funcs
 
         # 获取当前事件循环，必须在 run_in_executor 调用之前
         loop = asyncio.get_event_loop()
         registry_funcs = _get_fr().list_all()
 
         try:
-            clause_results, details = await loop.run_in_executor(
+            clause_results, details, evaluated_funcs_from_data = await loop.run_in_executor(
                 _get_pool(), _do_clustering_from_data, entities
             )
         except Exception as e:
@@ -1482,17 +1555,53 @@ async def review_from_data(  # code
         # 这里重新获取供后续 total_checks 统计使用
         registry_funcs = _get_fr().list_all()
 
-        elapsed = int((time.time() - start) * 1000)  # get current time
-        entity_types = Counter(e["type"] for e in entities)  # function call
-        violation_count = Counter(d["clause_id"] for d in details)  # function call
+        elapsed = int((time.time() - start) * 1000)
+        entity_types = Counter(e["type"] for e in entities)
+        violation_count = Counter(d["clause_id"] for d in details)
 
-        # ── 置信度分级统计（P61） ─────────────────────────────
+        # ── P0-2: 规则可达性（coverage）统计 ──
+        # _do_clustering_from_data 现在返回 evaluated_funcs（P0-2 补齐）
+        evaluated_func_ids = evaluated_funcs_from_data
+        applicable_func_ids = set()
+        for f in registry_funcs:
+            if getattr(f, "requires_global_context", False):
+                continue
+            if not f.target_entities:
+                applicable_func_ids.add(f.func_id)
+            elif any(f.matches(e) for e in entities):
+                # P0-1: 用 matches()（含类型别名归并），与 /review 同口径
+                applicable_func_ids.add(f.func_id)
+        evaluated_count = len(evaluated_func_ids)
+        applicable_count = len(applicable_func_ids)
+        coverage_ratio = round(evaluated_count / applicable_count, 3) if applicable_count else 0.0
+        all_types_in_drawing = set(entity_types.keys())
+        referenced_types = set()
+        for f in registry_funcs:
+            if f.target_entities:
+                referenced_types.update(f.target_entities)
+        unrecognized_types = sorted(all_types_in_drawing - referenced_types)
+        insufficient_evidence = evaluated_count == 0 and len(entities) > 0
+
+        total_score = 100.0
+        if len(entities) > 0 and len(details) > 0:
+            violation_deduction = len(details) * 5.0
+            critical_count = sum(1 for d in details if d.get("severity") == "critical")
+            major_count = sum(1 for d in details if d.get("severity") == "major")
+            total_score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)
+        if insufficient_evidence:
+            total_score = 0.0
+
+        avg_confidence = 1.0
+        confidences = [d.get("confidence", 1.0) for d in details if "confidence" in d]
+        if confidences:
+            avg_confidence = sum(confidences) / len(confidences)
+
         tier_counts = {"confirmed": 0, "suspected": 0, "needs_review": 0}
-        confidences = [d.get("confidence", 1.0) for d in details]
-        avg_confidence = sum(confidences) / len(confidences) if confidences else 1.0
         for d in details:
             tier = d.get("confidence_tier", _confidence_tier(d.get("confidence", 1.0)))
             tier_counts[tier] = tier_counts.get(tier, 0) + 1
+
+        structured_summary = _build_structured_summary(details)
 
         # D1-T4: 构造标准集元数据（用于 response_data）
         from src.baa_engine.standards import ScaleContext as _SCtx
@@ -1513,8 +1622,16 @@ async def review_from_data(  # code
                 "total_checks": len(entities) * len(registry_funcs),  # 字段
                 "violations": len(details),  # 字段
                 "violation_by_clause": dict(violation_count.most_common(10)),  # 字段
+                "score": total_score,  # P0-2
                 "avg_confidence": round(avg_confidence, 2),  # P61
                 "confidence_tier_counts": tier_counts,  # P61
+                "coverage": {  # P0-2: 规则可达性
+                    "evaluated_rules": evaluated_count,
+                    "applicable_rules": applicable_count,
+                    "ratio": coverage_ratio,
+                    "insufficient_evidence": insufficient_evidence,
+                    "unrecognized_types": unrecognized_types,
+                },
             },  # code
             "details": details[:100],  # 字段
             "building_type": building_type,  # 字段

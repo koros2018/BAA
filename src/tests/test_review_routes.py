@@ -363,3 +363,38 @@ def test_review_insufficient_evidence_no_fake_full_score():
     if coverage.get("insufficient_evidence"):
         assert data["summary"]["score"] == 0.0
     assert "unrecognized_types" in coverage
+
+
+def test_review_coverage_ratio_is_meaningful():
+    """coverage.ratio 应在 0~1 之间，且 evaluated ≤ applicable（P0-2 回归）"""
+    import tempfile
+    from src.baa_engine.reverse_engine import ReverseEngine, RoomSpec, RoomType
+
+    p = os.path.join(tempfile.mkdtemp(), "ratio_test.dxf")
+    ReverseEngine().generate_dxf(
+        RoomSpec(room_type=RoomType.OFFICE, width_mm=5000, height_mm=4000), p
+    )
+
+    with open(p, "rb") as fh:
+        response = client.post(
+            "/review",
+            files={"file": ("ratio_test.dxf", fh, "application/dxf")},
+            headers={"Authorization": "Bearer test-review-key"},
+        )
+    assert response.status_code == 200, f"review failed: {response.text[:300]}"
+    data = response.json()
+    coverage = data.get("summary", {}).get("coverage", {})
+
+    assert coverage is not None
+    ratio = coverage.get("ratio")
+    assert ratio is not None, "coverage.ratio 应为数值"
+    assert 0.0 <= ratio <= 1.0, f"coverage.ratio 应在 [0,1]，实际: {ratio}"
+
+    evaluated = coverage.get("evaluated_rules", 0)
+    applicable = coverage.get("applicable_rules", 0)
+    assert evaluated <= applicable, (
+        f"evaluated_rules({evaluated}) 不应大于 applicable_rules({applicable})"
+    )
+    # applicable=0 时 ratio=0 是合法值（合成图纸可能无匹配规则）
+    if applicable > 0:
+        assert ratio > 0, "有 applicable rules 时 ratio 应大于 0"
