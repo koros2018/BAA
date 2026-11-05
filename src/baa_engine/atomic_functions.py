@@ -91,6 +91,52 @@ class FuncResult:  # class definition
     confidence: float = 1.0  # 置信度 0.0~1.0，P36新增
 
 
+# ── P0-1 类型别名组（canonical group membership）───────────
+# 语义：同一 group 内的实体类型被原子函数视为等价匹配，
+# 解决 classifier 产出类型与规则 target_entities 不一致导致的
+# 可达性 gap（例：classifier 产出 "stair"，规则 targeting "staircase"）。
+#
+# 注意：只归并语义等价的建筑构件，不跨门/窗/墙等独立类别。
+_TYPE_ALIAS_GROUPS: Tuple[Tuple[str, ...], ...] = (
+    # Group 1: 室内楼梯核心（classifier 产出 stair 时规则 targeting staircase 需要匹配）
+    # 注意：external_stair / outdoor_stair / smoke_proof_stair 有独立规范，不与室内归并
+    ("staircase", "stair", "scissor_stair", "scissor_staircase"),
+    # Group 2: 走廊/通道系列
+    ("corridor", "hallway", "aisle", "passage", "walkway",
+     "dead_end_corridor", "passageway", "exit_passageway"),
+    # Group 3a: 窗户系列（语义等价，可互相归并）
+    # 注意：窗户与通风口/开口语义不同，不能互相归并。
+    # 此前 Group 3 把 window 与 smoke_vent/natural_vent 混为一组，
+    # 导致 AREA-012（排烟量，target smoke_vent）对普通 window 判面积
+    # → 139 条误报（nasji two-family-house 复测 2026-11）。
+    ("window", "fire_window", "rescue_window", "smoke_exhaust_window"),
+    # Group 3b: 开口/通风口系列（与窗户分离）
+    ("opening", "natural_vent", "smoke_vent", "fire_rescue_opening",
+     "rescue_opening", "smoke_exhaust"),
+    # Group 4: 出口/疏散门系列
+    ("exit_door", "exit", "doorway"),
+    # Group 5: 附属房间归并到 room 概念
+    ("antechamber", "staircase_lobby", "lobby", "elevator_lobby"),
+)
+
+
+def _type_group_of(entity_type: str) -> Optional[Tuple[str, ...]]:
+    """返回实体类型所属的 alias group（若有），否则 None。"""
+    for group in _TYPE_ALIAS_GROUPS:
+        if entity_type in group:
+            return group
+    return None
+
+
+def _target_groups_overlap(target_entities: List[str]) -> bool:
+    """判断 target_entities 是否与任一 alias group 有交集。"""
+    targets_set = set(target_entities)
+    for group in _TYPE_ALIAS_GROUPS:
+        if targets_set & set(group):
+            return True
+    return False
+
+
 @dataclass  # code
 class AtomicFunction:  # class definition
     """原子函数定义"""
@@ -133,10 +179,30 @@ class AtomicFunction:  # class definition
     def matches(
         self, entity: Dict[str, Any]
     ) -> bool:  # function: def matches(self, entity: Dict[str, Any]) -> bool:
-        """判断实体类型是否匹配此原子函数"""
+        """判断实体类型是否匹配此原子函数（P0-1 类型别名归并 + subtype 语义）"""
         if not self.target_entities:  # check: negated condition
             return True  # 无限制，匹配所有
-        return entity.get("type", "") in self.target_entities  # return
+        ent_type = entity.get("type", "")
+        # 1. 精确匹配
+        if ent_type in self.target_entities:
+            return True
+        # 1b. subtype 语义匹配（P0-1 空间上下文识别）
+        #    TEXT 标注 → inferred_type → subtype（如 room/subtype=lobby）。
+        #    特化规则（AREA-002 前室、AREA-004 控制室等）target 含特化类型，
+        #    但实体 type=room（泛化），需 subtype 确认才匹配。
+        #    注意：仅当 subtype 是"语义特化"（非泛化 room）时参与匹配，
+        #    避免普通 room 被特化规则误匹配。
+        ent_subtype = entity.get("subtype") or entity.get("properties", {}).get("inferred_type")
+        if ent_subtype and ent_subtype in self.target_entities:
+            # 防误报：subtype 必须比 type 更特化（subtype != type）
+            if ent_subtype != ent_type:
+                return True
+        # 2. 别名组匹配：entity type 所属 group 与 rule target_entities 有交集
+        group = _type_group_of(ent_type)
+        if group and _target_groups_overlap(self.target_entities):
+            target_set = set(self.target_entities)
+            return bool(set(group) & target_set)
+        return False  # return
 
     def execute(
         self, entity: Optional[Dict[str, Any]] = None
@@ -400,7 +466,31 @@ class AtomicFunction:  # class definition
                     return None  # 非人员通行门（设备/管井/检修门），跳过判定
             val = props.get("width", props.get("clear_width", 0.0))  # function call
             if val < 0.01:  # check: numeric comparison
-                return None  # 无宽度数据，跳过判定
+                # P0-1 可达性补齐：DIM-003（消防车道净宽）的 fire_lane 实体
+                # 由扫线法产出，只有 bbox 无 width 属性。车道净宽 = bbox 短边
+                # （车道是狭长矩形，短边即宽度）。仅对 fire_lane/road/driveway
+                # 生效，避免普通 room 的 bbox 短边被误当宽度。
+                if func_id == "DIM-003":
+                    # 车道语义：实体 type 或 subtype 为 fire_lane/road/driveway。
+                    # 扫线法房间 type=room 但 subtype=fire_lane（TEXT 推断），
+                    # 也构成车道语义，可参与净宽判定。
+                    lane_semantics = entity_type in ("fire_lane", "road", "driveway") or (
+                        entity.get("subtype") in ("fire_lane", "road", "driveway")
+                        or props.get("inferred_type") in ("fire_lane", "road", "driveway")
+                    )
+                    if lane_semantics:
+                        bbox = entity.get("bbox") or {}
+                        bw, bh = bbox.get("width", 0), bbox.get("height", 0)
+                        # 防误报：TEXT/标注类实体（bbox 短边 <500mm）不是车道几何，
+                        # 其 bbox 是文字框，短边无物理意义。仅真实车道多边形参与。
+                        if bw > 0 and bh > 0 and min(bw, bh) >= 500:
+                            val = min(bw, bh)  # 短边 = 车道净宽（mm）
+                        else:
+                            return None
+                    else:
+                        return None
+                else:
+                    return None  # 无宽度数据，跳过判定
             # DIM-001 楼梯净宽：bbox 推断宽度不是楼梯净宽的有效测量。
             # 跨图纸复测（2026-10，32 图）：146 条 FAIL 全部来自
             # stair_bbox_long_edge / stair_bbox_span（实测 0.50~1.10m）。
@@ -690,6 +780,54 @@ class AtomicFunction:  # class definition
             if val > 100:  # check: numeric comparison
                 return val / 1000.0  # return
             return val  # return
+
+        # ── 通用 DIMENSION 宽度提取（P0-1 可达性补齐）──
+        # 此前 DIM-012/021/022 等无提取分支 → 永远返回 None → 不可判定。
+        # 实体有 width/clear_width 时按宽度口径提取（单位 mm→m 归一）。
+        # 注意：DIM-016 是净高（height），不是宽度，不在此分支。
+        if func_id in ("DIM-012", "DIM-021", "DIM-022"):
+            etype = entity.get("type", "")
+            val = props.get("width", props.get("clear_width", 0.0))
+            if val < 0.01:
+                return None  # 无宽度数据，跳过判定
+            # 单位归一：unit 缺失时按数量级判断（>100 为 mm，否则为 m）
+            if unit == "mm":
+                val_m = val / 1000.0
+            elif unit == "m":
+                val_m = val
+            elif val > 100:
+                val_m = val / 1000.0
+            else:
+                val_m = val
+            # 门类防误报：普通 door/doorway 不构成疏散出口语义（同 DIM-009/DIM-006），
+            # 仅 exit/exit_door 或显式标注 is_evacuation_door 的实体判定。
+            # 真实图纸 2644 个 door 中大量 bbox 宽度 1.4~1.8m 是门洞投影，
+            # 逐门判 DIM-021/022 会产生 800+ 条误报（跨图纸复测 2026-11）。
+            if func_id in ("DIM-021", "DIM-022") and etype in ("door", "doorway"):
+                if not props.get("is_evacuation_door") and etype != "exit_door":
+                    return None
+            # 走廊/走道防误报：宽度 <0.5m 必为误分类（线/填充）
+            if func_id == "DIM-012" and val_m < 0.5:
+                return None
+            # 单位口径：DIM-012 阈值 m；DIM-021/022 阈值 mm（1100/1400）
+            if func_id == "DIM-012":
+                return val_m
+            return val_m * 1000.0  # DIM-021/022 返回 mm 口径
+
+        # ── DIM-016 消防车道净高（height 口径）──
+        # corridor 实体通常无 height 属性（净高需 CAD 标注），无数据 → 不可判定。
+        if func_id == "DIM-016":
+            val = props.get("height", 0.0)
+            if val < 0.01:
+                return None  # 无净高数据，跳过判定
+            # 阈值 4000mm，返回 mm 口径
+            if unit == "mm":
+                return val
+            if unit == "m":
+                return val * 1000.0
+            if val > 100:
+                return val  # 已是 mm
+            return val * 1000.0  # m → mm
 
         if func_id == "DIST-002":  # 防火间距：只认 building↔building 实测间距
             # 跨图纸复测（2026-10，106 条）：building 实体均无 distance 属性，

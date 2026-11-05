@@ -21,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class RoomType(str, Enum):
-    """房间功能类型（与 atomic_functions 的 target_entities 对齐）"""
+    """房间功能类型（与 atomic_functions 的 target_entities 对齐）
+
+    P0-1 空间上下文识别扩展：新增特化房间类型，使合成样本能触发
+    AREA-004/016（消防控制室）、AREA-005（发电机房）、DIM-012/021
+    （消防车道）等特化规则参与判定。
+    """
 
     OFFICE = "office"
     STAIR = "stair"
@@ -30,6 +35,12 @@ class RoomType(str, Enum):
     FIRE_LOBBY = "fire_lobby"
     EQUIPMENT = "equipment"
     TOILET = "accessible_toilet"
+    # ── P0-1 特化房间扩展 ──
+    CONTROL_ROOM = "control_room"  # 消防控制室（AREA-004/016）
+    GENERATOR_ROOM = "generator_room"  # 柴油发电机房（AREA-005）
+    FIRE_LANE = "fire_lane"  # 消防车道（DIM-012/021）
+    FIRE_HYDRANT = "fire_hydrant"  # 室外消火栓
+    PUMP_ROOM = "pump_room"  # 消防泵房
 
 
 @dataclass
@@ -68,6 +79,17 @@ class ReverseEngine:
         RoomType.FIRE_LOBBY: (2000, 2000, 1000),  # 前室
         RoomType.EQUIPMENT: (2000, 2000, 900),  # 设备间
         RoomType.TOILET: (2000, 2000, 900),  # 无障碍卫生间
+        # ── P0-1 特化房间扩展 ──
+        # 消防控制室：GB50016-8.1.7 面积≥30m²（AREA-004）/≥20m²（AREA-016）
+        RoomType.CONTROL_ROOM: (6000, 5000, 1000),  # 6m x 5m = 30m², 门 1000mm
+        # 柴油发电机房：GB50016-5.4.15 面积≤400m²（AREA-005）
+        RoomType.GENERATOR_ROOM: (8000, 6000, 1200),  # 8m x 6m = 48m², 门 1200mm
+        # 消防车道：GB50016-7.1.8 净宽≥4m（DIM-012）
+        RoomType.FIRE_LANE: (20000, 4000, 0),  # 20m x 4m, 无门
+        # 室外消火栓：间距/保护半径约束（DIST-001/002）
+        RoomType.FIRE_HYDRANT: (1000, 1000, 0),  # 1m x 1m 设备位
+        # 消防泵房：GB50974 泵房面积/净高约束
+        RoomType.PUMP_ROOM: (5000, 4000, 1200),  # 5m x 4m, 门 1200mm
     }
 
     def __init__(self):
@@ -83,6 +105,12 @@ class ReverseEngine:
         RoomType.FIRE_LOBBY: {"lobby", "fire_lobby", "smoke_proof_lobby"},
         RoomType.EQUIPMENT: {"equipment_room", "pump_room"},
         RoomType.TOILET: {"accessible_toilet", "toilet", "restroom"},
+        # ── P0-1 特化房间扩展 ──
+        RoomType.CONTROL_ROOM: {"control_room", "fire_control_room"},
+        RoomType.GENERATOR_ROOM: {"generator_room", "oil_room"},
+        RoomType.FIRE_LANE: {"fire_lane", "road", "driveway"},
+        RoomType.FIRE_HYDRANT: {"fire_hydrant", "hydrant"},
+        RoomType.PUMP_ROOM: {"pump_room", "fire_pump"},
     }
 
     def infer_constraints(self, spec: RoomSpec) -> LayoutConstraint:

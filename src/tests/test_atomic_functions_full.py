@@ -59,12 +59,25 @@ ENTITY_TYPE_POOL = [
 
 
 def _pick_wrong_type(good_types: list) -> str:
-    """从 ENTITY_TYPE_POOL 中选一个不在 good_types 中的 type。"""
+    """从 ENTITY_TYPE_POOL 中选一个不在 good_types 也不在其 alias group 中的 type。
+
+    P0-1: 类型别名组（stair↔staircase↔scissor_stair 等）引入后，
+    规则 targeting ["stair"] 应同时匹配 staircase 实体，因此测试
+    的 WRONG_ENTITY 不能选同组成员。
+    """
     good = set(good_types)
+    # 扩展：把 good_types 所属 alias group 的成员也视为 "good"
+    try:
+        from src.baa_engine.atomic_functions import _type_group_of
+        for t in list(good_types):
+            grp = _type_group_of(t)
+            if grp:
+                good.update(grp)
+    except Exception:
+        pass
     for t in ENTITY_TYPE_POOL:
         if t not in good:
             return t
-    # 兜底：构造一个肯定不在的
     return f"_wrong_{good_types[0]}"
 
 
@@ -306,3 +319,80 @@ class TestAreaGuards:
         ent = self._entity("room", subtype="control_room", area_m2=0.3)
         val = self._val("AREA-004", ent)
         assert val == pytest.approx(0.3)  # 权威数据直接返回
+
+
+# ── 通用 DIMENSION 宽度提取守卫（P0-1 可达性补齐）─────────────
+
+
+class TestDimWidthExtraction:
+    """DIM-012/021/022 通用宽度提取分支的守卫测试。
+
+    验证：
+    1. DIM-012（corridor 净宽）提取 m 口径，<0.5m 误分类跳过
+    2. DIM-021/022（疏散门净宽）提取 mm 口径，普通 door 跳过（防误报）
+    3. DIM-016（净高）不误入宽度分支，无 height → None
+    """
+
+    @staticmethod
+    def _entity(type_name: str, **props) -> dict:
+        return {"id": "E-001", "type": type_name, "properties": props}
+
+    def _val(self, func_id: str, entity: dict):
+        func = REGISTRY.get(func_id)
+        return func._extract_value(entity)
+
+    # ── DIM-012 corridor 净宽 ──────────────────────────────
+
+    def test_dim012_corridor_width_m(self):
+        """DIM-012 corridor width=2.6（m 口径）→ 返回 2.6"""
+        ent = self._entity("corridor", width=2.6, clear_width=2.6)
+        assert self._val("DIM-012", ent) == pytest.approx(2.6)
+
+    def test_dim012_corridor_width_mm(self):
+        """DIM-012 corridor width=2600（mm 口径）→ 返回 2.6"""
+        ent = self._entity("corridor", width=2600.0)
+        assert self._val("DIM-012", ent) == pytest.approx(2.6)
+
+    def test_dim012_too_narrow_skipped(self):
+        """DIM-012 corridor width<0.5m → None（误分类线/填充）"""
+        ent = self._entity("corridor", width=0.3)
+        assert self._val("DIM-012", ent) is None
+
+    def test_dim012_no_width(self):
+        """DIM-012 无 width → None"""
+        ent = self._entity("corridor")
+        assert self._val("DIM-012", ent) is None
+
+    # ── DIM-021/022 疏散门净宽 ────────────────────────────
+
+    def test_dim021_exit_door_mm(self):
+        """DIM-021 exit_door width=1.69（m）→ 返回 1690（mm 口径）"""
+        ent = self._entity("exit_door", width=1.69)
+        assert self._val("DIM-021", ent) == pytest.approx(1690.0)
+
+    def test_dim021_plain_door_skipped(self):
+        """DIM-021 普通 door（无 is_evacuation_door）→ None（防误报）"""
+        ent = self._entity("door", width=1.69)
+        assert self._val("DIM-021", ent) is None
+
+    def test_dim021_evac_door(self):
+        """DIM-021 door + is_evacuation_door → 提取"""
+        ent = self._entity("door", width=1.69, is_evacuation_door=True)
+        assert self._val("DIM-021", ent) == pytest.approx(1690.0)
+
+    def test_dim022_plain_door_skipped(self):
+        """DIM-022 普通 door → None（防误报）"""
+        ent = self._entity("door", width=1.5)
+        assert self._val("DIM-022", ent) is None
+
+    # ── DIM-016 净高不误入宽度分支 ────────────────────────
+
+    def test_dim016_no_height(self):
+        """DIM-016 corridor 无 height → None（不误判为宽度）"""
+        ent = self._entity("corridor", width=2.6)
+        assert self._val("DIM-016", ent) is None
+
+    def test_dim016_with_height(self):
+        """DIM-016 corridor height=4.5（m）→ 返回 4500（mm 口径）"""
+        ent = self._entity("corridor", height=4.5)
+        assert self._val("DIM-016", ent) == pytest.approx(4500.0)

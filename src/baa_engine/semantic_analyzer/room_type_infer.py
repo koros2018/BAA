@@ -162,6 +162,47 @@ ROOM_TYPE_RULES: List[Dict[str, Any]] = [
         "text_keywords": ["管道", "utility", "管井"],
         "override_type": False,
     },
+    # ── P0-1 特化房间扩展 ──
+    # 消防控制室：GB50016-8.1.7 面积≥30m²（AREA-004）/≥20m²（AREA-016）
+    {
+        "name": "control_room",
+        "area": (15, 200),
+        "aspect": (0.5, 4.0),
+        "min_corridor_adj": 0,
+        "text_keywords": ["控制室", "control_room", "消防控制", "fire_control"],
+        "require_text": True,
+        "override_type": True,
+    },
+    # 柴油发电机房：GB50016-5.4.15 面积≤400m²（AREA-005）
+    {
+        "name": "generator_room",
+        "area": (20, 400),
+        "aspect": (0.5, 5.0),
+        "min_corridor_adj": 0,
+        "text_keywords": ["发电机", "generator", "柴油机"],
+        "require_text": True,
+        "override_type": True,
+    },
+    # 消防车道：GB50016-7.1.8 净宽≥4m（DIM-012）
+    {
+        "name": "fire_lane",
+        "area": (50, 5000),
+        "aspect": (3.0, 30.0),
+        "min_corridor_adj": 0,
+        "text_keywords": ["消防车道", "fire_lane", "消防通道"],
+        "require_text": True,
+        "override_type": True,
+    },
+    # 消防泵房：GB50974 泵房面积/净高约束
+    {
+        "name": "pump_room",
+        "area": (15, 300),
+        "aspect": (0.8, 5.0),
+        "min_corridor_adj": 0,
+        "text_keywords": ["泵房", "pump_room", "消防泵"],
+        "require_text": True,
+        "override_type": True,
+    },
 ]
 
 # 置信度评分权重

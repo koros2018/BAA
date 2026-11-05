@@ -1,6 +1,6 @@
 """Semantic classifier — layer + geometry + entity-level."""
 
-from typing import List
+from typing import Dict, List
 from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES
 from .models import SemanticEntity
 from .merge import _merge_overlapping
@@ -87,6 +87,18 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
     if not hasattr(self, "_t3_wall_segs"):
         self._t3_wall_segs = {}
 
+    # P0-2 优化（2026-11-04）：layer→type 缓存。同层名只调一次
+    # _classify_by_layer（遍历 149+90=239 条规则）。48K primitives 通常
+    # 只有数百个 unique layer，避免 48K×239 的重复子串匹配。
+    _layer_type_cache: Dict[str, str] = {}
+
+    def _cached_classify_by_layer(layer: str) -> str:
+        if layer in _layer_type_cache:
+            return _layer_type_cache[layer]
+        result = _classify_by_layer(self, layer)
+        _layer_type_cache[layer] = result
+        return result
+
     for prim in primitives:
         self._classify_total += 1
         # P101: PDF 源数据预过滤——来自 pdf_parser 的线条全在 "lines" 层，
@@ -151,7 +163,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             entity_type = None
 
         if entity_type is None:
-            entity_type = _classify_by_layer(self, prim.layer)
+            entity_type = _cached_classify_by_layer(prim.layer)
         # P80+P82 修复：图层规则返回"other"时，让几何分类兜底为wall，
         # 否则闭合多边形（如 DOTE 层实线围合区域）被误判为非建筑实体，
         # 导致 _merge_line_chains_to_rooms 无法找到 room，疏散分析返回空。
@@ -261,6 +273,31 @@ def _classify_by_layer(self, layer: str) -> str:
     if not layer:  # check: negated condition
         return "unknown"
     layer_upper = layer.upper()
+
+    # P0-1 特化优先：楼梯间/前室等特化图层必须先于泛化 "STAIR"/"FLOOR" 匹配，
+    # 否则 STAIRCASE 图层命中 "STAIR"（子串）→ stair 而非 staircase。
+    # 子串匹配按 dict 插入顺序，STAIR 先于 STAIRCASE 插入，导致误标。
+    _SPECIALIZED_FIRST = (
+        ("STAIRCASE_LOBBY", "staircase_lobby"),
+        ("STAIRCASE", "staircase"),
+        ("SCISSOR_STAIR_LOBBY", "scissor_stair_lobby"),
+        ("SCISSOR_STAIRCASE", "scissor_staircase"),
+        ("SCISSOR_STAIR", "scissor_stair"),
+        ("SMOKE_PROOF_STAIR", "smoke_proof_stair"),
+        ("SMOKE_PROOF_LOBBY", "smoke_proof_lobby"),
+        ("EXTERNAL_STAIR", "external_stair"),
+        ("OUTDOOR_STAIR", "outdoor_stair"),
+        ("ESCAPE_STAIR", "escape_stair"),
+        ("FIRE_ELEV_LOBBY", "fire_elevator_lobby"),
+        ("EXIT_PASSAGEWAY", "exit_passageway"),
+        ("REFUGE_PASSAGE", "refuge_passage"),
+        ("REFUGE_FLOOR", "refuge_floor"),
+        ("REFUGE_ROOM", "refuge_room"),
+        ("REFUGE_AREA", "refuge_area"),
+    )
+    for kw, etype in _SPECIALIZED_FIRST:
+        if kw in layer_upper:
+            return etype
 
     # 长关键字（≥3字符）：子串匹配
     for keyword, entity_type in LAYER_RULES.items():  # 循环
@@ -514,8 +551,26 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
         if not text:  # check: negated condition
             return "text"
         text_upper = text.upper()
+        # P0-1 避难走道特化关键词须在泛化 "EXIT"（→exit）之前，
+        # 否则 EXIT_PASSAGEWAY/REFUGE_PASSAGE 被误标为 exit。
+        if "EXIT_PASSAGEWAY" in text_upper or "REFUGE_PASSAGE" in text_upper or "避难走道" in text:
+            return "refuge_passage"
         if "出口" in text or "EXIT" in text_upper:  # check: membership test
             return "exit"
+        # 必须在 "楼梯" 之前检查更具体的关键词，否则 "楼梯间" 会被误标为 "stair"
+        # 注意："楼梯间前室" 包含 "楼梯间"，需优先检查
+        if "楼梯间前室" in text or "STAIRCASE_LOBBY" in text_upper:
+            return "staircase_lobby"
+        if "楼梯间" in text or "STAIRCASE" in text_upper or "STAIR_CASE" in text_upper:
+            return "staircase"
+        # P0-1 特化楼梯：剪刀/室外/疏散楼梯须在泛化 "STAIR"（→stair）之前，
+        # 否则 SCISSOR_STAIR/EXTERNAL_STAIR/ESCAPE_STAIR 被误标为 stair。
+        if "SCISSOR_STAIR" in text_upper or "剪刀楼梯" in text:
+            return "scissor_stair"
+        if "EXTERNAL_STAIR" in text_upper or "室外楼梯" in text or "OUTDOOR_STAIR" in text_upper:
+            return "external_stair"
+        if "ESCAPE_STAIR" in text_upper or "疏散楼梯" in text:
+            return "escape_stair"
         if "楼梯" in text or "STAIR" in text_upper:  # check: membership test
             return "stair"
         # "防火" 关键词需配合 "门" 或 "窗" 才能归类，避免文本描述被误标
@@ -534,6 +589,12 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "sprinkler"
         if "灭火器" in text or "灭火" in text:  # check: membership test
             return "fire_extinguisher"
+        # P0-1: 防烟楼梯间/防烟前室特化关键词须在泛化 "SMOKE"（→smoke_detector）之前，
+        # 否则 SMOKE_PROOF_STAIR / SMOKE_PROOF_LOBBY 被误标为 smoke_detector。
+        if "SMOKE_PROOF_STAIR" in text_upper or "防烟楼梯" in text:
+            return "smoke_proof_stair"
+        if "SMOKE_PROOF_LOBBY" in text_upper or "防烟前室" in text:
+            return "smoke_proof_lobby"
         if (
             "烟感" in text or "烟雾探测" in text or "探测器" in text or "SMOKE" in text_upper
         ):  # check: membership test
@@ -550,11 +611,19 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "evacuation_lighting"
         if "卷帘" in text or "CURTAIN" in text_upper:  # check: membership test
             return "fire_curtain"
+        # P0-1: 消防电梯前室特化关键词须在泛化 "FIRE_ELEV"（→fire_elevator）之前，
+        # 否则 FIRE_ELEV_LOBBY 被误标为 fire_elevator。
+        if "FIRE_ELEV_LOBBY" in text_upper or "消防电梯前室" in text:
+            return "fire_elevator_lobby"
         if "消防电梯" in text or "FIRE_ELEV" in text_upper:  # check: membership test
             return "fire_elevator"
         if "声光" in text:  # check: membership test
             return "fire_alarm"
         # ── P70 消防泵/水泵接合器/启泵按钮 TEXT 识别 ──
+        # P0-1: PUMP_ROOM 须在通用 "PUMP" 之前匹配，否则合成图
+        # TEXT=PUMP_ROOM 被误标为 fire_pump（PUMP 子串命中）。
+        if "PUMP_ROOM" in text_upper or "泵房" in text:
+            return "pump_room"
         if (
             "消防泵" in text
             or "喷淋泵" in text
@@ -572,6 +641,14 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
         # ── P70 高频缺口 TEXT 识别 ──
         if "探测器" in text or "detector" in text_upper or "DET" in text_upper:
             return "detector"
+        # P0-1: 避难间/避难层/避难区特化关键词须在泛化 "FLOOR"/"层"（→floor）之前，
+        # 否则 REFUGE_FLOOR 被误标为 floor、REFUGE_ROOM 被误标为 room。
+        if "REFUGE_FLOOR" in text_upper or "避难层" in text:
+            return "refuge_floor"
+        if "REFUGE_ROOM" in text_upper or "避难间" in text:
+            return "refuge_room"
+        if "REFUGE_AREA" in text_upper or "避难区" in text:
+            return "refuge_area"
         if "楼层" in text or "FLOOR" in text_upper or "层" in text:
             return "floor"
         if "泵房" in text or "PUMP_ROOM" in text_upper:
@@ -580,7 +657,12 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "fire_wall"
         if "防火卷帘" in text or "FIRE_SHUTTER" in text_upper:
             return "fire_shutter"
-        if "控制室" in text or "FIRE_CONTROL" in text_upper or "消防控制" in text:
+        if (
+            "控制室" in text
+            or "FIRE_CONTROL" in text_upper
+            or "消防控制" in text
+            or "CONTROL_ROOM" in text_upper  # P0-1: 合成图 TEXT=room_type.value.upper()
+        ):
             return "control_room"
         if "救援窗" in text or "RESCUE_WIN" in text_upper or "救援口" in text:
             return "rescue_window"
@@ -593,8 +675,6 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
         if "电源" in text or "POWER_SUPPLY" in text_upper:
             return "power_supply"
         # ── P70 高频缺口 TEXT 识别（第2批） ──
-        if "楼梯间" in text or "STAIRCASE" in text_upper or "STAIR_CASE" in text_upper:
-            return "staircase"
         if "出口门" in text or "EXIT_DOOR" in text_upper or "安全出口门" in text:
             return "exit_door"
         if (
@@ -632,8 +712,20 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "equipment_room"
         if "前室" in text or "ANTEROOM" in text_upper:
             return "antechamber"
+        # P0-1: 合成图 TEXT=room_type.value.upper() 的 FIRE_LOBBY → smoke_proof_lobby
+        if "FIRE_LOBBY" in text_upper or "SMOKE_PROOF_LOBBY" in text_upper:
+            return "smoke_proof_lobby"
         if "消防车道" in text and "road" not in text_lower:
             return "fire_lane"
+        # P0-1: 合成图 TEXT=room_type.value.upper() 的英文关键词
+        if "FIRE_LANE" in text_upper or "FIRE_ACCESS" in text_upper:
+            return "fire_lane"
+        if "GENERATOR_ROOM" in text_upper or "发电机房" in text:
+            return "generator_room"
+        if "FIRE_HYDRANT" in text_upper:
+            return "fire_hydrant"
+        if "PUMP_ROOM" in text_upper:
+            return "pump_room"
         if "消防水箱" in text or "FIRE_WATER_TANK" in text_upper:
             return "fire_water_tank"
         if "室内消火栓" in text or "INDOOR_HYDRANT" in text_upper:
@@ -644,8 +736,6 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             return "refuge_room"
         if "消防广播" in text or "FIRE_BROADCAST" in text_upper:
             return "fire_broadcast"
-        if "楼梯间前室" in text or "STAIRCASE_LOBBY" in text_upper:
-            return "staircase_lobby"
         # ── P47 无障碍 TEXT 识别 ──
         if "坡道" in text or "RAMP" in text_upper:
             return "ramp"

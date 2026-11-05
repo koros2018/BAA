@@ -582,7 +582,7 @@ MODULE_FUNCS = [
         description="楼梯间应在首层直通室外，或经扩大的封闭楼梯间通向室外，距离≤15m（GB50016-6.4.1）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-6.4.1",
-        target_entities={"staircase", "stair", "exit", "exit_door"},
+        target_entities={"staircase", "exit", "exit_door"},  # 移除泛化 stair：看台/室外楼梯非楼梯间语义
         operator=">=",
         threshold=1.0,
         unit="个",
@@ -741,7 +741,7 @@ MODULE_FUNCS = [
         description="疏散楼梯间应设防火门，不应设卷帘（GB50016-6.4.1）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-6.4.1",
-        target_entities={"staircase", "staircase_door", "fire_door", "stair"},
+        target_entities={"staircase", "staircase_door", "fire_door"},  # 移除泛化 stair：看台/室外楼梯非楼梯间语义
         operator=">=",
         threshold=1.0,
         unit="处",
@@ -870,7 +870,7 @@ MODULE_FUNCS = [
         description="防火墙应封堵密实，不应设可开启门（GB50016-6.1.5）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-6.1.5",
-        target_entities={"fire_wall", "fire_barrier", "partition", "wall"},
+        target_entities={"fire_wall", "fire_barrier"},  # 移除泛化 wall/partition，避免对普通墙逐墙误报
         operator=">=",
         threshold=1.0,
         unit="处",
@@ -895,7 +895,7 @@ MODULE_FUNCS = [
         description="建筑幕墙应在每层楼板处设防火封堵（GB50016-6.2.9）",
         category=FuncCategory.EXIST,
         clause_id="GB50016-6.2.9",
-        target_entities={"curtain_wall", "facade", "cladding", "wall"},
+        target_entities={"curtain_wall", "facade", "cladding"},  # 移除泛化 wall，避免对普通墙逐墙误报
         operator=">=",
         threshold=1.0,
         unit="处",
