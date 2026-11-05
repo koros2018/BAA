@@ -1,6 +1,6 @@
 """Overlapping entity merge — spatial hash accelerated."""
 
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from collections import defaultdict
 from .models import SemanticEntity
 
@@ -58,82 +58,138 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
     # P0-6 优化（2026-11-04）：预计算实体几何 (bx,by,bw,bh,area) 到数组，
     # 避免 grid 构建/查询中重复 e.bbox.get + max（103173 次 max + 85232 次 append）。
     # 实测 merge 1.22s → 0.51s（P0-2）→ 0.26s（P0-6），输出等价。
+    # P0-9 优化（2026-11-05）：治理跨格爆炸（10119 实体 merge 仍占 0.201s / 21.3%）：
+    #   1. 查询范围去掉 ±1 外扩：IoU>0.5 ⟹ 两框有正面积交集 ⟹ 必共享至少一格，
+    #      故只查自身覆盖格即可，候选集为原外扩版的子集，且外扩多出的候选
+    #      因无交集必被 IoU 过滤 → 输出严格等价（p50 实体查询格 12→2）。
+    #   2. 网格改嵌套 dict[gx][gy]：省去 10 万次 tuple 构造/hash 与重复 grid.get。
+    #   3. 候选去重改「gen 戳数组」，删除逐实体 set 构造 + sorted()；
+    #      候选内 j 只与 a 比较，cluster 成员集合与集合顺序无关（union bbox
+    #      与 max confidence 均顺序无关），故 sorted 无行为作用。
+    #   4. 只扫 j>i：外层按下标升序，i 之前的实体必已 used，原逻辑对其全部跳过。
+    #   5. 内联 IoU（复用预计算原值），省去每对 _compute_iou 的 dict 取键。
     CELL_SIZE = 1000.0  # mm
 
     # 预计算几何信息（避免重复 bbox.get + max）
-    geo: List[Tuple[float, float, float, float, float]] = []
-    for e in entities:
-        b = e.bbox
+    # area_f 为网格口径（宽高下限 1.0，面积预过滤沿用原口径）
+    # area_r 为原始面积（IoU 并集口径，与 compute_iou 完全一致）
+    bx_a: List[float] = [0.0] * n
+    by_a: List[float] = [0.0] * n
+    x2_a: List[float] = [0.0] * n
+    y2_a: List[float] = [0.0] * n
+    area_f: List[float] = [0.0] * n
+    area_r: List[float] = [0.0] * n
+    gx1_a: List[int] = [0] * n
+    gx2_a: List[int] = [0] * n
+    gy1_a: List[int] = [0] * n
+    gy2_a: List[int] = [0] * n
+    for idx in range(n):
+        b = entities[idx].bbox
         bx = b.get("x", 0)
         by = b.get("y", 0)
-        bw = max(b.get("width", 0), 1.0)
-        bh = max(b.get("height", 0), 1.0)
-        geo.append((bx, by, bw, bh, bw * bh))
+        bw = b.get("width", 0)
+        bh = b.get("height", 0)
+        bx_a[idx] = bx
+        by_a[idx] = by
+        x2_a[idx] = bx + bw
+        y2_a[idx] = by + bh
+        area_r[idx] = bw * bh
+        bwf = bw if bw >= 1.0 else 1.0
+        bhf = bh if bh >= 1.0 else 1.0
+        area_f[idx] = bwf * bhf
+        gx1_a[idx] = int(bx / CELL_SIZE)
+        gx2_a[idx] = int((bx + bwf) / CELL_SIZE)
+        gy1_a[idx] = int(by / CELL_SIZE)
+        gy2_a[idx] = int((by + bhf) / CELL_SIZE)
 
     # 按类型分组
     type_indices: Dict[str, List[int]] = defaultdict(list)
-    for idx, e in enumerate(entities):
-        type_indices[e.type].append(idx)
+    for idx in range(n):
+        type_indices[entities[idx].type].append(idx)
 
-    # 每种类型独立建 grid（仅对 >=2 个实体的类型）
-    type_grids: Dict[str, Dict[Tuple[int, int], List[int]]] = {}
+    # 每种类型独立建 grid（仅对 >=2 个实体的类型）；嵌套 dict 免 tuple 键
+    type_grids: Dict[str, Dict[int, Dict[int, List[int]]]] = {}
     for etype, idxs in type_indices.items():
         if len(idxs) < 2:
             continue
-        grid: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        rows: Dict[int, Dict[int, List[int]]] = {}
         for idx in idxs:
-            bx, by, bw, bh, _area = geo[idx]
-            gx1 = int(bx / CELL_SIZE)
-            gx2 = int((bx + bw) / CELL_SIZE)
-            gy1 = int(by / CELL_SIZE)
-            gy2 = int((by + bh) / CELL_SIZE)
-            for gx in range(gx1, gx2 + 1):
-                for gy in range(gy1, gy2 + 1):
-                    grid[(gx, gy)].append(idx)
-        type_grids[etype] = grid
+            for gx in range(gx1_a[idx], gx2_a[idx] + 1):
+                row = rows.get(gx)
+                if row is None:
+                    row = {}
+                    rows[gx] = row
+                for gy in range(gy1_a[idx], gy2_a[idx] + 1):
+                    cell = row.get(gy)
+                    if cell is None:
+                        row[gy] = [idx]
+                    else:
+                        cell.append(idx)
+        type_grids[etype] = rows
 
     merged = []
-    used = set()
+    used = bytearray(n)
+    stamp = [-1] * n  # 候选去重（gen 戳），避免逐实体 set 构造
 
-    for i, a in enumerate(entities):
-        if i in used:
+    for i in range(n):
+        if used[i]:
             continue
-
-        cluster = [a]
-        used.add(i)
-
-        bx, by, bw, bh, area_a = geo[i]
+        a = entities[i]
+        used[i] = 1
 
         grid = type_grids.get(a.type)
         if grid is None:
             merged.append(a)
             continue
 
-        gx1 = int(bx / CELL_SIZE)
-        gx2 = int((bx + bw) / CELL_SIZE)
-        gy1 = int(by / CELL_SIZE)
-        gy2 = int((by + bh) / CELL_SIZE)
+        ax = bx_a[i]
+        ay = by_a[i]
+        ax2 = x2_a[i]
+        ay2 = y2_a[i]
+        af = area_f[i]
+        ar = area_r[i]
+        cluster = None  # 懒创建：未发生合并时保持 None
 
-        candidates = set()
-        for gx in range(gx1 - 1, gx2 + 2):
-            for gy in range(gy1 - 1, gy2 + 2):
-                for idx in grid.get((gx, gy), []):
-                    if idx not in used:
-                        candidates.add(idx)
-
-        for j in sorted(candidates):
-            if j in used:
+        for gx in range(gx1_a[i], gx2_a[i] + 1):
+            row = grid.get(gx)
+            if row is None:
                 continue
-            b = entities[j]
-            # 面积预过滤：IoU>0.5 ⟹ max(area_a, area_b) < 2*min(area_a, area_b)
-            area_b = geo[j][4]
-            if area_a > 2.0 * area_b or area_b > 2.0 * area_a:
-                continue
-            if self._compute_iou(a.bbox, b.bbox) > 0.5:
-                cluster.append(b)
-                used.add(j)
+            for gy in range(gy1_a[i], gy2_a[i] + 1):
+                cell = row.get(gy)
+                if cell is None:
+                    continue
+                for j in cell:
+                    if used[j] or stamp[j] == i:
+                        continue
+                    stamp[j] = i
+                    # 面积预过滤：IoU>0.5 ⟹ max(area) < 2*min(area)
+                    area_b = area_f[j]
+                    if af > 2.0 * area_b or area_b > 2.0 * af:
+                        continue
+                    # 内联 IoU（与 compute_iou 同算式，复用预计算原值）
+                    bxj = bx_a[j]
+                    byj = by_a[j]
+                    bx2j = x2_a[j]
+                    by2j = y2_a[j]
+                    ix1 = ax if ax > bxj else bxj
+                    iy1 = ay if ay > byj else byj
+                    ix2 = ax2 if ax2 < bx2j else bx2j
+                    iy2 = ay2 if ay2 < by2j else by2j
+                    iw = ix2 - ix1
+                    ih = iy2 - iy1
+                    if iw <= 0.0 or ih <= 0.0:
+                        continue
+                    inter = iw * ih
+                    union = ar + area_r[j] - inter
+                    if union <= 0.0:
+                        continue
+                    if inter / union > 0.5:
+                        if cluster is None:
+                            cluster = [a]
+                        cluster.append(entities[j])
+                        used[j] = 1
 
-        if len(cluster) > 1:
+        if cluster is not None:
             merged_bbox = self._union_bbox([e.bbox for e in cluster])
             merged.append(
                 SemanticEntity(
