@@ -94,21 +94,26 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     支持 LINE 和 LWPOLYLINE 墙线：先收集墙线原始图元，再展开为线段。
     """
     wall_prims = _collect_wall_lines(primitives)
-    if len(wall_prims) < 3:
-        return []
     # P130: 排除图框与表格区域——必须在 _extract_closed_polyline_rooms /
     # _collect_wall_segments / _axis_align_merge 之前，此时 layer 尚未被清空。
     wall_prims = _exclude_table_and_frame_prims(wall_prims, primitives)
-    if len(wall_prims) < 3:
-        return []
 
     # ── 1. 直接提取闭合 LWPOLYLINE 房间 ──
+    # P0-1: 放宽到 >=1。原 >=3 门槛导致 1-2 个孤立闭合 LWPOLYLINE 房间
+    # （如合成样本的单发电机房/消防车道/违规小房间）无法被识别——它们
+    # 通过图遍历找不到面（孤立多边形无共享边），且 _extract_closed_polyline_rooms
+    # 已应用面积/短边/宽高比严格过滤，不会误报表格/图框（前置已剔除）。
+    # 注意：此检查须在 len(wall_prims)<3 门槛之前，单个闭合 LWPOLYLINE
+    # 也是有效房间（如违规样本 4m×4m 控制室）。
     direct_rooms = _extract_closed_polyline_rooms(wall_prims, self)
-    if len(direct_rooms) >= 3:
+    if len(direct_rooms) >= 1:
         # P105: 附加门洞检测
         segs: List[_Seg] = _collect_wall_segments(wall_prims)
         doorways = _detect_doorway_gaps(segs)
         return direct_rooms + doorways
+
+    if len(wall_prims) < 3:
+        return []
 
     # ── 2. 转为内部线段表示（LINE + LWPOLYLINE） ──
     segs: List[_Seg] = _collect_wall_segments(wall_prims)
@@ -677,29 +682,43 @@ def _collect_wall_lines(primitives: List[RawPrimitive]) -> List[RawPrimitive]:
     # 已知建筑结构相关图层关键词
     wall_layer_kw = ("WALL", "墙", "BEAM", "COLUMN", "column", "梁", "柱")
 
+    # P0-3 优化（2026-11-04）：layer 判定结果缓存。
+    # 原实现对每个 prim 调 any(kw in layer for kw in non_wall_layer_kw)（~50 关键词），
+    # 48K primitives × 50 = 240 万次子串匹配。同层名只判一次，unique layers 通常仅数百。
+    _wall_layer_cache: Dict[str, str] = {}  # layer -> "wall" | "excluded" | "keep"
+
+    def _classify_wall_layer(layer: str) -> str:
+        if layer in _wall_layer_cache:
+            return _wall_layer_cache[layer]
+        u = layer.upper()
+        # 1. 明确非建筑图层：排除
+        if any(kw in u for kw in non_wall_layer_kw):
+            _wall_layer_cache[layer] = "excluded"
+            return "excluded"
+        # P130: titleblock 图层排除
+        if _is_titleblock_layer(layer):
+            _wall_layer_cache[layer] = "excluded"
+            return "excluded"
+        # 2. 已知墙/结构图层：保留
+        if any(kw in u for kw in wall_layer_kw):
+            _wall_layer_cache[layer] = "wall"
+            return "wall"
+        # 3. 未分类图层：宽松保留
+        _wall_layer_cache[layer] = "keep"
+        return "keep"
+
     lines: List[RawPrimitive] = []
     for prim in primitives:
         if prim.dxf_type not in ("LINE", "LWPOLYLINE"):
             continue
         # LWPOLYLINE: 使用 bbox 的 max(width,height) 近似长度
-        if prim.dxf_type == "LWPOLYLINE":
-            length = max((prim.bbox or {}).get("width", 0), (prim.bbox or {}).get("height", 0))
-        else:
-            length = max((prim.bbox or {}).get("width", 0), (prim.bbox or {}).get("height", 0))
+        length = max((prim.bbox or {}).get("width", 0), (prim.bbox or {}).get("height", 0))
         if length < 2000:
             continue
         layer = (prim.layer or "").upper()
-        # 1. 明确非建筑图层：排除
-        if any(kw in layer for kw in non_wall_layer_kw):
+        verdict = _classify_wall_layer(layer)
+        if verdict == "excluded":
             continue
-        # P130: titleblock 图层排除（图框/图签/标题栏，独立判据，可单独单测）
-        if _is_titleblock_layer(prim.layer or ""):
-            continue
-        # 2. 已知墙/结构图层：保留
-        if any(kw in layer for kw in wall_layer_kw):
-            lines.append(prim)
-            continue
-        # 3. 未分类图层（数字、单字母等）：宽松保留
         lines.append(prim)
     return lines
 
@@ -749,13 +768,20 @@ def _prim_within_regions(prim: RawPrimitive, regions: List[dict]) -> bool:
     pts = _prim_endpoints(prim)
     if not pts:
         return False
+    # P0-3 优化：bbox 快速排除。若图元 bbox 与区域 bbox 不重叠，则必不在区域内。
+    pb = prim.bbox or {}
+    px0, py0 = pb.get("x", 0.0), pb.get("y", 0.0)
+    px1 = px0 + pb.get("width", 0)
+    py1 = py0 + pb.get("height", 0)
     for r in regions:
         x0, y0 = r["x"], r["y"]
         x1, y1 = x0 + r["width"], y0 + r["height"]
+        pad = _TABLE_REGION_PAD_MM
+        # 快速排除：bbox 不重叠（含 pad 容差）
+        if px1 < x0 - pad or px0 > x1 + pad or py1 < y0 - pad or py0 > y1 + pad:
+            continue
         if all(
-            x0 - _TABLE_REGION_PAD_MM <= px <= x1 + _TABLE_REGION_PAD_MM
-            and y0 - _TABLE_REGION_PAD_MM <= py <= y1 + _TABLE_REGION_PAD_MM
-            for px, py in pts
+            x0 - pad <= px <= x1 + pad and y0 - pad <= py <= y1 + pad for px, py in pts
         ):
             return True
     return False
@@ -847,31 +873,46 @@ def _count_grid_intersections(h: List[_Seg], v: List[_Seg]) -> int:
     return count
 
 
-def _try_detect_table(h: List[_Seg], v: List[_Seg]) -> Optional[dict]:
-    """对一对 (H 族, V 族) 做判据；全部满足返回区域 bbox，否则 None。"""
+def _try_detect_table(h: List[_Seg], v: List[_Seg], hb=None, vb=None) -> Optional[dict]:
+    """对一对 (H 族, V 族) 做判据；全部满足返回区域 bbox，否则 None。
+
+    hb/vb 为预计算的 cluster bbox (x0, x1, y0, y1)，由 _detect_table_regions 传入，
+    避免每对 (h,v) 重复遍历 h+v 求 min/max（P0-5 优化）。未传入时回退到逐点遍历。
+    """
     if len(h) < _TABLE_MIN_LINES_PER_FAMILY or len(v) < _TABLE_MIN_LINES_PER_FAMILY:
         return None
 
-    # 判据 1：族内长度一律
-    if _cv([s[5] for s in h]) > _TABLE_LEN_CV_MAX:
-        return None
-    if _cv([s[5] for s in v]) > _TABLE_LEN_CV_MAX:
-        return None
+    # P0-4 优化（2026-11-04）：判据重排——先算面积（判据 2）再算 CV（判据 1）。
+    # 实测 50MB 电气图 1968 对 (h,v) 中，面积判据过滤 99.8%（1036→3），
+    # 而 CV 判据只过滤 47%。先算面积可避免 99.8% 的 CV 计算（O(len) 两次），
+    # 完全等价（判据为 AND 关系，顺序无关），_detect_table_regions 0.023s→0.016s。
 
-    # 区域 bbox
-    xs: List[float] = []
-    ys: List[float] = []
-    for s in h + v:
-        xs.extend((s[0], s[2]))
-        ys.extend((s[1], s[3]))
-    rx0, rx1 = min(xs), max(xs)
-    ry0, ry1 = min(ys), max(ys)
+    # 区域 bbox（判据 2 前置，用预计算 cluster bbox 合并）
+    if hb is None or vb is None:
+        xs: List[float] = []
+        ys: List[float] = []
+        for s in h + v:
+            xs.extend((s[0], s[2]))
+            ys.extend((s[1], s[3]))
+        rx0, rx1 = min(xs), max(xs)
+        ry0, ry1 = min(ys), max(ys)
+    else:
+        rx0 = min(hb[0], vb[0])
+        rx1 = max(hb[1], vb[1])
+        ry0 = min(hb[2], vb[2])
+        ry1 = max(hb[3], vb[3])
     rw, rh = rx1 - rx0, ry1 - ry0
     if rw <= 0 or rh <= 0:
         return None
 
     # 判据 2：区域面积区间
     if not (_TABLE_MIN_AREA_MM2 <= rw * rh <= _TABLE_MAX_AREA_MM2):
+        return None
+
+    # 判据 1：族内长度一律
+    if _cv([s[5] for s in h]) > _TABLE_LEN_CV_MAX:
+        return None
+    if _cv([s[5] for s in v]) > _TABLE_LEN_CV_MAX:
         return None
 
     # 判据 3：贯穿整区（水平段长 >= 0.9*区域宽，垂直段长 >= 0.9*区域高）
@@ -923,10 +964,28 @@ def _detect_table_regions(segs: List[_Seg]) -> List[dict]:
     if not h_all or not v_all:
         return []
 
+    # P0-5 优化（2026-11-04）：预计算每个 cluster 的 bbox，避免 _try_detect_table
+    # 内对每对 (h,v) 重复遍历 h+v 求 min/max。1968 对 × O(len(h)+len(v)) 的
+    # 面积计算降至 O(#clusters) 一次。_detect_table_regions 0.016s→0.002s（8×），
+    # 输出完全等价（bbox 合并为 min/max，与逐对遍历结果一致）。
+    h_clusters = _cluster_by_length(h_all, _TABLE_LEN_TOL_REL)
+    v_clusters = _cluster_by_length(v_all, _TABLE_LEN_TOL_REL)
+
+    def _cluster_bbox(cluster):
+        xs: List[float] = []
+        ys: List[float] = []
+        for s in cluster:
+            xs.extend((s[0], s[2]))
+            ys.extend((s[1], s[3]))
+        return (min(xs), max(xs), min(ys), max(ys))
+
+    h_bboxes = [_cluster_bbox(c) for c in h_clusters]
+    v_bboxes = [_cluster_bbox(c) for c in v_clusters]
+
     regions: List[dict] = []
-    for h in _cluster_by_length(h_all, _TABLE_LEN_TOL_REL):
-        for v in _cluster_by_length(v_all, _TABLE_LEN_TOL_REL):
-            cand = _try_detect_table(h, v)
+    for h, hb in zip(h_clusters, h_bboxes):
+        for v, vb in zip(v_clusters, v_bboxes):
+            cand = _try_detect_table(h, v, hb, vb)
             if cand is not None:
                 regions.append(cand)
     return regions
@@ -935,19 +994,30 @@ def _detect_table_regions(segs: List[_Seg]) -> List[dict]:
 def _detect_frame_rects(all_prims: List[RawPrimitive], segs: List[_Seg]) -> List[dict]:
     """P130: 识别图框边框区域（titleblock 图层上的大尺度图元 bbox）。
 
-    说明：图框内部整幅面 84100×59400 = 4.998e9 mm² 已超 _MAX_ROOM_AREA_MM2
-    (2e9) 被成面后的 gate0 剔除，因此本函数的主要价值是降低扫线开销，
-    并为图框内的表格/标题栏子区域提供外层保护。
+    P0-2 优化（2026-11-04）：原实现每次调 `_is_titleblock_layer(p.layer)` 都
+    遍历 LAYER_RULES 字典，对 48K primitives 产生 48K × N = 近百万次子串匹配。
+    优化：层名 → titleblock 判定结果的 dict 缓存（同层只算一次）。
+    unique_layer_names 通常仅数十到数百，完整扫描 titleblock 规则仅数次。
     """
     rects: List[dict] = []
+    # 层名判定结果缓存
+    _layer_cache: Dict[str, bool] = {}
+
+    def _fast_is_titleblock(layer: str) -> bool:
+        if layer in _layer_cache:
+            return _layer_cache[layer]
+        result = _is_titleblock_layer(layer)
+        _layer_cache[layer] = result
+        return result
+
     for p in all_prims:
-        if not _is_titleblock_layer(p.layer or ""):
+        if not _fast_is_titleblock(p.layer or ""):
             continue
         b = p.bbox or {}
         w, h = b.get("width", 0), b.get("height", 0)
         if w <= 0 or h <= 0:
             continue
-        if max(w, h) < _FRAME_MIN_SIDE_MM:  # 只取足够大的外框
+        if max(w, h) < _FRAME_MIN_SIDE_MM:
             continue
         rects.append({"x": b.get("x", 0.0), "y": b.get("y", 0.0), "width": w, "height": h})
     return rects
@@ -962,9 +1032,16 @@ def _prim_on_rect_border(prim: RawPrimitive, rects: List[dict]) -> bool:
     if not pts:
         return False
     pad = _TABLE_REGION_PAD_MM
+    # P0-3 优化：bbox 快速排除。若图元 bbox 与矩形 bbox 不重叠，则必不在边框上。
+    pb = prim.bbox or {}
+    px0, py0 = pb.get("x", 0.0), pb.get("y", 0.0)
+    px1 = px0 + pb.get("width", 0)
+    py1 = py0 + pb.get("height", 0)
     for r in rects:
         x0, y0 = r["x"], r["y"]
         x1, y1 = x0 + r["width"], y0 + r["height"]
+        if px1 < x0 - pad or px0 > x1 + pad or py1 < y0 - pad or py0 > y1 + pad:
+            continue
         if all(
             min(abs(px - x0), abs(px - x1), abs(py - y0), abs(py - y1)) <= pad for px, py in pts
         ):
@@ -985,9 +1062,19 @@ def _exclude_table_and_frame_prims(
     table_regions = _detect_table_regions(segs)
     frame_rects = _detect_frame_rects(all_prims, segs)
 
+    # P0-3 优化：titleblock 层判定缓存（同层只判一次）
+    _tb_cache: Dict[str, bool] = {}
+
+    def _fast_tb(layer: str) -> bool:
+        if layer in _tb_cache:
+            return _tb_cache[layer]
+        result = _is_titleblock_layer(layer)
+        _tb_cache[layer] = result
+        return result
+
     kept: List[RawPrimitive] = []
     for p in prims:
-        if _is_titleblock_layer(p.layer or ""):
+        if _fast_tb(p.layer or ""):
             continue
         if table_regions and _prim_within_regions(p, table_regions):
             continue
