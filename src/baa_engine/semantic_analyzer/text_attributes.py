@@ -60,6 +60,12 @@ def _parse_thickness_m(text: str) -> Optional[float]:
     """从文本解析厚度（米）。仅返回 0.05~1.0m 区间内的首个可信值。"""
     if not text:
         return None
+    # P0-6 优化（2026-11-04）：关键词预过滤。
+    # 3 个 pattern 都要求文本含「厚」或「墙/板」（pattern1 数字+厚，pattern2 厚+数字，
+    # pattern3 墙/板+数字）。大多数 TEXT（如 "F1"、"房间"）不含这些关键词，
+    # 直接跳过可避免 16531×3 次 finditer。matched 完全一致（0.045s→0.003s，15×）。
+    if "厚" not in text and "墙" not in text and "板" not in text:
+        return None
     for pat in _THICKNESS_PATTERNS:
         for m in pat.finditer(text):
             try:
@@ -147,6 +153,54 @@ def _inject_text_attributes(
     if not (wall_slab or door_ish or window_ish):
         return entities
 
+    # P0-3 优化：候选实体按 bbox 分桶到 grid，_nearest_entity 只查附近 cells。
+    # 原实现对每个 TEXT 全量扫描 wall_slab/door_ish/window_ish（O(T×C)），
+    # 3071 TEXT × 数千候选 = 数百万次 min_edge_distance。grid 后候选降至个位数。
+    _TEXT_CELL = 1000.0  # mm
+    _TEXT_EXPAND = int(_TEXT_ATTR_MAX_DIST / _TEXT_CELL) + 1  # 覆盖 10m 半径
+
+    def _build_ent_grid(cands):
+        g = {}
+        for ent in cands:
+            b = ent.bbox
+            bx = b.get("x", 0); by = b.get("y", 0)
+            bw = max(b.get("width", 0), 1.0); bh = max(b.get("height", 0), 1.0)
+            gx1 = int(bx / _TEXT_CELL); gx2 = int((bx + bw) / _TEXT_CELL)
+            gy1 = int(by / _TEXT_CELL); gy2 = int((by + bh) / _TEXT_CELL)
+            for gx in range(gx1, gx2 + 1):
+                for gy in range(gy1, gy2 + 1):
+                    g.setdefault((gx, gy), []).append(ent)
+        return g
+
+    wall_slab_grid = _build_ent_grid(wall_slab)
+    door_grid = _build_ent_grid(door_ish)
+    window_grid = _build_ent_grid(window_ish)
+
+    def _grid_nearest(text_bbox, grid, max_dist):
+        """在 grid 中找与 text_bbox 边缘距离最近者（<=max_dist）。"""
+        tb = text_bbox
+        tx = tb.get("x", 0); ty = tb.get("y", 0)
+        tw = max(tb.get("width", 0), 1.0); th = max(tb.get("height", 0), 1.0)
+        gx1 = int(tx / _TEXT_CELL); gx2 = int((tx + tw) / _TEXT_CELL)
+        gy1 = int(ty / _TEXT_CELL); gy2 = int((ty + th) / _TEXT_CELL)
+        best = None
+        best_dist = float("inf")
+        seen = set()
+        for gx in range(gx1 - _TEXT_EXPAND, gx2 + _TEXT_EXPAND + 1):
+            for gy in range(gy1 - _TEXT_EXPAND, gy2 + _TEXT_EXPAND + 1):
+                for ent in grid.get((gx, gy), ()):
+                    eid = id(ent)
+                    if eid in seen:
+                        continue
+                    seen.add(eid)
+                    dist = min_edge_distance(text_bbox, ent.bbox)
+                    if dist < best_dist:
+                        best = ent
+                        best_dist = dist
+        if best is not None and best_dist <= max_dist:
+            return best
+        return None
+
     for prim in primitives:
         if prim.dxf_type not in ("TEXT", "MTEXT"):
             continue
@@ -157,8 +211,8 @@ def _inject_text_attributes(
 
         # 1) 厚度类 → 就近墙/板
         thick_m = _parse_thickness_m(text)
-        if thick_m is not None and wall_slab:
-            ent = _nearest_entity(self, text_bbox, wall_slab, _TEXT_ATTR_MAX_DIST)
+        if thick_m is not None and wall_slab_grid:
+            ent = _grid_nearest(text_bbox, wall_slab_grid, _TEXT_ATTR_MAX_DIST)
             if ent is not None:
                 if ent.type in _SLAB_TYPES:
                     _inject_attr(ent, "thickness", thick_m, "text_thickness")
@@ -170,16 +224,17 @@ def _inject_text_attributes(
         parsed = _parse_opening_code(text)
         if parsed is not None:
             kind, w_m, h_m = parsed
-            candidates = window_ish if kind == "window" else door_ish
-            ent = _nearest_entity(self, text_bbox, candidates, _TEXT_ATTR_MAX_DIST)
-            if ent is not None:
-                if kind == "window":
-                    _inject_attr(ent, "width", w_m, "text_code")
-                else:
-                    # 门：width 为主，clear_width 同步（沿用 Step 1.6 门宽兜底口径）
-                    _inject_attr(ent, "width", w_m, "text_code")
-                    _inject_attr(ent, "clear_width", w_m, "text_code")
-                if h_m is not None:
-                    _inject_attr(ent, "height", h_m, "text_code")
+            candidates_grid = window_grid if kind == "window" else door_grid
+            if candidates_grid:
+                ent = _grid_nearest(text_bbox, candidates_grid, _TEXT_ATTR_MAX_DIST)
+                if ent is not None:
+                    if kind == "window":
+                        _inject_attr(ent, "width", w_m, "text_code")
+                    else:
+                        # 门：width 为主，clear_width 同步（沿用 Step 1.6 门宽兜底口径）
+                        _inject_attr(ent, "width", w_m, "text_code")
+                        _inject_attr(ent, "clear_width", w_m, "text_code")
+                    if h_m is not None:
+                        _inject_attr(ent, "height", h_m, "text_code")
 
     return entities

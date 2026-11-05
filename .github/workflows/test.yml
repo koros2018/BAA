@@ -100,6 +100,41 @@ jobs:
         run: |
           echo "::notice::固定基线图纸未入库（.gitignore 排除大体积 DXF），跳过 real_drawing 基线。需配置图纸数据源后补跑。"
 
+  semantic_perf:
+    name: "SemanticAnalyzer Perf Gate (P0-8, 50MB < 1s)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ezdxf
+
+      - name: Guard - 50MB perf drawing availability
+        id: data_guard
+        run: |
+          ok=true
+          [ -n "$(find data -name "baa-file-2319613b52cb.dxf" -print -quit 2>/dev/null)" ] || ok=false
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Run semantic analyze perf gate (median < 1.0s)
+        if: steps.data_guard.outputs.ok == 'true'
+        run: |
+          python scripts/benchmark_semantic_analyze.py --threshold 1.0 --runs 3
+
+      - name: Notice - perf drawing not in repo
+        if: steps.data_guard.outputs.ok != 'true'
+        run: |
+          echo "::notice::50MB 性能基准图（baa-file-2319613b52cb.dxf）未入库（.gitignore 排除数据目录），跳过性能门禁。需配置图纸数据源后补跑。"
+
   cross_platform_regression:
     name: "Cross-Platform Regression (checklist 20261015)"
     runs-on: ubuntu-latest

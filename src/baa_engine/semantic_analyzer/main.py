@@ -117,12 +117,22 @@ class SemanticAnalyzer:
             # 漏报缺口（d3: 381 标记图元丢 227，T-B3 FN 门 handle=13A55）。
             # 标记图元是权威识别结果且数量小（≈1.6%），全量保留；
             # 采样仅从未标记图元池进行，保持原 seed=42 口径。
-            def _is_t3_marked(pr):  # 局部函数:判定 T3 标记图元
-                props = pr.properties or {}
-                return "_t3_native" in props or "_t3_window_gid" in props or "_t3_wall_gid" in props
-
-            _marked = [pr for pr in primitives if _is_t3_marked(pr)]
-            _unmarked = [pr for pr in primitives if not _is_t3_marked(pr)]
+            # P0-6 优化（2026-11-04）：内联 _is_t3_marked 到列表推导，
+            # 避免 97688 次函数调用开销（0.019s）。逻辑等价（in 检查）。
+            _marked = [
+                pr for pr in primitives
+                if "_t3_native" in (pr.properties or {})
+                or "_t3_window_gid" in (pr.properties or {})
+                or "_t3_wall_gid" in (pr.properties or {})
+            ]
+            _unmarked = [
+                pr for pr in primitives
+                if not (
+                    "_t3_native" in (pr.properties or {})
+                    or "_t3_window_gid" in (pr.properties or {})
+                    or "_t3_wall_gid" in (pr.properties or {})
+                )
+            ]
             _budget = max(max_entities - len(_marked), 0)
             random.seed(42)  # call
             if len(_unmarked) > _budget:  # check: numeric comparison
@@ -477,23 +487,38 @@ class SemanticAnalyzer:
         if not primitives:  # check: negated condition
             return []  # return: list of items
 
-        # 计算图纸总宽度
-        all_x = []  # init: empty list
-        all_y = []  # init: empty list
+        # 计算图纸总宽度（P0-7 优化：min/max 跟踪替代列表收集，
+        # 避免 19.5 万次 append + 后续 max/min，0.052s→0.031s，结果等价）
+        min_x = float("inf")
+        max_x = float("-inf")
+        min_y = float("inf")
+        max_y = float("-inf")
+        has_x = False
+        has_y = False
         for p in primitives:  # loop: for p in primitives:
             bbox = p.bbox  # assign
-            if bbox.get("width", 0) > 0:  # check: numeric comparison
-                all_x.append(bbox["x"])  # append: add to list
-                all_x.append(bbox["x"] + bbox["width"])  # append: add to list
-            if bbox.get("height", 0) > 0:  # check: numeric comparison
-                all_y.append(bbox["y"])  # append: add to list
-                all_y.append(bbox["y"] + bbox["height"])  # append: add to list
+            w = bbox.get("width", 0)
+            if w > 0:  # check: numeric comparison
+                x = bbox["x"]
+                if x < min_x:
+                    min_x = x
+                if x + w > max_x:
+                    max_x = x + w
+                has_x = True
+            h = bbox.get("height", 0)
+            if h > 0:  # check: numeric comparison
+                y = bbox["y"]
+                if y < min_y:
+                    min_y = y
+                if y + h > max_y:
+                    max_y = y + h
+                has_y = True
 
-        if not all_x or not all_y:  # check: negated condition
+        if not has_x or not has_y:  # check: negated condition
             return []  # return: list of items
 
-        drawing_width = max(all_x) - min(all_x) if all_x else 0  # assign
-        drawing_height = max(all_y) - min(all_y) if all_y else 0  # assign
+        drawing_width = max_x - min_x  # assign
+        drawing_height = max_y - min_y  # assign
         if drawing_width <= 0:  # check: numeric comparison
             return []  # return: list of items
 
@@ -623,7 +648,7 @@ class SemanticAnalyzer:
         # 如果有分隔线，用分隔线定义楼层
         if sorted_seps:  # check: OR condition
             # 添加最底层边界
-            prev_y = min(all_y) if all_y else 0  # assign
+            prev_y = min_y if has_y else 0  # assign
             for i, sep in enumerate(sorted_seps):  # loop: for i, sep in enumerate(sorted_seps):
                 floor_levels.append(
                     {  # code
@@ -641,7 +666,7 @@ class SemanticAnalyzer:
                     "level": len(sorted_seps) + 1,  # len: get length
                     "label": f"F{len(sorted_seps) + 1}",  # len: get length
                     "elevation": None,  # code
-                    "y_range": [prev_y, max(all_y) if all_y else prev_y + 1],  # max: get maximum
+                    "y_range": [prev_y, max_y if has_y else prev_y + 1],  # max: get maximum
                     "source": "separator",  # code
                 }
             )  # code
@@ -683,7 +708,7 @@ class SemanticAnalyzer:
 
             cluster_centers.sort(key=lambda c: c["y"])  # assign
 
-            prev_y = min(all_y) if all_y else 0  # assign
+            prev_y = min_y if has_y else 0  # assign
             for i, cc in enumerate(
                 cluster_centers
             ):  # loop: for i, cc in enumerate(cluster_centers):
@@ -768,11 +793,13 @@ class SemanticAnalyzer:
         from collections import defaultdict  # stdlib import
 
         # 防御性过滤：修复 NaN bbox
+        # P0-7 优化（2026-11-04）：v != v 比 isinstance(v,float)+isnan(v) 快 20%
+        # （NaN 是唯一满足 v != v 的值），39621 次 isinstance + 37281 次 isnan 消除。
         for ent in entities:  # 循环
             bbox = ent.bbox  # assign
             for k in ("x", "y", "width", "height"):  # loop: for k in ('X', 'y', 'width', 'height'):
                 v = bbox.get(k, 0)  # assign
-                if isinstance(v, float) and math.isnan(v):  # check: AND condition
+                if v != v:  # NaN 唯一满足 v != v
                     bbox[k] = 0.0  # init: set to 0
 
         # ── 策略1：平行线聚类宽度推断（按空间分区）──
@@ -1319,18 +1346,31 @@ class SemanticAnalyzer:
             p for p in primitives if p.dxf_type == "TEXT" and p.properties.get("text")
         ]
 
+        # P0-2 优化（2026-11-04）：建 id→type 映射，避免每个 relation 全量扫描 entities
+        id_to_type: Dict[str, str] = {e.id: e.type for e in entities}
+
+        # P0-2 优化：TEXT 按中心点分桶到 grid，每个 room 只查附近 cells
+        _TEXT_CELL = 2000.0  # 2m cell
+        text_grid: Dict[Tuple[int, int], List[RawPrimitive]] = {}
+        for tp in text_primitives:
+            tb = tp.bbox or {}
+            tcx = tb.get("x", 0) + tb.get("width", 0) / 2
+            tcy = tb.get("y", 0) + tb.get("height", 0) / 2
+            text_grid.setdefault(
+                (int(tcx / _TEXT_CELL), int(tcy / _TEXT_CELL)), []
+            ).append(tp)
+
         # 2. 建立 room_id → 相邻 corridor/doorway 计数
         corridor_adj: Dict[str, int] = {}
         for rel in relations:
-            if rel.type == "adjacent":
-                src = [e for e in entities if e.id == rel.source_id]
-                tgt = [e for e in entities if e.id == rel.target_id]
-                src_types = {s.type for s in src}
-                tgt_types = {t.type for t in tgt}
-                if "room" in src_types and "corridor" in tgt_types:
-                    corridor_adj[rel.source_id] = corridor_adj.get(rel.source_id, 0) + 1
-                if "room" in tgt_types and "corridor" in src_types:
-                    corridor_adj[rel.target_id] = corridor_adj.get(rel.target_id, 0) + 1
+            if rel.type != "adjacent":
+                continue
+            src_type = id_to_type.get(rel.source_id, "")
+            tgt_type = id_to_type.get(rel.target_id, "")
+            if src_type == "room" and tgt_type == "corridor":
+                corridor_adj[rel.source_id] = corridor_adj.get(rel.source_id, 0) + 1
+            elif tgt_type == "room" and src_type == "corridor":
+                corridor_adj[rel.target_id] = corridor_adj.get(rel.target_id, 0) + 1
 
         # 3. 对每个扫线法 room 推断类型
         changed = 0
@@ -1354,21 +1394,28 @@ class SemanticAnalyzer:
             rx, ry = bbox.get("x", 0), bbox.get("y", 0)
             rw, rh = bbox.get("width", 0), bbox.get("height", 0)
             pad = max(rw, rh) * 0.3  # 30% 外扩
+
+            # 只查 room bbox 扩充后覆盖的 cells
+            cx1 = int((rx - pad) / _TEXT_CELL)
+            cx2 = int((rx + rw + pad) / _TEXT_CELL)
+            cy1 = int((ry - pad) / _TEXT_CELL)
+            cy2 = int((ry + rh + pad) / _TEXT_CELL)
             nearby_texts = []
-            for tp in text_primitives:
-                tb = tp.bbox or {}
-                tx, ty = tb.get("x", 0), tb.get("y", 0)
-                tw, th = tb.get("width", 0), tb.get("height", 0)
-                # 检查是否在扩充 bbox 内
-                if (
-                    rx - pad <= tx <= rx + rw + pad
-                    and ry - pad <= ty <= ry + rh + pad
-                    and tx + tw <= rx + rw + pad
-                    and ty + th <= ry + rh + pad
-                ):
-                    txt = (tp.properties.get("text") or "").strip()
-                    if txt:
-                        nearby_texts.append(txt)
+            for gx in range(cx1, cx2 + 1):
+                for gy in range(cy1, cy2 + 1):
+                    for tp in text_grid.get((gx, gy), []):
+                        tb = tp.bbox or {}
+                        tx, ty = tb.get("x", 0), tb.get("y", 0)
+                        tw, th = tb.get("width", 0), tb.get("height", 0)
+                        if (
+                            rx - pad <= tx <= rx + rw + pad
+                            and ry - pad <= ty <= ry + rh + pad
+                            and tx + tw <= rx + rw + pad
+                            and ty + th <= ry + rh + pad
+                        ):
+                            txt = (tp.properties.get("text") or "").strip()
+                            if txt:
+                                nearby_texts.append(txt)
 
             adj_count = corridor_adj.get(ent.id, 0)
             rtype, confidence, override = infer_room_type(
