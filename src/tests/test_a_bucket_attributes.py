@@ -69,3 +69,55 @@ def test_floor_existing_area_not_overwritten():
     SemanticAnalyzer()._inject_floor_bbox_area([ent])
     assert ent.properties.get("area") == pytest.approx(50.0)
     assert ent.properties.get("area_source") is None
+
+
+# ── COUNT-001：仅 fire_zone/fire_compartment 作用域聚合 ──────
+
+
+def _zone(entity_id, x, y, w, h):
+    return SemanticEntity(entity_id, "fire_zone", {"x": x, "y": y, "width": w, "height": h})
+
+
+def _exit(entity_id, x, y):
+    return SemanticEntity(entity_id, "exit", {"x": x, "y": y, "width": 100, "height": 100})
+
+
+def test_zone_exit_count_inside():
+    """分区 100×100m 内含 1 个出口 → exit_count=1。"""
+    zone = _zone("Z1", 0, 0, 100000, 100000)
+    exits = [_exit("E1", 50000, 50000)]
+    SemanticAnalyzer()._inject_zone_exit_counts([zone] + exits)
+    assert zone.properties.get("exit_count") == 1
+    assert zone.properties.get("_exit_count_source") == "zone_bbox"
+
+
+def test_zone_exit_count_only_counts_inside():
+    """分区外出口不计入；分区内 2 个 → exit_count=2。"""
+    zone = _zone("Z1", 0, 0, 100000, 100000)
+    exits = [_exit("E1", 30000, 30000), _exit("E2", 70000, 70000), _exit("E3", 200000, 200000)]
+    SemanticAnalyzer()._inject_zone_exit_counts([zone] + exits)
+    assert zone.properties.get("exit_count") == 2
+
+
+def test_zone_without_exit_keeps_none():
+    """分区内没有出口实体 → 不写 0（缺符号不等于出口不足）。"""
+    zone = _zone("Z1", 0, 0, 100000, 100000)
+    far = _exit("E9", 300000, 300000)
+    SemanticAnalyzer()._inject_zone_exit_counts([zone, far])
+    assert zone.properties.get("exit_count") is None
+
+
+def test_floor_never_gets_exit_count():
+    """没有 fire_zone 时，floor 标签不得摊派全图出口数。"""
+    floor = _floor("FLOOR_2729", 560, 373, props={"text": "负一层地下室顶板结构降板"})
+    exits = [_exit("E1", 50000, 50000)]
+    SemanticAnalyzer()._inject_zone_exit_counts([floor] + exits)
+    assert floor.properties.get("exit_count") is None
+
+
+def test_small_zone_not_a_scope():
+    """bbox 小于 25㎡ 的分区（文字/图例块退化几何）不作为作用域。"""
+    zone = _zone("Z1", 0, 0, 2000, 2000)  # 4㎡
+    exits = [_exit("E1", 1000, 1000)]
+    SemanticAnalyzer()._inject_zone_exit_counts([zone] + exits)
+    assert zone.properties.get("exit_count") is None

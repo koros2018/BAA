@@ -16,6 +16,7 @@ from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES
 from .geometry import compute_iou, union_bbox, bbox_center, point_distance
 
 from .classify import (
+    _COMPARTMENT_MIN_AREA_MM2,
     _classify_entities,
     _classify_by_layer,
     _classify_by_geometry,
@@ -292,6 +293,11 @@ class SemanticAnalyzer:
         # 仅对真实闭合区域（closed=True 或 point_count>=3）落 bbox；
         # TEXT/MTEXT/LINE/ARC 不是空间范围，一律 None。
         self._inject_floor_bbox_area(entities)  # 操作
+
+        # Step 1.7b: 分区出口数量聚合
+        # 仅 fire_zone/fire_compartment 作为作用域；无分区时保持 None，
+        # 禁止把全图出口数摊派到 floor 标签/楼层线。
+        self._inject_zone_exit_counts(entities)  # 操作
 
         # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
         self._normalize_area_units(entities)  # 操作
@@ -1295,6 +1301,47 @@ class SemanticAnalyzer:
             props["area_m2"] = round(area_m2, 2)
             props["area_source"] = "bbox"
             props["_area_source"] = "bbox_floor_region"
+
+    def _inject_zone_exit_counts(self, entities) -> None:
+        """Step 1.7b：按 fire_zone/fire_compartment 聚合 exit_count。
+
+        作用域只认真实分区区域（bbox 面积 >= 25㎡，过滤文字/图例块）；
+        分区内没有出口实体时保持 None，不写 0——缺符号不等于出口不足。
+        floor 标签/楼层线不是空间范围，任何情况下都不摊派全图出口数。
+        """
+        zones = [e for e in entities if e.type in ("fire_zone", "fire_compartment")]
+        if not zones:
+            return
+        exits = [
+            e for e in entities
+            if e.type in ("exit", "exit_door", "safety_exit")
+            or (e.properties or {}).get("is_exit") is True
+        ]
+        if not exits:
+            return
+        for zone in zones:
+            props = zone.properties
+            if "exit_count" in props or props.get("count") is not None:
+                continue
+            bbox = zone.bbox or {}
+            bw = bbox.get("width", 0) or 0
+            bh = bbox.get("height", 0) or 0
+            if bw * bh < _COMPARTMENT_MIN_AREA_MM2:
+                continue
+            x1 = bbox.get("x", 0)
+            y1 = bbox.get("y", 0)
+            x2 = x1 + bw
+            y2 = y1 + bh
+            count = 0
+            for ex in exits:
+                eb = ex.bbox or {}
+                cx = (eb.get("x", 0) or 0) + (eb.get("width", 0) or 0) / 2
+                cy = (eb.get("y", 0) or 0) + (eb.get("height", 0) or 0) / 2
+                if x1 <= cx <= x2 and y1 <= cy <= y2:
+                    count += 1
+            if count > 0:
+                props["exit_count"] = count
+                props["_exit_count_source"] = "zone_bbox"
 
     def _normalize_area_units(self, entities) -> None:
         """Step 1.8：把实体面积统一折算为 m² 写入 area_m2。
