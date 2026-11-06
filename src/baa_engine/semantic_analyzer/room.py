@@ -883,7 +883,7 @@ def _try_detect_table(h: List[_Seg], v: List[_Seg], hb=None, vb=None) -> Optiona
         return None
 
     # P0-4 优化（2026-11-04）：判据重排——先算面积（判据 2）再算 CV（判据 1）。
-    # 实测 50MB 电气图 1968 对 (h,v) 中，面积判据过滤 99.8%（1036→3），
+    # 历史实测：50MB 电气图 1968 对 (h,v) 中，面积判据过滤 99.8%（1036→3），
     # 而 CV 判据只过滤 47%。先算面积可避免 99.8% 的 CV 计算（O(len) 两次），
     # 完全等价（判据为 AND 关系，顺序无关），_detect_table_regions 0.023s→0.016s。
 
@@ -966,8 +966,11 @@ def _detect_table_regions(segs: List[_Seg]) -> List[dict]:
 
     # P0-5 优化（2026-11-04）：预计算每个 cluster 的 bbox，避免 _try_detect_table
     # 内对每对 (h,v) 重复遍历 h+v 求 min/max。1968 对 × O(len(h)+len(v)) 的
-    # 面积计算降至 O(#clusters) 一次。_detect_table_regions 0.016s→0.002s（8×），
-    # 输出完全等价（bbox 合并为 min/max，与逐对遍历结果一致）。
+    # 面积计算降至 O(#clusters) 一次。历史实测 _detect_table_regions
+    # 0.016s→0.002s（8×），输出完全等价（bbox 合并为 min/max，与逐对遍历结果一致）。
+    # 2026-11-06 实测：_sweep_line_detect_rooms 整体 ≈0.056s（48.9MB 电气图，
+    # 宿主机负载 ≈50%），约占 analyze 总量（≈0.70s）的 8%；图例表格检测
+    # 已降至 0.002s 量级，不再是该阶段的成本中心。
     h_clusters = _cluster_by_length(h_all, _TABLE_LEN_TOL_REL)
     v_clusters = _cluster_by_length(v_all, _TABLE_LEN_TOL_REL)
 

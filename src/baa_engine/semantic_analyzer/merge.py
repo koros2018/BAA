@@ -57,8 +57,8 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
     #   4. 单实体类型跳过：不可能合并，不建 grid
     # P0-6 优化（2026-11-04）：预计算实体几何 (bx,by,bw,bh,area) 到数组，
     # 避免 grid 构建/查询中重复 e.bbox.get + max（103173 次 max + 85232 次 append）。
-    # 实测 merge 1.22s → 0.51s（P0-2）→ 0.26s（P0-6），输出等价。
-    # P0-9 优化（2026-11-05）：治理跨格爆炸（10119 实体 merge 仍占 0.201s / 21.3%）：
+    # 历史实测（P0-2/P0-6，2026-11-04）：merge 1.22s → 0.51s → 0.26s，输出等价。
+    # P0-9 优化（2026-11-05）：治理跨格爆炸（10119 实体 merge 当时仍占 0.201s / 21.3%）：
     #   1. 查询范围去掉 ±1 外扩：IoU>0.5 ⟹ 两框有正面积交集 ⟹ 必共享至少一格，
     #      故只查自身覆盖格即可，候选集为原外扩版的子集，且外扩多出的候选
     #      因无交集必被 IoU 过滤 → 输出严格等价（p50 实体查询格 12→2）。
@@ -68,6 +68,9 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
     #      与 max confidence 均顺序无关），故 sorted 无行为作用。
     #   4. 只扫 j>i：外层按下标升序，i 之前的实体必已 used，原逻辑对其全部跳过。
     #   5. 内联 IoU（复用预计算原值），省去每对 _compute_iou 的 dict 取键。
+    # T2 实测（2026-11-06，48.9MB 电气图 / 10119 实体）：0.201s → 0.056s
+    # （宿主机空闲窗口）；负载 ≈50% 时 ≈0.11s，约占 analyze 总量（≈0.70s）
+    # 的 15%。复杂度 O(n + Σ候选对数)，候选对数由同类型实体的网格重叠程度决定。
     CELL_SIZE = 1000.0  # mm
 
     # 预计算几何信息（避免重复 bbox.get + max）

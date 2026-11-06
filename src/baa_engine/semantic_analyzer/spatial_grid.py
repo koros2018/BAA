@@ -97,6 +97,7 @@ def nonempty_cells(grid: Dict[Tuple[int, int], List]) -> Set[Tuple[int, int]]:
     """返回 grid 中所有非空 cell 坐标集合。
 
     P0-6 优化：预计算非空 cell 集合，查询时跳过空 cell，
-    避免大量无效 dict.get（_bind_dimensions 曾因此 86 万次 get）。
+    避免大量无效 dict.get（历史：_bind_dimensions 曾因此 86 万次 get；
+    该函数在 T4 后已改为「按 gx 列 + 列内 gy 二分」，不再使用本接口）。
     """
     return set(grid.keys())

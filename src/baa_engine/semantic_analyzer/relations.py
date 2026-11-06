@@ -1,16 +1,24 @@
 """Spatial relations + dimension binding + attribute inference.
 
-V3（2026-11-04）：统一网格索引重构（P0-2）
+V3（2026-11-04）：网格索引重构（P0-2）
+T3（2026-11-06）：AABB 前置拒绝 + Phase 3/4 候选网格，去掉全量
+min_edge_distance 精确计算。
 
-改动摘要：
-  - CELL_SIZE 从 100mm 调至 1000mm（适配建筑尺度：墙长/房间跨度多在
-    数百~数千 mm 量级，1m cell 可避免 100mm cell 在大跨度实体上
-    生成数万个 cell 导致 MemoryError 的历史问题）
-  - 一次性构建网格：所有实体（不限类型）全部入格，一次构建、
-    五个阶段复用；消除原 Phase 1 仅对 <2000 实体构建相邻关系的限制
-  - Phase 1~4 全部改为邻域查询：候选从 O(n) 降至 O(k)（k<<n），
-    精确判定逻辑（min_edge_distance / is_inside 等）保持不变
-  - 输出关系数量、类型、阈值与 V2 完全等价（已通过 equivalence 验证）
+索引与复杂度：
+  - Phase 1：1000mm 实体格（expand=1），大数据量仅对关键类型建格，
+    O(候选实体 × 邻域 cell 内实体数)
+  - Phase 2：100mm 边坐标桶（x1/x2、y1/y2 分别入桶），
+    O(开洞数 × 桶候选数)
+  - Phase 3/4：1000mm 候选网格（door→corridor expand=1、
+    room→item expand=0），精确距离只对候选对计算
+  - Phase 5：adjacency 映射 + AABB 拒绝，O(房间数 × 门-墙映射数)
+  - 判定阈值与 V2 完全等价（adjacent 50mm / connects_to 200mm /
+    Phase 5 500mm，已通过 equivalence 验证）
+
+当前实测（2026-11-06，48.9MB 电气图 / 10119 实体 / 1680 条标注，
+宿主机负载 ≈50%）：_build_relations ≈0.05–0.07s，占 analyze 总量
+（≈0.70–0.74s）的 8% 左右。成本集中在 Phase 1/2 的网格构建与候选
+遍历；精确距离计算已被 AABB 前置拒绝降到候选对级别。
 """
 
 from typing import List, Dict, Optional, Tuple, Set
@@ -55,10 +63,13 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     - 包含关系（房间包含设备）
     - 房间-门间接连接（通过墙传递）
 
-    注：_build_relations 整体耗时 < 0.2s（占 total < 0.5%），
-    真正瓶颈在 _bind_dimensions（34.5s）。本函数保持与 V2 完全等价的
-    输出，网格辅助函数 _build_entities_grid / _grid_candidates 已在此
-    模块就位，将直接用于优化 _bind_dimensions。
+    注（2026-11-06 实测，48.9MB 电气图 / 10119 实体 / 1680 标注）：
+    _build_relations ≈0.05–0.07s，约占 analyze 总量（≈0.70–0.74s）的 8%；
+    当前大头是 _merge_overlapping（≈0.11s）与 _bind_dimensions（≈0.08s）。
+    本函数保持与 V2 完全等价的输出。
+    复杂度：Phase 1 O(候选实体 × 邻域 cell 内实体数)，Phase 2
+    O(开洞数 × 边坐标桶候选数)，Phase 3/4 候选网格 + AABB 前置拒绝，
+    Phase 5 O(房间数 × 门-墙映射数)。
     """
     relations = []
     n_entities = len(entities)
@@ -86,11 +97,10 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
 
     # ── Phase 1. 相邻关系（空间哈希网格）──
     # P0-2 优化（2026-11-04）：CELL_SIZE 从 100mm → 1000mm。
-    # 原 100mm 在 50MB 电气图上产生 40.7 万 cells（大量空 cell + 长墙跨
-    # 数百 cell），查询循环遍历海量重复 entries，Phase 1 占 1.88s。
-    # 改为 1000mm 后 cells 降至 1.3 万，输出完全等价（adj_count 一致），
-    # 耗时 1.88s → 0.038s（50×）。ADJACENT_THRESHOLD=50mm < 1000mm，
-    # 查询 expand=1 即可保证所有相邻对被覆盖。
+    # 100mm 时 50MB 电气图产生 40.7 万 cells（长墙跨数百 cell），查询循环
+    # 遍历大量重复 entries；1000mm 后 cells 降至约 1.3 万，输出完全等价
+    # （adj_count 一致）。ADJACENT_THRESHOLD=50mm < 1000mm，查询 expand=1
+    # 即可覆盖所有相邻对。当前 Phase 1 已不是热点（整函数 ≈0.05–0.07s）。
     _P1_CELL_SIZE = 1000.0
     # P0-9 后续（T3）：改嵌套 dict[gx][gy] 存实体下标，省去每格 tuple 构造。
     grid_p1: Dict[int, Dict[int, List[int]]] = {}
@@ -178,7 +188,7 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                         )
 
     # ── Phase 2. 墙体-门窗拓扑关系（edge-coordinate grid 加速）──
-    # P0-2 优化（2026-11-04）：原 O(W×O) 双循环耗时 0.37s。
+    # P0-2 优化（2026-11-04）：原 O(W×O) 双循环耗时 0.37s（历史值）。
     # 注意原始 dist_to_edge 只看 wall 四条边坐标到 opening center 的距离，
     # 不检查 wall 范围（一条 y 接近的水平墙即使 x 差 80m 也会匹配）。
     # 因此不能按 bbox 分桶——改为按边坐标值分桶：x1/x2 入 x_edge_grid，
@@ -415,7 +425,8 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                 )
 
     # ── Phase 5. 房间-门间接连接（通过墙传递）──
-    # 这一阶段用 adjacency + wall_rooms 哈希映射，本身不是瓶颈。
+    # 这一阶段用 adjacency + wall_rooms 哈希映射，复杂度 O(房间数 ×
+    # 门-墙映射数)，在整函数 0.05–0.07s 中占比很小。
     # T3：host_wall 查找改 id→wall 字典（原 next() 为 doors×walls 线性扫描）；
     #     距离同样先做 AABB 拒绝（dx>=500 或 dy>=500 ⟹ dist>=500）。
     wall_ids = {w.id for w in walls}
@@ -591,14 +602,14 @@ def _bind_dimensions(
     """尺寸标注绑定到实体，返回以实体 id 为键的属性绑定。
 
     V3（P0-2）：网格加速 + 距离平方预过滤
+    T4（2026-11-06）：网格查询改「按 gx 列 + 列内 gy 二分」定位，
+    替代每标注 21×21=441 次空 cell dict.get。
 
-    原实现：O(|D| × |E|) = 1680 × 10119 ≈ 17M 次迭代，每次都做 sqrt。
-    优化后：
-      1. 实体按 CELL_SIZE=1000mm 网格建索引
-      2. 每次 dim 只查 ref 点 ±_DIM_MATCH_MAX_DIST 范围内的网格
-         （expand=10 覆盖 10000mm，查询 21×21=441 cell）
-      3. 距离平方预过滤（d² < MAX²）避免 99% 无效 sqrt
-    预期提速：15-20x（34s → 2-3s）。
+    复杂度：O(|E|) 建格 + 每标注 O(命中列数 × 每列命中行数 × cell 内实体数)。
+
+    历史对照：原实现 O(|D| × |E|) = 1680 × 10119 ≈ 17M 次迭代、每次都做
+    sqrt，量级为 34.5s；当前实测 ≈0.08s（48.9MB 电气图 / 10119 实体 /
+    1680 标注，宿主机负载 ≈50%）。
     """
     bindings = {}
     if not entities or not dimensions:
