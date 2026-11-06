@@ -14,6 +14,8 @@ V3（2026-11-04）：统一网格索引重构（P0-2）
 """
 
 from typing import List, Dict, Optional, Tuple, Set
+import math
+from bisect import bisect_left, bisect_right
 from .models import SemanticEntity, SpatialRelation
 from .geometry import (
     min_edge_distance,
@@ -611,11 +613,17 @@ def _bind_dimensions(
         gy = int(cy / _BIND_CELL)
         grid.setdefault((gx, gy), []).append((cx, cy, ent))
 
-    # P0-6 优化（2026-11-04）：非空 cell 集合预过滤。
-    # 原实现对每个 dim 遍历 441 cells（expand=10 覆盖 10m），其中大部分是空 cell
-    # （grid 只有数千非空 cell）。预计算 nonempty 集合后，查询时跳过空 cell，
-    # dict.get 从 864820 次降至仅非空 cell 访问。matched 完全一致（1389）。
-    nonempty_cells = set(grid.keys())
+    # T4 优化（2026-11-06）：原实现每个 dim 遍历 441 个 (gx,gy) tuple 并各做
+    # 非空集合判断 + dict.get（1680×441≈74 万次 tuple 哈希）。改为
+    # 「gx 升序表 + 列内 gy 有序表 + 二分定位」：每 dim 仅 ≤21 次列定位与
+    # 列内二分，命中的非空 cell 才取实体。迭代顺序仍为 gx 升序 → gy 升序 →
+    # cell 内实体插入序，与原实现逐对一致（含并列打分的先后顺序）。
+    gx_keys = sorted({k[0] for k in grid})
+    gy_keys_by_gx: Dict[int, List[int]] = {}
+    for (gx, _gy) in grid:
+        gy_keys_by_gx.setdefault(gx, []).append(_gy)
+    for _gx in gy_keys_by_gx:
+        gy_keys_by_gx[_gx].sort()
 
     # ── 2. 逐 dim 查询邻域 cell ──
     _MAX_SQ = _DIM_MATCH_MAX_DIST * _DIM_MATCH_MAX_DIST
@@ -640,12 +648,18 @@ def _bind_dimensions(
         rx_bin = int(rx / _BIND_CELL)
         ry_bin = int(ry / _BIND_CELL)
 
-        # 查询 ref ± _EXPAND 范围内的网格 cell（跳过空 cell）
-        for gx in range(rx_bin - _EXPAND, rx_bin + _EXPAND + 1):
-            for gy in range(ry_bin - _EXPAND, ry_bin + _EXPAND + 1):
-                if (gx, gy) not in nonempty_cells:
-                    continue
-                for cx, cy, ent in grid.get((gx, gy), ()):
+        # 查询 ref ± _EXPAND 范围内的网格 cell（只遍历非空 cell，顺序不变）
+        i0 = bisect_left(gx_keys, rx_bin - _EXPAND)
+        i1 = bisect_right(gx_keys, rx_bin + _EXPAND)
+        ylo = ry_bin - _EXPAND
+        yhi = ry_bin + _EXPAND
+        for gi in range(i0, i1):
+            gx = gx_keys[gi]
+            gys = gy_keys_by_gx[gx]
+            j0 = bisect_left(gys, ylo)
+            j1 = bisect_right(gys, yhi)
+            for gj in range(j0, j1):
+                for cx, cy, ent in grid[(gx, gys[gj])]:
                     # 距离平方预过滤：避免 99% 无效 sqrt
                     ddx = rx - cx
                     ddy = ry - cy
@@ -654,8 +668,7 @@ def _bind_dimensions(
                         continue
 
                     # 精确距离（仅候选）
-                    import math as _math
-                    dist = _math.sqrt(dist_sq)
+                    dist = math.sqrt(dist_sq)
                     ratio = _dim_projection_ratio(dim, ent.bbox, orientation)
                     score = _dim_match_score(dist, ratio)
                     if score < best_score or (abs(score - best_score) < 1 and ratio > best_ratio):
