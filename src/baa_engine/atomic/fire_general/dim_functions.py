@@ -212,7 +212,12 @@ MODULE_FUNCS = [
         description="防烟楼梯间前室使用面积不应小于6.0sqm（GB50016-6.4.3）",
         category=FuncCategory.AREA,
         clause_id="GB50016-6.4.3",
-        target_entities={"staircase", "lobby", "anteroom"},
+        # T3: 前室是指「楼梯间前室」，不是楼梯本身（stair）。旧 target 含
+        # staircase 后经别名组 Group 1 命中 stair 的 bbox 面积（东莞通
+        # STAIR_988/3176/7839 被判 7.99/9.0/9.0㎡），语义错误。
+        # 别名组本身保留（其它规则仍需要 stair↔staircase 归并），
+        # 在判据层用显式目标优先修正：DIM-018 只认前室类实体。
+        target_entities={"lobby", "anteroom"},
         operator="ge",
         threshold=6.0,
         unit="sqm",
@@ -224,7 +229,7 @@ MODULE_FUNCS = [
         description="消防电梯与防烟楼梯间合用前室使用面积不应小于10.0sqm（GB50016-6.4.3）",
         category=FuncCategory.AREA,
         clause_id="GB50016-6.4.3",
-        target_entities={"lobby", "anteroom", "staircase"},
+        target_entities={"lobby", "anteroom"},
         operator="ge",
         threshold=10.0,
         unit="sqm",

@@ -1288,6 +1288,8 @@ class SemanticAnalyzer:
         通过查找附近的有效 room，将 room 的 area_m2 传播给这些标记实体。
 
         距离阈值：20m（20000mm），面积范围：0.5~500㎡。
+        T3：文字标注类实体（props["text"]）不再按最近中心传播，改为按
+        包含关系重建房间；重建不出时保持 area_m2 缺失（insufficient_evidence）。
         """
         # 收集有效 room 列表（有合理 area_m2）
         valid_rooms = []
@@ -1303,6 +1305,13 @@ class SemanticAnalyzer:
                         "area": area,
                         "cx": (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2,
                         "cy": (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2,
+                        # T3: 房间重建需要包含关系判定（bbox 相交/包含标签点）
+                        "bbox": {
+                            "x": bbox.get("x", 0) or 0,
+                            "y": bbox.get("y", 0) or 0,
+                            "width": bbox.get("width", 0) or 0,
+                            "height": bbox.get("height", 0) or 0,
+                        },
                     }
                 )
 
@@ -1331,6 +1340,33 @@ class SemanticAnalyzer:
             bbox = ent.bbox or {}
             cx = (bbox.get("x", 0) or 0) + (bbox.get("width", 0) or 0) / 2
             cy = (bbox.get("y", 0) or 0) + (bbox.get("height", 0) or 0) / 2
+
+            # T3: 文字标注（bbox 通常 300~600mm）没有物理面积，先按「标签点
+            # 落在哪个房间内」重建房间；重建不出则不传播——保留 area_m2 缺失
+            # 即 insufficient_evidence，避免用最近房间中心的面积给标签随机
+            # 赋值（东莞通 ANTECHAMBER_3274/6314/7087/9457 因此拿到
+            # 1.0~1.54㎡ 的假面积，被 DIM-018/DIM-019 判 critical）。
+            if ent.properties.get("text"):
+                containing = []
+                for room in valid_rooms:
+                    rb = room["bbox"]
+                    if rb["width"] <= 0 or rb["height"] <= 0:
+                        continue
+                    if (
+                        rb["x"] <= cx <= rb["x"] + rb["width"]
+                        and rb["y"] <= cy <= rb["y"] + rb["height"]
+                    ):
+                        # 前室合理面积区间：<2㎡ 是管井/设备间，>100㎡ 是整层轮廓
+                        if 2.0 <= room["area"] <= 100.0:
+                            containing.append(room)
+                if containing:
+                    # 重叠房间取最小面积（最具体的空间边界）
+                    best_room = min(containing, key=lambda r: r["area"])
+                    ent.properties["area_m2"] = best_room["area"]
+                    ent.properties["area_source"] = (
+                        f"reconstructed_from_{best_room['id']}"
+                    )
+                continue  # 重建不出 → 不传播（evidence 不足）
 
             # 找最近的有效 room
             best_room = None

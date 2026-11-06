@@ -137,6 +137,50 @@ def _target_groups_overlap(target_entities: List[str]) -> bool:
     return False
 
 
+# ── T3: 前室类条款语义归属（互斥分流）───────────────────────
+# 前室类条款（6㎡ 防烟前室 / 6㎡ 消防电梯前室 / 10㎡ 合用前室）在语义上
+# 互斥：一个前室不可能同时是「防烟楼梯间前室」与「合用前室」。别名组
+# Group 5 把 antechamber/staircase_lobby/lobby/elevator_lobby 归并后，
+# 同一实体被多条条款同时命中（东莞通 ANTECHAMBER_2083 被 AREA-002 +
+# DIM-018 + DIM-019 同时判，16 条重复 finding）。这里按实体语义把条款
+# 分到互斥的归属域，保证同一实体最多只有一条前室条款成立：
+#   - stair   → DIM-018（防烟楼梯间前室 ≥6㎡）
+#   - shared  → DIM-019（合用前室 ≥10㎡，需显式合用证据）
+#   - elevator / 泛化 lobby → AREA-002（消防电梯前室 ≥6㎡）
+_SHARED_LOBBY_FLAGS = (
+    "is_shared_lobby",
+    "shared_lobby",
+    "is_combined_lobby",
+    "combined_lobby",
+    "shared_with_fire_elevator",
+)
+_ELEVATOR_LOBBY_TYPES = {"elevator_lobby", "fire_elevator_lobby"}
+_STAIR_LOBBY_TYPES = {
+    "antechamber",
+    "staircase_lobby",
+    "smoke_proof_lobby",
+    "scissor_stair_lobby",
+}
+
+
+def _lobby_entity_kind(entity: Dict[str, Any]) -> str:
+    """返回前室实体的语义归属：shared / elevator / stair / ''（泛化 lobby）。"""
+    props = entity.get("properties") or {}
+    if any(props.get(k) for k in _SHARED_LOBBY_FLAGS):
+        return "shared"
+    subtype = entity.get("subtype") or props.get("subtype") or ""
+    if subtype in _ELEVATOR_LOBBY_TYPES:
+        return "elevator"
+    if subtype in _STAIR_LOBBY_TYPES:
+        return "stair"
+    etype = entity.get("type", "")
+    if etype in _ELEVATOR_LOBBY_TYPES:
+        return "elevator"
+    if etype in _STAIR_LOBBY_TYPES:
+        return "stair"
+    return ""
+
+
 @dataclass  # code
 class AtomicFunction:  # class definition
     """原子函数定义"""
@@ -879,13 +923,25 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "AREA-002":  # 消防电梯前室面积
+            # T3: 前室类条款互斥——防烟楼梯间前室归 DIM-018（6㎡）、
+            # 合用前室归 DIM-019（10㎡），AREA-002 只负责消防电梯前室。
+            # 旧口径经别名组 Group 5 把 antechamber 也纳入，导致同一实体
+            # 被 AREA-002/DIM-018/DIM-019 三条同时判（16 条重复 finding）。
+            if _lobby_entity_kind(entity) in ("stair", "shared"):
+                return None
             # YOLO 检测的实体 bbox 映射不精确，跳过面积判定
             if (
                 props.get("detection_source") == "yolo"
             ):  # condition: props.get("detection_source") == "yolo":
                 return None  # return: None
-            val = props.get("area", 0.0)  # function call
-            if val < 0.01:  # check: numeric comparison
+            # 面积口径：area_m2 为语义层权威面积，优先于 area/bbox。
+            # 旧逻辑只读 area，缺失时退 bbox：文字标注框（如 1971×1314mm）
+            # 被算成 2.5913㎡ → 正确面积 9.2/12.8/14.5㎡ 的前室被判 critical。
+            val = props.get("area_m2", 0.0) or props.get("area", 0.0)
+            if val < 0.01:
+                # TEXT 标注（文字框）无物理面积，bbox 不能代表房间范围
+                if props.get("text"):
+                    return None  # 无面积证据（insufficient_evidence）
                 # 从 bbox 宽高计算面积（mm²）
                 bw = entity.get("bbox", {}).get("width", 0)  # function call
                 bh = entity.get("bbox", {}).get("height", 0)  # function call
@@ -900,12 +956,19 @@ class AtomicFunction:  # class definition
             if val < 0.01:  # check: numeric comparison
                 return None  # 无面积数据，跳过判定
             if unit == "mm2":  # condition: unit == "mm2":
-                return val / 1000000.0  # return
-            if unit == "m2":  # condition: unit == "m2":
-                return val  # return
-            if val > 10000:  # check: numeric comparison
-                return val / 1000000.0  # return
-            return val  # return
+                val_m2 = val / 1000000.0  # return
+            elif unit == "m2":  # condition: unit == "m2":
+                val_m2 = val  # return
+            elif val > 10000:  # check: numeric comparison
+                val_m2 = val / 1000000.0  # return
+            else:
+                val_m2 = val
+            # T3: 前室面积 <2㎡ 视为识别噪声/换算异常（最小前室通常 ≥3㎡）。
+            # 1.0~1.54㎡ 的实测值来自「最近 room 中心」面积传播，实体本身是
+            # 350~525mm 的文字标签，不能作为确证违规（critical）的证据。
+            if val_m2 < 2.0:
+                return None  # 无可靠面积证据（insufficient_evidence）
+            return val_m2
 
         if func_id == "ATTR-003":  # 防火窗等级
             has_fire_rating = "fire_rating" in props or "rating" in props  # assignment
@@ -1060,10 +1123,27 @@ class AtomicFunction:  # class definition
                 if not vf:
                     return None  # 无排烟量属性，跳过判定
 
-            # P130: AREA-018/019/021 前室面积：极小 ante chamber（<2m²）几乎一定是误分类
+            # T3: DIM-018/DIM-019 与 AREA-002 的互斥归属（同一实体 ≤1 条）。
+            # 归属由实体语义决定（见 _lobby_entity_kind）：
+            #   stair → DIM-018（6㎡ 防烟楼梯间前室）
+            #   shared → DIM-019（10㎡ 合用前室，必须有显式合用证据）
+            # 无「合用」证据时不得按 10㎡ 判：旧口径对每个 antechamber 同时
+            # 判 6㎡ 与 10㎡ 两条互斥条款（东莞通 3274/6314/7087/9457）。
+            if func_id == "DIM-018" and _lobby_entity_kind(entity) != "stair":
+                return None
+            if func_id == "DIM-019" and _lobby_entity_kind(entity) != "shared":
+                return None
+
+            # P130: AREA-018/019/021/前室面积：极小 ante chamber（<2m²）几乎一定是误分类
             # 跨图纸复测（2026-11）：ANTECHAMBER_7087(0.77m²)/6314(1.0m²)/4915(1.87m²)
             # 极小面积不符合前室功能需求（最小前室通常 ≥3m²），疑似管道井/设备间误标
-            if func_id in ("AREA-018", "AREA-019", "AREA-021") and entity_type in (
+            if func_id in (
+                "AREA-018",
+                "AREA-019",
+                "AREA-021",
+                "DIM-018",
+                "DIM-019",
+            ) and entity_type in (
                 "antechamber",
                 "fire_elevator_lobby",
                 "scissor_stair_lobby",
@@ -1118,6 +1198,11 @@ class AtomicFunction:  # class definition
             if val < 0.01:  # check: numeric comparison
                 raw_area = props.get("area", 0.0)
                 if raw_area < 0.01:
+                    # T3: TEXT 标注（文字框）无物理面积。面积传播重建失败时
+                    # 不应用 bbox 兜底（如 1971×1314mm 文字框 → 2.59㎡ 假面积），
+                    # 返回 None 表达「证据不足」，不得据此判 critical。
+                    if props.get("text"):
+                        return None
                     # 权威口径都没值 → 尝试 bbox 兜底，但仅限白名单实体
                     if entity_type not in _bbox_area_allowed:
                         return None  # 标记实体，bbox 无物理意义，跳过

@@ -33,6 +33,9 @@ from collections import Counter
 
 from ...baa_engine.evac_width import WidthContext
 
+# P78/T3: 共享辅助函数
+from ._shared import _dedupe_lobby_area_findings
+
 # 防火分区疏散宽度聚合（专家复核 2026-11-02 根因 1）
 _AGG_WIDTH_FUNCS = {"DIM-006", "DIM-113"}
 
@@ -295,6 +298,9 @@ async def batch_review(
                         "confidence": r.confidence,
                     }
                 )
+
+            # T3: 前室类条款互斥兜底——同一实体最多保留一条面积 finding
+            details = _dedupe_lobby_area_findings(details)
 
             entity_types = Counter(e["type"] for e in entities)
             violation_count = Counter(d["clause_id"] for d in details)
@@ -583,6 +589,9 @@ async def batch_review_stream(
                 if severity != "critical":
                     detail["severity"] = severity
                 details.append(detail)
+
+            # T3: 前室类条款互斥兜底——同一实体最多保留一条面积 finding
+            details = _dedupe_lobby_area_findings(details)
 
             entity_types = Counter(e["type"] for e in entities)
             violation_count = Counter(d["clause_id"] for d in details)

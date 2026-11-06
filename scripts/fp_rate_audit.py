@@ -29,6 +29,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.baa_engine.atomic_functions import FuncRegistry
+from src.api.review._shared import _dedupe_lobby_area_findings
 from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.evac_width import WidthContext
 from src.baa_engine.scope_aggregator import aggregate_exist_in_scopes, build_scopes
@@ -259,6 +260,9 @@ def run_review(dxf_path: Path) -> dict:
             scope_info,
             "exist_scope",
         )
+
+    # ── T3: 前室类条款互斥（与 review_routes 同口径）──
+    findings = _dedupe_lobby_area_findings(findings)
 
     # ── P0-2: 规则可达性（coverage）──
     # 与 review_routes 同口径：applicable = matches()（含类型别名归并）命中，

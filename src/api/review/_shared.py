@@ -62,6 +62,45 @@ def _derive_compliance_path(d: dict) -> str:
     return "参照对应规范条款，逐项整改"
 
 
+# ── T3: 前室类条款互斥（同一实体 findings ≤1）────────────────
+# 前室类条款之间是语义互斥关系：一个前室只能是「防烟楼梯间前室」（6㎡）、
+# 「消防电梯前室」（6㎡）或「合用前室」（10㎡）之一。判据层（
+# atomic_functions._lobby_entity_kind）已按实体语义把条款分流，这里再做
+# 结果级兜底：同一 entity_id 只保留阈值最严 / 归属最具体的一条，防止
+# AREA-018/019/021 与 DIM-018 等灰度条款对同一实体重复计罚（评分重复扣分）。
+_LOBBY_AREA_FUNC_PRIORITY = {
+    "DIM-019": 5,  # 合用前室 10㎡（最严）
+    "DIM-018": 4,  # 防烟楼梯间前室 6㎡
+    "AREA-021": 3,  # 剪刀楼梯间前室 6㎡
+    "AREA-019": 2,  # 消防电梯前室 6㎡
+    "AREA-002": 1,  # 消防电梯前室 6㎡（泛化 lobby）
+    "AREA-018": 0,  # 防烟楼梯间前室 4.5㎡（最宽）
+}
+
+
+def _dedupe_lobby_area_findings(details: list[dict]) -> list[dict]:
+    """T3: 同一前室实体只保留优先级最高的一条面积 finding。"""
+    kept: list[dict] = []
+    index: dict[str, int] = {}
+    for d in details:
+        fid = d.get("func_id")
+        eid = d.get("entity_id")
+        if fid not in _LOBBY_AREA_FUNC_PRIORITY or not eid:
+            kept.append(d)
+            continue
+        prev = index.get(eid)
+        if prev is None:
+            index[eid] = len(kept)
+            kept.append(d)
+            continue
+        if _LOBBY_AREA_FUNC_PRIORITY[fid] > _LOBBY_AREA_FUNC_PRIORITY.get(
+            kept[prev].get("func_id"), -1
+        ):
+            kept[prev] = d
+    return kept
+
+
+
 def _build_structured_summary(details: list[dict]) -> dict:
     """P62: 从 details 生成结构化摘要。"""
     if not details:

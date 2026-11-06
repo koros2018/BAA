@@ -41,6 +41,7 @@ from ._shared import (
     _confidence_tier,
     _classify_priority,
     _derive_compliance_path,
+    _dedupe_lobby_area_findings,
     _build_structured_summary,
     COMPLIANCE_GUIDE,
     THERMAL_MATERIALS,
@@ -979,6 +980,9 @@ async def review(  # code
         _get_rq().fail(task_id, str(e))
         raise
 
+    # T3: 前室类条款互斥兜底——同一实体最多保留一条面积 finding
+    details = _dedupe_lobby_area_findings(details)
+
     elapsed = int((time.time() - start) * 1000)  # get current time
 
     # ── 统计 ─────────────────────────────────────────────────
@@ -1603,6 +1607,9 @@ async def review_from_data(  # code
         # registry_funcs 在 _do_clustering_from_data 内部已重新 list_all，
         # 这里重新获取供后续 total_checks 统计使用
         registry_funcs = _get_fr().list_all()
+
+        # T3: 前室类条款互斥兜底——同一实体最多保留一条面积 finding
+        details = _dedupe_lobby_area_findings(details)
 
         elapsed = int((time.time() - start) * 1000)
         entity_types = Counter(e["type"] for e in entities)
