@@ -186,6 +186,20 @@ class AtomicFunction:  # class definition
         # 1. 精确匹配
         if ent_type in self.target_entities:
             return True
+        # 1c. doorway 语义门禁（T2）：门洞/墙开口默认不是疏散门或安全出口。
+        #    doorway 与 exit_door 同属别名组 5，若放行会把全部墙洞计入
+        #    “出口/疏散门”类规则的适用面（东莞通 277 个门洞 → DIM-113 误报 21 条）。
+        #    仅当规则显式以 doorway 为目标（DIM-006/009 洞口净宽）或实体带显式
+        #    疏散标注（is_evacuation_door/evacuation_door/疏散 subtype）才匹配。
+        if ent_type == "doorway":
+            props = entity.get("properties") or {}
+            explicit = (
+                props.get("is_evacuation_door")
+                or props.get("evacuation_door")
+                or entity.get("subtype") in ("evacuation_door", "room_door", "exit_door")
+            )
+            if not explicit:
+                return False
         # 1b. subtype 语义匹配（P0-1 空间上下文识别）
         #    TEXT 标注 → inferred_type → subtype（如 room/subtype=lobby）。
         #    特化规则（AREA-002 前室、AREA-004 控制室等）target 含特化类型，
@@ -446,8 +460,11 @@ class AtomicFunction:  # class definition
                     or props.get("evacuation_door")
                     or entity.get("subtype") in ("evacuation_door", "room_door")
                 )
-                if etype == "door" and not explicit:  # check: applicability
-                    return None  # 普通门适用性未知，不判疏散门净宽
+                # T2: doorway（墙洞/开口）同口径——未标注疏散语义的门洞不是
+                # 「房间疏散门」。matches() 的 doorway 门禁已拦截适用面，这里再做
+                # 提取层兜底（execute_chained 逐实体执行不经过 matches）。
+                if etype in ("door", "doorway") and not explicit:  # check: applicability
+                    return None  # 普通门/门洞适用性未知，不判疏散门净宽
             # DIM-113 bbox 合理性：非门实体（线/TEXT/hatch）误分类为 door 时，
             # bbox 一边接近 0（如 bbox_h=0 的线，bbox_w=0 的线，或 TEXT 框）。
             # 跨图纸复测（2026-10，35 条）：DOOR_FIRE_TEXT / THIN / COLU_HATCH /

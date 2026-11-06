@@ -167,3 +167,81 @@ class TestBackwardCompatibility:
         result = f.execute({"type": "exit_door", "properties": {"width": 1.0}})
         assert result is not None
         assert result.result == "FAIL"
+
+
+class TestT2DoorwayEvacGate:
+    """T2: doorway 默认不具备疏散门/安全出口语义。
+
+    根本原因：doorway 与 exit_door 同属别名组 5，门洞会经别名归并被出口类
+    规则命中（DIM-113 在东莞通把 277 个门洞当疏散门判，产出 21 条误报）。
+    修复在判据层：matches() 增加 doorway 语义门禁 + DIM-113 提取守卫同口径，
+    别名组保持不变——规则显式以 doorway 为目标（DIM-006/009）或实体带显式
+    疏散标注时判定不受影响。
+    """
+
+    _BBOX = {"width": 0.9, "height": 0.06}
+
+    def test_dim113_not_match_plain_doorway(self, registry):
+        f = registry.get("DIM-113")
+        assert not f.matches({"type": "doorway", "properties": {"width": 0.75}})
+
+    def test_dim113_match_explicit_doorway(self, registry):
+        f = registry.get("DIM-113")
+        assert f.matches(
+            {"type": "doorway", "properties": {"width": 0.75, "is_evacuation_door": True}}
+        )
+
+    def test_dim113_plain_doorway_skipped(self, registry):
+        """门洞 0.75m 无疏散标注 → None（不再判房间疏散门净宽）"""
+        f = registry.get("DIM-113")
+        result = f.execute(
+            {
+                "type": "doorway",
+                "bbox": self._BBOX,
+                "properties": {"width": 0.75},
+            }
+        )
+        assert result is None
+
+    def test_dim113_explicit_doorway_still_judged(self, registry):
+        """显式标注的门洞 0.75m → 仍判 FAIL（召回不降）"""
+        f = registry.get("DIM-113")
+        result = f.execute(
+            {
+                "type": "doorway",
+                "bbox": self._BBOX,
+                "properties": {"width": 0.75, "is_evacuation_door": True},
+            }
+        )
+        assert result is not None
+        assert result.result == "FAIL"
+        assert result.actual == pytest.approx(0.75)
+
+    def test_exist061_not_match_plain_doorway(self, registry):
+        """doorway 不再计入安全出口存在性（EXIST-061）"""
+        assert not registry.get("EXIST-061").matches(
+            {"type": "doorway", "properties": {"width": 0.75}}
+        )
+
+    def test_exist068_not_match_plain_doorway(self, registry):
+        assert not registry.get("EXIST-068").matches(
+            {"type": "doorway", "properties": {"width": 0.75}}
+        )
+
+    def test_dim021_not_match_plain_doorway(self, registry):
+        assert not registry.get("DIM-021").matches(
+            {"type": "doorway", "properties": {"width": 0.75}}
+        )
+
+    def test_doorway_explicit_rules_still_match(self, registry):
+        """显式以 doorway 为目标的规则不受门禁影响"""
+        for fid in ("DIM-006", "DIM-009"):
+            assert registry.get(fid).matches(
+                {"type": "doorway", "properties": {"gap_width_mm": 1500}}
+            )
+
+    def test_exit_door_unaffected(self, registry):
+        """显式 exit_door 实体判定与匹配保持原状"""
+        f = registry.get("DIM-113")
+        assert f.matches({"type": "exit_door", "properties": {"width": 1.0}})
+
