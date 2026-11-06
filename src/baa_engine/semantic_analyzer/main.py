@@ -50,6 +50,27 @@ def _layer_fire_rating(layer: str) -> Optional[Tuple[float, str]]:
     return None
 
 
+# ARC 门实体：bbox 是整段圆弧的外接正方形（边长 = 直径 = 2r），
+# 而门宽语义是门扇扫掠半径 r。直接用 bbox 会得到 2 倍错值。
+_DOOR_WIDTH_TYPES = {
+    "door", "fire_door", "exit_door", "doorway", "accessible_door",
+}
+
+
+def _arc_radius_width_m(radius) -> Optional[float]:
+    """弧半径 → 门宽（米）。≤3 视为米制，>3 视为毫米制（同小构件口径）。"""
+    try:
+        r = float(radius)
+    except (TypeError, ValueError):
+        return None
+    if r <= 0:
+        return None
+    w_m = r if r <= 3.0 else r / 1000.0
+    if 0.05 <= w_m <= 3.0:
+        return w_m
+    return None
+
+
 class SemanticAnalyzer:
     ADJACENT_THRESHOLD = 50.0  # 相邻距离阈值(mm)
 
@@ -229,8 +250,17 @@ class SemanticAnalyzer:
         # Step 1.6: door/fire_door/doorway 属性增强（宽度兜底 + 防火等级推断）
         for ent in entities:  # 循环
             if ent.type in ("door", "fire_door", "exit_door", "doorway"):  # check: membership test
+                # ARC 门宽权威口径：bbox 是圆弧外接正方形（边长=直径=2r），
+                # 门宽应取半径。此处覆盖上游策略可能写入的 2× 错值。
+                radius = ent.properties.get("radius")
+                w_arc = _arc_radius_width_m(radius) if radius is not None else None
+                if w_arc is not None and ent.type in _DOOR_WIDTH_TYPES:  # ARC 门
+                    ent.properties["width"] = w_arc  # 操作
+                    ent.properties["clear_width"] = w_arc  # 操作
+                    ent.properties["_width_source"] = "arc_radius"  # 操作
+                    ent.properties["width_basis"] = "arc_radius"  # 操作
                 # 宽度兜底：bbox长边优先推断（门扇的宽度是长边，短边是门扇厚度）
-                if (
+                elif (
                     ent.properties.get("width", 0) < 0.3
                     and ent.properties.get("clear_width", 0) < 0.3
                 ):  # check: numeric comparison
@@ -258,6 +288,9 @@ class SemanticAnalyzer:
                         if 0.3 < w_m < 3.0:  # check: numeric comparison
                             ent.properties["width"] = w_m  # 操作
                             ent.properties["clear_width"] = w_m  # 操作
+                            # LINE 门扇线：bbox 一维≈0，长边即扇线长
+                            if short_edge <= 1.0:  # check: numeric comparison
+                                ent.properties["width_basis"] = "leaf"  # 操作
                 # 防火等级推断：仅接受图层名里的中文等级字（甲/乙/丙）。
                 # 删除裸 A/B/C 单字母推断——普通图层名（A-WALL/B-DOOR 等）
                 # 会被误判成等级；类型或字母本身不能代替等级。
@@ -1052,13 +1085,16 @@ class SemanticAnalyzer:
                 ):  # check: numeric comparison
                     ent.properties["width"] = w_m  # 操作
                     ent.properties["clear_width"] = w_m  # 操作
-            # LINE 类型（短边≈0）：用长边作为宽度
+            # LINE 类型（短边≈0）：用长边作为宽度（扇线长）
             if ent.properties.get("width", 0) < 0.3:  # check: numeric comparison
                 span_mm = max(bw, bh)  # assign
                 if 300 < span_mm < 2000:  # 300mm~2m
                     w_m = span_mm * 0.001  # assign
                     ent.properties["width"] = w_m  # 操作
                     ent.properties["clear_width"] = w_m  # 操作
+                    # 退化 bbox（一维=0）= LINE 门扇线；宽度语义 = 扇线长
+                    if min(bw, bh) == 0:  # check: numeric comparison
+                        ent.properties["width_basis"] = "leaf"  # 操作
             # Polygon 类 door（闭合多边形）：短边可能是门扇厚度，用长边推断宽度
             if ent.properties.get("width", 0) < 0.3:  # check: numeric comparison
                 long_edge_mm = max(bw, bh)  # assign

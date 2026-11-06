@@ -237,3 +237,63 @@ def test_non_room_not_affected():
                 ent.properties["area"] = round(area_m2, 2)
                 ent.properties["_area_source"] = "bbox_fallback"
     assert "area" not in entities[0].properties
+
+
+# ── 5. ARC 门宽度语义：bbox=直径，宽度=半径 ────────────────
+
+
+def test_arc_door_width_uses_radius_not_bbox_diameter():
+    """ARC 门 bbox 是圆弧外接正方形（边长=2r），width 必须取半径 r。"""
+    from src.baa_engine.drawing_parser import RawPrimitive
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+    prim = RawPrimitive(
+        dxf_type="ARC",
+        layer="0",
+        handle="ARC1",
+        bbox={"x": 0.0, "y": 0.0, "width": 1800.0, "height": 1800.0},
+        properties={"radius": 900.0, "start_angle": 0.0, "end_angle": 90.0},
+    )
+    out = SemanticAnalyzer().analyze([prim], [], block_refs=None)
+    doors = [e for e in out["entities"] if e["type"] == "door"]
+    assert doors, "ARC 应分类为 door"
+    props = doors[0]["properties"]
+    assert props["width"] == pytest.approx(0.9)
+    assert props["clear_width"] == pytest.approx(0.9)
+    assert props["_width_source"] == "arc_radius"
+    assert props["width_basis"] == "arc_radius"
+
+
+def test_line_door_width_basis_leaf():
+    """LINE 门扇线：bbox 退化，宽度=扇线长，width_basis=leaf。"""
+    from src.baa_engine.drawing_parser import RawPrimitive
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+    prim = RawPrimitive(
+        dxf_type="LINE",
+        layer="0",
+        handle="L1",
+        bbox={"x": 0.0, "y": 0.0, "width": 900.0, "height": 0.0},
+        properties={
+            "length": 900.0,
+            "angle": 0.0,
+            "start_point": {"x": 0.0, "y": 0.0},
+            "end_point": {"x": 900.0, "y": 0.0},
+        },
+    )
+    out = SemanticAnalyzer().analyze([prim], [], block_refs=None)
+    doors = [e for e in out["entities"] if e["type"] == "door"]
+    assert doors, "900mm LINE 应分类为 door"
+    props = doors[0]["properties"]
+    assert props["width"] == pytest.approx(0.9)
+    assert props["width_basis"] == "leaf"
+
+
+def test_arc_radius_width_m_unit_heuristic():
+    """弧半径单位口径：>3 视为 mm，≤3 视为米。"""
+    from src.baa_engine.semantic_analyzer.main import _arc_radius_width_m
+
+    assert _arc_radius_width_m(900.0) == pytest.approx(0.9)
+    assert _arc_radius_width_m(1.2) == pytest.approx(1.2)
+    assert _arc_radius_width_m(0) is None
+    assert _arc_radius_width_m(None) is None
