@@ -45,6 +45,46 @@ def _is_landscape_layer(layer: str) -> bool:
 # 分隔线/文字/图例块等退化几何，不误杀真实小分区。
 _COMPARTMENT_MIN_AREA_MM2 = 25e6
 
+# 闭合多边形不可能是房间的图层关键词（原为 _classify_by_geometry 内每次
+# 调用都重建的 36 项 list，提为模块常量避免重复构造）。
+_NON_ROOM_LAYER_KEYWORDS = (
+    "COLU",
+    "视口",
+    "洞口",
+    "板边",
+    "梁边",
+    "轴",
+    "BASE",
+    "梁",
+    "吊筋",
+    "板层",
+    "文字",
+    "钢筋",
+    "标注",
+    "DIM",
+    "立面看线",
+    "立面",
+    "看线",
+    "园林",
+    "井",
+    "电-",
+    "电气",
+    "照明",
+    "插座",
+    "弱电",
+    "消防",
+    "火灾",
+    "报警",
+    "系统",
+    "设备",
+    "电缆",
+    "WIRE",
+    "线槽",
+    "DOTLN",
+    "DOT",
+    "Defpoints",
+)
+
 
 def _is_compartment_region(prim: RawPrimitive) -> bool:
     """分区实体须为真实区域几何：闭合多边形/HATCH 且 bbox 面积达标。
@@ -101,6 +141,8 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
 
     for prim in primitives:
         self._classify_total += 1
+        # properties 是本循环最热的取键对象（每图元 5+ 次），先取一次局部变量。
+        props = prim.properties
         # P101: PDF 源数据预过滤——来自 pdf_parser 的线条全在 "lines" 层，
         # 大量短装饰线（<300mm）和短斜线（标注线/文字笔画）混入。
         # 这些线段对建筑审查无意义，直接跳过可消除 60% 噪声。
@@ -111,7 +153,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             if length < 300:
                 continue
             if length < 2000:
-                angle = abs(prim.properties.get("angle", 0) or 0) % 180
+                angle = abs(props.get("angle", 0) or 0) % 180
                 if 5 < angle < 85 or 95 < angle < 175:
                     continue
 
@@ -120,11 +162,11 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         # 柱 = COLUMN 层上的 _FZH 块；窗 = 四线符号或 WINLIB 块，四线需按 gid 合并；
         # 墙 = WALL 层双线，按识别器实例 gid 合并为单墙（中心线+厚度），
         # 否则两个面各产一个墙实体、无厚度/长度实例语义。
-        t3_native = prim.properties.get("_t3_native")
-        t3_gid = prim.properties.get("_t3_window_gid")
-        t3_wall_gid = prim.properties.get("_t3_wall_gid")
+        t3_native = props.get("_t3_native")
+        t3_gid = props.get("_t3_window_gid")
+        t3_wall_gid = props.get("_t3_wall_gid")
         # 全量墙实例 seg（含共享面线的其他共线实例），供循环后回填
-        t3_wall_segs = prim.properties.get("_t3_wall_segs")
+        t3_wall_segs = props.get("_t3_wall_segs")
         if t3_wall_segs:
             self._t3_wall_segs.update(t3_wall_segs)
         bbox_override = None
@@ -133,7 +175,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 continue
             self._t3_wall_seen.add(t3_wall_gid)
             entity_type = "wall"
-            seg = prim.properties.get("_t3_wall_seg")
+            seg = props.get("_t3_wall_seg")
             if seg:
                 t = seg.get("thickness") or 0.0
                 s = min(seg["start"], seg["end"])
@@ -157,7 +199,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
                 if t3_gid in self._t3_window_seen:
                     continue
                 self._t3_window_seen.add(t3_gid)
-                bbox_override = prim.properties.get("_t3_window_bbox")
+                bbox_override = props.get("_t3_window_bbox")
             entity_type = t3_native if t3_gid is None else "window"
         else:
             entity_type = None
@@ -187,7 +229,7 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         if entity_type in ("fire_compartment", "fire_zone") and not _is_compartment_region(prim):
             entity_type = "other"
 
-        if prim.properties.get("_block_default"):
+        if props.get("_block_default"):
             self._classify_block_default += 1
 
         if entity_type == "unknown":  # condition: entity_type == "unknown":
@@ -198,16 +240,11 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             self._classify_other += 1
 
         self._entity_counter += 1
-        # 过滤 NaN properties
-        cleaned_props = {}
-        for pk, pv in prim.properties.items():  # 循环
-            if isinstance(pv, float):  # condition: isinstance(pv, float):
-                import math  # stdlib: math functions
-
-                if not math.isnan(pv):  # check: negated condition
-                    cleaned_props[pk] = pv
-            else:  # 否则
-                cleaned_props[pk] = pv
+        # 过滤 NaN properties（NaN 是唯一满足 v != v 的 float，等价于
+        # 原 isinstance(float) + math.isnan，且免去循环内 import math）
+        cleaned_props = {
+            pk: pv for pk, pv in props.items() if not (isinstance(pv, float) and pv != pv)
+        }
         entity = SemanticEntity(
             entity_id=f"{entity_type.upper()}_{self._entity_counter:03d}",
             entity_type=entity_type,
@@ -397,44 +434,7 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
             if area == 0 and pts_count == 2:  # check: numeric comparison
                 return "other"
             # 图层排除：非建筑图层上的闭合多边形不可能是房间
-            non_room_layers = [
-                "COLU",
-                "视口",
-                "洞口",
-                "板边",
-                "梁边",
-                "轴",
-                "BASE",
-                "梁",
-                "吊筋",
-                "板层",
-                "文字",
-                "钢筋",
-                "标注",
-                "DIM",
-                "立面看线",
-                "立面",
-                "看线",
-                "园林",
-                "井",
-                "电-",
-                "电气",
-                "照明",
-                "插座",
-                "弱电",
-                "消防",
-                "火灾",
-                "报警",
-                "系统",
-                "设备",
-                "电缆",
-                "WIRE",
-                "线槽",
-                "DOTLN",
-                "DOT",
-                "Defpoints",
-            ]
-            if any(kw in prim.layer.upper() for kw in non_room_layers):  # check: membership test
+            if any(kw in prim.layer.upper() for kw in _NON_ROOM_LAYER_KEYWORDS):  # check: membership test
                 if aspect_ratio > 3:  # check: numeric comparison
                     return "other"
                 return "wall"
