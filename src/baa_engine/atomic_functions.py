@@ -168,6 +168,12 @@ def _lobby_entity_kind(entity: Dict[str, Any]) -> str:
     props = entity.get("properties") or {}
     if any(props.get(k) for k in _SHARED_LOBBY_FLAGS):
         return "shared"
+    # 文字标注是最直接的设计意图证据（如「合用前室」「消防电梯前室」）
+    text = str(props.get("text") or "")
+    if "合用" in text:
+        return "shared"
+    if "消防电梯" in text:
+        return "elevator"
     subtype = entity.get("subtype") or props.get("subtype") or ""
     if subtype in _ELEVATOR_LOBBY_TYPES:
         return "elevator"

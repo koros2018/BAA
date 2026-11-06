@@ -88,6 +88,13 @@ class TestLobbyExclusivity:
         assert registry.get("AREA-002").execute(ent).result == "FAIL"
         assert registry.get("DIM-018").execute(ent) is None
 
+    def test_text_label_shared_lobby_owned_by_dim019(self, registry):
+        """文字标注「合用前室」是显式合用证据 → 归 DIM-019（10㎡）。"""
+        ent = {"type": "antechamber", "properties": {"text": "合用前室", "area_m2": 12.0}}
+        assert registry.get("DIM-019").execute(ent).result == "PASS"
+        assert registry.get("DIM-018").execute(ent) is None
+        assert registry.get("AREA-002").execute(ent) is None
+
 
 class TestArea002ValueSource:
     """AREA-002 面积口径：area_m2 优先，文字框不做 bbox 兜底"""
