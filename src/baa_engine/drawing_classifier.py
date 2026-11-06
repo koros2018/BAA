@@ -8,10 +8,57 @@ from typing import Dict, Any
 
 # ── 分类规则 ──────────────────────────────────────────────
 
+
+def _is_ascii_alpha(ch: str) -> bool:
+    return ch.isascii() and ch.isalpha()
+
+
+# 需要按词元边界匹配的短 ASCII 关键词最大长度
+# 例：EL / STR / MEP / ELT 太短，用 `in` 会把 elevator / instrument / shelter 误吃
+_SHORT_TOKEN_MAX_LEN = 3
+
+
+def _kw_match(keyword: str, text_lower: str) -> bool:
+    """关键词匹配：短 ASCII 词元走边界匹配，其余保持子串匹配（T5）。
+
+    历史问题：`"EL"` 用 `in` 匹配时 `elevator` / `level` / `panel` 都会命中，
+    导致消防电梯图被判成电气图并跳过审查。
+
+    规则：
+    - 长度 ≤3、首尾均为 ASCII 字母数字的关键词（EL/STR/MEP/ELT…）要求
+      两侧不是 ASCII 字母（数字/下划线/连字符视为分隔），即按词元边界匹配；
+      `EL` 命中 `EL` / `EL1` / `EL_1` / `EL-POWER`，不命中 `elev` / `panel`。
+    - CJK 关键词保持子串（中文无需分词）。
+    - 长英文关键词保持子串（`electric` 需命中 `electrical`，`VENT` 需命中
+      `VENTILATION`，`REIN` 需命中 `REINFORCED`）。
+    - 以分隔符收尾的关键词（`EL_` / `FE_` / `STR_` / `DWG_`）首尾非字母数字，
+      也保持子串语义。
+    """
+    kw = keyword.lower()
+    if not kw:
+        return False
+    if (
+        len(kw) > _SHORT_TOKEN_MAX_LEN
+        or not kw.isascii()
+        or not (_is_ascii_alpha(kw[0]) or kw[0].isdigit())
+        or not (_is_ascii_alpha(kw[-1]) or kw[-1].isdigit())
+    ):
+        return kw in text_lower
+    pos = text_lower.find(kw)
+    while pos >= 0:
+        end = pos + len(kw)
+        left_ok = pos == 0 or not _is_ascii_alpha(text_lower[pos - 1])
+        right_ok = end >= len(text_lower) or not _is_ascii_alpha(text_lower[end])
+        if left_ok and right_ok:
+            return True
+        pos = text_lower.find(kw, pos + 1)
+    return False
+
+
 # 文件名关键词 → 类型（优先级从高到低）
 _FILENAME_RULES: Dict[str, list] = {
     "结构": ["结构", "STR", "structure", "梁", "柱", "板", "基础", "基础", "配筋", "结构图"],
-    "电气": ["电气", "配电", "动力", "照明", "火灾自动报警", "消防", "气体灭火", "EL", "electric"],
+    "电气": ["电气", "配电", "动力", "照明", "火灾自动报警", "消防", "气体灭火", "EL", "ELEC", "electric"],
     "暖通": ["暖通", "通风", "HVAC", "空调", "给排水", "消防水", "水消防", "给排水", "MEP", "水暖"],
     "建筑": ["建筑", "ARCH", "architectural", "平面", "立面", "剖面", "楼层", "总平面"],
 }
@@ -45,6 +92,7 @@ _LAYER_RULES: Dict[str, list] = {
     ],
     "电气": [
         "EL_",
+        "EL",
         "ELEC",
         "POWER",
         "LIGHT",
@@ -142,6 +190,7 @@ _LAYER_PATTERN_HINTS: Dict[str, list] = {
     ],
     "电气": [
         "EL_",
+        "EL",
         "ELEC",
         "distribution",
         "配电",
@@ -183,7 +232,7 @@ def classify_drawing(
     # 1. 文件名匹配（权重最高，一次命中即盖过 layer 总和）
     for dtype, keywords in _FILENAME_RULES.items():
         for kw in keywords:
-            if kw.lower() in filename_lower:
+            if _kw_match(kw, filename_lower):
                 scores[dtype] = scores.get(dtype, 0) + 10
                 reasons.setdefault(dtype, []).append(f"文件名含'{kw}'")
 
@@ -194,7 +243,7 @@ def classify_drawing(
             weight = 1.0 if dtype != "建筑" else 0.3
             for kw in keywords:
                 for layer in layer_names:
-                    if kw.lower() in layer.lower():
+                    if _kw_match(kw, layer.lower()):
                         scores[dtype] = scores.get(dtype, 0) + weight
                         reasons.setdefault(dtype, []).append(f"图层'{layer}'匹配'{kw}'")
                         break  # 每个关键词只计一次
@@ -226,7 +275,7 @@ def classify_drawing(
             matched_layers = []
             for pattern in patterns:
                 for layer in layer_names:
-                    if pattern.lower() in layer.lower():
+                    if _kw_match(pattern, layer.lower()):
                         matched_layers.append(layer)
                         break
             if matched_layers:

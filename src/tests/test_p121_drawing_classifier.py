@@ -10,7 +10,11 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.baa_engine.drawing_classifier import classify_drawing, is_likely_corrupt
+from src.baa_engine.drawing_classifier import (
+    classify_drawing,
+    is_likely_corrupt,
+    _kw_match,
+)
 
 
 class TestClassifyByFilename:
@@ -87,6 +91,82 @@ class TestClassifyByLayers:
             layer_names=["HVAC_DUCT", "PIPE", "风管", "水管"],
         )
         assert r["type"] == "暖通"
+
+
+class TestShortTokenBoundaryRegression:
+    """T5 回归：短 ASCII 关键词按词元边界匹配，避免 EL ⊂ elev 类误判。
+
+    历史缺陷：`_FILENAME_RULES["电气"]` 含 `"EL"`，用 `in` 匹配时
+    `synth_fire_elevator.dxf`（含 `elev`）被判为电气图，下游审计直接
+    `scope_mode=skipped`，消防电梯图纸永远进不了原子函数判定。
+    """
+
+    def test_fire_elevator_filename_not_electrical(self):
+        for name in (
+            "synth_fire_elevator.dxf",
+            "synth_fire_elev_lobby.dxf",
+            "fire_elev.dxf",
+            "elevator_plan.dxf",
+        ):
+            r = classify_drawing(name)
+            assert r["type"] != "电气", f"{name} 被误判为电气图: {r}"
+
+    def test_el_substring_victims_not_electrical(self):
+        # EL 子串的其他受害者：level / panel / hotel / tunnel / parallel 等
+        for name in (
+            "hotel_plan.dxf",
+            "panel_layout.dxf",
+            "level_3.dxf",
+            "parallel_walls.dxf",
+            "tunnel.dxf",
+        ):
+            r = classify_drawing(name)
+            assert r["type"] != "电气", f"{name} 被误判为电气图: {r}"
+
+    def test_real_electrical_names_still_electrical(self):
+        # 真实电气命名仍须命中：EL 词元 / 带数字后缀 / ELEC 前缀 / 中文
+        for name in (
+            "EL.dxf",
+            "EL-1.dxf",
+            "EL1.dxf",
+            "EL_POWER.dxf",
+            "ELEC_plan.dxf",
+            "2.1电气170825-报审.dxf",
+        ):
+            r = classify_drawing(name)
+            assert r["type"] == "电气", f"{name} 未识别为电气图: {r}"
+        # 图层名路径：裸 EL 层、EL_ 前缀层、ELEC 层
+        assert classify_drawing("drawing.dxf", layer_names=["EL"])["type"] == "电气"
+        assert classify_drawing("drawing.dxf", layer_names=["EL_1"])["type"] == "电气"
+        assert classify_drawing("drawing.dxf", layer_names=["ELEC"])["type"] == "电气"
+
+    def test_str_not_matched_in_instrument(self):
+        assert classify_drawing("instrument_layout.dxf")["type"] != "结构"
+        assert classify_drawing("drawing.dxf", layer_names=["STR_BEAM"])["type"] == "结构"
+
+    def test_elt_not_matched_in_shelter(self):
+        assert classify_drawing("drawing.dxf", layer_names=["SHELTER"])["type"] != "电气"
+
+    def test_long_keyword_keeps_substring_semantics(self):
+        # 长词/带分隔符关键词不能改成边界匹配，否则会漏掉词形变化
+        assert _kw_match("VENT", "ventilation_layer")
+        assert _kw_match("REIN", "reinforced_concrete")
+        assert _kw_match("PIPE", "pipework")
+        assert _kw_match("EL_", "el_power")
+        assert _kw_match("electric", "electrical_layer")
+
+    def test_synth_fire_elevator_parse_not_skipped(self):
+        """端到端：两个消防电梯样本解析后不得被类型过滤降级。"""
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from src.baa_engine.drawing_parser import DrawingParser
+
+        for name in ("synth_fire_elevator.dxf", "synth_fire_elev_lobby.dxf"):
+            path = os.path.join(repo_root, "data", "drawings", "real", "synth", name)
+            if not os.path.exists(path):
+                pytest.skip(f"data/drawings/real/synth/{name} 未入库")
+            r = DrawingParser().parse(path)
+            assert r.success
+            assert r.drawing_type.get("type") not in ("结构", "电气", "暖通"), r.drawing_type
 
 
 class TestCorruptDetection:
