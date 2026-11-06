@@ -11,9 +11,13 @@
   （防火门 1500×2400）等，按「字母前缀 + 宽(2位) + 高(2位)，每对 ×100mm」编码
   解析出宽高（mm），注入就近 door/fire_door/window 的 ``width`` / ``clear_width``
   / ``height``。
+- 防火等级类：仅当编号**显式带有等级字符**（``FM甲1524`` / ``FC乙1212``）时，
+  按等级写 ``fire_rating``（门：甲/乙/丙=3/2/1 级；窗：甲/乙/丙=1.5/1.0/0.5h）。
+  裸 ``FM1524``（只有防火门类型、无等级字）**不写等级**，避免按类型猜等级。
 
 规则：不覆盖已有非零值；厚度仅注入 0.05~1.0m 合理区间；写入 ``_attribute_source``
-（``text_thickness`` / ``text_code``）便于下游追溯。TEXT 文本字段名为
+（``text_thickness`` / ``text_code``）与 ``_fire_rating_source``
+（``text_code_grade``）便于下游追溯。TEXT 文本字段名为
 ``properties["text"]``（DXF TEXT/MTEXT 在 parsers/geometry 中统一落此字段）。
 """
 
@@ -53,7 +57,17 @@ _THICKNESS_PATTERNS = (
 # 门窗编号：前缀 + 可选防火等级字 + 宽(2位) + 高(2位)
 # 左边界排除字母/数字/「%」：DXF 中 %%C 为直径符号 φ（如 %%C1816x6266 是管径），
 # 若不排除会被误当作窗编号 C1816。
-_CODE_PATTERN = re.compile(r"(?<![A-Za-z0-9%])(FHM|FM|M|C)[甲乙丙]?(\d{2})(\d{2})(?![0-9])")
+# FC = 防火窗；等级字用命名组显式捕获，供 fire_rating 注入（不再丢弃）。
+_CODE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9%])(?P<prefix>FHM|FM|FC|M|C)"
+    r"(?P<grade>[甲乙丙]?)(?P<w>\d{2})(?P<h>\d{2})(?![0-9])"
+)
+
+# 等级 → fire_rating：门按「级」，窗按「耐火极限 h」。
+# 甲/乙/丙 = 3/2/1 级（门）；窗按 GB 16809 对应 1.5/1.0/0.5h。
+_DOOR_GRADE_RATING = {"甲": 3.0, "乙": 2.0, "丙": 1.0}
+_WINDOW_GRADE_HOURS = {"甲": 1.5, "乙": 1.0, "丙": 0.5}
+_WINDOW_CODE_PREFIXES = ("C", "FC")
 
 
 def _parse_thickness_m(text: str) -> Optional[float]:
@@ -89,10 +103,14 @@ def _parse_opening_code(text: str) -> Optional[Tuple[str, Optional[float], Optio
     if not text:
         return None
     for m in _CODE_PATTERN.finditer(text):
-        prefix = m.group(1)
-        w_mm = int(m.group(2)) * 100
-        h_mm = int(m.group(3)) * 100
-        kind = "window" if prefix == "C" else ("fire_door" if prefix in ("FM", "FHM") else "door")
+        prefix = m.group("prefix")
+        w_mm = int(m.group("w")) * 100
+        h_mm = int(m.group("h")) * 100
+        kind = (
+            "window"
+            if prefix in _WINDOW_CODE_PREFIXES
+            else ("fire_door" if prefix in ("FM", "FHM") else "door")
+        )
         w_m = w_mm / 1000.0
         h_m = h_mm / 1000.0 if h_mm > 0 else None
         if not (_WIDTH_MIN_M <= w_m <= _WIDTH_MAX_M):
@@ -101,6 +119,47 @@ def _parse_opening_code(text: str) -> Optional[Tuple[str, Optional[float], Optio
             h_m = None
         return kind, w_m, h_m
     return None
+
+
+def _parse_opening_grade(text: str) -> Optional[Tuple[str, str]]:
+    """解析编号中的显式等级字，返回 (target_kind, 等级字)。
+
+    只有 ``FM甲1524`` / ``FC乙1212`` 这类**逐实体标注**才返回等级；
+    裸 ``FM1524``（无甲/乙/丙）返回 None——类型不能代替等级。
+    """
+    if not text:
+        return None
+    for m in _CODE_PATTERN.finditer(text):
+        grade = m.group("grade")
+        if not grade:
+            continue
+        prefix = m.group("prefix")
+        kind = (
+            "window"
+            if prefix in _WINDOW_CODE_PREFIXES
+            else ("fire_door" if prefix in ("FM", "FHM") else "door")
+        )
+        return kind, grade
+    return None
+
+
+def _rating_for_grade(kind: str, grade: str) -> Optional[float]:
+    """等级字 → fire_rating 数值（门按级、窗按 h）。"""
+    if kind == "window":
+        return _WINDOW_GRADE_HOURS.get(grade)
+    return _DOOR_GRADE_RATING.get(grade)
+
+
+def _inject_fire_rating(ent: SemanticEntity, value: float, source: str) -> bool:
+    """不覆盖既有非零 fire_rating/rating 地写入等级；成功返回 True。"""
+    if not (isinstance(value, (int, float)) and value > 0):
+        return False
+    existing = ent.properties.get("fire_rating", ent.properties.get("rating", 0))
+    if isinstance(existing, (int, float)) and existing > 0:
+        return False
+    ent.properties["fire_rating"] = round(float(value), 2)
+    ent.properties["_fire_rating_source"] = source
+    return True
 
 
 def _nearest_entity(
@@ -236,5 +295,12 @@ def _inject_text_attributes(
                         _inject_attr(ent, "clear_width", w_m, "text_code")
                     if h_m is not None:
                         _inject_attr(ent, "height", h_m, "text_code")
+                    # 3) 显式等级字（FM甲1524 / FC乙1212）→ fire_rating。
+                    # 裸 FM1524 无等级字 → grade_info 为 None，不写等级。
+                    grade_info = _parse_opening_grade(text)
+                    if grade_info is not None and grade_info[0] == kind:
+                        _inject_fire_rating(
+                            ent, _rating_for_grade(kind, grade_info[1]), "text_code_grade"
+                        )
 
     return entities

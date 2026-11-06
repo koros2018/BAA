@@ -13,8 +13,10 @@ from src.baa_engine.semantic_analyzer.models import SemanticEntity
 from src.baa_engine.semantic_analyzer.text_attributes import (
     _inject_text_attributes,
     _parse_opening_code,
+    _parse_opening_grade,
     _parse_thickness_m,
 )
+from src.baa_engine.semantic_analyzer.main import _layer_fire_rating
 
 
 def _ent(entity_id, etype, x, y, w, h, props=None):
@@ -176,3 +178,58 @@ def test_distance_threshold_skips_far_text():
     prims = [_text("200厚", 9000, 9000)]
     out = _inject_text_attributes(None, [wall], prims)
     assert out[0].properties.get("width") is None
+
+
+# ── 4. 防火等级：只认逐实体显式等级字 ────────────────────
+
+
+def test_parse_opening_grade_explicit():
+    """FM甲1524 / FC乙1212 返回 (kind, 等级字)。"""
+    assert _parse_opening_grade("FM甲1524") == ("fire_door", "甲")
+    assert _parse_opening_grade("FC乙1212") == ("window", "乙")
+
+
+def test_parse_opening_grade_requires_char():
+    """裸 FM1524（无甲/乙/丙）不返回等级——类型不能代替等级。"""
+    assert _parse_opening_grade("FM1524") is None
+    assert _parse_opening_grade("M0921") is None
+
+
+def test_inject_fire_rating_from_door_code():
+    """逐门标注 FM甲1524 → fire_rating=3.0（甲级）并记录来源。"""
+    door = _ent("FD1", "fire_door", 0, 0, 1500, 0)
+    prims = [_text("FM甲1524", 700, 100)]
+    out = _inject_text_attributes(None, [door], prims)
+    p = out[0].properties
+    assert p.get("fire_rating") == pytest.approx(3.0)
+    assert p.get("_fire_rating_source") == "text_code_grade"
+
+
+def test_inject_fire_rating_from_window_code():
+    """逐窗标注 FC乙1212 → fire_rating=1.0h。"""
+    win = _ent("FW1", "fire_window", 0, 0, 1200, 0)
+    prims = [_text("FC乙1212", 500, 100)]
+    out = _inject_text_attributes(None, [win], prims)
+    p = out[0].properties
+    assert p.get("fire_rating") == pytest.approx(1.0)
+    assert p.get("_fire_rating_source") == "text_code_grade"
+
+
+def test_inject_fire_rating_absent_for_bare_fm():
+    """裸 FM1524（只有防火门类型）不得写 fire_rating。"""
+    door = _ent("FD1", "fire_door", 0, 0, 1500, 0)
+    prims = [_text("FM1524", 700, 100)]
+    out = _inject_text_attributes(None, [door], prims)
+    p = out[0].properties
+    assert p.get("fire_rating") is None
+    assert p.get("_fire_rating_source") is None
+
+
+def test_layer_fire_rating_chinese_only():
+    """图层等级只认中文甲/乙/丙；裸 A/B/C 不得推断。"""
+    assert _layer_fire_rating("防火门-甲级") == (3.0, "甲")
+    assert _layer_fire_rating("乙级防火门") == (2.0, "乙")
+    assert _layer_fire_rating("A-WALL") is None
+    assert _layer_fire_rating("B-DOOR") is None
+    assert _layer_fire_rating("C-COLUMN") is None
+    assert _layer_fire_rating("FIRE_DOOR") is None

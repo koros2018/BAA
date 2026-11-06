@@ -10,6 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 from .models import SemanticEntity, SpatialRelation
 from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES
 from .geometry import compute_iou, union_bbox, bbox_center, point_distance
@@ -33,6 +34,19 @@ from .text_attributes import _inject_text_attributes
 from .geometry_attributes import _inject_geometry_attributes
 from .pairing_attributes import _inject_paired_attributes
 from .room_type_infer import infer_room_type
+
+
+def _layer_fire_rating(layer: str) -> Optional[Tuple[float, str]]:
+    """仅从图层名的中文等级字推断防火等级（甲=3/乙=2/丙=1）。
+
+    裸 A/B/C 单字母不参与推断：普通图层（A-WALL、B-DOOR、C-COLUMN）
+    会因此被误判为甲/乙/丙级。返回 (rating, grade)，无中文等级字返回 None。
+    """
+    layer_text = (layer or "").upper()
+    for grade, rating in (("甲", 3.0), ("乙", 2.0), ("丙", 1.0)):
+        if grade in layer_text:
+            return rating, grade
+    return None
 
 
 class SemanticAnalyzer:
@@ -243,22 +257,19 @@ class SemanticAnalyzer:
                         if 0.3 < w_m < 3.0:  # check: numeric comparison
                             ent.properties["width"] = w_m  # 操作
                             ent.properties["clear_width"] = w_m  # 操作
-                # 防火等级推断：从图层名和实体名推断
+                # 防火等级推断：仅接受图层名里的中文等级字（甲/乙/丙）。
+                # 删除裸 A/B/C 单字母推断——普通图层名（A-WALL/B-DOOR 等）
+                # 会被误判成等级；类型或字母本身不能代替等级。
                 if ent.type == "fire_door":  # check: OR condition
                     existing_rating = ent.properties.get(
                         "fire_rating", ent.properties.get("rating", 0)
                     )  # assign
                     if existing_rating < 0.5:  # check: numeric comparison
-                        # 图层名包含关键字推断
-                        # 注意：META 图层可能含有 A/B/C，要用完整单词匹配避免误触
-                        layer_upper = (ent.layer or "").upper()  # assign
-                        words = layer_upper.replace("-", " ").replace("_", " ").split()  # assign
-                        if "甲" in layer_upper or "A" in words:  # check: membership test
-                            ent.properties["fire_rating"] = 3.0  # 甲级=3.0
-                        elif "乙" in layer_upper or "B" in words:  # 分支
-                            ent.properties["fire_rating"] = 2.0  # 乙级=2.0
-                        elif "丙" in layer_upper or "C" in words:  # 分支
-                            ent.properties["fire_rating"] = 1.0  # 丙级=1.0
+                        inferred = _layer_fire_rating(ent.layer)
+                        if inferred is not None:
+                            rating, grade = inferred
+                            ent.properties["fire_rating"] = rating
+                            ent.properties["_fire_rating_source"] = f"layer_grade_{grade}"
                         # 不设默认值——无法推断时留空，让原子函数处理
 
         # Step 1.7: 房间面积兜底（扫线法失败时的 fallback）
