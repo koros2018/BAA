@@ -126,6 +126,14 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         self._t3_wall_seen = set()
     if not hasattr(self, "_t3_wall_segs"):
         self._t3_wall_segs = {}
+    # unclassified 实体保留（T5 后续）：unknown 图元不再静默丢弃，
+    # 以独立集合留存用于数据质量统计。必须与 entities 隔离——
+    # 规则侧（matches/execute/build_scopes/WidthContext）只消费 entities，
+    # 因此保留不会改变任何 evaluated/applicable/findings。
+    if not hasattr(self, "_unclassified_entities"):
+        self._unclassified_entities = []
+        self._unclassified_layers = {}
+        self._unclassified_counter = 0
 
     # P0-2 优化（2026-11-04）：layer→type 缓存。同层名只调一次
     # _classify_by_layer（遍历 149+90=239 条规则）。48K primitives 通常
@@ -233,7 +241,27 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             self._classify_block_default += 1
 
         if entity_type == "unknown":  # condition: entity_type == "unknown":
+            # T5 后续：unknown 图元保留为 unclassified 实体（可计数/可统计
+            # 图层来源/可提示"该图层未被识别"），但**不进入** entities——
+            # 规则侧看不到它，因此不参与匹配/适用面/判定。
+            # 用轻量 dict（与 entities 的 to_dict 同构），不复制全部 properties，
+            # 避免为未识别图元付出与已分类实体相同的对象/序列化成本。
             self._classify_unclassified += 1
+            self._unclassified_counter += 1
+            self._unclassified_entities.append(
+                {
+                    "id": f"UNCLASSIFIED_{self._unclassified_counter:05d}",
+                    "type": "unclassified",
+                    "subtype": "",
+                    "bbox": prim.bbox,
+                    "layer": prim.layer,
+                    "confidence": 0.5,
+                    "properties": {"dxf_type": prim.dxf_type},
+                }
+            )
+            self._unclassified_layers[prim.layer] = (
+                self._unclassified_layers.get(prim.layer, 0) + 1
+            )
             continue  # 继续循环
 
         if entity_type == "other":

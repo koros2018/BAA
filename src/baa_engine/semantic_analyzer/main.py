@@ -47,6 +47,10 @@ class SemanticAnalyzer:
         self._classify_unclassified = 0
         self._classify_block_default = 0
         self._classify_other = 0
+        # unclassified 实体保留（T5 后续）：unknown 图元独立留存，不进规则侧
+        self._unclassified_entities = []
+        self._unclassified_layers: Dict[str, int] = {}
+        self._unclassified_counter = 0
         self._t3_window_seen = set()
         self._t3_wall_seen = set()
         self._t3_wall_segs = {}
@@ -78,6 +82,9 @@ class SemanticAnalyzer:
         self._classify_unclassified = 0
         self._classify_block_default = 0
         self._classify_other = 0
+        self._unclassified_entities = []
+        self._unclassified_layers = {}
+        self._unclassified_counter = 0
         self._t3_window_seen = set()  # P127-T3: 每次分析重置窗线合并 gid
         self._t3_wall_seen = set()  # P127-T3: 每次分析重置墙实例合并 gid
         self._t3_wall_segs = {}  # P127-T3: 每次分析重置共享面线墙实例回填表
@@ -427,6 +434,9 @@ class SemanticAnalyzer:
 
         result = {  # assign
             "entities": [e.to_dict() for e in entities],  # 字段
+            # 未识别图元（原 unknown 丢弃路径）：独立留存，规则侧不可见。
+            # 供数据质量统计与"该图层未被识别"提示使用。
+            "unclassified_entities": list(self._unclassified_entities),
             "relations": [r.__dict__ if hasattr(r, "__dict__") else r for r in relations],  # 字段
             "attributes": attributes,  # 字段
             "building_type": building_type,  # 字段
@@ -440,6 +450,14 @@ class SemanticAnalyzer:
                 "unclassified": self._classify_unclassified,
                 "block_default": self._classify_block_default,
                 "other": self._classify_other,
+                # 未识别图层来源（Top 20，按图元数降序）：数据质量信号，
+                # 用于提示"该图层未被识别"，不影响任何合规判定。
+                "unclassified_layer_top": [
+                    {"layer": layer, "count": n}
+                    for layer, n in sorted(
+                        self._unclassified_layers.items(), key=lambda kv: (-kv[1], kv[0])
+                    )[:20]
+                ],
                 "rate": (
                     round(self._classify_unclassified / self._classify_total, 4)
                     if self._classify_total

@@ -129,6 +129,11 @@ def run_review(dxf_path: Path) -> dict:
     entities = [
         e if isinstance(e, dict) else getattr(e, "__dict__", {}) for e in semantic["entities"]
     ]
+    # 未识别图元独立留存（T5 后续）：只做统计，不参与任何规则判定。
+    unclassified_entities = semantic.get("unclassified_entities") or []
+    unclassified_top = (semantic.get("classification_stats") or {}).get(
+        "unclassified_layer_top", []
+    )
     type_counts = Counter(e.get("type", "?") for e in entities)
     registry = FuncRegistry()
     funcs = registry.list_all()
@@ -304,6 +309,9 @@ def run_review(dxf_path: Path) -> dict:
         "valid": True,
         "primitive_count": len(result.primitives),
         "entity_count": len(entities),
+        "unclassified_count": len(unclassified_entities),
+        "unclassified_layer_top": unclassified_top,
+        "accounted_entity_count": len(entities) + len(unclassified_entities),
         "entity_types": dict(type_counts.most_common()),
         "evac_width_stats": width_ctx.stats,
         "scope_mode": scopes["mode"],
@@ -387,7 +395,8 @@ def main(argv: list[str]) -> int:
         total = len(rep["findings"])
         cov = rep.get("coverage", {})
         print(
-            f"[OK] {p.name}: 实体={rep['entity_count']}, 作用域={rep['scope_count']}"
+            f"[OK] {p.name}: 实体={rep['entity_count']}+未识别={rep.get('unclassified_count', 0)}, "
+            f"作用域={rep['scope_count']}"
             f"({rep['scope_mode']}), findings={total}, 分类={cls}, "
             f"可达={cov.get('evaluated_rules', 0)}/{cov.get('applicable_rules', 0)}"
             f"({cov.get('ratio', 0.0):.1%})",
