@@ -10,6 +10,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from src.baa_engine.semantic_analyzer.classify import (
     _classify_by_geometry,
+    UNCLASSIFIED_REASONS,
+    _annotate_unclassified_reasons,
+    summarize_unclassified_reasons,
 )
 from src.baa_engine.semantic_analyzer.models import SemanticEntity
 
@@ -172,6 +175,141 @@ class TestE6_ClassificationStats:
         )
         assert effective_rate == 0.0
         assert self.analyzer._classify_other == 100
+
+
+def _unc_entity(layer, dxf_type="LINE", size=1000.0):
+    """构造一条 unclassified 实体（与 classify 内的轻量 dict 同构）。"""
+    return {
+        "id": "UNCLASSIFIED_00001",
+        "type": "unclassified",
+        "subtype": "",
+        "bbox": {"x": 0, "y": 0, "width": size, "height": size},
+        "layer": layer,
+        "confidence": 0.5,
+        "properties": {"dxf_type": dxf_type},
+    }
+
+
+class TestP23UnclassifiedReason:
+    """P2-3: unclassified_reason 只做标注，不改变分类/规则/占比。"""
+
+    def test_reason_enum_exact(self):
+        assert len(UNCLASSIFIED_REASONS) == 5
+        assert set(UNCLASSIFIED_REASONS) == {
+            "furniture_fixture",
+            "pattern_fill",
+            "axis_or_annotation",
+            "stroke_fragment",
+            "unknown_layer",
+        }
+
+    @pytest.mark.parametrize(
+        "layer,dxf_type,size,expected",
+        [
+            ("Furniture", "LINE", 195.0, "furniture_fixture"),
+            ("FURN", "HATCH", 500.0, "furniture_fixture"),
+            ("P-SANIT", "CIRCLE", 500.0, "furniture_fixture"),
+            ("friz", "LINE", 101.88, "furniture_fixture"),
+            ("gradient", "LINE", 1000.0, "pattern_fill"),
+            ("Structural - Bearing", "LINE", 0.013, "pattern_fill"),
+            ("Ck Achurado Muros", "HATCH", 300.0, "pattern_fill"),
+            ("AX", "LINE", 5000.0, "axis_or_annotation"),
+            ("CASCO", "TEXT", 10.0, "axis_or_annotation"),
+            ("kod", "MTEXT", 10.0, "axis_or_annotation"),
+            ("v", "LINE", 60.0, "stroke_fragment"),
+            ("merdiven", "LINE", 100.0, "stroke_fragment"),
+            ("hidden", "LINE", 213.1, "unknown_layer"),
+        ],
+    )
+    def test_layer_reason_mapping(self, layer, dxf_type, size, expected):
+        ents = [_unc_entity(layer, dxf_type, size)]
+        _annotate_unclassified_reasons(ents)
+        assert ents[0]["unclassified_reason"] == expected
+
+    @pytest.mark.parametrize(
+        "layer",
+        ["Taxi", "Level", "ELEVATOR", "fire_elevator", "FLOOR"],
+    )
+    def test_short_token_boundary_not_matched(self, layer):
+        """短词元（ax 等）必须边界匹配：Taxi/Level 等不得误标为轴线。"""
+        ents = [_unc_entity(layer, "LINE", 5000.0)]
+        _annotate_unclassified_reasons(ents)
+        assert ents[0]["unclassified_reason"] == "unknown_layer"
+
+    def test_type_ratio_fallback(self):
+        """无词元时按类型占比：MTEXT→axis、HATCH→pattern、小线→stroke。"""
+        cases = [
+            ("WEIRD_A", "MTEXT", 10.0, "axis_or_annotation"),
+            ("WEIRD_B", "HATCH", 300.0, "pattern_fill"),
+            ("WEIRD_C", "LINE", 5.0, "stroke_fragment"),
+            ("WEIRD_D", "LINE", 5000.0, "unknown_layer"),
+        ]
+        for layer, dxf_type, size, expected in cases:
+            ents = [_unc_entity(layer, dxf_type, size)]
+            _annotate_unclassified_reasons(ents)
+            assert ents[0]["unclassified_reason"] == expected, layer
+
+    def test_same_layer_same_reason(self):
+        """同层图元必须得到同一原因标签（保证统计口径稳定）。"""
+        ents = [
+            _unc_entity("Furniture", "LINE", 195.0),
+            _unc_entity("Furniture", "ARC", 400.0),
+            _unc_entity("Furniture", "HATCH", 800.0),
+        ]
+        _annotate_unclassified_reasons(ents)
+        assert {e["unclassified_reason"] for e in ents} == {"furniture_fixture"}
+
+    def test_summary_counts(self):
+        ents = [
+            _unc_entity("Furniture", "LINE", 195.0),
+            _unc_entity("Furniture", "LINE", 195.0),
+            _unc_entity("gradient", "LINE", 1000.0),
+            _unc_entity("WEIRD_D", "LINE", 5000.0),
+        ]
+        _annotate_unclassified_reasons(ents)
+        summary = summarize_unclassified_reasons(ents)
+        assert summary == {
+            "furniture_fixture": 2,
+            "pattern_fill": 1,
+            "unknown_layer": 1,
+        }
+
+    def test_analyze_annotation_only(self):
+        """集成：标注不进入 entities、不改变 unclassified/rate，仅新增汇总。"""
+        from src.baa_engine.drawing_parser import RawPrimitive
+        from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+        prims = [
+            RawPrimitive(
+                "LINE", "WALL", "h1",
+                {"x": 0, "y": 0, "width": 3000, "height": 10},
+                {"length": 3000},
+            ),
+            RawPrimitive(
+                "LINE", "Furniture", "h2",
+                {"x": 0, "y": 0, "width": 195, "height": 195},
+                {},
+            ),
+            RawPrimitive(
+                "LINE", "gradient", "h3",
+                {"x": 0, "y": 0, "width": 1000, "height": 1000},
+                {},
+            ),
+        ]
+        result = SemanticAnalyzer().analyze(prims)
+        stats = result["classification_stats"]
+        assert stats["unclassified"] == 2
+        assert stats["unclassified"] == len(result["unclassified_entities"])
+        assert sum(stats["unclassified_reasons"].values()) == 2
+        assert stats["unclassified_reasons"] == {
+            "furniture_fixture": 1,
+            "pattern_fill": 1,
+        }
+        # rate 公式未变：unclassified / total
+        assert stats["rate"] == round(2 / stats["total"], 4)
+        # 未识别图元不得混入 entities
+        assert all(e["type"] != "unclassified" for e in result["entities"])
+        assert all("unclassified_reason" in u for u in result["unclassified_entities"])
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from .classify import (
     _classify_entities,
     _classify_by_layer,
     _classify_by_geometry,
+    summarize_unclassified_reasons,
 )
 from .block_semantics import attach_block_refs
 from .meta import _parse_meta_entities
@@ -458,6 +459,10 @@ class SemanticAnalyzer:
                         self._unclassified_layers.items(), key=lambda kv: (-kv[1], kv[0])
                     )[:20]
                 ],
+                # P2-3: 未识别原因汇总（只做标注，不改变 unclassified/rate）
+                "unclassified_reasons": summarize_unclassified_reasons(
+                    self._unclassified_entities
+                ),
                 "rate": (
                     round(self._classify_unclassified / self._classify_total, 4)
                     if self._classify_total

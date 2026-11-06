@@ -103,6 +103,196 @@ def _is_compartment_region(prim: RawPrimitive) -> bool:
     return barea >= _COMPARTMENT_MIN_AREA_MM2
 
 
+# ── P2-3：未识别图元原因标签 ────────────────────────────
+# 只做标注：不进入 entities、不参与规则匹配、不改变未识别占比。
+# 五项枚举（顺序即 UI 展示优先级）：
+#   furniture_fixture  家具/洁具/固定设备
+#   pattern_fill       填充图案/渐变/结构填充
+#   axis_or_annotation 轴线/网格/标注/详图文字
+#   stroke_fragment    碎线/装饰线/微小线元
+#   unknown_layer      无足够证据，保持未知
+UNCLASSIFIED_REASONS = (
+    "furniture_fixture",
+    "pattern_fill",
+    "axis_or_annotation",
+    "stroke_fragment",
+    "unknown_layer",
+)
+
+# 图层词元 → 原因。ASCII 短词元（≤3 字符）走边界匹配，避免 ax 命中 taxi、
+# fur 命中 furniture 之外的无词元层名；长词元与中文词元用子串匹配。
+_UNCLASSIFIED_REASON_TOKENS = (
+    (
+        "furniture_fixture",
+        (
+            "furniture",
+            "furn",
+            "fur",
+            "friz",
+            "sanit",
+            "mueble",
+            "fixture",
+            "equip",
+            "appliance",
+            "bath",
+            "wc",
+            "toilet",
+            "cornice",
+            "gypsum",
+            "家具",
+            "洁具",
+            "卫浴",
+            "装饰",
+            "窗帘",
+            "curtain",
+        ),
+    ),
+    (
+        "pattern_fill",
+        (
+            "hatch",
+            "fill",
+            "pattern",
+            "achurado",
+            "arado",
+            "bearing",
+            "gradient",
+            "填充",
+            "花色",
+            "渐变",
+        ),
+    ),
+    (
+        "axis_or_annotation",
+        (
+            "axis",
+            "ax",
+            "grid",
+            "dim",
+            "text",
+            "anno",
+            "kod",
+            "casco",
+            "section",
+            "标注",
+            "轴",
+            "网格",
+            "详图",
+        ),
+    ),
+)
+
+_UNCLASSIFIED_ANNOTATION_TYPES = frozenset(
+    {"TEXT", "MTEXT", "DIMENSION", "LEADER", "MLEADER", "ATTRIB", "ATTDEF"}
+)
+_UNCLASSIFIED_LINE_TYPES = frozenset(
+    {"LINE", "ARC", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ELLIPSE"}
+)
+# 碎线判据：线状图元占比过半且图层图元中位尺寸 ≤100mm（栏杆/装饰线/短筋）。
+_UNCLASSIFIED_STROKE_MEDIAN_MM = 100.0
+
+
+def _reason_word_char(ch: str) -> bool:
+    """短 ASCII 词元边界字符判定（ASCII 字母数字与下划线视为词内）。"""
+    return bool(ch) and ch.isascii() and (ch.isalnum() or ch == "_")
+
+
+def _reason_token_hit(token: str, text_lower: str) -> bool:
+    if not token or not text_lower:
+        return False
+    if not token.isascii() or len(token) > 3:
+        return token in text_lower
+    idx = text_lower.find(token)
+    while idx >= 0:
+        before = text_lower[idx - 1] if idx > 0 else ""
+        after = (
+            text_lower[idx + len(token)]
+            if idx + len(token) < len(text_lower)
+            else ""
+        )
+        if not _reason_word_char(before) and not _reason_word_char(after):
+            return True
+        idx = text_lower.find(token, idx + 1)
+    return False
+
+
+def _layer_unclassified_reason(layer: str, profile: dict) -> str:
+    """整层一个原因：先词元，再类型占比，最后线状几何，兜底 unknown_layer。"""
+    text_lower = (layer or "").lower()
+    for reason, tokens in _UNCLASSIFIED_REASON_TOKENS:
+        for token in tokens:
+            if _reason_token_hit(token, text_lower):
+                return reason
+    total = profile.get("total") or 0
+    if not total:
+        return "unknown_layer"
+    if profile.get("annot", 0) / total >= 0.5:
+        return "axis_or_annotation"
+    if profile.get("hatch", 0) / total >= 0.5:
+        return "pattern_fill"
+    if (
+        profile.get("line", 0) / total >= 0.5
+        and profile.get("median", 0.0) <= _UNCLASSIFIED_STROKE_MEDIAN_MM
+    ):
+        return "stroke_fragment"
+    return "unknown_layer"
+
+
+def _annotate_unclassified_reasons(entities: List[dict]) -> None:
+    """原地为未识别图元追加 unclassified_reason；同层同标签以保证一致性。"""
+    if not entities:
+        return
+    profiles: Dict[str, dict] = {}
+    for ent in entities:
+        layer = ent.get("layer") or ""
+        profile = profiles.get(layer)
+        if profile is None:
+            profile = {"total": 0, "annot": 0, "hatch": 0, "line": 0, "sizes": []}
+            profiles[layer] = profile
+        profile["total"] += 1
+        dxf_type = str((ent.get("properties") or {}).get("dxf_type") or "").upper()
+        if dxf_type in _UNCLASSIFIED_ANNOTATION_TYPES:
+            profile["annot"] += 1
+        elif dxf_type == "HATCH":
+            profile["hatch"] += 1
+        elif dxf_type in _UNCLASSIFIED_LINE_TYPES:
+            profile["line"] += 1
+        bbox = ent.get("bbox") or {}
+        try:
+            width = float(bbox.get("width", 0) or 0)
+            height = float(bbox.get("height", 0) or 0)
+        except (TypeError, ValueError):
+            width = height = 0.0
+        profile["sizes"].append(max(width, height))
+
+    layer_reason: Dict[str, str] = {}
+    for layer, profile in profiles.items():
+        sizes = sorted(profile.pop("sizes"))
+        mid = len(sizes) // 2
+        if not sizes:
+            median = 0.0
+        elif len(sizes) % 2:
+            median = sizes[mid]
+        else:
+            median = (sizes[mid - 1] + sizes[mid]) / 2.0
+        profile["median"] = median
+        layer_reason[layer] = _layer_unclassified_reason(layer, profile)
+
+    for ent in entities:
+        ent["unclassified_reason"] = layer_reason.get(
+            ent.get("layer") or "", "unknown_layer"
+        )
+
+
+def summarize_unclassified_reasons(entities: List[dict]) -> Dict[str, int]:
+    """按原因汇总未识别图元数（只统计已标注的 unclassified 集合）。"""
+    counts: Dict[str, int] = {}
+    for ent in entities or []:
+        reason = (ent or {}).get("unclassified_reason") or "unknown_layer"
+        counts[reason] = counts.get(reason, 0) + 1
+    return {reason: counts[reason] for reason in sorted(counts, key=lambda r: (-counts[r], r))}
+
+
 def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """图元分类归并"""
     # 优先解析 META 图层（合成图纸结构化数据）
@@ -282,6 +472,9 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
             properties=cleaned_props,
         )  # code
         entities.append(entity)  # append: add to list
+
+    # 未识别图元原因标注（P2-3）：只加标签，不改 entities/规则/占比
+    _annotate_unclassified_reasons(self._unclassified_entities)
 
     # P127-T3 墙实例回填：一根面线被多个共线墙实例复用时（二次配对长面复用），
     # 图元只携带主 gid 走上述循环；其余共享面线的实例 gid 在此补齐为独立墙实体，
