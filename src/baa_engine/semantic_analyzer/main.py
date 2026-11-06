@@ -288,6 +288,11 @@ class SemanticAnalyzer:
                     ent.properties["area"] = round(area_m2, 2)  # 操作
                     ent.properties["_area_source"] = "bbox_fallback"  # 操作
 
+        # Step 1.7a: floor/避难层闭合区域 bbox 面积
+        # 仅对真实闭合区域（closed=True 或 point_count>=3）落 bbox；
+        # TEXT/MTEXT/LINE/ARC 不是空间范围，一律 None。
+        self._inject_floor_bbox_area(entities)  # 操作
+
         # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
         self._normalize_area_units(entities)  # 操作
 
@@ -1241,6 +1246,55 @@ class SemanticAnalyzer:
     def _build_relations(self, entities):
         """构建实体间相邻关系。"""
         return _build_relations(self, entities)
+
+    @staticmethod
+    def _is_closed_region(props: Dict[str, Any]) -> bool:
+        """判定实体属性是否代表真实闭合区域（排除文字/线元/圆弧）。
+
+        - 有 text/content → 文字标签，不是空间范围
+        - 有 start_point/end_point → LINE
+        - 有 radius → ARC/CIRCLE
+        - 仅 closed=True 或 point_count>=3（LWPOLYLINE/POLYLINE）视为闭合区域
+        """
+        if props.get("text") or props.get("content"):
+            return False
+        if props.get("start_point") is not None or props.get("end_point") is not None:
+            return False
+        if props.get("radius") is not None:
+            return False
+        if props.get("closed") is True:
+            return True
+        return int(props.get("point_count") or 0) >= 3
+
+    def _inject_floor_bbox_area(self, entities) -> None:
+        """Step 1.7a：对闭合的 floor/避难层区域写 bbox 面积（m²）。
+
+        选用 bbox 而非闭合轮廓面积：2D 解析对未合龙多边形只能给 bbox；
+        bbox 对 L 形/弧形区域会偏大，只适用于近似矩形的闭合区域。
+        因此本步只接受 closed=True 或 point_count>=3 的空间区域，
+        文字标签（TEXT/MTEXT）、LINE、ARC 一律跳过（保持 None）。
+        单位：图纸单位为 mm，width*height/1e6 → m²。
+        """
+        for ent in entities:
+            if ent.type not in ("floor", "refuge_floor", "refuge_area"):
+                continue
+            props = ent.properties
+            if (props.get("area", 0) or 0) > 0 or (props.get("area_m2", 0) or 0) > 0:
+                continue
+            if not self._is_closed_region(props):
+                continue
+            bbox = ent.bbox or {}
+            bw = bbox.get("width", 0) or 0
+            bh = bbox.get("height", 0) or 0
+            if bw <= 0 or bh <= 0:
+                continue
+            area_m2 = (bw * bh) / 1_000_000
+            if area_m2 < 0.01:
+                continue
+            props["area"] = round(area_m2, 2)
+            props["area_m2"] = round(area_m2, 2)
+            props["area_source"] = "bbox"
+            props["_area_source"] = "bbox_floor_region"
 
     def _normalize_area_units(self, entities) -> None:
         """Step 1.8：把实体面积统一折算为 m² 写入 area_m2。
