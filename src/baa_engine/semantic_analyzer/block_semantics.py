@@ -257,6 +257,17 @@ _NON_ARCH_BLOCK_KEYWORDS = (
 )
 
 
+# 精确块名映射（按块名，不按图层）：用于语义明确的匿名块/外语块名。
+# 这类块名不含通用英文关键词，子串规则无法识别，会被调用方兜底成 wall。
+# villa 实测：`A$C5A567AD7`（栏杆匿名块，159 实例）兜底成 wall；
+# `okna-150`（捷克语 okna=窗）兜底成 wall。映射按块名生效，同块名在其它
+# 图纸出现时同样适用（不依赖 villa 专属图层名）。
+_BLOCK_NAME_EXACT_RULES: Dict[str, str] = {
+    "A$C5A567AD7": "handrail",  # 栏杆匿名块
+    "OKNA-150": "window",  # 窗（okna）
+}
+
+
 def classify_block_name(block_name: str) -> Optional[str]:
     """按 BLOCK_NAME_RULES 对块名分类。
 
@@ -266,6 +277,10 @@ def classify_block_name(block_name: str) -> Optional[str]:
     if not block_name:
         return None
     name = str(block_name).upper()
+    # 精确块名映射优先（匿名块/外语块名），按块名跨图纸生效
+    exact_type = _BLOCK_NAME_EXACT_RULES.get(name)
+    if exact_type is not None:
+        return exact_type
     # 图纸/标题类名称（图框、系统图、说明、目录等）不是构件块，
     # 命中标记直接返回 None，避免误报（如「运维网桥架平面图」含"桥架"）。
     if any(m in name for m in _SHEET_NAME_MARKERS):

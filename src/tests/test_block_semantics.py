@@ -137,6 +137,27 @@ class TestClassifyBlockName:
         assert idx_fd < idx_door
 
 
+class TestExactBlockNameRules:
+    """匿名块/外语块名精确映射（按块名，不按图层，跨图纸生效）。"""
+
+    def test_villa_balustrade_anonymous_block(self):
+        assert classify_block_name("A$C5A567AD7") == "handrail"
+        assert classify_block_name("a$c5a567ad7") == "handrail"
+
+    def test_czech_window_block(self):
+        assert classify_block_name("okna-150") == "window"
+        assert classify_block_name("OKNA-150") == "window"
+
+    def test_not_prefix_generalized(self):
+        # 仅精确块名生效，不做前缀泛化，避免误伤其它 okna 尺寸块
+        assert classify_block_name("okna-200") is None
+
+    def test_geometry_fallback_uses_mapping(self):
+        # 图层无语义时走几何兜底：不得再兜成 wall
+        assert _geo_type("A$C5A567AD7") == "handrail"
+        assert _geo_type("okna-150") == "window"
+
+
 class TestInsertBranchBehaviorPreserved:
     """不含 block_attribs 的 INSERT，classify.py 分支结果与规则表一致。"""
 
