@@ -379,3 +379,101 @@ villa / 东莞通 上 evaluated，并集 evaluated 没有因此减少。
   `baa_t5_diff.py`（规则侧逐条 diff）、`baa_t5_covdiff.py`（coverage 集合差分）、
   `baa_t5_ante.py`（4 前室），输出 `baa_t5_before/after2/pret5.json`，均位于
   `C:\Users\26988\AppData\Local\Temp\`。
+
+## 9. 11/06 覆盖率口径修正：unsupported_2d 标记 + 双口径（HEAD `c30bfa0` 之后）
+
+> 本节只加**元数据标记**与**报告口径**，不改任何判据：标记后 9 张图的
+> `evaluated` / `applicable` / `findings` 逐条完全一致（见 §9.4 证明）。
+
+### 9.1 分子分母必须同集合：`evaluated ⊄ applicable`
+
+历史口径 `43 / 181 = 23.8%` 的分子里混入了两条**全局上下文规则**
+`EXIST-083`、`EXIST-093`：它们产出判定结果，但 `requires_global_context=True`
+使它们不进入 `applicable` 集合。分子含分母外元素 → 覆盖率被虚增。
+
+严格口径要求 `evaluated ∩ applicable`：
+
+| 口径 | 分子 | 分母 | 比例 |
+|---|---|---|---|
+| 历史（虚增，含集合外 2 条） | 44 | 183 | 24.0% |
+| **严格（分子分母同集合）** | **42** | **183** | **23.0%** |
+
+> 与 1.6 诊断表 `41 / 181 = 22.7%` 的差额来自 **② villa 块语义修复**：
+> 该次提交新增 `ACCESS-005`（evaluated）与 `DIM-107`（applicable），
+> 因此当前 HEAD 的并集基线是 `183 / 44`，不是诊断所用的 `181 / 43`
+> （诊断数据源 `baa_sheet_accept.json` 生成于 ① 验收时，早于 ②）。
+
+### 9.2 82 条 `unsupported_2d` 标记（按真实归因）
+
+标记字段：`AtomicFunction.unsupported_2d: bool`、`unsupported_reason: str`，
+映射表 `src/baa_engine/atomic/__init__.py::UNSUPPORTED_2D_REASONS`。
+**规则照常执行、照常计入分子**；标记只用于报告侧给出「可判定口径」分母。
+
+| 归因标签 | 条数 | 规则 |
+|---|---|---|
+| semantic_gap（实体在但语义不足以判定） | 12 | AREA-004/005/006/011/013/016/017/022、DIM-005/010/021/022 |
+| non_geometric（体积/时间/温度/人流率/风速） | 11 | AREA-020、COUNT-004、DIM-028/029/047/057/061/062/079/109/111 |
+| product_spec（防火等级/耐火极限/设备参数） | 11 | ATTR-004/005/006/007/010/013/014/016/017/018/019 |
+| illuminance（照度 lx） | 9 | LIGHT-002/003/004/005/007/008/009/010/011 |
+| semantic_unmapped（2D 无图层/块约定） | 8 | ACCESS-012/019/020、DIM-032/102/110/114/115 |
+| thermal（传热/保温/遮阳/气密） | 8 | THERM-001/003/004/006/007/010/012/016 |
+| implementation_gate（执行门禁不一致，本轮不动） | 6 | EXIST-033/034/035/054/062/095 |
+| site_or_path（场地/室外设施/无障碍路线） | 6 | DIST-014/015/017/018/019/020 |
+| structural（荷载/配筋/强度） | 6 | STR-001/002/003/006/007/014 |
+| mep_data（探测器/消防电气设备） | 2 | COUNT-027/028 |
+| prereq_unsupported（前置规则不可判定） | 2 | DIM-073/075 |
+| path_topology（需疏散路径网络） | 1 | DIST-001 |
+| **合计** | **82** | C 桶 67 + 语义 12 + 依赖 2 + 路径 1 |
+
+> 与 1.6 表的差异：**族内条数完全一致**（DIM 14 / ATTR 11 / ACCESS 3 / THERM 8 /
+> LIGHT 9 / COUNT 3 / DIST 6 / EXIST 6 / STR 6 / AREA 1）。C 桶的具体成员按
+> 统一判据重选：规则所需判据量在 2D 图纸中**无载体**（非几何量、产品参数、
+> 场地信息），或所需语义在 2D 中**无图层/块约定**（救援窗、自然排烟口、前室形式）。
+> 因此 `DIM-032/102/110/114/115` 归入 `semantic_unmapped`——它们不是补提取分支
+> 能解决，需要图纸侧语义约定；`STR-010/011/015`（墙厚/板厚）、`DIM-013/015`
+> 等可在剖面/标注中取证，留在 B 桶待提取；`THERM-013`（「有/无」）可由文本
+> 判存在性，留在 A 桶。若对某个成员归属有异议，改一行映射即可重新归组。
+
+### 9.3 双口径结果（并集，5 张参与判定图纸）
+
+| 口径 | 分母构成 | 分子 | 比例 | 含义 / 适用 |
+|---|---|---|---|---|
+| 全规则口径 | 183（含全部 unsupported） | 42 | **23.0%** | 对外披露、跨版本可比：分母不因规则能力变化而缩放 |
+| 可判定口径 | 101（183 − 82） | 42 | **41.6%** | 内部研发看板：衡量「本可判定的规则实际判了多少」 |
+
+> 按 1.6 表述「分母 114」换算：那对应 `181 − 67`（只剔除 C 桶）。
+> 当前基线下为 `183 − 67 = 116`，比例 `42 / 116 = 36.2%`。
+> 该口径与「打 82 条标记」不自洽（12+2+1 仍留在分母），故**仅作参考**，
+> 正式「可判定口径」采用 101。建议产品看板展示全规则口径（23.0%），
+> 研发周报展示可判定口径（41.6%），两者并列注明分母。
+
+逐图（`ev/app` 与 `ev/judgeable`）：
+
+| 图纸 | evaluated | applicable | 其中 unsupported | 可判定分母 | 全规则 | 可判定 |
+|---|---|---|---|---|---|---|
+| 东莞通-建筑 | 37 | 177 | 80 | 97 | 20.9% | 38.1% |
+| villa-details | 17 | 140 | 69 | 71 | 12.1% | 23.9% |
+| multiple-stadion | 2 | 58 | 20 | 38 | 3.4% | 5.3% |
+| plans（two-family-house） | 1 | 32 | 14 | 18 | 3.1% | 5.6% |
+| Demo Multi-family F-1 | 0 | 29 | 11 | 18 | 0.0% | 0.0% |
+| restroom / mosque | — | — | — | — | 非平面，不进分母 | — |
+| 4.通风 / baa-file-c157664de336 | — | — | — | — | 跳过，不进分母 | — |
+
+### 9.4 标记后规则侧不变性证明
+
+同一脚本、同一 HEAD、标记前后各跑一次 9 张图（`fp_rate_audit.run_review`），
+逐图对比 `evaluated_rules` / `applicable_rules` / `evaluated_func_ids` /
+`applicable_func_ids` / `findings`（func_id + entity_id + actual + severity）：
+
+```
+东莞通 37/177/20 · restroom 0/0/0 · villa 17/140/16 · stadion 2/58/0
+mosque 0/0/0 · plans 1/32/0 · demo 0/29/0 · 4.通风 跳过 · baa-file 跳过
+→ ALL IDENTICAL（无任何集合或 finding 差异）
+```
+
+### 9.5 复现
+
+```powershell
+python scripts/fp_rate_audit.py            # 打印全规则/严格/可判定三行覆盖率
+python -m pytest src/tests/test_p21_unsupported_2d.py -q
+```

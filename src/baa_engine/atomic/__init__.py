@@ -34,4 +34,116 @@ ATOMIC_FUNCTIONS = _merge_modules(
     _structural,
 )
 
-__all__ = ["ATOMIC_FUNCTIONS"]
+
+# ── P2-1: 2D 图纸不可判定规则（unsupported_2d）───────────────
+# 判定依据：规则所需的判据量在二维建筑 DXF 中没有载体。
+#   non_geometric      体积(m³)/时间(s)/温度(℃)/人流率(百人)/风速(m/s)
+#   product_spec       防火等级/耐火极限/设备参数（图纸不承载产品选型）
+#   thermal            传热系数/保温层/遮阳/气密性（需材料热工参数）
+#   structural         荷载/配筋率/混凝土强度（需结构计算）
+#   illuminance        照度(lx)（需照明设计）
+#   mep_data           探测器/消防电气设备数量（需机电专业数据）
+#   site_or_path       场地/室外设施定位、无障碍路线
+#   semantic_unmapped  2D 无图层/块约定的语义（救援窗、自然排烟口、前室形式）
+#   semantic_gap       实体存在但语义不足以判定（需改判据语义）
+#   prereq_unsupported 前置规则本身不可判定
+#   path_topology      需疏散路径网络/拓扑
+#   implementation_gate 执行门禁与适用面不一致（本轮不动，仅标记）
+# 标记只写元数据，不改变 matches()/execute() 行为，规则照常参与执行与
+# 覆盖率分子计算；报告侧用它给出「可判定口径」分母。
+UNSUPPORTED_2D_REASONS = {
+    # ── C 桶（67）：2D 图纸无载体 ──
+    "DIM-028": "non_geometric",  # 锅炉房/油室容积 m³
+    "DIM-029": "non_geometric",  # 消防电梯迫降时间 s
+    "DIM-047": "non_geometric",  # 泵房温度 ℃
+    "DIM-057": "non_geometric",  # 舞厅宽度 m/百人（需人数）
+    "DIM-061": "non_geometric",  # 消防水池容积 m³
+    "DIM-062": "non_geometric",  # 喷淋水池容积 m³
+    "DIM-079": "non_geometric",  # 疏散净宽 m/百人
+    "DIM-109": "non_geometric",  # 消防水箱容积 m³
+    "DIM-111": "non_geometric",  # 排烟风速 m/s
+    "DIM-032": "semantic_unmapped",  # 救援窗 1000mm（无救援窗图层约定）
+    "DIM-102": "semantic_unmapped",  # 避难区 2.0m（无避难区图层约定）
+    "DIM-110": "semantic_unmapped",  # 自然排烟窗面积比 2%（无排烟口图层约定）
+    "DIM-114": "semantic_unmapped",  # 消防救援窗 1.0m
+    "DIM-115": "semantic_unmapped",  # 前室 1.5m（需前室形式语义）
+    "ATTR-004": "product_spec",  # 防火墙耐火极限 3.0h
+    "ATTR-005": "product_spec",  # 防火门等级 2.0 级
+    "ATTR-006": "product_spec",  # 楼板耐火极限 1.5h
+    "ATTR-007": "product_spec",  # 幕墙耐火极限 1.0h
+    "ATTR-010": "product_spec",  # 防烟楼梯间前室 4.5㎡
+    "ATTR-013": "product_spec",  # 防火窗耐火极限 1.0h
+    "ATTR-014": "product_spec",  # 疏散门数量 1.0 处
+    "ATTR-016": "product_spec",  # 消防电梯载重 800kg
+    "ATTR-017": "product_spec",  # 外墙开口 1.0 处
+    "ATTR-018": "product_spec",  # 楼梯踏步 1.0 处
+    "ATTR-019": "product_spec",  # 防火门等级 1.0 级
+    "ACCESS-012": "semantic_unmapped",  # 盲道与障碍物 0.25m
+    "ACCESS-019": "semantic_unmapped",  # 扶手高度 0.85m（竖向量，平面图无）
+    "ACCESS-020": "semantic_unmapped",  # 洗手盆深度 0.55m（竖向/设施深度）
+    "THERM-001": "thermal",
+    "THERM-003": "thermal",
+    "THERM-004": "thermal",
+    "THERM-006": "thermal",  # 遮阳系数
+    "THERM-007": "thermal",
+    "THERM-010": "thermal",  # 保温层厚度
+    "THERM-012": "thermal",  # 外窗气密性等级
+    "THERM-016": "thermal",  # 外窗太阳得热
+    "LIGHT-002": "illuminance",
+    "LIGHT-003": "illuminance",
+    "LIGHT-004": "illuminance",
+    "LIGHT-005": "illuminance",
+    "LIGHT-007": "illuminance",
+    "LIGHT-008": "illuminance",
+    "LIGHT-009": "illuminance",
+    "LIGHT-010": "illuminance",
+    "LIGHT-011": "illuminance",
+    "COUNT-004": "non_geometric",  # 油室容积 m³
+    "COUNT-027": "mep_data",  # 探测器数量
+    "COUNT-028": "mep_data",  # 探测器数量
+    "DIST-014": "site_or_path",  # 无障碍厕所 30m
+    "DIST-015": "site_or_path",  # 水泵接合器 2m（室外设施）
+    "DIST-017": "site_or_path",  # 卧室与水箱 0m
+    "DIST-018": "site_or_path",  # 多功能厅与泵房 6m
+    "DIST-019": "site_or_path",  # 建筑与储水池 25m
+    "DIST-020": "site_or_path",  # 车位与出口 45m
+    "EXIST-033": "implementation_gate",  # 泵房排水设施
+    "EXIST-034": "implementation_gate",  # 泵房备用电源
+    "EXIST-035": "implementation_gate",  # 无障碍电梯
+    "EXIST-054": "implementation_gate",  # 疏散门/防火门
+    "EXIST-062": "implementation_gate",  # 消防水泵
+    "EXIST-095": "implementation_gate",  # 泵房集水坑
+    "STR-001": "structural",
+    "STR-002": "structural",
+    "STR-003": "structural",
+    "STR-006": "structural",  # 柱配筋率
+    "STR-007": "structural",  # 柱轴压比
+    "STR-014": "structural",  # 混凝土强度
+    "AREA-020": "non_geometric",  # 避难区 5 人/m²（需人数）
+    # ── 12 条语义缺口（需改判据语义，非补属性可解）──
+    "AREA-004": "semantic_gap",
+    "AREA-005": "semantic_gap",
+    "AREA-006": "semantic_gap",
+    "AREA-011": "semantic_gap",
+    "AREA-013": "semantic_gap",
+    "AREA-016": "semantic_gap",
+    "AREA-017": "semantic_gap",
+    "AREA-022": "semantic_gap",
+    "DIM-005": "semantic_gap",
+    "DIM-010": "semantic_gap",
+    "DIM-021": "semantic_gap",
+    "DIM-022": "semantic_gap",
+    # ── 2 条依赖前置不可判定 ──
+    "DIM-073": "prereq_unsupported",
+    "DIM-075": "prereq_unsupported",
+    # ── 1 条需疏散路径拓扑 ──
+    "DIST-001": "path_topology",
+}
+
+for _func in ATOMIC_FUNCTIONS:
+    _reason = UNSUPPORTED_2D_REASONS.get(_func.func_id)
+    if _reason is not None:
+        _func.unsupported_2d = True
+        _func.unsupported_reason = _reason
+
+__all__ = ["ATOMIC_FUNCTIONS", "UNSUPPORTED_2D_REASONS"]

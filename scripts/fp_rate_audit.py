@@ -326,10 +326,23 @@ def run_review(dxf_path: Path) -> dict:
             applicable_ids.add(f.func_id)
     evaluated_count = len(evaluated_ids)
     applicable_count = len(applicable_ids)
+    # P2-1: 双口径分母。unsupported_2d 规则仍参与执行与分子计算，
+    # 只在报告侧提供「可判定口径」的分母（剔除 2D 图纸无法提供判据的规则）。
+    unsupported_ids = {
+        f.func_id for f in funcs if getattr(f, "unsupported_2d", False)
+    }
+    applicable_unsupported = applicable_ids & unsupported_ids
+    judgeable_count = applicable_count - len(applicable_unsupported)
     coverage = {
         "evaluated_rules": evaluated_count,
         "applicable_rules": applicable_count,
         "ratio": round(evaluated_count / applicable_count, 3) if applicable_count else 0.0,
+        "judgeable_rules": judgeable_count,
+        "judgeable_ratio": (
+            round(evaluated_count / judgeable_count, 3) if judgeable_count else 0.0
+        ),
+        "unsupported_rules": len(applicable_unsupported),
+        "unsupported_func_ids": sorted(applicable_unsupported),
         "unrecognized_types": sorted(entity_type_set - referenced_types),
         "evaluated_func_ids": sorted(evaluated_ids),
         "applicable_func_ids": sorted(applicable_ids),
@@ -442,7 +455,9 @@ def main(argv: list[str]) -> int:
             f"作用域={rep['scope_count']}"
             f"({rep['scope_mode']}), findings={total}, 分类={cls}, "
             f"可达={cov.get('evaluated_rules', 0)}/{cov.get('applicable_rules', 0)}"
-            f"({cov.get('ratio', 0.0):.1%})",
+            f"({cov.get('ratio', 0.0):.1%})"
+            f"，可判定={cov.get('evaluated_rules', 0)}/{cov.get('judgeable_rules', 0)}"
+            f"({cov.get('judgeable_ratio', 0.0):.1%})",
             flush=True,
         )
         by_func = Counter(f["func_id"] for f in rep["findings"])
@@ -474,13 +489,22 @@ def main(argv: list[str]) -> int:
         )
 
     if valid_reports:
-        total_funcs = len(FuncRegistry().list_all())
+        all_funcs = FuncRegistry().list_all()
+        total_funcs = len(all_funcs)
+        unsupported_union = {
+            f.func_id for f in all_funcs if getattr(f, "unsupported_2d", False)
+        }
         applicable_union: set[str] = set()
         evaluated_union: set[str] = set()
         for r in valid_reports:
             cov = r.get("coverage", {})
             applicable_union |= set(cov.get("applicable_func_ids", []))
             evaluated_union |= set(cov.get("evaluated_func_ids", []))
+        # 严格口径：全局上下文规则（EXIST-083/093）会产出判定但不在适用集合内，
+        # 分子分母必须同集合，否则覆盖率被虚增。
+        strict_evaluated = evaluated_union & applicable_union
+        judgeable_union = applicable_union - unsupported_union
+        judgeable_evaluated = strict_evaluated - unsupported_union
         print("\n=== 规则可达性（有效图纸并集）===")
         print(
             f"适用规则(别名归并): {len(applicable_union)} / {total_funcs} "
@@ -489,7 +513,19 @@ def main(argv: list[str]) -> int:
         )
         print(
             f"实际判定可达: {len(evaluated_union)} / {len(applicable_union)} "
-            f"({len(evaluated_union) / len(applicable_union):.1%})",
+            f"({len(evaluated_union) / len(applicable_union):.1%})"
+            f"（含全局上下文规则 {len(evaluated_union - applicable_union)} 条，不在适用集合内）",
+            flush=True,
+        )
+        print(
+            f"[严格口径] 实际判定: {len(strict_evaluated)} / {len(applicable_union)} "
+            f"({len(strict_evaluated) / len(applicable_union):.1%})",
+            flush=True,
+        )
+        print(
+            f"[可判定口径] 实际判定: {len(judgeable_evaluated)} / {len(judgeable_union)} "
+            f"({len(judgeable_evaluated) / len(judgeable_union):.1%})"
+            f"（分母剔除 unsupported_2d {len(applicable_union & unsupported_union)} 条）",
             flush=True,
         )
         # 产品力评估口径：适用性可达 = 别名归并后能匹配到实体的规则占比

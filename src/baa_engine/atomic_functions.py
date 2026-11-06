@@ -289,6 +289,10 @@ class AtomicFunction:  # class definition
     prerequisite_types: List[str] = field(
         default_factory=list
     )  # 条件性规则：前置实体类型（如 EXIST-067 需 fire_wall 存在才判定）
+    # P2-1: 2D 图纸不可判定标记。仅元数据，不改变 matches/execute 行为；
+    # 用于覆盖率双口径报告（全规则口径 / 可判定口径）。
+    unsupported_2d: bool = False
+    unsupported_reason: str = ""
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
