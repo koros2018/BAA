@@ -497,3 +497,69 @@ mosque 0/0/0 · plans 1/32/0 · demo 0/29/0 · 4.通风 跳过 · baa-file 跳�
 python scripts/fp_rate_audit.py            # 打印全规则/严格/可判定三行覆盖率
 python -m pytest src/tests/test_p21_unsupported_2d.py -q
 ```
+
+## 10. A 桶属性补齐结论（2026-11-06）
+
+**结论：ATTR-001 / ATTR-003 / AREA-001 / COUNT-001 四条在 9 张样本图上
+全部无合规取值**（补前 None、补后 None），净收益 **0**；覆盖率保持
+**42/107 = 39.3%**（全规则 42/183 = 23.0%）。四条不产生任何新 finding。
+
+### 10.1 ATTR-001 / ATTR-003：只有“防火门类型”证据，没有等级证据
+
+| 图纸 | 门窗实体 | 等级证据 | 补前 → 补后 |
+|---|---|---|---|
+| 东莞通-建筑 | door 3248、doorway 277、window 10、rescue_window 3 | 256 条 `FM` 逐门 TEXT（距最近门 0~144mm）；8 条门编号 `HFM1220(6)`/`HFM0716(5)`/`HFM0820(6)`/`HHFM1520(6)`/`HHFM1020(6)`/`HM1020`/`HM1220`/`HHM1220`；`甲级证书号：A144018965` 为证书说明（距最近门 1389mm）；`（耐火极限≥` 文本截断、无值 | None → **None** |
+| villa-details | door 2772、window 136 | 关键词文本 0；块名仅 `A$C57C31BFC`（wc/sanitary 洁具块）与 `okna-150`（窗，无等级）；ATTRIB 0 | None → **None** |
+| multiple-stadion / plans / Demo | door 217 / 84 / 14 | 关键词文本、块名、ATTRIB 均为 0 | None → **None** |
+
+判定：
+- `FM` / `HFM` 只证明“是防火门”，不证明等级；把 `FM` 写成 1.0（丙级）就是
+  按类型猜等级，已禁止。
+- `甲级证书号` 是整份门窗表的证书说明，不是逐门等级标注；其最近实体是
+  `WINDOW_143`（误分类窗），跨实体写 3.0 会制造假 PASS。
+- `HFM/HHM` 编号不含甲/乙/丙，无法落等级。
+
+例外与捕获：仅当编号**显式带等级字符**（`FM甲1220` / `FC乙1212`）时写
+`fire_rating`——门按甲/乙/丙 = 3/2/1 级，窗按 = 1.5/1.0/0.5h；裸 `FM1220`
+不写（[text_attributes.py](../src/baa_engine/semantic_analyzer/text_attributes.py)）。
+图层名推断仅保留中文甲/乙/丙，删除裸 `A`/`B`/`C` 单字母
+（[main.py](../src/baa_engine/semantic_analyzer/main.py)），避免 `A-WALL`/`B-DOOR`/
+`C-COLUMN` 被误判为等级。
+
+### 10.2 AREA-001：只对真实闭合区域落 bbox
+
+- 条件：`closed=True` 或 `point_count>=3` 的空间区域；文字标签（TEXT/MTEXT）、
+  LINE（start/end 点）、ARC（radius）一律 None。
+- 落值：`area = width*height/1e6`（图纸单位 mm → ㎡），并写
+  `area_source="bbox"`、`_area_source="bbox_floor_region"`。
+- 为什么用 bbox 而非闭合轮廓：2D 解析对未合龙多边形只能给 bbox；bbox 对
+  L 形/弧形区域会偏大，只适用于近似矩形的闭合区域。本图集没有该类实体。
+
+样本验证（全部保持 None，无新增 finding）：
+
+| 实体 | 实际几何 | bbox 面积 | 若落 bbox 的后果 |
+|---|---|---|---|
+| 东莞通 `FLOOR_2729` | TEXT「负一层地下室顶板结构降板」560×373.33mm | 0.209067㎡ | 新增 critical FAIL（<5） |
+| 东莞通 `FLOOR_6405` | TEXT「上负一层」401.07×267.38mm | 0.107240㎡ | 新增 critical FAIL（<5） |
+| villa `FLOOR_606` | ARC，半径 6980.95mm、弧角 157.8°~178.2° | 194.934693㎡ | 假 PASS（外接矩形） |
+| villa 其余 10 个 floor | LINE，短边≈0 | 0.000000㎡ | 仍 None |
+
+### 10.3 COUNT-001：无分区保持 None，禁止向 floor 摊派
+
+- 作用域：仅 `fire_zone` / `fire_compartment`，且 bbox 面积 ≥25㎡（过滤文字/图例块）。
+- 分区内找到 ≥1 个出口实体才写 `exit_count`；0 个不写 0（缺符号 ≠ 出口不足）。
+- `floor` 标签/楼层线不是空间范围，任何情况下都不摊派全图出口数。
+
+样本：5 张参与判定的图纸 `fire_zone` / `fire_compartment` 均为 **0**；
+东莞通有 2 个 floor 标签与 1 个 `exit`，villa 有 11 个 floor 线元与
+0 个 `exit`/`exit_door`（仅 20 个 `is_evacuation_door`，非分区出口）。
+→ 全部 None；villa 11 个 floor 不产生任何 finding。
+
+### 10.4 验收
+
+- 9 张图 findings 对比：**ALL IDENTICAL**（东莞通 37/177/20、villa 17/140/16、
+  stadion 2/58/0、plans 1/32/0、demo 0/29/0；restroom/mosque 0/0/0；其余跳过）。
+- 全量 pytest：**3017 passed**（新增 text_attributes 6 例 + A 桶 AREA/COUNT 11 例）。
+- 覆盖率：全规则 42/183 = 23.0%，可判定 **42/107 = 39.3%**，均不变。
+- 提交：`fix(semantic)` 等级捕获与图层收口；`feat(area)` 闭合区域 bbox；
+  `feat(count)` 分区出口聚合。
