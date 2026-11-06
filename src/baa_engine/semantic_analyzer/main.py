@@ -807,6 +807,11 @@ class SemanticAnalyzer:
             # 收集可能的走廊原始图元（LINE + 2点LWPOLYLINE）
             edge_candidates = []  # init: empty list
             for p in primitives:  # 循环
+                # 只有 LINE / LWPOLYLINE 可能入候选（后续分支即按此判定），
+                # 先按 dxf_type 拒绝其余图元，省去每次 4 次 bbox 取键 + 几何运算。
+                p_type = p.dxf_type
+                if p_type != "LINE" and p_type != "LWPOLYLINE":
+                    continue
                 bbox = p.bbox  # assign
                 cx = bbox.get("x", 0) + bbox.get("width", 0) / 2  # assign
                 cy = bbox.get("y", 0) + bbox.get("height", 0) / 2  # assign
@@ -857,36 +862,44 @@ class SemanticAnalyzer:
                 ]  # assign: membership check
 
                 # 水平线：按cy排序，收集所有gap
-                h_sorted = sorted(h_edges, key=lambda e: e["cy"])  # assign
+                # 排序保持原稳定序（同 cy 时按插入序），随后转成 (cy, cx) 元组，
+                # 避免内层 60k+ 次 pair 迭代反复做 e["cy"]/e["cx"] 字典取键。
+                h_sorted = [(e["cy"], e["cx"]) for e in sorted(h_edges, key=lambda e: e["cy"])]
+                h_n = len(h_sorted)
                 h_gaps = []  # init: empty list
-                for i in range(min(300, len(h_sorted))):  # 循环
-                    for j in range(i + 1, min(i + 100, len(h_sorted))):  # 循环
-                        gap = abs(h_sorted[i]["cy"] - h_sorted[j]["cy"])  # assign
+                for i in range(min(300, h_n)):  # 循环
+                    yi, xi = h_sorted[i]
+                    for j in range(i + 1, min(i + 100, h_n)):  # 循环
+                        yj, xj = h_sorted[j]
+                        gap = abs(yi - yj)  # assign
                         if 500 < gap < 10000:  # check: numeric comparison
                             h_gaps.append(
                                 {
                                     "gap": gap,
-                                    "y1": h_sorted[i]["cy"],
-                                    "y2": h_sorted[j]["cy"],  # code
-                                    "cx1": h_sorted[i]["cx"],
-                                    "cx2": h_sorted[j]["cx"],
+                                    "y1": yi,
+                                    "y2": yj,  # code
+                                    "cx1": xi,
+                                    "cx2": xj,
                                 }
                             )  # 字段
 
                 # 垂直线：按cx排序，收集所有gap
-                v_sorted = sorted(v_edges, key=lambda e: e["cx"])  # assign
+                v_sorted = [(e["cx"], e["cy"]) for e in sorted(v_edges, key=lambda e: e["cx"])]
+                v_n = len(v_sorted)
                 v_gaps = []  # init: empty list
-                for i in range(min(300, len(v_sorted))):  # 循环
-                    for j in range(i + 1, min(i + 100, len(v_sorted))):  # 循环
-                        gap = abs(v_sorted[i]["cx"] - v_sorted[j]["cx"])  # assign
+                for i in range(min(300, v_n)):  # 循环
+                    xi, yi = v_sorted[i]
+                    for j in range(i + 1, min(i + 100, v_n)):  # 循环
+                        xj, yj = v_sorted[j]
+                        gap = abs(xi - xj)  # assign
                         if 500 < gap < 10000:  # check: numeric comparison
                             v_gaps.append(
                                 {
                                     "gap": gap,
-                                    "x1": v_sorted[i]["cx"],
-                                    "x2": v_sorted[j]["cx"],  # code
-                                    "cy1": v_sorted[i]["cy"],
-                                    "cy2": v_sorted[j]["cy"],
+                                    "x1": xi,
+                                    "x2": xj,  # code
+                                    "cy1": yi,
+                                    "cy2": yj,
                                 }
                             )  # 字段
 
