@@ -366,9 +366,14 @@ class TestDimWidthExtraction:
     # ── DIM-021/022 疏散门净宽 ────────────────────────────
 
     def test_dim021_exit_door_mm(self):
-        """DIM-021 exit_door width=1.69（m）→ 返回 1690（mm 口径）"""
-        ent = self._entity("exit_door", width=1.69)
+        """DIM-021 exit_door width=1.69（m）+ floor=F1 → 返回 1690（mm 口径）"""
+        ent = self._entity("exit_door", width=1.69, floor="F1")
         assert self._val("DIM-021", ent) == pytest.approx(1690.0)
+
+    def test_dim021_no_floor_evidence_skipped(self):
+        """T4: 无 floor=F1 证据 → 不判定（首层疏散外门前提不成立）"""
+        ent = self._entity("exit_door", width=1.69)
+        assert self._val("DIM-021", ent) is None
 
     def test_dim021_plain_door_skipped(self):
         """DIM-021 普通 door（无 is_evacuation_door）→ None（防误报）"""
@@ -376,8 +381,8 @@ class TestDimWidthExtraction:
         assert self._val("DIM-021", ent) is None
 
     def test_dim021_evac_door(self):
-        """DIM-021 door + is_evacuation_door → 提取"""
-        ent = self._entity("door", width=1.69, is_evacuation_door=True)
+        """DIM-021 door + is_evacuation_door + floor=F1 → 提取"""
+        ent = self._entity("door", width=1.69, is_evacuation_door=True, floor="F1")
         assert self._val("DIM-021", ent) == pytest.approx(1690.0)
 
     def test_dim022_plain_door_skipped(self):

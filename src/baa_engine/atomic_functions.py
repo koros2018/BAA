@@ -181,6 +181,90 @@ def _lobby_entity_kind(entity: Dict[str, Any]) -> str:
     return ""
 
 
+# ── T4: 疏散门宽度条款前置证据（楼层 / 人员密集场所）─────────
+# DIM-021「首层疏散外门 ≥1.1m」的适用前提是门在首层（floor=F1）；
+# DIM-022「人员密集场所疏散门 ≥1.4m」的前提是 occupancy=人员密集场所。
+# 东莞通 villa 13 扇门 floor=None、occupancy 缺失，两条条款同时命中 25 条，
+# 全部为无证据误报。缺证据时返回 None（与 DIM-002/DIST-002 等
+# 「数据缺失不判定」一致）：规则引擎只有响应级 insufficient_evidence 布尔，
+# 逐条缺证据的一致表达就是「不产出判定」，而不是编造 low 级 finding。
+# 两条条款按建筑业态互斥：人员密集场所 → DIM-022；否则首层外门 → DIM-021。
+_GROUND_FLOOR_LABELS = {
+    "F1",
+    "1F",
+    "L1",
+    "1",
+    "1层",
+    "首层",
+    "一层",
+    "地上一层",
+    "GF",
+    "GROUND",
+    "GROUNDFLOOR",
+}
+_ASSEMBLY_OCCUPANCY_VALUES = {
+    "assembly",
+    "public_assembly",
+    "crowded",
+    "crowded_place",
+    "personnel_intensive",
+    "人员密集",
+    "人员密集场所",
+    "密集场所",
+    "商场",
+    "market",
+    "theater",
+    "theatre",
+    "cinema",
+    "stadium",
+    "gymnasium",
+    "体育馆",
+    "影剧院",
+    "观众厅",
+}
+
+
+def _is_ground_floor(value: Any) -> bool:
+    """判断楼层标注是否为首层（F1/1F/一层/首层…）。"""
+    if value is None or isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return float(value) == 1.0
+    s = str(value).strip().upper().replace(" ", "")
+    if not s:
+        return False
+    if s in _GROUND_FLOOR_LABELS:
+        return True
+    # 带后缀的标注（如「首层平面」「F1-消防」），要求 F1/1F 后不接数字
+    if s.startswith(("首层", "一层", "地上一层")):
+        return True
+    for prefix in ("F1", "1F"):
+        if s.startswith(prefix) and (len(s) == len(prefix) or not s[len(prefix)].isdigit()):
+            return True
+    return False
+
+
+def _is_assembly_occupancy(props: Dict[str, Any]) -> bool:
+    """判断是否有人员密集场所（occupancy）证据。"""
+    if props.get("is_assembly_occupancy") or props.get("crowded_place"):
+        return True
+    for key in (
+        "occupancy",
+        "occupancy_type",
+        "use_type",
+        "building_use",
+        "place_type",
+        "function_type",
+    ):
+        value = props.get(key)
+        if value is None:
+            continue
+        s = str(value).strip().lower()
+        if s in _ASSEMBLY_OCCUPANCY_VALUES or "人员密集" in s or "密集场所" in s:
+            return True
+    return False
+
+
 @dataclass  # code
 class AtomicFunction:  # class definition
     """原子函数定义"""
@@ -864,9 +948,22 @@ class AtomicFunction:  # class definition
             # 仅 exit/exit_door 或显式标注 is_evacuation_door 的实体判定。
             # 真实图纸 2644 个 door 中大量 bbox 宽度 1.4~1.8m 是门洞投影，
             # 逐门判 DIM-021/022 会产生 800+ 条误报（跨图纸复测 2026-11）。
-            if func_id in ("DIM-021", "DIM-022") and etype in ("door", "doorway"):
-                if not props.get("is_evacuation_door") and etype != "exit_door":
+            if func_id in ("DIM-021", "DIM-022"):
+                if etype in ("door", "doorway") and not props.get("is_evacuation_door"):
                     return None
+                # T4: 前置证据门禁（缺证据不判定，见模块头注释）
+                assembly = _is_assembly_occupancy(props)
+                if func_id == "DIM-022":
+                    # 人员密集场所疏散门：无 occupancy 证据不得按 1.4m 判
+                    if not assembly:
+                        return None
+                else:
+                    # 首层疏散外门：人员密集场所由 DIM-022 判（两条互斥）；
+                    # 无 floor=F1 证据不得按 1.1m 判
+                    if assembly:
+                        return None
+                    if not _is_ground_floor(props.get("floor")):
+                        return None
             # 走廊/走道防误报：宽度 <0.5m 必为误分类（线/填充）
             if func_id == "DIM-012" and val_m < 0.5:
                 return None
