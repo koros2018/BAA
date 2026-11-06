@@ -165,6 +165,62 @@ class TestFuncExecute:  # class definition
         )  # function call
         assert r is None  # 断言
 
+    # 门窗符号尺寸（扇线长/弧半径）±50mm 不确定带
+    def test_symbol_width_in_uncertainty_band(
+        self, registry
+    ):  # 阈值 0.9 ± 50mm 带内 → insufficient_evidence（None）
+        func = registry.get("DIM-009")
+        r = func.execute({
+            "id": "D900", "type": "exit_door",
+            "properties": {
+                "width": 0.88, "width_basis": "leaf",
+                "approximate": True, "_width_plausible": True,
+                "_width_uncertainty_m": 0.05,
+            },
+        })
+        assert r is None
+
+    def test_symbol_width_outside_band_fails_with_approximate(
+        self, registry
+    ):  # 带外仍正常判定，finding 标记 approximate
+        func = registry.get("DIM-009")
+        r = func.execute({
+            "id": "D800", "type": "exit_door",
+            "properties": {
+                "width": 0.80, "width_basis": "leaf",
+                "approximate": True, "_width_plausible": True,
+                "_width_uncertainty_m": 0.05,
+            },
+        })
+        assert r.result == "FAIL"
+        assert r.params["approximate"] is True
+        assert r.params["width_basis"] == "leaf"
+
+    def test_symbol_width_implausible_returns_none(
+        self, registry
+    ):  # <300mm / >3000mm 不构成可通行门窗
+        func = registry.get("DIM-009")
+        r = func.execute({
+            "id": "D3200", "type": "exit_door",
+            "properties": {
+                "width": 3.2, "width_basis": "arc_radius",
+                "approximate": True, "_width_plausible": False,
+                "_width_uncertainty_m": 0.05,
+            },
+        })
+        assert r is None
+
+    def test_width_without_symbol_basis_has_no_band(
+        self, registry
+    ):  # 非符号尺寸不受 ±50mm 带影响
+        func = registry.get("DIM-009")
+        r = func.execute({
+            "id": "D880", "type": "exit_door",
+            "properties": {"width": 0.88},
+        })
+        assert r.result == "FAIL"
+        assert r.params["approximate"] is False
+
     # DIM-002: 防火分区面积 (<= 2500)
     # 单位转换策略（atomic_functions._extract_value）：
     #   显式 unit=mm2 → area ÷ 1e6；显式 unit=m2 → 原值

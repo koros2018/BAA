@@ -461,6 +461,24 @@ class AtomicFunction:  # class definition
         actual = self._extract_value(entity)  # function call
         if actual is None:  # check: value is None
             return None  # 属性缺失，无法判定
+        props = entity.get("properties") or {}
+        width_basis = props.get("width_basis", "")  # 扇线/弧半径符号尺寸
+        width_value = props.get("width", props.get("clear_width"))
+        is_symbol_width = (
+            self.unit == "m"
+            and width_basis in ("leaf", "arc_radius")
+            and width_value is not None
+            and abs(actual - float(width_value)) < 1e-9  # 本次判定实际用的是宽度
+        )
+        if is_symbol_width:
+            # 符号尺寸未扣门框，名义洞口宽存在 ±50mm 不确定度：
+            # 1) 尺寸不构成可通行门窗（<300mm / >3000mm）→ 不判定
+            # 2) 落点在阈值 ±50mm 带内 → insufficient_evidence，不产 PASS/FAIL
+            if not props.get("_width_plausible", True):
+                return None
+            band = props.get("_width_uncertainty_m", 0.05)
+            if abs(actual - self.threshold) <= band:
+                return None
         delta = actual - self.threshold  # assignment
 
         # 执行比较
@@ -497,6 +515,13 @@ class AtomicFunction:  # class definition
                 "clause_text": self.description,  # code
                 "entity_layer": entity.get("layer", ""),  # function call
                 "passed": passed,  # code
+                "approximate": bool(is_symbol_width),  # 符号尺寸近似值
+                "width_basis": width_basis,  # leaf / arc_radius / ""
+                "width_uncertainty_m": (
+                    props.get("_width_uncertainty_m", 0.05)
+                    if is_symbol_width
+                    else 0.0
+                ),  # code
             },  # code
             confidence=self._calculate_confidence(entity, actual),  # function call
         )  # code

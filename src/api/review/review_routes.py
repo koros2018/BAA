@@ -687,6 +687,9 @@ async def review(  # code
                     "explanation": finding.explanation[:120],
                     "confidence": r.confidence,
                     "confidence_tier": _confidence_tier(r.confidence),
+                    # 门窗符号尺寸（扇线长/弧半径）为近似值，finding 中可识别
+                    "approximate": bool(r.params.get("approximate")),
+                    "width_basis": r.params.get("width_basis", ""),
                 })
 
         _rule_runner(entities, func_ids, get_strict_threshold, _evaluate)

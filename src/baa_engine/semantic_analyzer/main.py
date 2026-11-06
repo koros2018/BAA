@@ -55,6 +55,12 @@ def _layer_fire_rating(layer: str) -> Optional[Tuple[float, str]]:
 _DOOR_WIDTH_TYPES = {
     "door", "fire_door", "exit_door", "doorway", "accessible_door",
 }
+# 窗类实体同样存在 ARC 直径=2r 的问题（ARC 半径 ≥2000mm 时分类为 window）。
+_WINDOW_WIDTH_TYPES = {
+    "window", "fire_window", "rescue_window", "smoke_exhaust_window",
+}
+# 门窗符号尺寸（扇线长 / 弧半径）未扣门框，名义洞口宽不确定度按 ±50mm 计。
+SYMBOL_WIDTH_UNCERTAINTY_M = 0.05
 
 
 def _arc_radius_width_m(radius) -> Optional[float]:
@@ -305,6 +311,32 @@ class SemanticAnalyzer:
                             ent.properties["fire_rating"] = rating
                             ent.properties["_fire_rating_source"] = f"layer_grade_{grade}"
                         # 不设默认值——无法推断时留空，让原子函数处理
+
+        # Step 1.6b: 窗类 ARC 宽度（同样 bbox=直径，宽度取半径）
+        for ent in entities:
+            if ent.type not in _WINDOW_WIDTH_TYPES:
+                continue
+            radius = ent.properties.get("radius")
+            w_arc = _arc_radius_width_m(radius) if radius is not None else None
+            if w_arc is None:
+                continue
+            ent.properties["width"] = w_arc
+            ent.properties["clear_width"] = w_arc
+            ent.properties["_width_source"] = "arc_radius"
+            ent.properties["width_basis"] = "arc_radius"
+
+        # Step 1.6c: 门窗符号尺寸 = 近似值（未扣门框，±50mm）
+        for ent in entities:
+            if ent.type not in _DOOR_WIDTH_TYPES and ent.type not in _WINDOW_WIDTH_TYPES:
+                continue
+            basis = ent.properties.get("width_basis")
+            if basis not in ("leaf", "arc_radius"):
+                continue
+            ent.properties["approximate"] = True
+            ent.properties["_width_uncertainty_m"] = SYMBOL_WIDTH_UNCERTAINTY_M
+            w_m = ent.properties.get("width", 0) or 0
+            # 符号尺寸合理性：<300mm / >3000mm 不是可通行门窗
+            ent.properties["_width_plausible"] = 0.3 <= w_m <= 3.0
 
         # Step 1.7: 房间面积兜底（扫线法失败时的 fallback）
         # 如果 room 实体没有 area 属性，用 bbox 估算（bw*bh/1e6，合理范围 1~500m²）

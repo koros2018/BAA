@@ -203,6 +203,9 @@ def run_review(dxf_path: Path) -> dict:
                 "confidence": r.confidence,
                 "source": finding_source,
                 "explanation": explanation[:160],
+                # 门窗符号尺寸（扇线长/弧半径）为近似值，finding 中可识别
+                "approximate": bool((r.params or {}).get("approximate")),
+                "width_basis": (r.params or {}).get("width_basis", ""),
             }
         )
 
