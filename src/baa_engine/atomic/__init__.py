@@ -48,11 +48,10 @@ ATOMIC_FUNCTIONS = _merge_modules(
 #   semantic_gap       实体存在但语义不足以判定（需改判据语义）
 #   prereq_unsupported 前置规则本身不可判定
 #   path_topology      需疏散路径网络/拓扑
-#   implementation_gate 执行门禁与适用面不一致（本轮不动，仅标记）
 # 标记只写元数据，不改变 matches()/execute() 行为，规则照常参与执行与
 # 覆盖率分子计算；报告侧用它给出「可判定口径」分母。
 UNSUPPORTED_2D_REASONS = {
-    # ── C 桶（67）：2D 图纸无载体 ──
+    # ── C 桶（61）：2D 图纸无载体（原 67 剔除 6 条执行门禁缺陷）──
     "DIM-028": "non_geometric",  # 锅炉房/油室容积 m³
     "DIM-029": "non_geometric",  # 消防电梯迫降时间 s
     "DIM-047": "non_geometric",  # 泵房温度 ℃
@@ -107,12 +106,6 @@ UNSUPPORTED_2D_REASONS = {
     "DIST-018": "site_or_path",  # 多功能厅与泵房 6m
     "DIST-019": "site_or_path",  # 建筑与储水池 25m
     "DIST-020": "site_or_path",  # 车位与出口 45m
-    "EXIST-033": "implementation_gate",  # 泵房排水设施
-    "EXIST-034": "implementation_gate",  # 泵房备用电源
-    "EXIST-035": "implementation_gate",  # 无障碍电梯
-    "EXIST-054": "implementation_gate",  # 疏散门/防火门
-    "EXIST-062": "implementation_gate",  # 消防水泵
-    "EXIST-095": "implementation_gate",  # 泵房集水坑
     "STR-001": "structural",
     "STR-002": "structural",
     "STR-003": "structural",
@@ -140,10 +133,33 @@ UNSUPPORTED_2D_REASONS = {
     "DIST-001": "path_topology",
 }
 
+# ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
+# 这 6 条规则的判据本身可从 2D 图纸获得，缺口在实现侧：matches() 因
+# subtype/别名组命中而返回 True，进入作用域聚合后 execute(None) 拿到空
+# 目标集合，被 targets∩entity_types 硬交集跳过。直接补齐会走
+# build_scopes → execute(None)，而这些样本缺 drain/sump/fire_pump 实体，
+# 大概率产出假 FAIL，故本轮只登记缺陷、不动执行路径。
+IMPLEMENTATION_GATE_DEFECTS = {
+    "EXIST-033": "适用面命中但执行侧目标集合为空；缺 drain 实体，直接修会产假 FAIL",
+    "EXIST-034": "适用面命中但执行侧目标集合为空；缺备用电源实体",
+    "EXIST-035": "适用面命中但执行侧目标集合为空；缺无障碍电梯语义",
+    "EXIST-054": "适用面命中但执行侧目标集合为空；疏散门/防火门门禁不一致",
+    "EXIST-062": "适用面命中但执行侧目标集合为空；缺 fire_pump 实体",
+    "EXIST-095": "适用面命中但执行侧目标集合为空；缺 sump 实体",
+}
+
 for _func in ATOMIC_FUNCTIONS:
     _reason = UNSUPPORTED_2D_REASONS.get(_func.func_id)
     if _reason is not None:
         _func.unsupported_2d = True
         _func.unsupported_reason = _reason
+    _defect = IMPLEMENTATION_GATE_DEFECTS.get(_func.func_id)
+    if _defect is not None:
+        _func.implementation_gate_defect = True
+        _func.defect_note = _defect
 
-__all__ = ["ATOMIC_FUNCTIONS", "UNSUPPORTED_2D_REASONS"]
+__all__ = [
+    "ATOMIC_FUNCTIONS",
+    "UNSUPPORTED_2D_REASONS",
+    "IMPLEMENTATION_GATE_DEFECTS",
+]

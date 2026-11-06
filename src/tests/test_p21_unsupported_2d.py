@@ -5,15 +5,20 @@
 
 from collections import Counter
 
-from src.baa_engine.atomic import ATOMIC_FUNCTIONS, UNSUPPORTED_2D_REASONS
+from src.baa_engine.atomic import (
+    ATOMIC_FUNCTIONS,
+    IMPLEMENTATION_GATE_DEFECTS,
+    UNSUPPORTED_2D_REASONS,
+)
 from src.baa_engine.atomic_functions import FuncRegistry
 
 
 class TestUnsupported2dFlag:
     def test_mapping_size_and_unique(self):
-        # 82 条：C 桶 67 + 语义 12 + 依赖 2 + 路径 1
-        assert len(UNSUPPORTED_2D_REASONS) == 82
-        assert len(set(UNSUPPORTED_2D_REASONS)) == 82
+        # 76 条：C 桶 61 + 语义 12 + 依赖 2 + 路径 1
+        # （原 82 剔除 6 条 implementation_gate_defect）
+        assert len(UNSUPPORTED_2D_REASONS) == 76
+        assert len(set(UNSUPPORTED_2D_REASONS)) == 76
 
     def test_every_id_exists_in_registry(self):
         known = {f.func_id for f in ATOMIC_FUNCTIONS}
@@ -49,7 +54,7 @@ class TestUnsupported2dFlag:
         assert counts["semantic_gap"] == 12
         assert counts["prereq_unsupported"] == 2
         assert counts["path_topology"] == 1
-        assert counts["implementation_gate"] == 6
+        assert "implementation_gate" not in counts
         assert counts["illuminance"] == 9
         assert counts["thermal"] == 8
         assert counts["structural"] == 6
@@ -66,3 +71,38 @@ class TestUnsupported2dFlag:
             after = func.matches(entity)
             func.unsupported_2d = True
             assert before == after
+
+
+class TestImplementationGateDefect:
+    def test_defect_list(self):
+        assert len(IMPLEMENTATION_GATE_DEFECTS) == 6
+        assert set(IMPLEMENTATION_GATE_DEFECTS) == {
+            "EXIST-033",
+            "EXIST-034",
+            "EXIST-035",
+            "EXIST-054",
+            "EXIST-062",
+            "EXIST-095",
+        }
+
+    def test_defect_not_marked_unsupported(self):
+        """门禁缺陷留在可判定分母：不能用 unsupported_2d 排除。"""
+        registry = FuncRegistry()
+        for fid, note in IMPLEMENTATION_GATE_DEFECTS.items():
+            func = registry.get(fid)
+            assert func.implementation_gate_defect is True
+            assert func.defect_note == note
+            assert func.unsupported_2d is False
+            assert func.unsupported_reason == ""
+            assert fid not in UNSUPPORTED_2D_REASONS
+
+    def test_defect_flag_does_not_change_matching(self):
+        registry = FuncRegistry()
+        entity = {"id": "E-1", "type": "room", "subtype": "pump_room",
+                  "properties": {"subtype": "pump_room"}}
+        func = registry.get("EXIST-033")
+        before = func.matches(entity)
+        func.implementation_gate_defect = False
+        after = func.matches(entity)
+        func.implementation_gate_defect = True
+        assert before == after

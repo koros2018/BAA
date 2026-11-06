@@ -293,6 +293,10 @@ class AtomicFunction:  # class definition
     # 用于覆盖率双口径报告（全规则口径 / 可判定口径）。
     unsupported_2d: bool = False
     unsupported_reason: str = ""
+    # P2-1b: 实现侧执行门禁缺陷（判据可取，缺口在代码）。不计入
+    # unsupported_2d，规则仍留在可判定分母，仅用于缺陷清单。
+    implementation_gate_defect: bool = False
+    defect_note: str = ""
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
