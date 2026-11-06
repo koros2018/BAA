@@ -14,6 +14,27 @@ SHORT_LAYER_RULES = {
     "FD": "fire_door",  # 字段
     "FE": "fire_elevator",  # 字段
     "T": "equipment",  # 通信设备（real: T=通信图层，需全词匹配）
+    # ── T5: 1–2 字符 ASCII 代码（原先误置于长表子串匹配路径）──
+    # 长表按子串匹配，单/双字母会命中任意含该字母的层名（如 "C" 命中
+    # "01 - DWGFREE.com" → 全图判窗）。这些代码统一走全词匹配。
+    "SB": "door",  # 水消防设备层门标记
+    "DB": "equipment_room",  # 电井
+    "FG": "hvac_equipment",  # 暖通设备
+    "SD": "other",
+    "TH": "other",
+    "HT": "other",
+    "PM": "other",
+    "ZX": "axis",  # 轴线
+    "X": "other",
+    "0": "other",  # 裸 "0" 层（CAD 默认层）
+    "NT": "other",
+    "OP": "other",
+    "AC": "other",
+    "TC": "other",
+    "WC": "accessible_toilet",  # 无障碍卫生间
+    "DQ": "distribution_box",  # 配电箱
+    "SP": "emergency_broadcast",  # 应急广播
+    "FB": "pump_controller",  # 泵控制器
     # ── 电气设备扩展（P34） ──
     "应急": "emergency_light",  # 应急照明（real: 应急照明, 应急灯）
     "EPS": "emergency_light",  # 应急电源

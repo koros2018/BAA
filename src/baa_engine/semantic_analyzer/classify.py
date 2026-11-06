@@ -1,7 +1,7 @@
 """Semantic classifier — layer + geometry + entity-level."""
 
 from typing import Dict, List
-from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES
+from .layer_rules import LAYER_RULES, SHORT_LAYER_RULES, is_substring_keyword
 from .models import SemanticEntity
 from .merge import _merge_overlapping
 from .meta import _parse_meta_entities
@@ -336,12 +336,16 @@ def _classify_by_layer(self, layer: str) -> str:
         if kw in layer_upper:
             return etype
 
-    # 长关键字（≥3字符）：子串匹配
+    # 长关键字：子串匹配。ASCII 关键字须 ≥3 字符（1–2 字符短词一律走短表
+    # 全词匹配，防止 "C" 命中 "01 - DWGFREE.com" 这类层名）；中文关键字
+    # 语义上就是子串匹配（如 "楼梯间"），不受该长度限制。
     for keyword, entity_type in LAYER_RULES.items():  # 循环
+        if not is_substring_keyword(keyword):
+            continue
         if keyword in layer_upper:  # check: membership test
             return entity_type
 
-    # 短关键字（1-2字符）：全词匹配
+    # 短关键字：全词匹配（含 1–2 字符 ASCII 代码与中文短词）
     for keyword, entity_type in SHORT_LAYER_RULES.items():  # 循环
         if keyword in layer_upper:  # check: membership test
             # 检查全词边界

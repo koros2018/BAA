@@ -23,7 +23,17 @@ def _merge_dicts(*dicts):
     return result
 
 
-LAYER_RULES = _merge_dicts(
+def is_substring_keyword(keyword: str) -> bool:
+    """长表子串匹配的合法关键字。
+
+    ASCII 关键字（"C"、"SB"、"0" 等 1–2 字符）太短，子串匹配会命中任意
+    含该字符的层名（如 "C" 命中 "01 - DWGFREE.com"），必须走短表全词匹配。
+    中文关键字按语义天然是子串匹配（如 "楼梯间"），不受长度限制。
+    """
+    return len(keyword) >= 3 or not keyword.isascii()
+
+
+_merged = _merge_dicts(
     LAYER_RULES_CORE,
     LAYER_RULES_FIRE,
     LAYER_RULES_P70_FREQ,
@@ -33,3 +43,9 @@ LAYER_RULES = _merge_dicts(
     LAYER_RULES_STRUCT,
     LAYER_RULES_P79,
 )
+
+# T5: 从长表剔除 1–2 字符 ASCII 关键字（已迁入 SHORT_LAYER_RULES 全词匹配），
+# 避免子串匹配把任意含该字母的层名整体误判。
+LAYER_RULES = {
+    k: v for k, v in _merged.items() if is_substring_keyword(k)
+}
