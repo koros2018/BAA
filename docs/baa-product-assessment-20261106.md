@@ -563,3 +563,87 @@ python -m pytest src/tests/test_p21_unsupported_2d.py -q
 - 覆盖率：全规则 42/183 = 23.0%，可判定 **42/107 = 39.3%**，均不变。
 - 提交：`fix(semantic)` 等级捕获与图层收口；`feat(area)` 闭合区域 bbox；
   `feat(count)` 分区出口聚合。
+
+## 11. B 桶 · DIM 几何提取（2026-11-06）
+
+### 11.1 净宽算法选型：空间用最小内切，门窗用符号自尺寸
+
+在 villa 与东莞通各取 20 个门（15 LINE + 5 ARC）与 12 个闭合房间廓线实测：
+
+| 场景 | (a) 墙线配对/开口间隙 | (b) 闭合轮廓栅格 EDT 最小内切 |
+|---|---|---|
+| 门洞 40 例 | **0/40 有值**（36 例「墙面在洞口未断开」=90%，4 例「窗口内无墙段」=10%） | 33/40 无闭合空间；7 例有值的误差 +184~+1586mm，仅 1 例 ≤100mm |
+| 房间 24 廓线 | 20 可算，18 例 ≤30mm；2 例高估 +1350/+1915mm | 24/24 可算，21 例 ≤30mm，0 高估（3 例偏保守 −110/−127/−300mm） |
+
+结论：
+- **门窗洞口**：用符号自尺寸（LINE 扇线长 / ARC 弧半径），误差来自未扣门框（±50mm），
+  不是几何算法误差。bbox 对 LINE 门 30/30 零误差，对 ARC 门 10/10 恰好 2×（直径）。
+- **闭合空间**：用 (b) 栅格 EDT 最小内切宽；20mm 栅格，必须补零边框，否则数组边界
+  不被当作背景、直径虚高一倍。(a) 只作交叉校验，不作为取值来源。
+- **走道 / 楼梯**：无多边形/梯段几何，判「无法可靠提取」，见 §11.5。
+
+### 11.2 第一批：ARC 门宽 2× 错值修复
+
+- 根因：ARC 实体 bbox = 圆弧外接正方形（边长 = 2r），Step 1.6 取 bbox 长边当门宽；
+  Step 1.5 半径分支虽先写 r，但策略 2 以 min(bbox) 覆盖回 2r。
+- 修复：门宽权威取半径（`width = radius`，>3 视为 mm、≤3 视为米），写
+  `width_basis="arc_radius"` / `_width_source="arc_radius"`；LINE 门扇线写 `width_basis="leaf"`。
+- 改前/改后逐实体全量：`docs/benchmark/arc-door-width-fix-20261106.csv`（440 条）。
+
+| 图纸 | ARC 门 | 改前 → 改后 | 其中恰为 2× |
+|---|---|---|---|
+| 东莞通 | 88 | 2× 或模数吸附值 → 半径 | 部分 |
+| villa-details | 342 | 2× 或模数吸附值 → 半径 | 部分 |
+| multiple-stadion | 10 | None → 0.5m | 0 |
+| 合计 | **440** | **430 有值改动 + 10 由 None 落值** | **212** |
+
+- findings：9 图**逐条完全一致**（东莞通 20、villa 16，其余 0），无新增 FAIL。
+- evaluated：仅 stadion +1（`DIM-113` 由不可判定变为 PASS）；其余不变。
+- 覆盖率：**42/107 = 39.3%** 不变。全量 pytest：**3020 passed**。
+
+### 11.3 第二批：门窗符号尺寸标 approximate + ±50mm 不确定带
+
+- LINE 门 `width = 扇线长`，ARC 门 `width = 半径`；`width_basis` ∈ `leaf` / `arc_radius`，
+  置 `approximate=True`、`_width_uncertainty_m=0.05`。
+- finding 新增 `approximate` / `width_basis` 字段（生产 `review_routes` 与审计脚本同口径）。
+- 判定纪律：
+  - 符号宽 <300mm 或 >3000mm → `_width_plausible=False`，不判定；
+  - `|actual - threshold| <= 50mm` → **insufficient_evidence**，返回 None，不产 PASS/FAIL；
+  - 带外才正常 PASS/FAIL，并在 finding 标 `approximate=true`。
+- 9 图实测：东莞通 leaf 2353 / arc 92，villa leaf 464 / arc 381，stadion arc 10；
+  窗类 ARC 2× 同步纠正（东莞通 4 个、villa 39 个）。
+- findings 与 evaluated **零变化**（本图集无门窗宽度类 finding，故无 approximate 可见样本）；
+  覆盖率 **42/107 = 39.3%** 不变。全量 pytest：**3024 passed**。
+- 未能落地的 None 条件（如实记录）：
+  - 「扇线与弧差 >60mm 或 >10%」需要同一门的扇线+弧配对；当前实体与图元 1:1，
+    一个门实体只携带扇线或弧，二者不共存，无法交叉校验，未凭空构造配对。
+  - 「双扇无逐扇线」需要双扇识别与逐扇线，当前无该结构，未实现。
+
+### 11.4 房间净宽：目标类型不匹配，本批不实现
+
+核查全部 DIMENSION 规则：target 含 `room` 的仅 `DIM-013`（unit=mm，实为净高/2.0m 口径，
+`_extract_value` 无提取分支，恒为 None）与 `DIM-015`（DISTANCE，疏散距离，非净宽）；
+`DIM-012`（走道净宽）target 仅 `corridor`；门窗净宽 target 为 `door/exit_door/exit/doorway`。
+**没有任何原子函数消费 `room.clear_width`**。
+
+现有 room 廓线口径：东莞通 `room` 127 个、villa 34 个（闭合廓线），`room.py` 已写
+`clear_width = min(bbox_w, bbox_h)/1000`（bbox 短边）。若改用 (b) 最小内切，产物无规则消费，
+findings/evaluated 均为 0 变化。按「不匹配就说明」处理：**本批不实现**，避免为无效规则
+引入新几何路径与回归面。待未来新增房间净宽条款时，再以 (b) 接入。
+
+### 11.5 阻塞项（写入依赖台账）
+
+| 项目 | 阻塞原因 | 依赖 |
+|---|---|---|
+| 走道净宽（DIM-012） | 3 条 corridor 全部 `points=0`（无多边形），仅 bbox 短边 2.6m/2.4m | 走廊路径化/中线提取 |
+| 楼梯净宽 / 踏步 | 仅有 CIRCLE（东莞通 3 个，φ2826.9 / 3000 / 3000mm），无梯段与踏步线；villa 0 个 | 楼梯构件识别（梯段/踏步/扶手） |
+| 袋形走道长度 | 走廊无路径几何，无法算纵深远端长度 | 同「走廊路径化」 |
+| 前室形式（开敞/封闭/防烟） | 4 个小面积前室房间重建全部失败 | 房间重建能力 |
+| COUNT 15 条 | 无 `fire_zone` / `fire_compartment` 作用域可用 | 房间/分区识别 |
+
+### 11.6 验收汇总
+
+- 9 图 findings：第一批、第二批均为**逐条一致**（无新增 FAIL，无新增 critical）。
+- 覆盖率：两批后仍为 **42/107 = 39.3%**（全规则 42/183 = 23.0%），分子增量 **0**。
+- pytest：第一批 3020 passed；第二批 3024 passed（新增 3 例 ARC 语义 + 4 例不确定带）。
+- 提交：`fix(semantic)` ARC 门宽；（第二批）`feat(rule)` 符号尺寸 approximate 与不确定带。
