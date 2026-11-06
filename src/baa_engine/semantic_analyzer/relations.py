@@ -63,6 +63,25 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     if n_entities == 0:
         return relations
 
+    # T3 优化（2026-11-06）：预计算四边坐标 + AABB 快速拒绝。
+    # min_edge_distance 的 dx/dy 是两框在 x/y 轴上的间隙（重叠时为 0），
+    # 且 dist = sqrt(dx²+dy²) >= max(dx, dy)。因此
+    #   dx >= 阈值 或 dy >= 阈值  ⟹  dist >= 阈值  ⟹  必不满足 dist < 阈值。
+    # 在进入距离计算前先用该判据拒绝，判据严格取阈值本身（不加外扩容差），
+    # 不会吃掉任何合法候选；Pass 后仍按原公式 sqrt(dx²+dy²) 计算，数值逐位一致。
+    x1g: List[float] = [0.0] * n_entities
+    y1g: List[float] = [0.0] * n_entities
+    x2g: List[float] = [0.0] * n_entities
+    y2g: List[float] = [0.0] * n_entities
+    for i in range(n_entities):
+        b = entities[i].bbox
+        x = b.get("x", 0)
+        y = b.get("y", 0)
+        x1g[i] = x
+        y1g[i] = y
+        x2g[i] = x + b.get("width", 0)
+        y2g[i] = y + b.get("height", 0)
+
     # ── Phase 1. 相邻关系（空间哈希网格）──
     # P0-2 优化（2026-11-04）：CELL_SIZE 从 100mm → 1000mm。
     # 原 100mm 在 50MB 电气图上产生 40.7 万 cells（大量空 cell + 长墙跨
@@ -71,56 +90,88 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     # 耗时 1.88s → 0.038s（50×）。ADJACENT_THRESHOLD=50mm < 1000mm，
     # 查询 expand=1 即可保证所有相邻对被覆盖。
     _P1_CELL_SIZE = 1000.0
-    grid_p1: Dict[Tuple[int, int], List[Tuple[int, SemanticEntity]]] = {}
+    # P0-9 后续（T3）：改嵌套 dict[gx][gy] 存实体下标，省去每格 tuple 构造。
+    grid_p1: Dict[int, Dict[int, List[int]]] = {}
 
     if n_entities <= 2000:
-        adj_candidates = list(enumerate(entities))
+        adj_candidates = list(range(n_entities))
     else:
         adj_candidates = [
-            (i, e) for i, e in enumerate(entities) if e.type in _KEY_ENTITY_TYPES
+            i for i in range(n_entities) if entities[i].type in _KEY_ENTITY_TYPES
         ]
 
-    for idx, e in adj_candidates:
-        bx = e.bbox.get("x", 0)
-        by = e.bbox.get("y", 0)
-        bw = e.bbox.get("width", 0)
-        bh = e.bbox.get("height", 0)
-        x1c = int(bx / _P1_CELL_SIZE)
-        x2c = int((bx + bw) / _P1_CELL_SIZE)
-        y1c = int(by / _P1_CELL_SIZE)
-        y2c = int((by + bh) / _P1_CELL_SIZE)
+    for idx in adj_candidates:
+        x1c = int(x1g[idx] / _P1_CELL_SIZE)
+        x2c = int(x2g[idx] / _P1_CELL_SIZE)
+        y1c = int(y1g[idx] / _P1_CELL_SIZE)
+        y2c = int(y2g[idx] / _P1_CELL_SIZE)
         for gx in range(x1c, x2c + 1):
+            row = grid_p1.get(gx)
+            if row is None:
+                row = {}
+                grid_p1[gx] = row
             for gy in range(y1c, y2c + 1):
-                grid_p1.setdefault((gx, gy), []).append((idx, e))
+                cell = row.get(gy)
+                if cell is None:
+                    row[gy] = [idx]
+                else:
+                    cell.append(idx)
 
-    compared: Set[Tuple[int, int]] = set()
-    for idx_a, a in adj_candidates:
-        bx = a.bbox.get("x", 0)
-        by = a.bbox.get("y", 0)
-        bw = a.bbox.get("width", 0)
-        bh = a.bbox.get("height", 0)
-        x1c = int(bx / _P1_CELL_SIZE)
-        x2c = int((bx + bw) / _P1_CELL_SIZE)
-        y1c = int(by / _P1_CELL_SIZE)
-        y2c = int((by + bh) / _P1_CELL_SIZE)
+    _THRESH = self.ADJACENT_THRESHOLD
+    compared: Set[int] = set()  # idx_a * n + idx_b，比 tuple 省分配
+    for idx_a in adj_candidates:
+        a = entities[idx_a]
+        ax1 = x1g[idx_a]
+        ay1 = y1g[idx_a]
+        ax2 = x2g[idx_a]
+        ay2 = y2g[idx_a]
+        x1c = int(ax1 / _P1_CELL_SIZE)
+        x2c = int(ax2 / _P1_CELL_SIZE)
+        y1c = int(ay1 / _P1_CELL_SIZE)
+        y2c = int(ay2 / _P1_CELL_SIZE)
         for gx in range(x1c - 1, x2c + 2):
+            row = grid_p1.get(gx)
+            if row is None:
+                continue
             for gy in range(y1c - 1, y2c + 2):
-                for idx_b, b in grid_p1.get((gx, gy), []):
+                cell = row.get(gy)
+                if cell is None:
+                    continue
+                for idx_b in cell:
                     if idx_b <= idx_a:
                         continue
-                    pair_key = (idx_a, idx_b)
+                    pair_key = idx_a * n_entities + idx_b
                     if pair_key in compared:
                         continue
                     compared.add(pair_key)
-                    dist = min_edge_distance(a.bbox, b.bbox)
-                    if dist < self.ADJACENT_THRESHOLD:
+                    bx1 = x1g[idx_b]
+                    by1 = y1g[idx_b]
+                    bx2 = x2g[idx_b]
+                    by2 = y2g[idx_b]
+                    # AABB 快速拒绝（dx/dy 为轴向间隙，重叠取 0）
+                    dx = ax1 - bx2
+                    if dx < 0.0:
+                        dx = bx1 - ax2
+                        if dx < 0.0:
+                            dx = 0.0
+                    if dx >= _THRESH:
+                        continue
+                    dy = ay1 - by2
+                    if dy < 0.0:
+                        dy = by1 - ay2
+                        if dy < 0.0:
+                            dy = 0.0
+                    if dy >= _THRESH:
+                        continue
+                    dist = (dx ** 2 + dy ** 2) ** 0.5
+                    if dist < _THRESH:
                         relations.append(
                             SpatialRelation(
                                 source_id=a.id,
-                                target_id=b.id,
+                                target_id=entities[idx_b].id,
                                 rel_type="adjacent",
                                 distance=dist,
-                                confidence=1.0 - dist / self.ADJACENT_THRESHOLD,
+                                confidence=1.0 - dist / _THRESH,
                             )
                         )
 
@@ -229,23 +280,112 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
             opening.properties["host_wall_overlap"] = round(best_overlap, 2)
 
     # ── Phase 3. 走廊-门-房间拓扑 ──
+    # T3 优化（2026-11-06）：全量对（doors×corridors + doors×rooms = 5.7 万对）
+    # 不再逐对调用 min_edge_distance。先用轴向间隙判据拒绝：
+    # dist >= max(dx, dy)，故 dx>=200 或 dy>=200 时必不满足 dist<200；
+    # 通过判据的对再按原公式 sqrt(dx²+dy²) 计算，输出逐位一致。
     corridors = [e for e in entities if e.type == "corridor"]
     rooms = [e for e in entities if e.type == "room"]
     doors = [e for e in entities if e.type in ("door", "fire_door", "exit_door", "doorway")]
 
-    for door in doors:
-        for c in corridors:
-            dist = min_edge_distance(door.bbox, c.bbox)
-            if dist < 200.0:
+    def _geo(ents):
+        """实体 → (entity, x1, y1, x2, y2)，供全量对循环复用。"""
+        out = []
+        for e in ents:
+            b = e.bbox
+            x = b.get("x", 0)
+            y = b.get("y", 0)
+            out.append((e, x, y, x + b.get("width", 0), y + b.get("height", 0)))
+        return out
+
+    door_geo = _geo(doors)
+    corridor_geo = _geo(corridors)
+    room_geo = _geo(rooms)
+
+    # 候选网格（Phase 3/4）：避免全量对逐对进入精确判定。
+    #   P3：dist<200 ⟹ 两框轴向间隙<200mm<1000mm ⟹ 必落在对方 cell 的 ±1 邻域，
+    #       expand=1 查询即为合法对的超集；候选按下标升序处理，产出顺序与
+    #       原「doors×corridors 再 doors×rooms、各自按原列表顺序」完全一致。
+    #   P4：item 在 room 内 ⟹ item 的 cell 跨度 ⊆ room 的 cell 跨度，
+    #       查询 room 自身 cell（expand=0）即可命中全部合法对。
+    _PAIR_CELL = 1000.0
+
+    def _pair_grid(geo_list):
+        g: Dict[int, Dict[int, List[int]]] = {}
+        for pi in range(len(geo_list)):
+            x1, y1, x2, y2 = geo_list[pi][1], geo_list[pi][2], geo_list[pi][3], geo_list[pi][4]
+            for gx in range(int(x1 / _PAIR_CELL), int(x2 / _PAIR_CELL) + 1):
+                row = g.get(gx)
+                if row is None:
+                    row = {}
+                    g[gx] = row
+                for gy in range(int(y1 / _PAIR_CELL), int(y2 / _PAIR_CELL) + 1):
+                    cell = row.get(gy)
+                    if cell is None:
+                        row[gy] = [pi]
+                    else:
+                        cell.append(pi)
+        return g
+
+    def _candidates(grid, x1, y1, x2, y2, expand):
+        out = []
+        for gx in range(int(x1 / _PAIR_CELL) - expand, int(x2 / _PAIR_CELL) + expand + 1):
+            row = grid.get(gx)
+            if row is None:
+                continue
+            for gy in range(int(y1 / _PAIR_CELL) - expand, int(y2 / _PAIR_CELL) + expand + 1):
+                cell = row.get(gy)
+                if cell is not None:
+                    out.extend(cell)
+        return sorted(set(out))
+
+    corridor_grid = _pair_grid(corridor_geo)
+    room_grid = _pair_grid(room_geo)
+
+    _THRESH_P3 = 200.0
+    for (door, ox1, oy1, ox2, oy2) in door_geo:
+        for pi in _candidates(corridor_grid, ox1, oy1, ox2, oy2, 1):
+            (c, cx1, cy1, cx2, cy2) = corridor_geo[pi]
+            gx = ox1 - cx2
+            if gx < 0.0:
+                gx = cx1 - ox2
+                if gx < 0.0:
+                    gx = 0.0
+            if gx >= _THRESH_P3:
+                continue
+            gy = oy1 - cy2
+            if gy < 0.0:
+                gy = cy1 - oy2
+                if gy < 0.0:
+                    gy = 0.0
+            if gy >= _THRESH_P3:
+                continue
+            dist = (gx ** 2 + gy ** 2) ** 0.5
+            if dist < _THRESH_P3:
                 relations.append(
                     SpatialRelation(
                         source_id=c.id, target_id=door.id,
                         rel_type="connects_to", distance=dist, via="door",
                     )
                 )
-        for r in rooms:
-            dist = min_edge_distance(door.bbox, r.bbox)
-            if dist < 200.0:
+        for pi in _candidates(room_grid, ox1, oy1, ox2, oy2, 1):
+            (r, rx1, ry1, rx2, ry2) = room_geo[pi]
+            gx = ox1 - rx2
+            if gx < 0.0:
+                gx = rx1 - ox2
+                if gx < 0.0:
+                    gx = 0.0
+            if gx >= _THRESH_P3:
+                continue
+            gy = oy1 - ry2
+            if gy < 0.0:
+                gy = ry1 - oy2
+                if gy < 0.0:
+                    gy = 0.0
+            if gy >= _THRESH_P3:
+                continue
+            dist = (gx ** 2 + gy ** 2) ** 0.5
+            if dist < _THRESH_P3:
                 relations.append(
                     SpatialRelation(
                         source_id=r.id, target_id=door.id,
@@ -254,12 +394,17 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                 )
 
     # ── Phase 4. 包含关系（房间包含设备/柱）──
+    # T3：is_inside 直接按预计算四边判断（省函数调用），并用 item 网格
+    # 只查 room 自身 cell 跨度内的候选项（包含关系必然落在其中）。
     contained_types = {"column", "stair", "exit", "fire_door"}
     containables = [e for e in entities if e.type in contained_types]
+    item_geo = _geo(containables)
+    item_grid = _pair_grid(item_geo)
 
-    for room in rooms:
-        for item in containables:
-            if is_inside(item.bbox, room.bbox):
+    for (room, rx1, ry1, rx2, ry2) in room_geo:
+        for pi in _candidates(item_grid, rx1, ry1, rx2, ry2, 0):
+            (item, ix1, iy1, ix2, iy2) = item_geo[pi]
+            if ix1 >= rx1 and iy1 >= ry1 and ix2 <= rx2 and iy2 <= ry2:
                 relations.append(
                     SpatialRelation(
                         source_id=room.id, target_id=item.id,
@@ -268,7 +413,9 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                 )
 
     # ── Phase 5. 房间-门间接连接（通过墙传递）──
-    # 这一阶段用 adjacency + wall_rooms 哈希映射，本身不是瓶颈
+    # 这一阶段用 adjacency + wall_rooms 哈希映射，本身不是瓶颈。
+    # T3：host_wall 查找改 id→wall 字典（原 next() 为 doors×walls 线性扫描）；
+    #     距离同样先做 AABB 拒绝（dx>=500 或 dy>=500 ⟹ dist>=500）。
     wall_ids = {w.id for w in walls}
     room_ids = {r.id for r in rooms}
     wall_rooms: Dict[str, set] = {}
@@ -280,19 +427,45 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
             elif tid in room_ids and sid in wall_ids:
                 wall_rooms.setdefault(sid, set()).add(tid)
 
-    door_wall_map: Dict[str, SemanticEntity] = {}
+    # setdefault 保留首个同 id 墙体，与 next() 的取首个语义一致
+    wall_by_id: Dict[str, SemanticEntity] = {}
+    for w in walls:
+        wall_by_id.setdefault(w.id, w)
+
+    door_wall_map: Dict[str, Tuple[SemanticEntity, float, float, float, float]] = {}
     for door in doors:
         host_id = door.properties.get("host_wall_id")
         if host_id:
-            wall_ent = next((w for w in walls if w.id == host_id), None)
+            wall_ent = wall_by_id.get(host_id)
             if wall_ent:
-                door_wall_map[host_id] = wall_ent
+                wb = wall_ent.bbox
+                wx = wb.get("x", 0)
+                wy = wb.get("y", 0)
+                door_wall_map[host_id] = (
+                    wall_ent, wx, wy, wx + wb.get("width", 0), wy + wb.get("height", 0),
+                )
 
-    for room in rooms:
+    _THRESH_P5 = 500.0
+    for (room, rx1, ry1, rx2, ry2) in room_geo:
         if room.id in wall_rooms:
             continue
-        for wid, wall_ent in door_wall_map.items():
-            if min_edge_distance(room.bbox, wall_ent.bbox) < 500.0:
+        for wid, (_wall, wx1, wy1, wx2, wy2) in door_wall_map.items():
+            gx = rx1 - wx2
+            if gx < 0.0:
+                gx = wx1 - rx2
+                if gx < 0.0:
+                    gx = 0.0
+            if gx >= _THRESH_P5:
+                continue
+            gy = ry1 - wy2
+            if gy < 0.0:
+                gy = wy1 - ry2
+                if gy < 0.0:
+                    gy = 0.0
+            if gy >= _THRESH_P5:
+                continue
+            dist = (gx ** 2 + gy ** 2) ** 0.5
+            if dist < _THRESH_P5:
                 wall_rooms.setdefault(wid, set()).add(room.id)
 
     seen_conn: set = set()
