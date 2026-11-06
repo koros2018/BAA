@@ -101,6 +101,7 @@ def run_review(dxf_path: Path) -> dict:
 
     # P130 图纸类型过滤：结构/电气/暖通图跳过原子函数（无疏散语义）
     drawing_type = getattr(result, "drawing_type", {})
+    sheet_type = getattr(result, "sheet_type", {}) or {}
     if drawing_type.get("type") in ("结构", "电气", "暖通"):
         return {
             "file": dxf_path.name,
@@ -114,7 +115,38 @@ def run_review(dxf_path: Path) -> dict:
             "findings": [],
             "entity_types": {},
             "drawing_type": drawing_type,
+            "sheet_type": sheet_type,
             "classification": {"counts": {}, "method": "skipped"},
+            "coverage": {
+                "evaluated_rules": 0,
+                "applicable_rules": 0,
+                "ratio": 0.0,
+                "unrecognized_types": [],
+                "evaluated_func_ids": [],
+                "applicable_func_ids": [],
+            },
+        }
+
+    # P121 图幅类型过滤：立面/剖面图、描线矢量化产物不进入审查范围，
+    # 不出 findings，也不计入覆盖率分母（避免用平面图判据审查非平面图）。
+    if sheet_type.get("scope_mode") == "non_plan":
+        return {
+            "file": dxf_path.name,
+            "success": True,
+            "valid": True,
+            "skipped": True,
+            "skip_reason": (
+                f"图幅判定为「{sheet_type.get('label', '非平面图')}」"
+                f"（{sheet_type.get('rule', '')}），非平面审查范围"
+            ),
+            "entity_count": len(result.primitives or []),
+            "scope_count": 0,
+            "scope_mode": "non_plan",
+            "findings": [],
+            "entity_types": {},
+            "drawing_type": drawing_type,
+            "sheet_type": sheet_type,
+            "classification": {"counts": {}, "method": "non_plan"},
             "coverage": {
                 "evaluated_rules": 0,
                 "applicable_rules": 0,
@@ -316,6 +348,9 @@ def run_review(dxf_path: Path) -> dict:
         "evac_width_stats": width_ctx.stats,
         "scope_mode": scopes["mode"],
         "scope_count": len(scopes["scopes"]),
+        "drawing_type": drawing_type,
+        "sheet_type": sheet_type,
+        "low_confidence": bool(sheet_type.get("low_confidence")),
         "coverage": coverage,
         "findings": findings,
     }
@@ -393,6 +428,14 @@ def main(argv: list[str]) -> int:
             continue
         cls = rep["classification"]["counts"]
         total = len(rep["findings"])
+        if rep.get("skipped"):
+            print(
+                f"[SKIP] {p.name}: {rep.get('skip_reason', '')}, "
+                f"图幅={rep.get('sheet_type', {}).get('label', '')}"
+                f"({rep.get('sheet_type', {}).get('rule', '')})",
+                flush=True,
+            )
+            continue
         cov = rep.get("coverage", {})
         print(
             f"[OK] {p.name}: 实体={rep['entity_count']}+未识别={rep.get('unclassified_count', 0)}, "
@@ -407,18 +450,28 @@ def main(argv: list[str]) -> int:
         if top:
             print(f"     Top 函数: {top}", flush=True)
 
-    valid_reports = [r for r in reports if r.get("success") and r.get("valid", True)]
+    valid_reports = [
+        r
+        for r in reports
+        if r.get("success") and r.get("valid", True) and not r.get("skipped")
+    ]
     invalid_reports = [r for r in reports if r.get("success") and not r.get("valid", True)]
+    skipped_reports = [r for r in reports if r.get("success") and r.get("skipped")]
 
     # ── P2-6: 样本库有效性 + P0-2: 跨图规则可达性（并集）──
     print("\n=== 样本有效性 ===")
     print(
         f"有效图纸: {len(valid_reports)} / {len(reports)}"
-        f"（无效 {len(invalid_reports)}）",
+        f"（无效 {len(invalid_reports)}，跳过 {len(skipped_reports)}）",
         flush=True,
     )
     for r in invalid_reports:
         print(f"  [剔除] {r['file']}: {r.get('content_validity')}", flush=True)
+    for r in skipped_reports:
+        print(
+            f"  [跳过] {r['file']}: {r.get('skip_reason', '')}（不计入覆盖率分母）",
+            flush=True,
+        )
 
     if valid_reports:
         total_funcs = len(FuncRegistry().list_all())

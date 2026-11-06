@@ -89,6 +89,7 @@ def _partial_result(review_state: dict, timeout_seconds: int) -> dict:
             "entity_count": review_state.get("entity_count", 0),
             "primitive_count": review_state.get("primitive_count", 0),
             "drawing_type": review_state.get("drawing_type", {}),
+            "sheet_type": review_state.get("sheet_type", {}),
             "file_size_mb": review_state.get("file_size_mb", 0),
         },
         "completed_functions": review_state.get("completed_functions", 0),
@@ -410,6 +411,7 @@ async def review(  # code
         "entity_count": 0,
         "primitive_count": 0,
         "drawing_type": {},
+        "sheet_type": {},
         "file_size_mb": round(len(content) / 1024 / 1024, 2),
         "completed_functions": 0,
         "partial_details": [],
@@ -477,6 +479,10 @@ async def review(  # code
 
         # ── P121: 图纸类型分类 + 非建筑图降级 ─────────────────
         drawing_type = getattr(result, "drawing_type", {})
+        # 解析器/测试桩可能返回非 dict（如 MagicMock）；非 dict 一律按未知处理，
+        # 避免非序列化对象进入响应与任务队列持久化
+        _sheet_type_raw = getattr(result, "sheet_type", None)
+        sheet_type = _sheet_type_raw if isinstance(_sheet_type_raw, dict) else {}
         corrupt = getattr(result, "corrupt", {})
         is_non_arch = drawing_type.get("type") in ("结构", "电气", "暖通")
         is_corrupt = corrupt.get("corrupt", False)
@@ -511,11 +517,35 @@ async def review(  # code
                 "queue_info": {"task_id": task_id},
             }
 
+        # ── P121 图幅类型：立面/剖面、描线矢量化产物不进入审查范围 ──
+        if sheet_type.get("scope_mode") == "non_plan":
+            entity_count = len(result.primitives or [])
+            _get_rq().complete(task_id, "跳过审查（非平面图幅）")
+            return {
+                "status": "skipped",
+                "error_code": "NON_PLAN_SHEET",
+                "message": (
+                    f"图幅判定为「{sheet_type.get('label', '非平面图')}」"
+                    f"（{sheet_type.get('rule', '')}），"
+                    f"非平面审查范围，已解析 {entity_count} 个图元"
+                ),
+                "sheet_type": sheet_type,
+                "drawing_type": drawing_type,
+                "parse_result": {
+                    "file_id": file_id,
+                    "entity_count": entity_count,
+                    "file_size_mb": round(file_path.stat().st_size / 1024 / 1024, 2),
+                },
+                "file_id": file_id,
+                "queue_info": {"task_id": task_id},
+            }
+
         # Step 2: 语义分析（CPU密集型 → 线程池）
         _get_rq().update_progress(task_id, 50.0)
         review_state["progress"] = "semantic_analysis"
         review_state["primitive_count"] = len(result.primitives or [])
         review_state["drawing_type"] = drawing_type
+        review_state["sheet_type"] = sheet_type
         semantic = await loop.run_in_executor(  # assignment
             _get_pool(),  # 解包
             lambda: _get_sa().analyze(  # 操作
@@ -1092,6 +1122,8 @@ async def review(  # code
         "processing_time_ms": elapsed,  # 字段
         # P121: 图纸类型分类信息
         "drawing_type": drawing_type,  # {type, confidence, reason, suggested_action}
+        # P121: 图幅类型（未知图幅时 low_confidence=True，判据不放宽）
+        "sheet_type": sheet_type,  # {sheet_type, scope_mode, evidence, metrics, low_confidence}
     }  # code
 
     # ── 生成修正建议（支持规则/LLM/混合模式） ──────────────

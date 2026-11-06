@@ -89,6 +89,7 @@ class DrawingResult:  # class definition
         warning: Optional[str] = None,
         sheets: List[Dict] = None,  # P73: 多Sheet 分区解析
         drawing_type: Optional[Dict] = None,  # P121: 图纸类型分类
+        sheet_type: Optional[Dict] = None,  # P121: 图幅类型（平面/立面剖面/不可审查/未知）
         corrupt: Optional[Dict] = None,  # P121: 损坏检测
         block_refs: List[Dict] = None,  # P127-S1: 块引用（块名/ATTRIB/位置）
         parse_status: Optional[Dict] = None,  # P127-T3: 解析状态诊断（T3 加密/代理/零图元不静默）
@@ -104,6 +105,7 @@ class DrawingResult:  # class definition
         self.warning = warning  # assignment
         self.sheets = sheets or []  # P73: 每个 sheet 为 {name, primitives, dimensions}
         self.drawing_type = drawing_type or {}  # P121: {type, confidence, reason, suggested_action}
+        self.sheet_type = sheet_type or {}  # P121: {sheet_type, scope_mode, evidence, metrics}
         self.corrupt = corrupt or {}  # P121: {corrupt, reason, recoverable}
         self.block_refs = block_refs or []  # P127-S1: 块引用列表
         # P127-T3: 天正 T3 解析状态与原生构件（非 T3 图纸为 None）
@@ -307,10 +309,12 @@ class DrawingParser:
 
         # ── P121: 图纸类型分类 + 损坏检测 ─────────────────
         drawing_type = {}
+        sheet_type = {}
         corrupt = {}
         try:
             from src.baa_engine.drawing_classifier import (
                 classify_drawing,
+                classify_sheet_type,
                 is_likely_corrupt,
             )  # import: P121 图纸类型分类
 
@@ -349,6 +353,10 @@ class DrawingParser:
                 ],
                 file_size_mb=path.stat().st_size / (1024 * 1024),
             )
+
+            # 图幅类型：平面图 / 立面剖面 / 不可审查 / 未知
+            # 仅基于图元与图层分布，供入口层决定是否进入审查范围
+            sheet_type = classify_sheet_type(primitives or [])
         except Exception:
             pass  # 分类失败不影响解析结果
 
@@ -388,6 +396,7 @@ class DrawingParser:
             primitives=primitives,
             dimensions=dimensions,
             drawing_type=drawing_type,
+            sheet_type=sheet_type,
             corrupt=corrupt,
             block_refs=block_refs,
             parse_status=parse_status,

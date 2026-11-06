@@ -207,6 +207,25 @@ async def batch_review(
                     "suggested_action": drawing_type.get("suggested_action", ""),
                 }
 
+            # P121 图幅类型过滤：立面/剖面图、描线矢量化产物不进入审查范围
+            _sheet_type_raw = getattr(result, "sheet_type", None)
+            sheet_type = _sheet_type_raw if isinstance(_sheet_type_raw, dict) else {}
+            if sheet_type.get("scope_mode") == "non_plan":
+                completed_files += 1
+                entity_count = len(result.primitives or [])
+                return {
+                    "filename": file.filename,
+                    "status": "skipped",
+                    "error_code": "NON_PLAN_SHEET",
+                    "message": (
+                        f"图幅判定为「{sheet_type.get('label', '非平面图')}」"
+                        f"（{sheet_type.get('rule', '')}），非平面审查范围，"
+                        f"已解析 {entity_count} 个图元"
+                    ),
+                    "sheet_type": sheet_type,
+                    "drawing_type": drawing_type,
+                }
+
             semantic = await loop.run_in_executor(
                 _get_pool(),
                 lambda: _get_sa().analyze(

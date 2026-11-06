@@ -18,7 +18,7 @@ def _is_ascii_alpha(ch: str) -> bool:
 _SHORT_TOKEN_MAX_LEN = 3
 
 
-def _kw_match(keyword: str, text_lower: str) -> bool:
+def _kw_match(keyword: str, text_lower: str, force_boundary: bool = False) -> bool:
     """关键词匹配：短 ASCII 词元走边界匹配，其余保持子串匹配（T5）。
 
     历史问题：`"EL"` 用 `in` 匹配时 `elevator` / `level` / `panel` 都会命中，
@@ -33,13 +33,18 @@ def _kw_match(keyword: str, text_lower: str) -> bool:
       `VENTILATION`，`REIN` 需命中 `REINFORCED`）。
     - 以分隔符收尾的关键词（`EL_` / `FE_` / `STR_` / `DWG_`）首尾非字母数字，
       也保持子串语义。
+    - ``force_boundary=True``：不论长度，ASCII 字母数字词元一律按边界匹配。
+      供图幅类型识别使用：`elev` 不得命中 `ELEVATOR`，`sect` 不得命中
+      `SECTION` 之外的单词内部片段；旧调用不传该参数，行为不变。
     """
     kw = keyword.lower()
     if not kw:
         return False
     if (
-        len(kw) > _SHORT_TOKEN_MAX_LEN
-        or not kw.isascii()
+        not force_boundary
+        and len(kw) > _SHORT_TOKEN_MAX_LEN
+    ) or (
+        not kw.isascii()
         or not (_is_ascii_alpha(kw[0]) or kw[0].isdigit())
         or not (_is_ascii_alpha(kw[-1]) or kw[-1].isdigit())
     ):
@@ -324,6 +329,301 @@ def classify_drawing(
         "reason": reason,
         "suggested_action": action,
     }
+
+
+# ── P121 图幅类型识别（平面图 / 立面剖面 / 不可审查 / 未知）──────
+# 阈值是验收口径，不得调整：
+#   R1 立面剖面：立面∪剖面图元占比 ≥30% 且命中图层 ≥2 且
+#                (立面 ≥10% 或 剖面 ≥10%) 且 闭合面占比 <3%
+#   R2 不可审查：实际用到图层 ≤2 且 单层占比 ≥95% 且 ≤1单位微图元 ≥70%
+#                且 标注占比 <1% 且 图元数 ≥1000
+#   R3 平面图：未触发 R1/R2 且（平面词元图层 ≥2 或（闭合面 ≥3% 且 标注 ≥1%））
+#   R4 其余 → 未知：正常审查 + low_confidence
+
+_SHEET_ELEV_TOKENS = ("elev", "elevation", "立面")
+_SHEET_SECT_TOKENS = ("sect", "section", "剖面")
+# 立面/剖面简写一律强制词元边界，避免 ELEV 命中 ELEVATOR / LEVEL / fire_elevator
+_SHEET_FORCE_BOUNDARY_TOKENS = {"elev", "sect"}
+
+# 平面图强信号图层词元（墙体/门窗/房间/楼梯/家具/轴网/楼板/分区）
+_SHEET_PLAN_TOKENS = (
+    "plan",
+    "平面",
+    "wall",
+    "墙",
+    "door",
+    "门",
+    "window",
+    "窗",
+    "room",
+    "房间",
+    "column",
+    "柱",
+    "partition",
+    "stair",
+    "楼梯",
+    "furniture",
+    "家具",
+    "floor",
+    "楼板",
+    "axis",
+    "轴",
+)
+
+# 标注类图元（文字/尺寸标注/引线）；DIMENSION 与 TEXT 同属标注
+_SHEET_ANNOTATION_TYPES = {
+    "TEXT",
+    "MTEXT",
+    "DIMENSION",
+    "LEADER",
+    "MLEADER",
+    "ATTRIB",
+    "ATTDEF",
+}
+# 线状/面状微图元类型（描线矢量化产物通常由这些极短图元构成）
+_SHEET_GEOMETRY_TYPES = {
+    "LINE",
+    "ARC",
+    "LWPOLYLINE",
+    "POLYLINE",
+    "CIRCLE",
+    "ELLIPSE",
+    "SOLID",
+}
+
+_SHEET_TYPE_LABELS = {
+    "plan": "平面图",
+    "elevation_section": "立面/剖面图",
+    "unreviewable": "不可审查（描线/矢量化产物）",
+    "unknown": "未知图幅",
+}
+
+
+def _prim_get(prim, name: str, default=None):
+    """兼容 RawPrimitive 对象与 dict 读取字段。"""
+    if isinstance(prim, dict):
+        return prim.get(name, default)
+    return getattr(prim, name, default)
+
+
+def _layer_matches_any(layer_lower: str, tokens) -> bool:
+    for kw in tokens:
+        if _kw_match(kw, layer_lower, force_boundary=kw in _SHEET_FORCE_BOUNDARY_TOKENS):
+            return True
+    return False
+
+
+def classify_sheet_type(primitives: list) -> Dict[str, Any]:
+    """判定图幅类型（平面图 / 立面剖面 / 不可审查 / 未知）。
+
+    只依据图元分布与图层名构成，不改变语义分析与规则判定：
+    - 立面/剖面、描线矢量化产物 → ``scope_mode="non_plan"``，不出 findings、
+      不计入覆盖率分母；
+    - 未知 → 正常审查，标记 ``low_confidence=True``，判据不放宽；
+    - 平面图 → ``scope_mode="plan"``。
+
+    参数:
+        primitives: 解析后的图元列表（RawPrimitive 或 dict）
+
+    返回:
+        {
+            "sheet_type": "plan|elevation_section|unreviewable|unknown",
+            "label": 中文标签,
+            "rule": "R1|R2|R3|R4",
+            "scope_mode": "plan|non_plan|unknown",
+            "reviewable": bool,
+            "low_confidence": bool,
+            "confidence": float,
+            "evidence": [判定证据…],
+            "metrics": {…},
+        }
+    """
+    n = len(primitives or [])
+    empty = {
+        "sheet_type": "unknown",
+        "label": _SHEET_TYPE_LABELS["unknown"],
+        "rule": "R4",
+        "scope_mode": "unknown",
+        "reviewable": True,
+        "low_confidence": True,
+        "confidence": 0.0,
+        "evidence": ["无图元，无法判定图幅类型"],
+        "metrics": {"total": 0},
+    }
+    if n == 0:
+        return empty
+
+    layer_counts: Dict[str, int] = {}
+    elev_sect_layer_hits: set = set()
+    elev_layer_hits: set = set()
+    sect_layer_hits: set = set()
+    plan_layer_hits: set = set()
+    elev_count = 0
+    sect_count = 0
+    elev_sect_count = 0
+    closed_count = 0
+    annotation_count = 0
+    micro_count = 0
+
+    # 图层词元结果按图层缓存，O(unique_layer) 次匹配
+    layer_flags: Dict[str, Dict[str, bool]] = {}
+
+    for p in primitives:
+        layer = (_prim_get(p, "layer", "") or "") or ""
+        layer_lower = layer.lower()
+        layer_counts[layer] = layer_counts.get(layer, 0) + 1
+
+        flags = layer_flags.get(layer_lower)
+        if flags is None:
+            is_elev = _layer_matches_any(layer_lower, _SHEET_ELEV_TOKENS)
+            is_sect = _layer_matches_any(layer_lower, _SHEET_SECT_TOKENS)
+            flags = {
+                "elev": is_elev,
+                "sect": is_sect,
+                "plan": _layer_matches_any(layer_lower, _SHEET_PLAN_TOKENS),
+            }
+            layer_flags[layer_lower] = flags
+        if flags["elev"]:
+            elev_layer_hits.add(layer)
+            elev_count += 1
+        if flags["sect"]:
+            sect_layer_hits.add(layer)
+            sect_count += 1
+        if flags["elev"] or flags["sect"]:
+            elev_sect_layer_hits.add(layer)
+            elev_sect_count += 1
+        if flags["plan"]:
+            plan_layer_hits.add(layer)
+
+        dxf_type = _prim_get(p, "dxf_type", "") or ""
+        props = _prim_get(p, "properties", {}) or {}
+
+        if dxf_type in ("LWPOLYLINE", "POLYLINE") and (
+            props.get("closed") or (props.get("point_count") or 0) >= 4
+        ):
+            # 闭合面：显式闭合或 ≥4 顶点（矩形/多边形面），与 T5 诊断口径一致
+            closed_count += 1
+        if dxf_type in _SHEET_ANNOTATION_TYPES:
+            annotation_count += 1
+        if dxf_type in _SHEET_GEOMETRY_TYPES:
+            bbox = _prim_get(p, "bbox", {}) or {}
+            if dxf_type == "LINE":
+                length = props.get("length")
+                dim = abs(length) if length is not None else max(
+                    abs(bbox.get("width", 0) or 0), abs(bbox.get("height", 0) or 0)
+                )
+            else:
+                dim = max(
+                    abs(bbox.get("width", 0) or 0), abs(bbox.get("height", 0) or 0)
+                )
+            if dim <= 1:
+                micro_count += 1
+
+    used_layers = len(layer_counts)
+    max_layer_share = max(layer_counts.values()) / n
+    elevation_ratio = elev_count / n
+    section_ratio = sect_count / n
+    elev_sect_ratio = elev_sect_count / n
+    closed_ratio = closed_count / n
+    annotation_ratio = annotation_count / n
+    micro_ratio = micro_count / n
+
+    metrics = {
+        "total": n,
+        "used_layers": used_layers,
+        "max_layer_share": round(max_layer_share, 4),
+        "elevation_ratio": round(elevation_ratio, 4),
+        "section_ratio": round(section_ratio, 4),
+        "elevation_section_ratio": round(elev_sect_ratio, 4),
+        "elevation_section_layers": len(elev_sect_layer_hits),
+        "elevation_layers": len(elev_layer_hits),
+        "section_layers": len(sect_layer_hits),
+        "plan_layer_count": len(plan_layer_hits),
+        "closed_face_ratio": round(closed_ratio, 4),
+        "annotation_ratio": round(annotation_ratio, 4),
+        "micro_primitive_ratio": round(micro_ratio, 4),
+        "top_layers": sorted(layer_counts.items(), key=lambda kv: -kv[1])[:5],
+    }
+
+    def _result(sheet_type: str, rule: str, confidence: float, evidence: list):
+        scope_mode = "non_plan" if sheet_type in ("elevation_section", "unreviewable") else (
+            "plan" if sheet_type == "plan" else "unknown"
+        )
+        return {
+            "sheet_type": sheet_type,
+            "label": _SHEET_TYPE_LABELS[sheet_type],
+            "rule": rule,
+            "scope_mode": scope_mode,
+            "reviewable": scope_mode != "non_plan",
+            "low_confidence": sheet_type == "unknown",
+            "confidence": confidence,
+            "evidence": evidence,
+            "metrics": metrics,
+        }
+
+    # ── R1 立面/剖面图 ──
+    if (
+        elev_sect_ratio >= 0.30
+        and len(elev_sect_layer_hits) >= 2
+        and (elevation_ratio >= 0.10 or section_ratio >= 0.10)
+        and closed_ratio < 0.03
+    ):
+        evidence = [
+            f"R1 立面∪剖面图元占比 {elev_sect_ratio:.2%} ≥ 30%",
+            f"R1 命中立面/剖面图层 {len(elev_sect_layer_hits)} 个 ≥ 2："
+            + "、".join(sorted(elev_sect_layer_hits)[:6]),
+            f"R1 立面占比 {elevation_ratio:.2%} / 剖面占比 {section_ratio:.2%}"
+            f"（至少一项 ≥ 10%）",
+            f"R1 闭合面占比 {closed_ratio:.2%} < 3%",
+        ]
+        return _result("elevation_section", "R1", 0.95, evidence)
+
+    # ── R2 不可审查（描线矢量化产物）──
+    if (
+        used_layers <= 2
+        and max_layer_share >= 0.95
+        and micro_ratio >= 0.70
+        and annotation_ratio < 0.01
+        and n >= 1000
+    ):
+        evidence = [
+            f"R2 实际用到图层 {used_layers} 个 ≤ 2",
+            f"R2 单层占比 {max_layer_share:.2%} ≥ 95%",
+            f"R2 ≤1单位微图元占比 {micro_ratio:.2%} ≥ 70%",
+            f"R2 标注占比 {annotation_ratio:.2%} < 1%",
+            f"R2 图元数 {n} ≥ 1000",
+        ]
+        return _result("unreviewable", "R2", 0.9, evidence)
+
+    # ── R3 平面图 ──
+    if len(plan_layer_hits) >= 2 or (closed_ratio >= 0.03 and annotation_ratio >= 0.01):
+        evidence = []
+        if len(plan_layer_hits) >= 2:
+            evidence.append(
+                f"R3 平面词元图层 {len(plan_layer_hits)} 个 ≥ 2："
+                + "、".join(sorted(plan_layer_hits)[:6])
+            )
+        if closed_ratio >= 0.03 and annotation_ratio >= 0.01:
+            evidence.append(
+                f"R3 闭合面占比 {closed_ratio:.2%} ≥ 3% 且 标注占比 "
+                f"{annotation_ratio:.2%} ≥ 1%"
+            )
+        evidence.append(
+            f"R3 未触发 R1（立面∪剖面 {elev_sect_ratio:.2%} / 闭合面 {closed_ratio:.2%}）"
+            f"与 R2（图层 {used_layers} / 微图元 {micro_ratio:.2%}）"
+        )
+        return _result("plan", "R3", 0.85, evidence)
+
+    # ── R4 未知 ──
+    evidence = [
+        f"R4 立面∪剖面 {elev_sect_ratio:.2%} < 30% 或命中图层 "
+        f"{len(elev_sect_layer_hits)} < 2 或闭合面 {closed_ratio:.2%} ≥ 3%",
+        f"R4 图层 {used_layers} / 单层 {max_layer_share:.2%} / 微图元 {micro_ratio:.2%}"
+        f" / 标注 {annotation_ratio:.2%}（未满足不可审查阈值）",
+        f"R4 平面词元图层 {len(plan_layer_hits)} < 2 且（闭合面 {closed_ratio:.2%} < 3%"
+        f" 或 标注 {annotation_ratio:.2%} < 1%）",
+    ]
+    return _result("unknown", "R4", 0.0, evidence)
 
 
 # ── 损坏/无效文件检测 ────────────────────────────────────

@@ -169,6 +169,197 @@ class TestShortTokenBoundaryRegression:
             assert r.drawing_type.get("type") not in ("结构", "电气", "暖通"), r.drawing_type
 
 
+class TestSheetTypeKeywordBoundary:
+    """图幅识别复用词元边界：ELEV 不得命中 ELEVATOR / LEVEL / fire_elevator。"""
+
+    def test_elev_boundary(self):
+        assert _kw_match("elev", "a-elev-fnsh", force_boundary=True)
+        assert _kw_match("elev", "elev", force_boundary=True)
+        for victim in ("elevator", "fire_elevator", "level_3", "a-elevator-pit"):
+            assert not _kw_match("elev", victim, force_boundary=True), victim
+
+    def test_sect_boundary(self):
+        assert _kw_match("sect", "a-sect-mcut", force_boundary=True)
+        for victim in ("section_detail", "intersection"):
+            assert not _kw_match("sect", victim, force_boundary=True), victim
+
+    def test_old_calls_unchanged(self):
+        # 不传 force_boundary 时旧的子串语义保持不变（长词仍按子串）
+        assert _kw_match("elevation", "elevations")
+        assert _kw_match("section", "cross_section")
+        assert _kw_match("VENT", "ventilation_layer")
+
+
+def _prim(
+    dxf_type="LINE",
+    layer="0",
+    width=5.0,
+    height=5.0,
+    length=None,
+    closed=False,
+    props=None,
+):
+    p = {
+        "dxf_type": dxf_type,
+        "layer": layer,
+        "bbox": {"x": 0.0, "y": 0.0, "width": width, "height": height},
+        "properties": dict(props or {}),
+    }
+    if dxf_type == "LINE":
+        p["properties"].setdefault("length", length if length is not None else max(width, height))
+    if closed:
+        p["properties"]["closed"] = True
+    return p
+
+
+class TestClassifySheetType:
+    def test_r1_elevation_section(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = (
+            [_prim("LINE", "A-ELEV", width=10, height=0.5, length=10) for _ in range(40)]
+            + [_prim("LINE", "A-SECT-MCUT", width=10, height=0.5, length=10) for _ in range(20)]
+            + [_prim("LINE", "0", width=10, height=0.5, length=10) for _ in range(40)]
+        )
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "elevation_section"
+        assert r["rule"] == "R1"
+        assert r["scope_mode"] == "non_plan"
+        assert r["reviewable"] is False
+        assert any("A-ELEV" in e for e in r["evidence"])
+
+    def test_r1_single_layer_not_triggered(self):
+        # 只有 1 个立面图层 → 不判 R1（避免单一图层名误伤）
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "A-ELEV", width=10, height=0.5, length=10) for _ in range(60)]
+        prims += [_prim("LINE", "0", width=10, height=0.5, length=10) for _ in range(40)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] != "elevation_section"
+
+    def test_r2_unreviewable(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "01 - DWGFREE.com", width=0.5, height=0, length=0.5) for _ in range(
+            995
+        )]
+        prims += [_prim("TEXT", "01 - DWGFREE.com", width=2, height=1) for _ in range(4)]
+        prims += [_prim("LINE", "0", width=0.5, height=0, length=0.5)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "unreviewable"
+        assert r["rule"] == "R2"
+        assert r["scope_mode"] == "non_plan"
+
+    def test_single_layer_low_micro_not_r2(self):
+        # 单层占比高但微图元不足 70% → 不得判不可审查
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "0", width=10, height=0, length=10) for _ in range(600)]
+        prims += [_prim("LINE", "0", width=0.5, height=0, length=0.5) for _ in range(400)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] != "unreviewable"
+
+    def test_high_micro_multi_layer_plan(self):
+        # plans 类特征：微图元占比高但图层多 → 不得判不可审查
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = []
+        for i in range(16):
+            prims += [
+                _prim("LINE", f"A-WALL-{i}", width=0.5, height=0, length=0.5)
+                for _ in range(60)
+            ]
+        prims += [_prim("TEXT", "A-WALL-0", width=2, height=1) for _ in range(30)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan"
+
+    def test_r3_plan_by_layer_tokens(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "A-WALL") for _ in range(10)]
+        prims += [_prim("LINE", "A-DOOR") for _ in range(10)]
+        prims += [_prim("LINE", "A-WINDOW") for _ in range(10)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan"
+        assert r["rule"] == "R3"
+        assert r["scope_mode"] == "plan"
+
+    def test_r3_plan_by_closed_and_annotation(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LWPOLYLINE", "0", closed=True) for _ in range(40)]
+        prims += [_prim("TEXT", "0", width=2, height=1) for _ in range(20)]
+        prims += [_prim("LINE", "0") for _ in range(940)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan"
+
+    def test_r4_unknown_reviewable_low_confidence(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", f"custom-{i}") for i in range(10)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "unknown"
+        assert r["scope_mode"] == "unknown"
+        assert r["reviewable"] is True
+        assert r["low_confidence"] is True
+
+    def test_empty_primitives_unknown(self):
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        r = classify_sheet_type([])
+        assert r["sheet_type"] == "unknown"
+        assert r["reviewable"] is True
+
+    def test_fire_elevator_plan_not_non_plan(self):
+        """消防电梯样本含 ELEVATOR 图层名，不得被判成立面/剖面。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "A-ELEVATOR") for _ in range(5)]
+        prims += [_prim("LINE", "A-WALL") for _ in range(5)]
+        prims += [_prim("LINE", "A-DOOR") for _ in range(5)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan"
+        assert r["scope_mode"] == "plan"
+
+
+class TestSheetTypeGuardsRealSamples:
+    """真实样本判定守卫（数据未入库时跳过）：平面图不得被判非平面。"""
+
+    @pytest.mark.parametrize(
+        "rel,expected",
+        [
+            ("data/drawings/real/nasji/villa-details.dxf", "plan"),
+            ("data/drawings/real/nasji/multiple-stadion.dxf", "plan"),
+            ("data/drawings/real/nasji/plans-of-a-two-family-house.dxf", "plan"),
+            ("data/drawings/real/东莞通-建筑-外部参照（不打印）.dxf", "plan"),
+            ("data/drawings/real/nasji/mosque-detail.dxf", "elevation_section"),
+            ("data/drawings/real/nasji/restroom.dxf", "unreviewable"),
+        ],
+    )
+    def test_real_sample_sheet_type(self, rel, expected):
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        path = os.path.join(repo_root, rel)
+        if not os.path.exists(path):
+            pytest.skip(f"{rel} 未入库")
+        from src.baa_engine.drawing_parser import DrawingParser
+
+        r = DrawingParser().parse(path)
+        assert r.success, r.error
+        assert r.sheet_type.get("sheet_type") == expected, r.sheet_type
+
+    def test_synth_fire_elevator_end_to_end_plan(self):
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from src.baa_engine.drawing_parser import DrawingParser
+
+        for name in ("synth_fire_elevator.dxf", "synth_fire_elev_lobby.dxf"):
+            path = os.path.join(repo_root, "data", "drawings", "real", "synth", name)
+            if not os.path.exists(path):
+                pytest.skip(f"data/drawings/real/synth/{name} 未入库")
+            r = DrawingParser().parse(path)
+            assert r.success
+            assert r.sheet_type.get("scope_mode") != "non_plan", r.sheet_type
+
+
 class TestCorruptDetection:
     def test_valid_large_dxf(self, tmp_path):
         # 写一个有效 DXF 头 + 足够大小
