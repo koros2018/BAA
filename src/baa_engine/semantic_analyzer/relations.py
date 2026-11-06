@@ -475,7 +475,10 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         host_id = door.properties.get("host_wall_id")
         if not host_id:
             continue
-        for room_id in wall_rooms.get(host_id, set()):
+        # wall_rooms 内层是字符串 set，直接迭代顺序随 PYTHONHASHSEED 变化，
+        # 会让同输入在不同哈希种子下产出不同关系顺序。这里按 room_id 排序，
+        # 保证输出逐项可复现（不影响关系集合本身）。
+        for room_id in sorted(wall_rooms.get(host_id, ())):
             pair = (room_id, door.id)
             if pair in seen_conn:
                 continue
