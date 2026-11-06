@@ -398,3 +398,39 @@ def test_review_coverage_ratio_is_meaningful():
     # applicable=0 时 ratio=0 是合法值（合成图纸可能无匹配规则）
     if applicable > 0:
         assert ratio > 0, "有 applicable rules 时 ratio 应大于 0"
+
+
+# ── T1: EXIST partial → low 区域级提示 ─────────────────────
+
+
+def test_scope_hint_detail_low_and_distinguishable():
+    """partial 聚合产出的区域提示必须是 low 级且文案可区分（T1）"""
+    from src.api.review.review_routes import _build_scope_hint_detail
+    from src.baa_engine.atomic_functions import FuncRegistry
+
+    func = FuncRegistry().get("EXIST-005")
+    assert func is not None
+    detail = _build_scope_hint_detail(
+        func,
+        {"scope_results": ["c1", "c2", "c3", "c4"], "missing_scopes": ["c3", "c4"]},
+    )
+    assert detail["severity"] == "low"
+    assert detail["explanation"].startswith("区域级提示")
+    assert "非确证违规" in detail["explanation"]
+    assert detail["extracted_value"] == 2.0
+    assert detail["required_value"] == 4.0
+    assert detail["difference"] == -2.0
+    assert detail["entity_type"] == "missing"
+    # 不能是 critical，避免被当成确证违规
+    assert detail["severity"] != "critical"
+
+
+def test_scope_hint_detail_empty_scopes_no_crash():
+    """空作用域聚合时不应抛异常（边界）"""
+    from src.api.review.review_routes import _build_scope_hint_detail
+    from src.baa_engine.atomic_functions import FuncRegistry
+
+    func = FuncRegistry().get("EXIST-005")
+    detail = _build_scope_hint_detail(func, {"scope_results": [], "missing_scopes": []})
+    assert detail["required_value"] == 0.0
+    assert detail["severity"] == "low"

@@ -219,14 +219,31 @@ def run_review(dxf_path: Path) -> dict:
                 evaluated_ids.add(func.func_id)  # 规则被判定且通过，计入可达
                 continue
             if agg["overall"] == "partial":
-                # 分布不均但目标实体在全局已存在 → 不是违规，跳过
-                if any(func.matches(e) for e in entities):
-                    continue
-                severity = "low"
-                scope_info = (
-                    f"；以下区域未检出({len(agg['missing_scopes'])}"
-                    f"/{len(agg['scope_results'])} 个作用域)"
-                )
+                # T1: 区域级提示（同 review_routes 口径）——目标类型全图存在、
+                # 但部分作用域未检出。计入 evaluated 并产 low finding，
+                # 不再被「实体全局存在就 continue」吞掉。
+                evaluated_ids.add(func.func_id)
+                findings.append({
+                    "func_id": func.func_id,
+                    "clause_id": func.clause_id,
+                    "func_name": func.name,
+                    "category": func.category.value,
+                    "entity_type": "missing",
+                    "entity_id": "",
+                    "actual": float(
+                        len(agg["scope_results"]) - len(agg["missing_scopes"])
+                    ),
+                    "threshold": float(len(agg["scope_results"])),
+                    "operator": ">=",
+                    "severity": "low",
+                    "confidence": 0.5,
+                    "source": "exist_scope",
+                    "explanation": (
+                        f"区域级提示：目标类型在全图存在，但 {len(agg['missing_scopes'])}"
+                        f"/{len(agg['scope_results'])} 个作用域未检出；分布不均，非确证违规"
+                    )[:160],
+                })
+                continue
         r = registry.execute_with_timeout(func, None)
         if r is None:
             continue
@@ -252,6 +269,12 @@ def run_review(dxf_path: Path) -> dict:
     for f in funcs:
         if getattr(f, "requires_global_context", False):
             continue
+        # T1: EXIST 条件规则的前置实体类型缺失 → 本图不适用，不计入分母
+        # （执行侧在作用域聚合前就跳过这类规则）
+        if f.category.value == "exist":
+            prereqs = set(getattr(f, "prerequisite_types", []) or [])
+            if prereqs and not prereqs.intersection(entity_type_set):
+                continue
         targets = set(f.target_entities or [])
         if targets:
             referenced_types.update(targets)

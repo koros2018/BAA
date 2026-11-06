@@ -225,6 +225,49 @@ def _build_structured_summary(details: list[dict]) -> dict:
 # ── End P62 ────────────────────────────────────────────────
 
 
+def _is_prereq_missing(func, entity_types) -> bool:
+    """T1: EXIST 条件规则的前置实体类型在本图完全缺失 → 该图不适用。
+
+    执行侧（作用域聚合前）会跳过这类规则，但旧 applicable 口径仍把它们计入
+    分母，造成可达率被结构性低估（东莞通 8/185）。
+    """
+    if func.category.value != "exist":
+        return False
+    prereqs = set(getattr(func, "prerequisite_types", []) or [])
+    if not prereqs:
+        return False
+    return not prereqs.intersection(set(entity_types))
+
+
+def _build_scope_hint_detail(func, agg: dict) -> dict:
+    """T1: EXIST 规则的区域级提示（partial 聚合）→ low 级 detail。
+
+    语义：目标类型在全图存在，但部分作用域未检出（分布不均），
+    不是确证违规。以 severity=low + 「区域级提示」文案前缀与 critical/missing
+    区分，且不参与评分扣分（见评分处剔除 low）。
+    """
+    total = len(agg.get("scope_results") or [])
+    missing = len(agg.get("missing_scopes") or [])
+    return {
+        "entity_id": "",
+        "entity_type": "missing",
+        "clause_id": func.clause_id,
+        "clause_title": func.name,
+        "func_id": func.func_id,
+        "result": "FAIL",
+        "extracted_value": float(total - missing),
+        "required_value": float(total),
+        "difference": float(-missing),
+        "explanation": (
+            f"区域级提示：目标类型在全图存在，但 {missing}/{total} 个作用域未检出；"
+            "分布不均，非确证违规"
+        )[:160],
+        "severity": "low",
+        "confidence": 0.5,
+        "confidence_tier": _confidence_tier(0.5),
+    }
+
+
 def _rule_runner(entities, func_ids, resolve_threshold, evaluate_func, pre_execute=None):
     """核心实体处理循环：执行非全局函数 + 构建 findings。
 
@@ -680,13 +723,14 @@ async def review(  # code
                     evaluated_funcs.add(func.func_id)  # 规则被判定且通过，计入可达
                     continue  # 所有作用域均命中：不产生缺失 finding
                 if agg["overall"] == "partial":
-                    if any(func.matches(e) for e in entities):
-                        continue
-                    severity = "low"
-                    scope_info = (
-                        f"；以下区域未检出({len(agg['missing_scopes'])}"
-                        f"/{len(agg['scope_results'])} 个作用域)"
-                    )
+                    # T1: 区域级提示——目标类型在全图存在、但部分作用域未检出。
+                    # 旧逻辑「任一实体匹配就 continue」把分布不均整体吞掉，EXIST
+                    # 规则既不产 finding 也不计入 evaluated（7 张真实图 findings 恒为 0）。
+                    # 现改为 low 级提示并计入可达：文案带「区域级提示」前缀，不参与扣分，
+                    # 与确证违规（critical/missing）在审核端可区分。
+                    evaluated_funcs.add(func.func_id)
+                    details.append(_build_scope_hint_detail(func, agg))
+                    continue
                 has_match = False
             else:
                 has_match = any(func.matches(e) for e in entities)
@@ -952,6 +996,10 @@ async def review(  # code
             continue
         if not f.target_entities:
             applicable_func_ids.add(f.func_id)  # 无类型限制，对所有实体适用
+        elif _is_prereq_missing(f, entity_types):
+            # T1: EXIST 条件规则的前置实体类型缺失 → 本图不适用，不计入分母
+            # （执行侧在作用域聚合前就跳过，旧口径却把它计入 applicable）
+            continue
         elif any(f.matches(e) for e in entities):
             # P0-1: 用 matches()（含类型别名归并）而非裸类型匹配，
             # 使 applicable 口径与 execute_chained 的真实判定一致。
@@ -972,7 +1020,8 @@ async def review(  # code
     # ── 计算综合评分（P36） ────────────────────────────────
     total_score = 100.0  # assignment
     if len(entities) > 0 and len(details) > 0:  # check: numeric comparison
-        violation_deduction = len(details) * 5.0  # get length
+        # T1: low 级「区域级提示」是分布不均提示而非确证违规，不计入扣分
+        violation_deduction = sum(5.0 for d in details if d.get("severity") != "low")
         critical_count = sum(1 for d in details if d.get("severity") == "critical")  # aggregate sum
         major_count = sum(1 for d in details if d.get("severity") == "major")  # aggregate sum
         total_score = max(
@@ -1568,6 +1617,8 @@ async def review_from_data(  # code
                 continue
             if not f.target_entities:
                 applicable_func_ids.add(f.func_id)
+            elif _is_prereq_missing(f, entity_types):
+                continue
             elif any(f.matches(e) for e in entities):
                 # P0-1: 用 matches()（含类型别名归并），与 /review 同口径
                 applicable_func_ids.add(f.func_id)
@@ -1584,7 +1635,8 @@ async def review_from_data(  # code
 
         total_score = 100.0
         if len(entities) > 0 and len(details) > 0:
-            violation_deduction = len(details) * 5.0
+            # T1: low 级区域提示不计入扣分（同 /review 主路径）
+            violation_deduction = sum(5.0 for d in details if d.get("severity") != "low")
             critical_count = sum(1 for d in details if d.get("severity") == "critical")
             major_count = sum(1 for d in details if d.get("severity") == "major")
             total_score = max(0, 100.0 - violation_deduction - critical_count * 10 - major_count * 3)

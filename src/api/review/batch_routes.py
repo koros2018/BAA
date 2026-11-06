@@ -79,13 +79,12 @@ def _run_exist_scope_batch(entities, registry_funcs):
             if agg["overall"] == "pass":
                 continue
             if agg["overall"] == "partial":
-                # 分布不均但目标实体在全局已存在 → 不是违规，跳过
-                if any(func.matches(e) for e in entities):
-                    continue
+                # T1: 区域级提示——目标类型全图存在但分布不均，不再跳过；
+                # low 级、文案带前缀，与确证违规区分。
                 severity = "low"
                 scope_info = (
-                    f"；以下区域未检出({len(agg['missing_scopes'])}"
-                    f"/{len(agg['scope_results'])} 个作用域)"
+                    f"；区域级提示：目标类型在全图存在，但 {len(agg['missing_scopes'])}"
+                    f"/{len(agg['scope_results'])} 个作用域未检出（非确证违规）"
                 )
         try:
             r = _get_fr().execute_with_timeout(func, None)
