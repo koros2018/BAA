@@ -30,7 +30,6 @@ from .geometry import (
     compute_iou,
     union_bbox,
     is_inside,
-    bbox_center,
     point_distance,
 )
 # P0-8 后续增强（2026-11-05）：网格基础设施提取为公共模块 spatial_grid，
@@ -618,14 +617,27 @@ def _bind_dimensions(
     # ── 1. 建网格：entity center 按 CELL_SIZE 分桶 ──
     _BIND_CELL = 1000.0
     _EXPAND = 10
-    grid: Dict[Tuple[int, int], List[Tuple[float, float, SemanticEntity]]] = {}
-    for ent in entities:
-        center = bbox_center(ent.bbox)  # returns {"x": float, "y": float}
-        cx = center["x"]
-        cy = center["y"]
+    grid: Dict[Tuple[int, int], List[Tuple[float, float, int]]] = {}
+    # 预计算实体 bbox 轴向区间：候选循环内直接取数组，省去 ent.bbox 逐次取键。
+    x1_a: List[float] = [0.0] * len(entities)
+    x2_a: List[float] = [0.0] * len(entities)
+    y1_a: List[float] = [0.0] * len(entities)
+    y2_a: List[float] = [0.0] * len(entities)
+    for idx, ent in enumerate(entities):
+        b = ent.bbox
+        bx = b["x"]
+        by = b["y"]
+        bw = b["width"]
+        bh = b["height"]
+        x1_a[idx] = bx
+        y1_a[idx] = by
+        x2_a[idx] = bx + bw
+        y2_a[idx] = by + bh
+        cx = bx + bw / 2
+        cy = by + bh / 2
         gx = int(cx / _BIND_CELL)
         gy = int(cy / _BIND_CELL)
-        grid.setdefault((gx, gy), []).append((cx, cy, ent))
+        grid.setdefault((gx, gy), []).append((cx, cy, idx))
 
     # T4 优化（2026-11-06）：原实现每个 dim 遍历 441 个 (gx,gy) tuple 并各做
     # 非空集合判断 + dict.get（1680×441≈74 万次 tuple 哈希）。改为
@@ -652,6 +664,25 @@ def _bind_dimensions(
             continue
 
         orientation = _dim_orientation(dim)
+        # 每 dim 只解析一次标注端点区间（原实现在每个候选里重复 min/max 取键）；
+        # 同时按测量轴选定实体区间数组，候选循环内直接下标取值。
+        _dp2 = dim.get("defpoint2") or {}
+        _dp3 = dim.get("defpoint3") or {}
+        if orientation == "h":
+            d_min = min(_dp2.get("x", 0), _dp3.get("x", 0))
+            d_max = max(_dp2.get("x", 0), _dp3.get("x", 0))
+            lo_a = x1_a
+            hi_a = x2_a
+        elif orientation == "v":
+            d_min = min(_dp2.get("y", 0), _dp3.get("y", 0))
+            d_max = max(_dp2.get("y", 0), _dp3.get("y", 0))
+            lo_a = y1_a
+            hi_a = y2_a
+        else:
+            d_min = 0.0
+            d_max = 0.0
+            lo_a = None
+            hi_a = None
 
         nearest = None
         best_score = float("inf")
@@ -673,7 +704,7 @@ def _bind_dimensions(
             j0 = bisect_left(gys, ylo)
             j1 = bisect_right(gys, yhi)
             for gj in range(j0, j1):
-                for cx, cy, ent in grid[(gx, gys[gj])]:
+                for cx, cy, idx in grid[(gx, gys[gj])]:
                     # 距离平方预过滤：避免 99% 无效 sqrt
                     ddx = rx - cx
                     ddy = ry - cy
@@ -683,10 +714,26 @@ def _bind_dimensions(
 
                     # 精确距离（仅候选）
                     dist = math.sqrt(dist_sq)
-                    ratio = _dim_projection_ratio(dim, ent.bbox, orientation)
-                    score = _dim_match_score(dist, ratio)
+                    # 内联 _dim_projection_ratio（原每候选一次函数调用 + 重复
+                    # 解析 dim 端点 + bbox 取键）；算式与浮点运算顺序保持不变。
+                    if lo_a is None:
+                        ratio = 0.0
+                    else:
+                        e1 = lo_a[idx]
+                        e2 = hi_a[idx]
+                        span = e2 - e1
+                        if span <= 0:
+                            ratio = 0.0
+                        else:
+                            overlap = max(0.0, min(e2, d_max) - max(e1, d_min))
+                            ratio = overlap / span
+                            if ratio > 1.0:
+                                ratio = 1.0
+                    # 内联 _dim_match_score：综合评分 = dist * (1.5 - ratio)；
+                    # ratio 已落在 [0,1]，与原 min(max(ratio,0),1) 取值等价。
+                    score = dist * (1.5 - ratio)
                     if score < best_score or (abs(score - best_score) < 1 and ratio > best_ratio):
-                        nearest = ent
+                        nearest = entities[idx]
                         best_score = score
                         best_ratio = ratio
 
