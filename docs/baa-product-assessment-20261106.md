@@ -3,6 +3,9 @@
 > 口径：只采信仓库代码可复现的实测输出；推断部分显式标注。
 > 本轮为**评估与取证**，不含代码改动。样本为 `data/drawings/real` 真实图纸 + 1 张 `data/files` 大图。
 > 旧报告（`docs/baa-product-assessment-20261104.md`）保留不动，本文件不覆盖其结论。
+>
+> **状态（2026-11-06 复测）**：§2–§5 的实测数据基于 HEAD `1f6f245`，保留为原始基线，
+> **已被 §8 的 11/06 复测（HEAD `6f85763`）取代**；最新数字与结论以 §8 为准。
 
 ---
 
@@ -34,6 +37,8 @@
 ---
 
 ## 2. 样本构成
+
+> 本节表格为旧版基线（HEAD `1f6f245`），**已被 §8 的 11/06 复测取代**；保留用于新旧对比。
 
 | 图纸 | 大小 | 图元 | 实体 | evaluated/applicable | 比例 | findings | 耗时 |
 |---|---|---|---|---|---|---|---|
@@ -82,6 +87,8 @@
 ---
 
 ## 4. findings 质量（73 条）
+
+> 本节为旧版基线（HEAD `1f6f245`），**已被 §8.2 / §8.4 的 11/06 复测取代**（本轮 35 条）。
 
 | 结构性问题 | 条数 | 证据 |
 |---|---|---|
@@ -174,3 +181,201 @@ python scripts/fp_rate_audit.py
 **待办（下一轮，不在本轮实现）**：解析阶段应识别"无单位信息 + 尺度异常"的图纸（如
 无 `$INSUNITS/$MEASUREMENT` 且长度/范围分布明显偏离 mm 制），输出"非可审查 CAD"提示并
 停止语义分类，而不是照常分类后输出误导性结论。
+
+---
+
+## 8. 11/06 复测（HEAD `6f85763`）：unknown 保留 + window 误判修复后的整份重算
+
+> 本节为重算结果，**取代 §2–§5 的旧实测**；旧数据保留在原文并已标注。样本、脚本、
+> coverage 字段算法与旧版一致，仅分类实现与规则修复进度不同。
+
+### 8.0 口径与改动说明
+
+**判定口径不变**：同 9 张样本、同 `scripts/fp_rate_audit.py`、同 coverage 字段算法——
+`applicable` = `matches()`（含别名归并）命中任一实体；`evaluated` = 实际产出 PASS/FAIL
+（PASS 亦计入）；规则总量 422。
+
+**三档对照**：
+
+| 档位 | HEAD | 说明 |
+|---|---|---|
+| 旧版 | `1f6f245` | §2–§5 原始基线 |
+| 上轮基线 | `f4305ed` | T1–T4 完成、T5 未修；本轮用等价分类配置（长表含短词 + 旧短表）复算 |
+| 本轮 | `6f85763` | window 误判修复 + unknown 保留 |
+
+**本轮代码改动（commit `6f85763`）**：
+
+- `classify.py`：`unknown` 分支不再 `continue` 丢弃，改为收集为 `unclassified` 实体
+  （`UNCLASSIFIED_00001…`，轻量 dict：id/type/bbox/layer/confidence/dxf_type），
+  只写独立集合，**不进入** `entities`。
+- `main.py`：每次分析重置并输出 `semantic["unclassified_entities"]`；在
+  `classification_stats` 增加 `unclassified_layer_top`（Top 20 图层及计数）。
+- `fp_rate_audit.py`：报告新增 `unclassified_count`、`accounted_entity_count`、
+  `unclassified_layer_top`；`entity_count` 仍为分类实体数（`len(entities)`），判定逻辑 0 改动。
+
+**隔离设计**：`unclassified` 与 `entities` 是物理分离的两个集合。规则侧所有入口
+（`AtomicFunction.matches`、`FuncRegistry.execute_chained`、`build_scopes`、
+`aggregate_exist_in_scopes`、`WidthContext`）只消费 `entities`，因此不需要任何过滤守卫，
+也不可能进入规则匹配、适用面分母或 findings。
+
+### 8.1 覆盖率新旧对比（两种口径）
+
+| 口径 | 旧版 `1f6f245` | 上轮基线 `f4305ed` | 本轮 `6f85763` | 本轮 vs 上轮 |
+|---|---|---|---|---|
+| 适用面可达（并集 evaluated/applicable） | 25 / 186 = 13.4% | 40 / 178 = 22.5% | **43 / 181 = 23.8%** | 分子 +3 / 分母 +3（+1.3pp） |
+| 全规则：适用覆盖（applicable / 422） | 186 / 422 = 44.1% | 178 / 422 = 42.2% | **181 / 422 = 42.9%** | +3（+0.7pp） |
+| 全规则：判定覆盖（evaluated / 422） | 25 / 422 = 5.9% | 40 / 422 = 9.5% | **43 / 422 = 10.2%** | +3（+0.7pp） |
+
+### 8.2 逐图新旧对比
+
+| 图纸 | entities 旧→上轮→本轮 | unclassified（本轮） | evaluated 旧→上轮→本轮 | applicable 旧→上轮→本轮 | findings 旧→上轮→本轮 | severity（本轮） |
+|---|---|---|---|---|---|---|
+| 东莞通-建筑-外部参照 | 10,086 → 10,086 → 10,086 | 0 | 18 → 37 → 37 | 185 → 177 → 177 | 37 → 20 → 20 | low 20 |
+| restroom | 9,979 → 9,979 → **86** | **9,914** | 2 → 2 → **0** | 24 → 23 → **32** | 1 → 1 → **0** | — |
+| villa-details | 8,615 → 8,615 → 8,608 | 966 | 15 → 12 → 15 | 145 → 132 → 137 | 35 → 11 → 14 | critical 10 / low 4 |
+| multiple-stadion | 2,482 → 2,482 → 2,208 | 366 | 4 → 4 → 2 | 86 → 80 → 58 | 0 → 0 → 0 | — |
+| mosque-detail | 1,467 → 1,467 → **86** | **6,119** | 2 → 2 → 2 | 51 → 47 → 47 | 0 → 0 → **1** | low 1 |
+| plans-of-a-two-family-house | 1,365 → 1,365 → 997 | 512 | 2 → 2 → 1 | 58 → 54 → 32 | 0 → 0 → 0 | — |
+| Demo - Multi-family block | 68 → 68 → 68 | 0 | 0 → 0 → 0 | 33 → 29 → 29 | 0 → 0 → 0 | — |
+| 4.通风BS170826（暖通，跳过） | 9 → 9 → 9 | 0 | 0 → 0 → 0 | 0 → 0 → 0 | 0 | — |
+| baa-file-2319613b52cb（电气，跳过） | 48,844（图元） | 0（审计跳过） | 0 | 0 | 0 | — |
+| **并集（7 张参与判定）** | | | **25 → 40 → 43** | **186 → 178 → 181** | **73 → 32 → 35** | critical 10 / low 25 |
+
+说明：
+
+- 旧版未逐图记录 severity，故旧版 severity 记为“—”；本轮 35 条 = critical 10 + low 25。
+- 旧版 findings 73 = 东莞通 37 + restroom 1 + villa 35；本轮 35 = 东莞通 20 + villa 14 + mosque 1。
+- `baa-file` 为电气图，审计按既有规则跳过语义判定，`48,844` 是图元数而非实体数。
+
+**逐图比例（evaluated/applicable）**：东莞通 9.7% → 20.9%；restroom 8.3% → 0.0%；
+villa 10.3% → 10.9%；stadion 4.7% → 3.4%；mosque 3.9% → 4.3%；plans 3.4% → 3.1%；
+Demo 0%。
+
+### 8.3 unknown 保留：9 图 unclassified 占比与图层 Top N
+
+| 图纸 | 分类实体 | unclassified | 已计账合计 | unclassified 占比 | Top 图层（计数） |
+|---|---|---|---|---|---|
+| 东莞通 | 10,086 | 0 | 10,086 | 0.0% | — |
+| restroom | 86 | 9,914 | 10,000 | **99.1%** | `01 - DWGFREE.com` 9,914 |
+| villa-details | 8,608 | 966 | 9,574 | 10.1% | `Furniture` 758 / `v` 96 / `friz` 72 / `merdiven` 15 / `balustrade` 7 |
+| multiple-stadion | 2,208 | 366 | 2,574 | 14.2% | `gradient` 195 / `ax` 89 / `fur` 68 / `section` 8 / `FURN` 4 |
+| mosque-detail | 86 | 6,119 | 6,205 | **98.6%** | `A-ELEV-FNSH` 2,429 / `A-ELEV` 2,186 / `A-SECT-MCUT` 712 / `A-SECT-MBND` 518 / `A-GLAZ-PRHT` 183 |
+| plans-of-a-two-family-house | 997 | 512 | 1,509 | 33.9% | `Structural - Bearing` 244 / `P-SANIT` 123 / `LINEAS01` 50 / `CASCO` 34 / `Ck Achurado Muros` 28 |
+| Demo - Multi-family block | 68 | 0 | 68 | 0.0% | — |
+| 4.通风BS170826 | 9 | 0 | 9 | 0.0% | — |
+| baa-file（电气，审计跳过） | — | 95 / 10,000（直接 analyze） | — | 0.95% | `EQUIP` 29 / `WIRE` 18 / `0TITLE` 12 / `DQ1` 12 / `CAB` 6 |
+
+说明：
+
+- “已计账合计 = 分类实体 + unclassified”；小于原始图元数是因为分类阶段仍有退化图元过滤与
+  10,000 采样上限（restroom 原始 142,854 图元、villa 10,190、mosque 6,263、stadion 2,759、
+  plans 1,568）。
+- 改前（T5 未修）的 unknown 静默丢弃量（等价配置复算）：villa 959、stadion 74、
+  mosque 4,683、plans 133、restroom 0。本轮保留后分别为 966 / 366 / 6,119 / 512 / 9,914。
+  **差值不是“新产生的未识别”，而是 window 误判修复后原本被错误归为 window 的图元按几何
+  兜底落到 unknown**（restroom、mosque、stadion、plans 的主要来源）。
+- `baa-file` 因审计跳过未纳入对照；其分类不受 window 修复影响，直接 analyze 的 unclassified
+  为 95 个（0.95%）。
+- `restroom` / `mosque` 的 unclassified 占比接近 100%，与其“单一图层/立面详图”样本属性一致，
+  属于数据侧信号，不是分类质量回升。
+
+### 8.4 规则侧不变性证明（unclassified 保留单独一项）
+
+在“仅加入 unclassified 保留、其余代码完全相同”的前后快照上逐条比对，9 张图结果：
+
+- `entity_types`：逐图完全相等（`entities` 列表本身未变）。
+- `applicable_func_ids` / `evaluated_func_ids`：逐图集合完全相等。
+- `findings`：逐条（`func_id` + `entity_id` + `severity` + `actual` + `threshold` + `source`）
+  完全相等；并集 `evaluated/applicable = 43/181` 前后一致，findings 35 条前后一致。
+- 并集 applicable 178→181、evaluated 40→43 的变化**不属于本项改动**，而是 T5 分类修复
+  （见 8.5 的等价配置对照）。
+
+结论：unknown 保留对任何既有规则的 evaluated/applicable/findings **零影响**；它只增加可计数的
+`unclassified` 集合与图层质量信号。
+
+### 8.5 关键问题：实体基数变化对覆盖率的影响——真实提升 vs 分母缩水
+
+**实体基数变化（上轮基线 → 本轮，仅 T5 分类修复）**：
+
+| 图纸 | 分类实体变化 | 说明 |
+|---|---|---|
+| restroom | 9,979 → 86（−9,893） | 9,978 个误判 window 归零 |
+| mosque-detail | 1,467 → 86（−1,381） | window 1,209 → 3，other 183 → 0 |
+| plans | 1,365 → 997（−368） | window 507 → 0 |
+| multiple-stadion | 2,482 → 2,208（−274） | window 16 → 0 |
+| villa-details | 8,615 → 8,608（−7） | window 148 → 130，wall +6，accessible_toilet +5 |
+
+**分母侧（逐图）**：restroom、stadion、plans **各退出 22 条**窗类规则，且退出集合完全相同：
+
+```
+AREA-011 AREA-013 AREA-017 ATTR-003 ATTR-013 ATTR-017 DIM-005 DIM-008 DIM-010
+DIM-032 DIM-087 DIM-099 DIM-110 DIM-114 DIST-004 EXIST-081 THERM-004 THERM-006
+THERM-010 THERM-012 THERM-013 THERM-016
+```
+
+这 22 条规则此前只在“假窗实体”上适用；误判修复后从逐图适用面退出，是应然结果。
+restroom 同时新进入 31 条（对真实保留的 `other` 实体适用，如 ATTR/DIM/COUNT/STR/THERM 子集），
+净 `applicable` 23→32；stadion / plans 无新进入，净 −22。
+
+**并集侧**：这 22 条规则**没有从并集分母消失**——villa 仍有 130 个真实窗、东莞通仍有 10 个窗，
+它们继续在这些图纸上适用。因此并集 `applicable` 没有缩水，反而 178→181。
+
+**分子侧（逐图）**：窗类修复同时带走对应的 evaluated：
+
+| 图纸 | evaluated 退出 | evaluated 进入 | 净 |
+|---|---|---|---|
+| restroom | DIM-008、EXIST-081 | — | −2 |
+| multiple-stadion | DIM-008、EXIST-081 | — | −2 |
+| plans | DIM-008、EXIST-081 | DIM-009 | −1 |
+
+这三张图自身覆盖率因此下降（restroom 8.7%→0.0%、stadion 5.0%→3.4%、plans 3.7%→3.1%），
+是“误判产生的覆盖率被清除”的诚实代价，**不能算作提升**。由于 DIM-008 / EXIST-081 仍在
+villa / 东莞通 上 evaluated，并集 evaluated 没有因此减少。
+
+**真实提升（并集）**：并集 applicable 新进入 3 条、evaluated 新进入 3 条，全部来自 villa 新增的
+5 个 `accessible_toilet`（短表 `WC` 规则）：
+
+- applicable 进入：`ACCESS-008`、`ACCESS-020`、`EXIST-036`；
+- evaluated 进入：`ACCESS-008`、`EXIST-036`、`EXIST-066`（`ACCESS-020` 判据不足，未产出 PASS/FAIL）；
+- findings 变化均为 low：新增 ACCESS-008 3/17、EXIST-036 3/17、EXIST-066 3/17；
+  EXIST-081 由 8/17 降为 7/17（未消失）。本轮 villa 的 low 共 4 条，critical 仍为 10 条
+  （EVAC-002/003/004 的判定值与上轮一致，仅实体 ID 随重编号平移）。
+
+**结论（直接回答）**：
+
+1. **不是分母缩水造成的覆盖率提升**。并集分母 178→181 是 **+3**（新增可识别类型
+   `accessible_toilet`），不是变小；22 条窗类规则的退出只发生在逐图，并集仍由真实窗实体覆盖。
+2. **分子 +3 是真实增长**：三条规则真正产出 PASS/FAIL，且新增 findings 全为 low，无 critical。
+3. **覆盖率 22.5%→23.8%（+1.3pp）的增量可全部归因于上述真实增长**；窗类误判清除在并集
+   层面没有带来任何“假提升”，反而在 restroom/stadion/plans 逐图上表现为下降。
+4. **与旧版 25/186=13.4% 相比的 +10.4pp 不能全部记在 T5 账上**：其中 +9.1pp
+   （13.4%→22.5%）来自 T1–T4——主要增项是 T1 把 28 条被作用域聚合吞掉的 EXIST 变为
+   可判定，T2/T3/T4 的误报清理同时移除了少量 evaluated；T5 只贡献 +1.3pp。
+
+### 8.6 4 个 1.0–1.54㎡ 前室复测
+
+| 实体 | 文本 | 实体 bbox 面积 | 旧区域面积来源 | 房间重建 | 面积规则是否判定 |
+|---|---|---|---|---|---|
+| ANTECHAMBER_3274 | 合用前室 | 0.105㎡ | 1.36㎡（最近 ROOM_7026，距 8.29m，未包含） | **失败**（中心不在任何 2–100㎡ room 内） | 否（`area_m2` 缺失） |
+| ANTECHAMBER_6314 | 前室 | 0.184㎡ | 1.0㎡（最近有效 room ROOM_2182，距 5.84m，未包含） | **失败**（中心落在 ROOM_784 448㎡、polyline_room_10029 448㎡、10011 288㎡ 整层轮廓，均 >100㎡ 被 `valid_rooms` 排除） | 否 |
+| ANTECHAMBER_7087 | 前室 | 0.184㎡ | 1.54㎡（最近 ROOM_634，距 4.42m，未包含） | **失败** | 否 |
+| ANTECHAMBER_9457 | 前室 | 0.105㎡ | 1.36㎡（最近 ROOM_1240，距 1.30m，未包含） | **失败** | 否 |
+
+结果：**4/4 房间重建失败，4/4 面积规则未恢复判定**（均无 findings，`area_m2=None`）。
+图纸级 `AREA-002/018/019/021`、`DIM-018/019` 仍 applicable + evaluated（判定的是其他有面积
+证据的前室），但这 4 个 ID 不再被判——符合“不能重建则维持静默”的预期，且旧版的
+1.0–1.54㎡ 结论确认为“最近房间面积错配”，不是真实前室面积。
+
+### 8.7 验证（测试与性能）
+
+- **全量 pytest**：`2943 passed, 28 skipped, 14 deselected`（两次运行：148.09s / 150.68s），
+  与基线完全一致。
+- **语义分析性能**（`scripts/benchmark_semantic_analyze.py`，48.9MB / 48,844 图元，5 轮中位数）：
+  - 改动前（暂存本轮 3 文件后复测）：**0.963s**
+  - 本轮：**0.972s**
+  - 两者均 `< 1.0s`；+0.9% 属主机噪声（两者都在 run 5 出现 ~1.55s 离群）。首轮 5 次曾出现
+    中位数 1.011s（单次 1.593s 离群），复跑回到 0.972s，未复现。
+- **复现脚本**（临时，未入库）：`baa_t5_snapshot.py`（9 图快照 + 等价旧配置复算）、
+  `baa_t5_diff.py`（规则侧逐条 diff）、`baa_t5_covdiff.py`（coverage 集合差分）、
+  `baa_t5_ante.py`（4 前室），输出 `baa_t5_before/after2/pret5.json`，均位于
+  `C:\Users\26988\AppData\Local\Temp\`。
