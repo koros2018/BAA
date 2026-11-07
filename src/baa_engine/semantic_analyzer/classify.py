@@ -83,6 +83,17 @@ _NON_ROOM_LAYER_KEYWORDS = (
     "DOTLN",
     "DOT",
     "Defpoints",
+    # P132-B1：家具 / 填充 / 虚线 / 楼梯 / 檐口类图层上的闭合面是构件轮廓，
+    # 不是平面房间。villa-details 用这 5 类图层造出 8 个假房间中的 7 个。
+    "FURNITURE",
+    "HATCH",
+    "HIDDEN",
+    "MERDIVEN",
+    "FRIZ",
+    "CORNICE",
+    "檐口",
+    "檐",
+    "线脚",
 )
 
 
