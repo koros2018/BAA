@@ -229,14 +229,19 @@ def _analyze_evacuation_routes_impl(
         )  # append: add to list
 
         # 出口识别：优先用明确的 exit/exit_door/stair
+    # P132-B5: 空 id 实体不能作为图节点/出口。扫线法产出的 doorway 当前
+    # entity_id=""（room.py::_detect_doorway_gaps），若放行会成为合成出口，
+    # 产生 route_key=":50.0"、path=["ROOM",""] 这类无法追溯的疏散路由。
     strict_exits = [
-        e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
+        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id
     ]  # assign: membership check
     fallback_exits = [
-        e for e in entities if e.type in ("door", "fire_door")
+        e for e in entities if e.type in ("door", "fire_door") and e.id
     ]  # assign: membership check
     # P107: 扫线法产出的 doorway 可作为疏散路径上的门连接节点
-    fallback_exits_sweep = [e for e in entities if e.type == "doorway"]  # assign: membership check
+    fallback_exits_sweep = [
+        e for e in entities if e.type == "doorway" and e.id
+    ]  # assign: membership check
     # 有明确出口就用明确出口，否则用 door/fire_door 兜底
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
 
@@ -372,13 +377,16 @@ def _verify_evacuation_connectivity_impl(
         )  # append: add to list
 
     # 出口识别
+    # P132-B5: 空 id 实体不能作为图节点/出口（同 analyze_evacuation_routes 口径）
     strict_exits = [
-        e for e in entities if e.type in ("exit", "exit_door", "stair", "staircase")
+        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id
     ]  # assign: membership check
     fallback_exits = [
-        e for e in entities if e.type in ("door", "fire_door")
+        e for e in entities if e.type in ("door", "fire_door") and e.id
     ]  # assign: membership check
-    fallback_exits_sweep = [e for e in entities if e.type == "doorway"]  # assign: membership check
+    fallback_exits_sweep = [
+        e for e in entities if e.type == "doorway" and e.id
+    ]  # assign: membership check
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
     exit_ids = {e.id for e in exits}  # assign: membership check
 
