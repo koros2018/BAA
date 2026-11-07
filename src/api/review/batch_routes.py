@@ -210,6 +210,11 @@ async def batch_review(
             # P121 图幅类型过滤：立面/剖面图、描线矢量化产物不进入审查范围
             _sheet_type_raw = getattr(result, "sheet_type", None)
             sheet_type = _sheet_type_raw if isinstance(_sheet_type_raw, dict) else {}
+            # A 类止血：非平面图幅（scope_mode != plan）剔除仅平面适用的疏散规则
+            from src.baa_engine.review_scope import (
+                filter_plan_only_funcs,
+                not_applicable_func_ids,
+            )
             if sheet_type.get("scope_mode") == "non_plan":
                 completed_files += 1
                 entity_count = len(result.primitives or [])
@@ -249,7 +254,10 @@ async def batch_review(
                 return worst_val, worst_unit, worst_op
 
             # P87: 并发执行 entity×func 判定，替代串行嵌套循环
-            func_specs = [(f, *get_strict_threshold(f.clause_id)) for f in registry_funcs]
+            func_specs = [
+                (f, *get_strict_threshold(f.clause_id))
+                for f in filter_plan_only_funcs(registry_funcs, sheet_type.get("scope_mode"))
+            ]
             # 防火分区疏散宽度聚合（专家复核 2026-11-02 根因 1）：
             # GB50016-5.5.19/5.5.21 的疏散门净宽要求本质是「防火分区疏散总净宽」
             # 约束。实现见 src/baa_engine/evac_width.py（含疏散人数换算）。
@@ -344,6 +352,9 @@ async def batch_review(
                     "violations": len(details),
                     "violation_by_clause": dict(violation_count.most_common(10)),
                     "score": score,
+                    "not_applicable_func_ids": not_applicable_func_ids(
+                        sheet_type.get("scope_mode")
+                    ),
                 },
                 "details": details[:100],
                 "entities": [

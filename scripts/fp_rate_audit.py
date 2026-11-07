@@ -32,6 +32,11 @@ from src.baa_engine.atomic_functions import FuncRegistry
 from src.api.review._shared import _dedupe_lobby_area_findings
 from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.evac_width import WidthContext
+from src.baa_engine.review_scope import (
+    filter_plan_only_func_ids,
+    not_applicable_func_ids,
+    PLAN_ONLY_REASON,
+)
 from src.baa_engine.scope_aggregator import aggregate_exist_in_scopes, build_scopes
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 
@@ -170,12 +175,18 @@ def run_review(dxf_path: Path) -> dict:
     registry = FuncRegistry()
     funcs = registry.list_all()
 
-    local_ids = [
-        f.func_id
-        for f in funcs
-        if not getattr(f, "requires_global_context", False)
-        and f.category.value != "exist"  # EXIST 缺失检查单独处理，不逐实体执行
-    ]
+    # A 类止血：非平面图幅（scope_mode != plan）不具备房间-门-出口拓扑，
+    # EVAC-002/003/004 不进入执行，也不产生 finding。
+    _scope_mode = sheet_type.get("scope_mode")
+    local_ids = filter_plan_only_func_ids(
+        [
+            f.func_id
+            for f in funcs
+            if not getattr(f, "requires_global_context", False)
+            and f.category.value != "exist"  # EXIST 缺失检查单独处理，不逐实体执行
+        ],
+        _scope_mode,
+    )
     findings: list[dict] = []
     evaluated_ids: set[str] = set()  # P0-2: 实际产出判定结果的函数 id
 
@@ -310,8 +321,12 @@ def run_review(dxf_path: Path) -> dict:
     entity_type_set = set(type_counts)
     applicable_ids: set[str] = set()
     referenced_types: set[str] = set()
+    _not_applicable = set(not_applicable_func_ids(_scope_mode))
     for f in funcs:
         if getattr(f, "requires_global_context", False):
+            continue
+        # A 类止血：非平面图幅下不适用函数不进分母（与执行侧同口径）
+        if f.func_id in _not_applicable:
             continue
         # T1: EXIST 条件规则的前置实体类型缺失 → 本图不适用，不计入分母
         # （执行侧在作用域聚合前就跳过这类规则）
@@ -349,6 +364,8 @@ def run_review(dxf_path: Path) -> dict:
         "unrecognized_types": sorted(entity_type_set - referenced_types),
         "evaluated_func_ids": sorted(evaluated_ids),
         "applicable_func_ids": sorted(applicable_ids),
+        "not_applicable_func_ids": sorted(_not_applicable),
+        "not_applicable_reason": PLAN_ONLY_REASON if _not_applicable else "",
     }
 
     return {

@@ -35,6 +35,12 @@ from . import (
 )
 import os
 
+# A 类止血：非平面图幅把仅平面适用的疏散规则标为 not_applicable
+from src.baa_engine.review_scope import (
+    filter_plan_only_func_ids,
+    not_applicable_func_ids,
+)
+
 # P78: 共享辅助函数从 _shared.py 导入
 from ._shared import (
     ConfidenceTier,
@@ -847,12 +853,15 @@ async def review(  # code
                         worst_val, worst_unit, worst_op = v, u, o
                 return worst_val, worst_unit, worst_op
 
-            func_ids = [
-                f.func_id
-                for f in registry_funcs
-                if not getattr(f, "requires_global_context", False)
-                and f.category.value != "exist"
-            ]
+            func_ids = filter_plan_only_func_ids(
+                [
+                    f.func_id
+                    for f in registry_funcs
+                    if not getattr(f, "requires_global_context", False)
+                    and f.category.value != "exist"
+                ],
+                sheet_type.get("scope_mode"),
+            )
             global_funcs = [
                 f for f in registry_funcs if getattr(f, "requires_global_context", False)
             ]
@@ -1028,8 +1037,12 @@ async def review(  # code
     # registry_funcs 在 _do_clustering_with_timeout 内部局部定义，外层需重新获取
     registry_funcs = _get_fr().list_all()
     applicable_func_ids = set()
+    _not_applicable = set(not_applicable_func_ids(sheet_type.get("scope_mode")))
     for f in registry_funcs:
         if getattr(f, "requires_global_context", False):
+            continue
+        # A 类止血：非平面图幅下不适用函数不进分母（与执行侧同口径）
+        if f.func_id in _not_applicable:
             continue
         if not f.target_entities:
             applicable_func_ids.add(f.func_id)  # 无类型限制，对所有实体适用
@@ -1115,6 +1128,7 @@ async def review(  # code
                 "ratio": coverage_ratio,
                 "unrecognized_types": unrecognized_types,
                 "insufficient_evidence": insufficient_evidence,
+                "not_applicable_func_ids": sorted(_not_applicable),
             },  # 字段
         },  # code
         "structured_summary": structured_summary,  # P62
@@ -1509,12 +1523,16 @@ async def review_from_data(  # code
                     )
                 return worst_val, worst_unit, worst_op
 
-            func_ids = [
-                f.func_id
-                for f in registry_funcs
-                if not getattr(f, "requires_global_context", False)
-                and f.category.value != "exist"
-            ]
+            func_ids = filter_plan_only_func_ids(
+                [
+                    f.func_id
+                    for f in registry_funcs
+                    if not getattr(f, "requires_global_context", False)
+                    and f.category.value != "exist"
+                ],
+                # 本接口直接接收实体，无图幅信息 → 缺省按 plan（保持历史行为）
+                None,
+            )
             evaluated_funcs: set = set()  # P0-2: 从 _do_clustering 补齐 coverage 追踪
 
             def _evaluate(e, r, func):
