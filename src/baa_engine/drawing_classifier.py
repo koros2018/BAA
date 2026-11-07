@@ -4,6 +4,7 @@ P121 Phase 1: 图纸类型分类器
 """
 
 import re
+import statistics
 from typing import Dict, Any
 
 # ── 分类规则 ──────────────────────────────────────────────
@@ -332,13 +333,24 @@ def classify_drawing(
 
 
 # ── P121 图幅类型识别（平面图 / 立面剖面 / 不可审查 / 未知）──────
-# 阈值是验收口径，不得调整：
+# 阈值是验收口径，R1/R2/R4 不得调整；R3 本轮新增「平面证据」门槛，见下。
 #   R1 立面剖面：立面∪剖面图元占比 ≥30% 且命中图层 ≥2 且
 #                (立面 ≥10% 或 剖面 ≥10%) 且 闭合面占比 <3%
 #   R2 不可审查：实际用到图层 ≤2 且 单层占比 ≥95% 且 ≤1单位微图元 ≥70%
 #                且 标注占比 <1% 且 图元数 ≥1000
 #   R3 平面图：未触发 R1/R2 且（平面词元图层 ≥2 或（闭合面 ≥3% 且 标注 ≥1%））
+#               且具备平面证据（见下）；仅图层词元不足以判平面
 #   R4 其余 → 未知：正常审查 + low_confidence
+#
+# 为什么 R3 需要「平面证据」：立面图/大样图的图层名同样会含 door/window/wall/axis
+# 等平面词元（villa-details 命中 7 个），单靠图层词元会把立面图误判为平面图。
+# 平面证据取以下任一：
+#   A. 平面型标注：房间名（2–8 字纯中文）、门窗编号、尺寸数字（≥3 位或带小数）、
+#      DIMENSION 图元；
+#   B. 房间状闭合多边形：闭合多段线 ≥10 个且面积 ≥0.5㎡ 的占比 ≥15%
+#      （单位按 LINE 长度中位数自动判定 mm/m）；
+#   C. 完全无文字标注（无从用标注否定平面）→ 保留图层词元判据。
+# 三条都不满足 → 判未知/低置信，不进入平面审查域。
 
 _SHEET_ELEV_TOKENS = ("elev", "elevation", "立面")
 _SHEET_SECT_TOKENS = ("sect", "section", "剖面")
@@ -391,6 +403,54 @@ _SHEET_GEOMETRY_TYPES = {
     "SOLID",
 }
 
+# ── R3 平面证据（见上方注释 A/B/C）──────────────────────────
+# 尺寸数字：≥3 位整数或带小数（排除轴号 1–2 位数字），可带 × 宽×高
+_SHEET_DIM_NUM_RE = re.compile(
+    r"^[±\-+]?(?:\d{3,}(?:\.\d+)?|\d+(?:\.\d+)+)(?:\s*[xX×]\s*\d+(?:\.\d+)?)?$"
+)
+# 门窗编号：字母前缀 + 2–4 位数字，如 HM1220 / HFM1220(6) / M1020
+_SHEET_DOOR_CODE_RE = re.compile(
+    r"(?<![A-Za-z])(?:HFM|FM|MLC|TLM|PYC|GC|LC|TC|HM|M|C)[甲乙丙丁]?"
+    r"\s?\d{2,4}(?:[（(]\d+[）)])?(?![A-Za-z0-9])",
+    re.I,
+)
+# 房间名：2–8 字纯中文
+_SHEET_ROOM_LABEL_RE = re.compile(r"^[\u4e00-\u9fff]{2,8}$")
+
+_SHEET_ROOM_MIN_AREA_M2 = 0.5   # 房间状闭合面的最小面积
+_SHEET_ROOM_MIN_POLYGONS = 10   # 闭合面数量下限（少于该数不构成平面轮廓）
+_SHEET_ROOM_MIN_RATIO = 0.15    # 房间状闭合面占全部闭合面的比例下限
+_SHEET_MM_LINE_MEDIAN = 50.0    # LINE 长度中位数 ≥ 该值 → 图纸单位为 mm
+
+
+def _polygon_area(props: dict) -> float:
+    """闭合多段线面积（图纸原始单位），退化多边形返回 0。"""
+    pts = props.get("points") or []
+    if len(pts) < 3:
+        return 0.0
+    xy = []
+    for p in pts:
+        if isinstance(p, dict):
+            xy.append((float(p.get("x", 0) or 0), float(p.get("y", 0) or 0)))
+        elif isinstance(p, (list, tuple)) and len(p) >= 2:
+            xy.append((float(p[0] or 0), float(p[1] or 0)))
+        else:
+            return 0.0
+    s = 0.0
+    for i in range(len(xy)):
+        x1, y1 = xy[i]
+        x2, y2 = xy[(i + 1) % len(xy)]
+        s += x1 * y2 - x2 * y1
+    return abs(s) / 2.0
+
+
+def _area_unit_scale(line_lengths: list) -> float:
+    """按 LINE 长度中位数推断面积换算系数：mm → 1e-6，m → 1。"""
+    if not line_lengths:
+        return 1.0
+    return 1e-6 if statistics.median(line_lengths) >= _SHEET_MM_LINE_MEDIAN else 1.0
+
+
 _SHEET_TYPE_LABELS = {
     "plan": "平面图",
     "elevation_section": "立面/剖面图",
@@ -420,6 +480,7 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
     - 立面/剖面、描线矢量化产物 → ``scope_mode="non_plan"``，不出 findings、
       不计入覆盖率分母；
     - 未知 → 正常审查，标记 ``low_confidence=True``，判据不放宽；
+      **仅命中平面词元图层但无平面证据（标注/房间状闭合面）的，判未知而非平面**；
     - 平面图 → ``scope_mode="plan"``。
 
     参数:
@@ -464,6 +525,11 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
     closed_count = 0
     annotation_count = 0
     micro_count = 0
+    text_count = 0
+    plan_annotation_count = 0
+    closed_polygon_count = 0
+    closed_area_raw: list = []
+    line_lengths: list = []
 
     # 图层词元结果按图层缓存，O(unique_layer) 次匹配
     layer_flags: Dict[str, Dict[str, bool]] = {}
@@ -503,8 +569,38 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
         ):
             # 闭合面：显式闭合或 ≥4 顶点（矩形/多边形面），与 T5 诊断口径一致
             closed_count += 1
+        if dxf_type in ("LWPOLYLINE", "POLYLINE") and props.get("closed"):
+            area_raw = _polygon_area(props)
+            if area_raw > 0:
+                closed_polygon_count += 1
+                closed_area_raw.append(area_raw)
         if dxf_type in _SHEET_ANNOTATION_TYPES:
             annotation_count += 1
+        if dxf_type in ("TEXT", "MTEXT", "ATTRIB", "ATTDEF"):
+            text = str(props.get("text") or props.get("content") or "").strip()
+            if text:
+                text_count += 1
+                if (
+                    _SHEET_ROOM_LABEL_RE.match(text)
+                    or _SHEET_DIM_NUM_RE.match(text)
+                    or _SHEET_DOOR_CODE_RE.search(text)
+                ):
+                    plan_annotation_count += 1
+        elif dxf_type == "DIMENSION":
+            plan_annotation_count += 1
+        if dxf_type == "LINE":
+            length = props.get("length")
+            if length is None:
+                bbox = _prim_get(p, "bbox", {}) or {}
+                length = max(
+                    abs(bbox.get("width", 0) or 0), abs(bbox.get("height", 0) or 0)
+                )
+            try:
+                length = abs(float(length))
+            except (TypeError, ValueError):
+                length = 0.0
+            if length > 0:
+                line_lengths.append(length)
         if dxf_type in _SHEET_GEOMETRY_TYPES:
             bbox = _prim_get(p, "bbox", {}) or {}
             if dxf_type == "LINE":
@@ -527,6 +623,17 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
     closed_ratio = closed_count / n
     annotation_ratio = annotation_count / n
     micro_ratio = micro_count / n
+    area_scale = _area_unit_scale(line_lengths)
+    room_like_count = sum(
+        1 for a in closed_area_raw if a * area_scale >= _SHEET_ROOM_MIN_AREA_M2
+    )
+    room_like_ratio = (
+        room_like_count / closed_polygon_count if closed_polygon_count else 0.0
+    )
+    geometry_plan = (
+        closed_polygon_count >= _SHEET_ROOM_MIN_POLYGONS
+        and room_like_ratio >= _SHEET_ROOM_MIN_RATIO
+    )
 
     metrics = {
         "total": n,
@@ -542,6 +649,12 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
         "closed_face_ratio": round(closed_ratio, 4),
         "annotation_ratio": round(annotation_ratio, 4),
         "micro_primitive_ratio": round(micro_ratio, 4),
+        "text_count": text_count,
+        "plan_annotation_count": plan_annotation_count,
+        "closed_polygon_count": closed_polygon_count,
+        "room_like_polygon_count": room_like_count,
+        "room_like_polygon_ratio": round(room_like_ratio, 4),
+        "area_unit": "mm" if area_scale == 1e-6 else "m",
         "top_layers": sorted(layer_counts.items(), key=lambda kv: -kv[1])[:5],
     }
 
@@ -596,7 +709,25 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
         return _result("unreviewable", "R2", 0.9, evidence)
 
     # ── R3 平面图 ──
-    if len(plan_layer_hits) >= 2 or (closed_ratio >= 0.03 and annotation_ratio >= 0.01):
+    plan_evidence = []
+    if text_count == 0:
+        plan_evidence.append("无文字标注：无从以标注否定平面，保留图层词元判据")
+    else:
+        if plan_annotation_count > 0:
+            plan_evidence.append(
+                f"平面型标注 {plan_annotation_count} 条（房间名/门窗编号/尺寸数字/尺寸标注）"
+            )
+        if geometry_plan:
+            plan_evidence.append(
+                f"房间状闭合多边形 {room_like_count}/{closed_polygon_count}，"
+                f"≥{_SHEET_ROOM_MIN_AREA_M2}㎡ 占 {room_like_ratio:.0%} ≥ "
+                f"{_SHEET_ROOM_MIN_RATIO:.0%}（单位 {metrics['area_unit']}）"
+            )
+
+    r3_triggered = len(plan_layer_hits) >= 2 or (
+        closed_ratio >= 0.03 and annotation_ratio >= 0.01
+    )
+    if r3_triggered and plan_evidence:
         evidence = []
         if len(plan_layer_hits) >= 2:
             evidence.append(
@@ -608,11 +739,27 @@ def classify_sheet_type(primitives: list) -> Dict[str, Any]:
                 f"R3 闭合面占比 {closed_ratio:.2%} ≥ 3% 且 标注占比 "
                 f"{annotation_ratio:.2%} ≥ 1%"
             )
+        evidence.extend(f"R3 平面证据：{e}" for e in plan_evidence)
         evidence.append(
             f"R3 未触发 R1（立面∪剖面 {elev_sect_ratio:.2%} / 闭合面 {closed_ratio:.2%}）"
             f"与 R2（图层 {used_layers} / 微图元 {micro_ratio:.2%}）"
         )
         return _result("plan", "R3", 0.85, evidence)
+
+    if r3_triggered:
+        # 触发了图层/几何平面阈值，但图上没有任何平面证据 → 未知/低置信
+        evidence = [
+            f"R4 图层/几何触发平面阈值（平面词元图层 {len(plan_layer_hits)} 个"
+            f" / 闭合面 {closed_ratio:.2%} / 标注 {annotation_ratio:.2%}），"
+            "但缺少平面证据",
+            f"R4 文字 {text_count} 条，其中平面型标注 {plan_annotation_count} 条"
+            "（房间名/门窗编号/尺寸数字/尺寸标注）",
+            f"R4 房间状闭合多边形 {room_like_count}/{closed_polygon_count}"
+            f"（≥{_SHEET_ROOM_MIN_AREA_M2}㎡ 占 {room_like_ratio:.0%}，"
+            f"低于 {_SHEET_ROOM_MIN_RATIO:.0%}）",
+            "R4 → 判未知/低置信，不进入平面审查域",
+        ]
+        return _result("unknown", "R4", 0.0, evidence)
 
     # ── R4 未知 ──
     evidence = [

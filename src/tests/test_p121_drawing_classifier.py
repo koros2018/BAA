@@ -322,13 +322,110 @@ class TestClassifySheetType:
         assert r["scope_mode"] == "plan"
 
 
+def _poly(side, layer="0", closed=True):
+    """构造边长为 side（图纸单位）的正方形闭合多段线。"""
+    h = side / 2.0
+    pts = [
+        {"x": -h, "y": -h},
+        {"x": h, "y": -h},
+        {"x": h, "y": h},
+        {"x": -h, "y": h},
+    ]
+    return _prim(
+        "LWPOLYLINE", layer, closed=closed, props={"point_count": 4, "points": pts}
+    )
+
+
+def _text(value, layer="0"):
+    return _prim("TEXT", layer, width=2, height=1, props={"text": value})
+
+
+class TestPlanEvidenceGate:
+    """R3 平面图必须另有平面证据，不能只靠平面词元图层（villa 误判回归）。"""
+
+    def test_elevation_detail_with_plan_layer_tokens_is_unknown(self):
+        """villa 特征：door/window/axis 图层 + Facade/Level/轴号文字 + 小面 → 未知。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "wall", width=292, height=0, length=292) for _ in range(60)]
+        prims += [_prim("LINE", "door", width=292, height=0, length=292) for _ in range(30)]
+        prims += [_prim("LINE", "window", width=292, height=0, length=292) for _ in range(30)]
+        prims += [_poly(200) for _ in range(40)]  # 200mm 见方 → 0.04㎡，非房间
+        prims += [
+            _text("Facade 1-9"),
+            _text("Facade 9-1"),
+            _text("Level 2"),
+            _text("9"),
+            _text("1"),
+            _text("\\U+0415"),
+        ]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "unknown", r
+        assert r["rule"] == "R4"
+        assert r["scope_mode"] == "unknown"
+        assert r["reviewable"] is True
+        assert r["low_confidence"] is True
+        assert r["metrics"]["plan_layer_count"] >= 2
+        assert r["metrics"]["plan_annotation_count"] == 0
+        assert r["metrics"]["room_like_polygon_ratio"] < 0.15
+
+    def test_stadion_like_room_polygons_keep_plan(self):
+        """stadion 特征：轴号文字（无平面标注）但闭合面为房间尺度 → 平面。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "A-WALL", width=1.5, height=0, length=1.5) for _ in range(60)]
+        prims += [_prim("LINE", "A-DOOR", width=1.5, height=0, length=1.5) for _ in range(30)]
+        prims += [_prim("LINE", "axis", width=1.5, height=0, length=1.5) for _ in range(30)]
+        prims += [_poly(1.0) for _ in range(100)]  # 1㎡
+        prims += [_text("1"), _text("2"), _text("A-A SECTION")]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan", r
+        assert r["metrics"]["plan_annotation_count"] == 0
+        assert r["metrics"]["room_like_polygon_ratio"] >= 0.15
+
+    def test_plans_like_closed_and_annotation_keep_plan(self):
+        """plans 特征：无平面词元图层，闭合面 + 标注占比高 → 平面。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "0", width=0.25, height=0, length=0.25) for _ in range(80)]
+        prims += [_poly(1.0) for _ in range(60)]
+        prims += [_text("N.P.T. + 0.15"), _text("DEPOSITO"), _text("01")]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan", r
+        assert r["metrics"]["plan_layer_count"] < 2
+
+    def test_dim_numbers_are_plan_evidence(self):
+        """东莞通特征：无平面词元图层，但尺寸数字/门窗编号充分 → 平面。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "0", width=1000, height=0, length=1000) for _ in range(200)]
+        prims += [_poly(1000) for _ in range(10)]  # 1㎡（mm）
+        prims += [_text("2400"), _text("2.650"), _text("HM1220")]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan", r
+        assert r["metrics"]["plan_annotation_count"] == 3
+        assert r["metrics"]["area_unit"] == "mm"
+
+    def test_no_text_falls_back_to_layer_tokens(self):
+        """demo 特征：完全无文字，无从以标注否定平面 → 保留图层词元判据。"""
+        from src.baa_engine.drawing_classifier import classify_sheet_type
+
+        prims = [_prim("LINE", "A-WALL", width=1.75, height=0, length=1.75) for _ in range(20)]
+        prims += [_prim("LINE", "A-DOOR", width=1.75, height=0, length=1.75) for _ in range(20)]
+        r = classify_sheet_type(prims)
+        assert r["sheet_type"] == "plan", r
+        assert r["metrics"]["text_count"] == 0
+
+
 class TestSheetTypeGuardsRealSamples:
     """真实样本判定守卫（数据未入库时跳过）：平面图不得被判非平面。"""
 
     @pytest.mark.parametrize(
         "rel,expected",
         [
-            ("data/drawings/real/nasji/villa-details.dxf", "plan"),
+            # villa-details 是立面/大样图（Facade/Level/轴号文字，无房间名/门窗编号/
+            # 尺寸链，闭合面为立面轮廓小面），无平面证据 → 未知而非平面
+            ("data/drawings/real/nasji/villa-details.dxf", "unknown"),
             ("data/drawings/real/nasji/multiple-stadion.dxf", "plan"),
             ("data/drawings/real/nasji/plans-of-a-two-family-house.dxf", "plan"),
             ("data/drawings/real/东莞通-建筑-外部参照（不打印）.dxf", "plan"),
