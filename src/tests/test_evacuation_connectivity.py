@@ -155,16 +155,16 @@ class TestEvacuationDoorMarking:
         assert door.properties["is_evacuation_door"] is True
         assert door.properties["_evacuation_evidence"] == "exit_adjacent"
 
-    def test_door_on_room_route_is_marked(self):
-        """非辅助房间疏散路径上的门 → 标注为疏散门"""
+    def test_door_on_room_route_is_not_marked(self):
+        """P132-B6：门出现在疏散路径上不构成疏散门证据（避免自证循环）"""
         door = self._make_entity("door1", "door", {"width": 0.8})
         room = self._make_entity("room1", "room", subtype="")
         room.properties["has_evacuation_route"] = True
         routes = [{"room_id": "room1", "path": ["room1", "door1"], "has_route": True}]
         count = self.analyzer.mark_evacuation_doors([door, room], [], routes)
-        assert count == 1
-        assert door.properties["is_evacuation_door"] is True
-        assert door.properties["_evacuation_evidence"] == "on_evacuation_route"
+        assert count == 0
+        assert "is_evacuation_door" not in door.properties
+        assert "_evacuation_evidence" not in door.properties
 
     def test_door_on_toilet_route_is_not_marked(self):
         """卫生间等辅助房间的门不承担房间疏散功能 → 不标注"""
