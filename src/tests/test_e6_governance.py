@@ -136,6 +136,16 @@ class TestE6_T3_ArcCircleTinyRadius:
         result = _classify_by_geometry(self.analyzer, prim)
         assert result == "window"
 
+    def test_arc_large_span_not_room(self):
+        """大半径 + 跨度>90° 的单段 ARC 也不是 room（ROOM_3524 残留路径）。"""
+        prim = MockPrimitive(
+            "ARC",
+            "0",
+            {"radius": 4378.57, "start_angle": 0.0, "end_angle": 180.0},
+        )
+        result = _classify_by_geometry(self.analyzer, prim)
+        assert result == "window", f"单段 ARC 不应判 room: {result}"
+
 
 class TestE6_T4_EzdwgDirect:
     """E6-T4: DWG ezdwg 直读优先，保留图层信息。"""

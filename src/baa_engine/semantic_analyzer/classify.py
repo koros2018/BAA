@@ -717,15 +717,11 @@ def _classify_by_geometry(self, prim: RawPrimitive) -> str:
                 return "door"
         return "corridor"
 
-    # ARC：门弧、窗或弧形房间
+    # ARC：门弧或弧形窗。单段 ARC 不构成闭合房间——原「大半径 + 跨度>90°
+    # 判 room」在真实图上产生假房间（东莞通 ROOM_6412、villa ROOM_3524 等 7 个），
+    # 删除该分支；大半径弧线统一按弧形窗处理。
     if dxf_type == "ARC":  # condition: dxf_type == "ARC":
         radius = props.get("radius", 0)
-        # 大半径 ARC（>3000mm）且弧线角度大 → 弧形房间轮廓
-        if radius > 3000:  # check: numeric comparison
-            angle_span = abs(props.get("start_angle", 0) - props.get("end_angle", 0)) or 0
-            # 弧线跨度 > 90° 视为房间轮廓
-            if angle_span > 90:  # check: numeric comparison
-                return "room"
         # E6-T3: 装饰性微小弧线（hatch 填充轮廓等）→ other，避免误标为 window
         if radius < 50:  # check: numeric comparison
             return "other"
