@@ -4,6 +4,11 @@ from typing import Dict, List
 from collections import defaultdict
 from .models import SemanticEntity
 
+# 合并阶段允许单实体覆盖的网格上限。比 spatial_grid 的 500 更宽
+# （256×256 格 ≈ 256m×256m），避免把几十米级大厅/底板误判为退化实体
+# 而漏合并；只拦截千米~数十千米级 xref/视口残留。
+_MERGE_MAX_CELLS = 65536
+
 
 def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEntity]:
     """合并重叠/相邻的同类图元（空间哈希加速版）
@@ -104,6 +109,17 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
         gx2_a[idx] = int((bx + bwf) / CELL_SIZE)
         gy1_a[idx] = int(by / CELL_SIZE)
         gy2_a[idx] = int((by + bhf) / CELL_SIZE)
+        # 退化实体护栏（与 spatial_grid.bbox_cells 同口径）：DWG 残留的
+        # 70km 级杂散线在 mm 坐标系下会覆盖数万×数万格，逐格枚举退化为
+        # 数十亿次循环（实测 baa-file-584/b042 语义分析卡死）。超过格数
+        # 上限时退化为「只用中心点入一格」，极端大实体不可能与正常构件
+        # 有 IoU>0.5，不影响有效合并结果。
+        span_cells = (gx2_a[idx] - gx1_a[idx] + 1) * (gy2_a[idx] - gy1_a[idx] + 1)
+        if span_cells > _MERGE_MAX_CELLS:
+            cx = int((bx + bwf / 2) / CELL_SIZE)
+            cy = int((by + bhf / 2) / CELL_SIZE)
+            gx1_a[idx] = gx2_a[idx] = cx
+            gy1_a[idx] = gy2_a[idx] = cy
 
     # 按类型分组
     type_indices: Dict[str, List[int]] = defaultdict(list)

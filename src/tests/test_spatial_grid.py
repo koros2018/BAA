@@ -238,3 +238,26 @@ class TestEquivalenceWithRelations:
             cands = grid_candidates(grid, ents[0].bbox, expand)
             rel_cands = rel._grid_candidates(rel_grid, ents[0].bbox, expand)
             assert sorted(cands) == sorted(rel_cands)
+
+# ── merge 网格护栏：超大退化 bbox 不得爆炸 ────────────────
+def test_merge_overlapping_oversized_bbox_guard():
+    """70km 级杂散 bbox 在 mm 坐标系下会覆盖数十亿格。
+
+    回归场景：baa-file-584/b042 语义分析因 merge 网格枚举卡死。
+    护栏应把极端 bbox 退化为中心一格，且不影响正常实体。
+    """
+    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
+    from src.baa_engine.semantic_analyzer.merge import _merge_overlapping
+
+    sa = SemanticAnalyzer()
+    normal = [_ent(f"r{i}", i * 2000, 0, 1000, 1000) for i in range(2001)]
+    giant = _ent(
+        "giant",
+        -35_000_000,
+        -35_000_000,
+        70_000_000,
+        70_000_000,
+    )
+    merged = _merge_overlapping(sa, normal + [giant])
+    # 无重叠，全部原样保留（不因护栏丢实体）
+    assert len(merged) == len(normal) + 1
