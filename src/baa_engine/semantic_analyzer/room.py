@@ -18,6 +18,7 @@ import math
 from .models import SemanticEntity
 from ..drawing_parser import RawPrimitive
 from .layer_rules import LAYER_RULES
+from .room_type_infer import ROOM_TYPE_RULES
 
 _NON_ROOM_LAYER_KW: Tuple[str, ...] = (
     "COLU",
@@ -88,6 +89,47 @@ def _is_near_closed(self, prim: RawPrimitive, gap_threshold_mm: float = 500.0) -
     return math.sqrt(dx * dx + dy * dy) < gap_threshold_mm
 
 
+def _signed_area(pts: List[Any]) -> float:
+    """多边形有向面积（mm²）。
+
+    左手法面遍历约定：内面为逆时针（正），连通分量的外侧包络面为顺时针（负）。
+    """
+    return sum(
+        pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+        for i in range(len(pts))
+    ) / 2.0
+
+
+def _polygon_props(raw_pts: Any) -> Dict[str, Any]:
+    """Task 1：把房间多边形落盘为可用的 points/point_count/closed。
+
+    凡是作为 room 实体存在的构造路径都必须调用本函数：
+    - 扫线法面遍历：face 首尾为同一节点，环天然闭合；
+    - 直接闭合 LWPOLYLINE：面积按整环 shoelace 计算，闭合边隐含在环内。
+    因此两者均落 closed=True；顶点不足 3 个或坐标非法时返回空 dict，
+    由调用方视为多边形不可用（不得生成 room 实体）。
+    """
+    if not raw_pts:
+        return {}
+    pts: List[List[float]] = []
+    for p in raw_pts:
+        try:
+            pts.append([float(p[0]), float(p[1])])
+        except (TypeError, IndexError, ValueError):
+            return {}
+    if len(pts) < 3:
+        return {}
+    # 面遍历会显式回填起点，落盘时去掉重复闭合点，避免 point_count 虚高
+    if (
+        abs(pts[0][0] - pts[-1][0]) <= _MATCH_THRESHOLD
+        and abs(pts[0][1] - pts[-1][1]) <= _MATCH_THRESHOLD
+    ):
+        pts = pts[:-1]
+    if len(pts) < 3:
+        return {}
+    return {"points": pts, "point_count": len(pts), "closed": True}
+
+
 def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """扫线法房间检测 — 平面图面遍历法。
 
@@ -155,13 +197,12 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
         if len(pts) < 3:
             continue
-        area = abs(
-            sum(
-                pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
-                for i in range(len(pts))
-            )
-            / 2.0
-        )
+        signed = _signed_area(pts)
+        # Task 2：左手法内面逆时针（正）；负号是连通分量的外侧包络面
+        # （整层轮廓/图框/建筑外框），不是房间，直接剔除。
+        if signed <= 0:
+            continue
+        area = abs(signed)
         if area < 1_000_000 or area > 500_000_000:
             continue
         # P104: 面积过滤——排除双线墙间隙和建筑外框面
@@ -197,6 +238,7 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         room_id = f"line_chain_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
         props = {"area": area / 1_000_000}
+        props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
             props["length"] = max(bw, bh) * 0.001
@@ -254,13 +296,12 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
         if len(pts) < 3:
             continue
-        area = abs(
-            sum(
-                pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
-                for i in range(len(pts))
-            )
-            / 2.0
-        )
+        signed = _signed_area(pts)
+        # Task 2：左手法内面逆时针（正）；负号是连通分量的外侧包络面
+        # （整层轮廓/图框/建筑外框），不是房间，直接剔除。
+        if signed <= 0:
+            continue
+        area = abs(signed)
         if area < 1_000_000 or area > 500_000_000:
             continue
         # P104: 房间面积过滤——排除双线墙间隙和建筑外框面
@@ -307,6 +348,7 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         room_id = f"line_chain_{face_type}_{self_obj._entity_counter}"
         self_obj._entity_counter += 1
         props = {"area": area / 1_000_000}
+        props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
             props["length"] = max(bw, bh) * 0.001
@@ -1439,6 +1481,474 @@ def _point_in_polygon(point: Tuple[float, float], polygon: List[Tuple[float, flo
     return inside
 
 
+# ── Task 2：房间几何合理性门禁 ─────────────────────────────
+# 不允许按面积一刀切：真实展厅/中庭/厂房同样是大面积。
+# 只用“几何结构性证据”组合判定，每条判据都可单独复核。
+_ROOM_CONTAINER_MIN_AREA_M2 = 50.0  # 容器判据只作用于大空间
+_EMPTY_OUTLINE_OPENING_RADIUS_MM = 5000.0  # 空壳轮廓：边界 5m 内无任何可开启洞口
+_FRAME_BORDER_PAD_MM = 500.0  # 房间 bbox 贴图框边框容差
+_MIN_POLY_TO_BBOX_RATIO = 0.05  # 多边形面积/bbox 面积下限（低于此为坐标错乱）
+_DUP_BBOX_IOU = 0.90  # 重复实体判定：bbox IoU
+_DUP_AREA_TOL = 0.05  # 重复实体面积相对差
+_SPATIAL_CORE_TYPES = {
+    "room",
+    "corridor",
+    "space",
+    "hall",
+    "lobby",
+    "antechamber",
+    "staircase",
+    "stair",
+    "fire_elevator",
+    "elevator",
+    "elevator_lobby",
+    "staircase_lobby",
+    "equipment_room",
+    "pump_room",
+    "toilet",
+    "accessible_toilet",
+    "storage_room",
+}
+_OPENING_TYPES = {
+    "door",
+    "fire_door",
+    "exit_door",
+    "accessible_door",
+    "sliding_door",
+    "revolving_door",
+    "doorway",
+    "opening",
+    "window",
+    "fire_window",
+    "rescue_window",
+    "smoke_exhaust_window",
+}
+# 房间名/功能标注关键词：复用 room_type_infer 的规则词表，并补充通用空间名
+# （走道/强电间/消防器材室等不在 subtype 推断表内，但同样是功能标注）
+_SPACE_LABEL_KEYWORDS: Tuple[str, ...] = (
+    "走道",
+    "走廊",
+    "通道",
+    "机房",
+    "设备",
+    "库房",
+    "强电",
+    "弱电",
+    "消防器材",
+    "展厅",
+    "中庭",
+    "厂房",
+    "办公",
+    "会议",
+    "餐厅",
+    "厨房",
+    "卫生间",
+    "厕所",
+    "电梯",
+    "楼梯",
+    "前室",
+    "管井",
+    "风井",
+    "水井",
+    "控制室",
+    "配电",
+    "发电",
+    "空调",
+    "风机",
+    "消控",
+    "仓储",
+    "宿舍",
+    "病房",
+    "教室",
+    "阅览",
+    "商店",
+    "银行",
+    "食堂",
+    "门厅",
+    "大堂",
+    "更衣",
+    "淋浴",
+    "阳台",
+    "露台",
+)
+_ROOM_NAME_KEYWORDS: Tuple[str, ...] = tuple(
+    dict.fromkeys(
+        [kw for _rule in ROOM_TYPE_RULES for kw in (_rule.get("text_keywords") or [])]
+        + list(_SPACE_LABEL_KEYWORDS)
+    )
+)
+
+
+def _room_polygon(entity: Any) -> Optional[List[List[float]]]:
+    """取房间多边形顶点；无 points 时退化为 bbox 矩形（仅用于门禁判定）。"""
+    props = entity.properties or {}
+    pts = props.get("points")
+    if pts and len(pts) >= 3:
+        try:
+            return [[float(p[0]), float(p[1])] for p in pts]
+        except (TypeError, IndexError, ValueError):
+            return None
+    b = entity.bbox or {}
+    if b.get("width", 0) > 0 and b.get("height", 0) > 0:
+        x, y, w, h = b["x"], b["y"], b["width"], b["height"]
+        return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
+    return None
+
+
+def _poly_area_m2(poly: List[List[float]]) -> float:
+    return abs(_signed_area(poly)) / 1_000_000
+
+
+def _bbox_iou(a: Dict[str, float], b: Dict[str, float]) -> float:
+    ax0, ay0 = a.get("x", 0), a.get("y", 0)
+    ax1, ay1 = ax0 + a.get("width", 0), ay0 + a.get("height", 0)
+    bx0, by0 = b.get("x", 0), b.get("y", 0)
+    bx1, by1 = bx0 + b.get("width", 0), by0 + b.get("height", 0)
+    ox = max(0, min(ax1, bx1) - max(ax0, bx0))
+    oy = max(0, min(ay1, by1) - max(ay0, by0))
+    inter = ox * oy
+    union = a.get("width", 0) * a.get("height", 0) + b.get("width", 0) * b.get("height", 0) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _point_boundary_distance_mm(
+    point: Tuple[float, float], poly: List[List[float]]
+) -> float:
+    """点到多边形边界的最近距离（mm）。"""
+    px, py = point
+    best = float("inf")
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        dx, dy = x2 - x1, y2 - y1
+        seg2 = dx * dx + dy * dy
+        if seg2 <= 0:
+            dist = math.hypot(px - x1, py - y1)
+        else:
+            t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / seg2))
+            dist = math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+        if dist < best:
+            best = dist
+    return best
+
+
+def _orient(a: List[float], b: List[float], c: List[float]) -> float:
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def _segments_intersect(
+    p1: List[float], p2: List[float], p3: List[float], p4: List[float]
+) -> bool:
+    """两线段是否相交（含端点接触与共线重叠）。"""
+    d1 = _orient(p3, p4, p1)
+    d2 = _orient(p3, p4, p2)
+    d3 = _orient(p1, p2, p3)
+    d4 = _orient(p1, p2, p4)
+    if ((d1 > 0 > d2) or (d1 < 0 < d2)) and ((d3 > 0 > d4) or (d3 < 0 < d4)):
+        return True
+
+    def _on_seg(a: List[float], b: List[float], c: List[float]) -> bool:
+        return (
+            min(a[0], b[0]) <= c[0] <= max(a[0], b[0])
+            and min(a[1], b[1]) <= c[1] <= max(a[1], b[1])
+        )
+
+    return (
+        (d1 == 0 and _on_seg(p3, p4, p1))
+        or (d2 == 0 and _on_seg(p3, p4, p2))
+        or (d3 == 0 and _on_seg(p1, p2, p3))
+        or (d4 == 0 and _on_seg(p1, p2, p4))
+    )
+
+
+def _is_simple_polygon(pts: List[List[float]]) -> bool:
+    """Task 1：多边形是否简单闭合环（无自交/无重合边/无重复顶点接触）。
+
+    面遍历得到的是图上的环，但线段交叉（X 型）未被 _split_t_junctions
+    拆分时，环会自交。自交多边形无法用于内切圆/净宽/洞归属等几何计算，
+    按“不可用 points”处理。
+    """
+    n = len(pts)
+    if n < 3:
+        return False
+    # 顶点重复（非闭合点）→ 非简单环
+    for i in range(n):
+        for j in range(i + 1, n):
+            if pts[i][0] == pts[j][0] and pts[i][1] == pts[j][1]:
+                return False
+    for i in range(n):
+        a1, b1 = pts[i], pts[(i + 1) % n]
+        for j in range(i + 1, n):
+            # 相邻边共享端点，跳过；首尾边也相邻
+            if (i + 1) % n == j or (j + 1) % n == i:
+                continue
+            if _segments_intersect(a1, b1, pts[j], pts[(j + 1) % n]):
+                return False
+    return True
+
+
+def _room_source_rank(entity_id: str) -> int:
+    """重复房间实体取舍：显式图元 > 直接闭合多段线 > 面遍历派生。"""
+    if entity_id.startswith("ROOM_"):
+        return 0
+    if entity_id.startswith("polyline_"):
+        return 1
+    if entity_id.startswith("line_chain_"):
+        return 2
+    return 3
+
+
+def _suppress_implausible_rooms(
+    entities: List[Any], primitives: Optional[List[RawPrimitive]] = None
+) -> Tuple[List[Any], List[Dict[str, Any]]]:
+    """Task 2：剔除几何上不成立的 room/corridor 实体，并返回逐条判定证据。
+
+    判据组合（均为结构性证据，不按面积一刀切）：
+      A 退化多边形：多边形面积/bbox 面积 < 5%（坐标错乱、构件/图框误判）
+      B 未闭合边界：closed 不为 True 且顶点 < 4（P131 的三角形兜底面）
+      C 重复实体：与另一 room 的 bbox IoU ≥ 0.90 且面积相近，只保留权威来源
+      D 容器/整层轮廓：大空间内部包含 ≥2 个空间实体，或 ≥1 个空间实体+房间名，
+        或 ≥2 个不同房间名文本（整层轮廓/防火分区/图框包含多个房间）
+      E 空壳轮廓：大空间内部无任何空间实体、无房间名，且边界 5m 内无洞口
+      F 贴图框：房间 bbox 与图框边框重合（titleblock 误判）
+      G 自交多边形：边界自交/重合/重复顶点，无法用于内切、净宽、洞归属计算
+
+    不变量：room/corridor 实体必须带可用 points。构造期未落盘者按 bbox 矩形补全
+    （points_source=bbox_rect）；bbox 也无效者降级为 other，不以 room 名义无几何存在。
+    """
+    rooms: List[Any] = []
+    downgraded: Dict[str, Dict[str, Any]] = {}
+    for e in entities:
+        if getattr(e, "type", None) not in ("room", "corridor"):
+            continue
+        props = e.properties if isinstance(e.properties, dict) else {}
+        if not isinstance(e.properties, dict):
+            e.properties = props
+        if props.get("points") and _room_polygon(e) is not None:
+            rooms.append(e)
+            continue
+        # Task 1 不变量：room 实体必须带可用 points。三条构造路径已在构造期统一
+        # 落盘；此处兜底处理非构造路径（图层分类/合并）产生的无 points room：
+        # bbox 有效的按矩形补全（points_source=bbox_rect），bbox 无效的降级为
+        # other —— 不得以 room 名义存在却没有几何。
+        b = e.bbox or {}
+        bx, by = b.get("x", 0), b.get("y", 0)
+        bw, bh = b.get("width", 0), b.get("height", 0)
+        rect = _polygon_props(
+            [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh]]
+        )
+        if bw > 0 and bh > 0 and rect and _poly_area_m2(rect["points"]) > 0:
+            props.update(rect)
+            props["points_source"] = "bbox_rect"
+            rooms.append(e)
+            continue
+        e.type = "other"
+        downgraded[e.id] = {
+            "id": e.id,
+            "type": "room",
+            "action": "downgraded",
+            "bbox": dict(b),
+            "reasons": ["missing_polygon"],
+            "evidence": {},
+        }
+    if not rooms:
+        return entities, sorted(
+            downgraded.values(),
+            key=lambda r: -(r["bbox"].get("width", 0) * r["bbox"].get("height", 0)),
+        )
+
+    suppressed: Dict[str, Dict[str, Any]] = {}
+    poly_by_id = {e.id: _room_polygon(e) for e in rooms}
+    bbox_by_id = {e.id: (e.bbox or {}) for e in rooms}
+    texts = [e for e in entities if getattr(e, "type", None) == "text"]
+    spatial = [
+        e
+        for e in entities
+        if getattr(e, "type", None) in _SPATIAL_CORE_TYPES
+        and getattr(e, "id", "") not in ("", None)
+    ]
+    openings = [e for e in entities if getattr(e, "type", None) in _OPENING_TYPES]
+    frames: List[Dict[str, float]] = (
+        _detect_frame_rects(primitives, []) if primitives else []
+    )
+
+    def _record(entity: Any, reason: str, evidence: Dict[str, Any]) -> None:
+        rec = suppressed.setdefault(
+            entity.id,
+            {
+                "id": entity.id,
+                "type": getattr(entity, "type", ""),
+                "action": "suppressed",
+                "bbox": dict(entity.bbox or {}),
+                "reasons": [],
+                "evidence": {},
+            },
+        )
+        rec["reasons"].append(reason)
+        rec["evidence"].update(evidence)
+
+    for ent in rooms:
+        if ent.id in suppressed:
+            continue
+        poly = poly_by_id[ent.id]
+        b = bbox_by_id[ent.id]
+        bbox_area_m2 = (b.get("width", 0) * b.get("height", 0)) / 1_000_000
+        poly_area_m2 = _poly_area_m2(poly) if poly else 0.0
+        props = ent.properties or {}
+
+        # A 退化多边形
+        if bbox_area_m2 > 0 and poly_area_m2 / bbox_area_m2 < _MIN_POLY_TO_BBOX_RATIO:
+            _record(
+                ent,
+                "degenerate_polygon",
+                {"poly_area_m2": round(poly_area_m2, 3), "bbox_area_m2": round(bbox_area_m2, 2)},
+            )
+            continue
+
+        # G 自交多边形：几何上不可用（内部计算需要简单闭合环）
+        if not _is_simple_polygon(poly):
+            _record(
+                ent,
+                "self_intersecting_polygon",
+                {
+                    "point_count": len(poly),
+                    "area_m2": round(poly_area_m2, 3),
+                },
+            )
+            continue
+
+        # B 未闭合边界（顶点不足 4 的 P131 兜底面）
+        # 只对大面积使用：小面积 3 点面可能是真实小房间（墙体检测缺口），
+        # 直接剔除会丢失真实房间；大面积 3 点面是整层轮廓/构件未合龙的兜底产物。
+        try:
+            point_count = int(props.get("point_count") or len(poly or []))
+        except (TypeError, ValueError):
+            point_count = len(poly or [])
+        if (
+            props.get("closed") is not True
+            and point_count < 4
+            and bbox_area_m2 >= _ROOM_CONTAINER_MIN_AREA_M2
+        ):
+            _record(ent, "unclosed_polygon", {"point_count": point_count})
+            continue
+
+        # F 贴图框
+        for fr in frames:
+            fx0, fy0 = fr["x"], fr["y"]
+            fx1, fy1 = fx0 + fr["width"], fy0 + fr["height"]
+            bx0, by0 = b.get("x", 0), b.get("y", 0)
+            bx1, by1 = bx0 + b.get("width", 0), by0 + b.get("height", 0)
+            if (
+                min(bx1, fx1) - max(bx0, fx0) > -_FRAME_BORDER_PAD_MM
+                and min(by1, fy1) - max(by0, fy0) > -_FRAME_BORDER_PAD_MM
+                and min(
+                    abs(bx0 - fx0), abs(bx1 - fx1), abs(by0 - fy0), abs(by1 - fy1)
+                )
+                <= _FRAME_BORDER_PAD_MM
+            ):
+                _record(ent, "titleblock_frame", {"frame": dict(fr)})
+                break
+        if ent.id in suppressed:
+            continue
+
+        # C 重复实体（同一物理空间重复建模）
+        for other in rooms:
+            if other.id == ent.id or other.id in suppressed:
+                continue
+            ob = bbox_by_id[other.id]
+            if _bbox_iou(b, ob) < _DUP_BBOX_IOU:
+                continue
+            oa = _poly_area_m2(poly_by_id[other.id] or [])
+            if oa > 0 and abs(poly_area_m2 - oa) / max(poly_area_m2, oa) > _DUP_AREA_TOL:
+                continue
+            # 仅在“本源 vs 派生”可区分时去重；两条派生路径都保留（交给 D/E）
+            r_self = _room_source_rank(ent.id)
+            r_other = _room_source_rank(other.id)
+            if r_self == r_other:
+                continue
+            loser, keeper = (ent, other) if r_self > r_other else (other, ent)
+            _record(
+                loser,
+                "duplicate_entity",
+                {"duplicate_of": keeper.id, "bbox_iou": round(_bbox_iou(b, ob), 3)},
+            )
+        if ent.id in suppressed:
+            continue
+
+        # D/E 只作用于大空间
+        if bbox_area_m2 < _ROOM_CONTAINER_MIN_AREA_M2:
+            continue
+        core_inside = 0
+        labels: Set[str] = set()
+        for o in spatial:
+            if o.id == ent.id:
+                continue
+            ob = o.bbox or {}
+            center = (
+                ob.get("x", 0) + ob.get("width", 0) / 2,
+                ob.get("y", 0) + ob.get("height", 0) / 2,
+            )
+            if _point_in_polygon(center, poly):
+                core_inside += 1
+        for t in texts:
+            tb = t.bbox or {}
+            center = (
+                tb.get("x", 0) + tb.get("width", 0) / 2,
+                tb.get("y", 0) + tb.get("height", 0) / 2,
+            )
+            if not _point_in_polygon(center, poly):
+                continue
+            text = str((t.properties or {}).get("text") or "").strip()
+            if text and any(kw.lower() in text.lower() for kw in _ROOM_NAME_KEYWORDS):
+                labels.add(text)
+        if core_inside >= 2 or len(labels) >= 2 or (core_inside >= 1 and len(labels) >= 1):
+            _record(
+                ent,
+                "room_container",
+                {
+                    "core_entities_inside": core_inside,
+                    "room_name_labels": sorted(labels)[:5],
+                    "area_m2": round(bbox_area_m2, 1),
+                },
+            )
+            continue
+        # E 空壳轮廓：内部无空间实体、无房间名，且边界 5m 内没有任何洞口
+        nearest_opening = None
+        for op in openings:
+            ob = op.bbox or {}
+            center = (
+                ob.get("x", 0) + ob.get("width", 0) / 2,
+                ob.get("y", 0) + ob.get("height", 0) / 2,
+            )
+            dist = _point_boundary_distance_mm(center, poly)
+            if nearest_opening is None or dist < nearest_opening:
+                nearest_opening = dist
+        if (
+            core_inside == 0
+            and not labels
+            and (nearest_opening is None or nearest_opening > _EMPTY_OUTLINE_OPENING_RADIUS_MM)
+        ):
+            _record(
+                ent,
+                "empty_outline",
+                {
+                    "area_m2": round(bbox_area_m2, 1),
+                    "nearest_opening_mm": None
+                    if nearest_opening is None
+                    else round(nearest_opening, 1),
+                },
+            )
+
+    kept = [e for e in entities if getattr(e, "id", None) not in suppressed]
+    log = sorted(
+        list(suppressed.values()) + list(downgraded.values()),
+        key=lambda r: -(r["bbox"].get("width", 0) * r["bbox"].get("height", 0)),
+    )
+    return kept, log
+
+
+
 def _extract_closed_polyline_rooms(
     wall_prims: List[RawPrimitive],
     self,
@@ -1517,6 +2027,7 @@ def _extract_closed_polyline_rooms(
         room_id = f"polyline_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
         props = {"area": area / 1_000_000}
+        props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
             props["length"] = max(bw, bh) * 0.001

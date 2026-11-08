@@ -24,7 +24,7 @@ from .classify import (
 )
 from .block_semantics import attach_block_refs
 from .meta import _parse_meta_entities
-from .room import _is_near_closed, _sweep_line_detect_rooms
+from .room import _is_near_closed, _sweep_line_detect_rooms, _suppress_implausible_rooms
 from .merge import _merge_overlapping
 from .relations import (
     _build_relations,
@@ -138,6 +138,8 @@ class SemanticAnalyzer:
         self._t3_window_seen = set()
         self._t3_wall_seen = set()
         self._t3_wall_segs = {}
+        # Task 2：房间几何合理性门禁的逐条抑制记录（审计用）
+        self._room_suppressions: List[Dict[str, Any]] = []
 
     def analyze(
         self,
@@ -172,6 +174,7 @@ class SemanticAnalyzer:
         self._t3_window_seen = set()  # P127-T3: 每次分析重置窗线合并 gid
         self._t3_wall_seen = set()  # P127-T3: 每次分析重置墙实例合并 gid
         self._t3_wall_segs = {}  # P127-T3: 每次分析重置共享面线墙实例回填表
+        self._room_suppressions = []  # Task 2：房间门禁记录每次分析重置
 
         # ── 缓存检查：相同 primitives hash 秒级返回 ──────
         try:  # try: operation block
@@ -280,6 +283,13 @@ class SemanticAnalyzer:
         new_rooms = self._sweep_line_detect_rooms(full_primitives)  # assign
         if new_rooms:  # condition: new_rooms:
             entities = entities + new_rooms  # assign
+
+        # Step 1.4b: 房间几何合理性门禁（Task 2）
+        # 只剔除几何结构上不成立的 room/corridor（退化/未闭合/重复/容器/空壳/贴图框），
+        # 不按面积一刀切；逐条判定证据落盘到 room_suppressions 供审计。
+        entities, self._room_suppressions = _suppress_implausible_rooms(
+            entities, full_primitives
+        )
 
         # Step 3.7（前移）: T3 native 实例字段 + 线元几何长度注入（T-A4 / G9 收尾）
         # 必须先于 _infer_corridor_widths / Step 1.6 / Step 3.5/3.6 执行：
@@ -595,6 +605,8 @@ class SemanticAnalyzer:
             "evacuation_connectivity": connectivity,  # 字段
             "floor_levels": floor_levels,  # 字段
             "floor_assignments": floor_assignments,  # 字段
+            # Task 2：房间几何门禁的逐条抑制记录（审计用，不参与规则判定）
+            "room_suppressions": list(self._room_suppressions),  # 字段
             "classification_stats": {  # 未分类率统计（T-A2）
                 "total": self._classify_total,
                 "unclassified": self._classify_unclassified,
