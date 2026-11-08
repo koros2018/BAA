@@ -20,6 +20,7 @@ import ezdxf  # import
 from ezdxf.math import Vec2  # import: ezdxf library
 from pathlib import Path  # import: path utils
 import logging
+import statistics  # stdlib: 单位推断取中位数（与 _area_unit_scale 同口径）
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ class DrawingResult:  # class definition
         block_refs: List[Dict] = None,  # P127-S1: 块引用（块名/ATTRIB/位置）
         parse_status: Optional[Dict] = None,  # P127-T3: 解析状态诊断（T3 加密/代理/零图元不静默）
         t3_components: Optional[Dict] = None,  # P127-T3: 天正原生识别构件（墙/门/窗/柱实例）
+        unit_normalization: Optional[Dict] = None,  # 解析层单位归一化审计（源单位/缩放系数/依据）
     ):  # 操作
         """初始化实例。"""
         self.file_path = file_path  # assignment
@@ -111,6 +113,152 @@ class DrawingResult:  # class definition
         # P127-T3: 天正 T3 解析状态与原生构件（非 T3 图纸为 None）
         self.parse_status = parse_status
         self.t3_components = t3_components
+        # 解析层单位归一化审计：{applied, source_unit, coordinate_scale, method, line_median, reason}
+        self.unit_normalization = unit_normalization or {}
+
+
+# ── 解析层单位归一化 ─────────────────────────────────────
+# 全引擎阈值（500/2000mm、门宽、面积下限等）都按毫米设计。米制图纸若直接进入
+# 语义分析与规则判定，会整体错位 1000 倍。这里在解析出口统一到毫米，而不是
+# 逐处修改阈值常量（散落且易漏）。单位判据复用 drawing_classifier 的
+# _area_unit_scale()：LINE 长度中位数 ≥ 50 → mm，否则 m。
+# 注意：$INSUNITS/$MEASUREMENT 实测不可靠（样本 6 张中 4 张与实际几何不符），
+# 不参与判定，仅作审计参考。
+
+
+def _detect_source_unit(primitives) -> Dict[str, Any]:
+    """按 LINE 长度中位数推断源单位（与 _area_unit_scale 同一判据来源）。
+
+    返回 coordinate_scale：源单位 → 毫米的倍数（mm=1.0，m=1000.0）。
+    """
+    from src.baa_engine.drawing_classifier import _area_unit_scale
+
+    line_lengths = []
+    for p in primitives or []:
+        if getattr(p, "dxf_type", "") != "LINE":
+            continue
+        props = getattr(p, "properties", {}) or {}
+        length = props.get("length")
+        if length is None:
+            bbox = getattr(p, "bbox", {}) or {}
+            length = max(abs(bbox.get("width", 0) or 0), abs(bbox.get("height", 0) or 0))
+        try:
+            length = abs(float(length))
+        except (TypeError, ValueError):
+            length = 0.0
+        if length > 0:
+            line_lengths.append(length)
+
+    method = "_area_unit_scale(LINE length median)"
+    if not line_lengths:
+        return {
+            "source_unit": "unknown",
+            "coordinate_scale": 1.0,
+            "line_median": None,
+            "method": method,
+        }
+    line_median = statistics.median(line_lengths)
+    if _area_unit_scale(line_lengths) == 1e-6:
+        return {
+            "source_unit": "mm",
+            "coordinate_scale": 1.0,
+            "line_median": round(line_median, 5),
+            "method": method,
+        }
+    return {
+        "source_unit": "m",
+        "coordinate_scale": 1000.0,
+        "line_median": round(line_median, 5),
+        "method": method,
+    }
+
+
+_GEOMETRY_LENGTH_KEYS = ("length", "radius", "diameter", "height", "measured_length")
+_GEOMETRY_POINT_DICT_KEYS = ("start_point", "end_point")
+_GEOMETRY_POINT_SCALAR_KEYS = ("insert_x", "insert_y")
+_DIMENSION_POINT_KEYS = ("position", "defpoint2", "defpoint3", "text_midpoint")
+
+
+def _scale_raw_primitive_to_mm(prim, scale: float) -> None:
+    """就地缩放图元坐标与几何属性（只挂几何字段，文本/单位无关字段不动）。"""
+    if scale == 1.0:
+        return
+    scale_sq = scale * scale
+    bbox = getattr(prim, "bbox", None)
+    if isinstance(bbox, dict):
+        for key in ("x", "y", "width", "height"):
+            val = bbox.get(key)
+            if isinstance(val, (int, float)):
+                bbox[key] = val * scale
+    props = getattr(prim, "properties", None)
+    if not isinstance(props, dict):
+        return
+    for key in _GEOMETRY_LENGTH_KEYS:
+        val = props.get(key)
+        if isinstance(val, (int, float)):
+            props[key] = val * scale
+    val = props.get("area")
+    if isinstance(val, (int, float)):
+        props["area"] = val * scale_sq
+    for key in _GEOMETRY_POINT_DICT_KEYS:
+        pt = props.get(key)
+        if isinstance(pt, dict):
+            for axis in ("x", "y"):
+                if isinstance(pt.get(axis), (int, float)):
+                    pt[axis] = pt[axis] * scale
+    for key in _GEOMETRY_POINT_SCALAR_KEYS:
+        val = props.get(key)
+        if isinstance(val, (int, float)):
+            props[key] = val * scale
+    pts = props.get("points")
+    if isinstance(pts, list):
+        props["points"] = [
+            (p[0] * scale, p[1] * scale)
+            if isinstance(p, (list, tuple)) and len(p) >= 2
+            else p
+            for p in pts
+        ]
+
+
+def _scale_dimension_to_mm(dim, scale: float) -> None:
+    """就地缩放 DIMENSION 测量值与定位点（text 展示串保持原样）。"""
+    if scale == 1.0 or not isinstance(dim, dict):
+        return
+    val = dim.get("measurement")
+    if isinstance(val, (int, float)):
+        dim["measurement"] = val * scale
+    for key in _DIMENSION_POINT_KEYS:
+        pt = dim.get(key)
+        if isinstance(pt, dict):
+            for axis in ("x", "y"):
+                if isinstance(pt.get(axis), (int, float)):
+                    pt[axis] = pt[axis] * scale
+
+
+def _scale_block_ref_to_mm(ref, scale: float) -> None:
+    """就地缩放块引用插入点；x_scale/y_scale 是块内比例，保持不变。"""
+    if scale == 1.0 or not isinstance(ref, dict):
+        return
+    ip = ref.get("insert_point")
+    if isinstance(ip, (list, tuple)) and len(ip) >= 2:
+        ref["insert_point"] = [ip[0] * scale, ip[1] * scale] + list(ip[2:])
+
+
+def _normalize_parsed_geometry(primitives, dimensions, block_refs, sheets, scale: float) -> None:
+    """把解析结果统一到毫米（就地修改，坐标/几何属性/标注测量值）。"""
+    if scale == 1.0:
+        return
+    for prim in primitives or []:
+        _scale_raw_primitive_to_mm(prim, scale)
+    for dim in dimensions or []:
+        _scale_dimension_to_mm(dim, scale)
+    for ref in block_refs or []:
+        _scale_block_ref_to_mm(ref, scale)
+    for sheet in sheets or []:
+        for prim in sheet.get("primitives") or []:
+            _scale_raw_primitive_to_mm(prim, scale)
+        for dim in sheet.get("dimensions") or []:
+            _scale_dimension_to_mm(dim, scale)
 
 
 # ── 解析引擎 ──────────────────────────────────────────────
@@ -390,6 +538,45 @@ class DrawingParser:
                     "diagnostic": f"天正识别器异常: {type(t3_err).__name__}: {t3_err}",
                 }
 
+        # ── 解析层单位归一化（统一到毫米）──────────────
+        # 图幅判为非平面/不可审查（如描线矢量化产物）时不归一化：那种图任何
+        # 尺度都不成立，强行 ×1000 只会制造假几何，交由上层标「非可审查」。
+        unit_normalization: Dict[str, Any] = {
+            "applied": False,
+            "source_unit": "unknown",
+            "coordinate_scale": 1.0,
+            "line_median": None,
+            "method": "_area_unit_scale(LINE length median)",
+            "reason": "未归一化",
+        }
+        try:
+            scope_mode = (sheet_type or {}).get("scope_mode")
+            if primitives and scope_mode != "non_plan":
+                info = _detect_source_unit(primitives)
+                unit_normalization.update(info)
+                scale = info["coordinate_scale"]
+                if scale != 1.0:
+                    _normalize_parsed_geometry(
+                        primitives, dimensions, block_refs, None, scale
+                    )
+                    unit_normalization["applied"] = True
+                    unit_normalization["reason"] = "源单位为米，坐标与标注已 ×1000 统一为毫米"
+                elif info["source_unit"] == "mm":
+                    unit_normalization["reason"] = "源单位为毫米，无需缩放"
+                else:
+                    unit_normalization["reason"] = "无有效 LINE 长度，保持原坐标"
+            elif scope_mode == "non_plan":
+                unit_normalization["reason"] = "图幅判为非平面/不可审查，不归一化"
+        except Exception as unit_err:  # 归一化失败不得影响解析主链路
+            unit_normalization["reason"] = (
+                f"单位归一化失败（保持原坐标）: {type(unit_err).__name__}: {unit_err}"
+            )
+            logger.warning(
+                "[unit] 解析层单位归一化失败（保持原坐标）: %s: %s",
+                type(unit_err).__name__,
+                unit_err,
+            )
+
         result = DrawingResult(
             file_path=file_path,
             file_id=file_id or f"baa-file-{path.stem}",
@@ -401,6 +588,7 @@ class DrawingParser:
             block_refs=block_refs,
             parse_status=parse_status,
             t3_components=t3_components,
+            unit_normalization=unit_normalization,
         )  # code
 
         # ── P73: 多Sheet 分区检测 ────────────────────────
@@ -433,6 +621,10 @@ class DrawingParser:
                             }
                         )
                 if sheets:
+                    # 分区图元与主图共用同一源单位，归一化必须同步
+                    _normalize_parsed_geometry(
+                        None, None, None, sheets, unit_normalization["coordinate_scale"]
+                    )
                     result.sheets = sheets
                     result.warning = (result.warning or "") + f"检测到 {len(sheets)} 个分区(Layout)"
             except Exception as e:
