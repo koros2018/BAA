@@ -1400,6 +1400,15 @@ class AtomicFunction:  # class definition
             area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # 大面积 room，路径分析不可靠
+            # 证据分级（P139）：无路径有两种成因，不能都判违规。
+            # sealed_no_opening：闭合多边形 + 周边无任何洞口 + 不与其他空间相邻，
+            #   这是图纸能给的「确实无出口」正面证据 → 继续判定（FAIL/critical）。
+            # model_gap：边界上有门窗/墙洞或与其他空间相邻，只是连通图缺边
+            #   （墙洞尚未建模为「空间间的边」）→ 不判定，避免把建模缺口报成违规。
+            if not props.get("has_evacuation_route", False) and props.get(
+                "evacuation_evidence"
+            ) != "sealed_no_opening":
+                return None  # 模型完整性缺口（insufficient_evidence）
             return 1.0 if props.get("has_evacuation_route", False) else 0.0  # return
         if func_id == "EVAC-002":  # 疏散路径长度
             if (

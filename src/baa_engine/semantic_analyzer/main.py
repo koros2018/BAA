@@ -63,6 +63,47 @@ _WINDOW_WIDTH_TYPES = {
 SYMBOL_WIDTH_UNCERTAINTY_M = 0.05
 
 
+# ── EVAC-001 证据分级 ─────────────────────────────────────
+# 「无路径」有两种成因，不能都用 critical 表达：
+#   1) 建筑确实无出口：房间边界闭合、且周边没有任何门窗/洞口、也不与其他空间相邻；
+#   2) 模型完整性缺口：边界上有洞（door/doorway/window）或与其他空间相邻，
+#      只是连通图缺边——墙洞尚未建模为「空间间的边」（阶段 B）。
+# 只有第 1 类出 finding；第 2 类不判定（insufficient_evidence），
+# 证据级别落盘在实体属性 evacuation_evidence 供审计。
+_EVAC_OPENING_TYPES = {
+    "door", "fire_door", "exit_door", "accessible_door", "sliding_door",
+    "revolving_door", "doorway", "exit", "opening", "window", "fire_window",
+    "rescue_window", "smoke_exhaust_window", "fire_rescue_opening",
+    "rescue_opening", "smoke_vent", "natural_vent",
+}
+_EVAC_SPACE_TYPES = {"room", "corridor", "space", "hall", "lobby", "antechamber"}
+
+
+def _evacuation_evidence_level(entity, neighbor_types) -> str:
+    """给「无疏散路径」的房间定证据级别（sealed_no_opening / model_gap）。
+
+    sealed_no_opening 需同时满足：显式闭合多边形（closed=True 且 ≥4 点）、
+    边界周边没有任何洞口类实体、也不与任何其他空间相邻。这是图纸能给出的
+    「确实无出口」正面证据；其余情况一律视为建模缺口，不判违规。
+    """
+    props = getattr(entity, "properties", None) or {}
+    if props.get("closed") is not True:
+        return "model_gap"  # 未闭合：边界完整性不可证
+    try:
+        point_count = int(props.get("point_count") or 0)
+    except (TypeError, ValueError):
+        point_count = 0
+    if point_count < 4:
+        return "model_gap"  # 闭合标志但顶点不足，边界不可信
+    neighbors = neighbor_types.get(entity.id, set())
+    if neighbors & _EVAC_OPENING_TYPES:
+        return "model_gap"  # 有洞口 → 失败在拓扑而非建筑
+    if neighbors & _EVAC_SPACE_TYPES:
+        return "model_gap"  # 与其他空间相邻 → 可能有未建模洞口
+    return "sealed_no_opening"
+
+
+
 def _arc_radius_width_m(radius) -> Optional[float]:
     """弧半径 → 门宽（米）。≤3 视为米制，>3 视为毫米制（同小构件口径）。"""
     try:
@@ -442,6 +483,16 @@ class SemanticAnalyzer:
             rel_degree[rel.source_id] = rel_degree.get(rel.source_id, 0) + 1  # 操作
             rel_degree[rel.target_id] = rel_degree.get(rel.target_id, 0) + 1  # 操作
 
+        # 邻接实体类型表：用于 EVAC-001 证据分级（洞口/空间相邻证据）
+        id_to_type = {e.id: e.type for e in entities}  # assign
+        neighbor_types: Dict[str, set] = {}  # init: empty dict
+        for rel in relations:  # 循环
+            for src_id, tgt_id in ((rel.source_id, rel.target_id), (rel.target_id, rel.source_id)):  # 循环
+                tgt_type = id_to_type.get(tgt_id)  # assign
+                if tgt_type:  # check: truthy
+                    neighbor_types.setdefault(src_id, set()).add(tgt_type)  # 操作
+
+
         # Step 5.5: 疏散路径结果注入到实体属性（EVAC原子函数用）
         route_by_room = {}  # init: empty dict
         for route in evacuation_routes:  # 循环
@@ -475,6 +526,10 @@ class SemanticAnalyzer:
                 if not r.get("has_route", False) and (sparse_coverage or low_confidence):  # check
                     continue  # 继续循环
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
+                if not r.get("has_route", False):  # 无路径：定证据级别，区分建筑无出口/建模缺口
+                    ent.properties["evacuation_evidence"] = _evacuation_evidence_level(
+                        ent, neighbor_types
+                    )  # 操作
                 if r.get("path_length") is not None:  # check: value is not None
                     ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
                     # P133: 显式标注语义（bbox 间隙和，单位 mm；不是行走距离）
@@ -505,6 +560,9 @@ class SemanticAnalyzer:
                 ):  # check: 拓扑证据充分才判无路径
                     ent.properties["has_evacuation_route"] = False  # 操作
                     ent.properties["evacuation_too_far"] = True  # 操作
+                    ent.properties["evacuation_evidence"] = _evacuation_evidence_level(
+                        ent, neighbor_types
+                    )  # 操作
 
         # Step 5.6: 连通性验证结果注入实体属性
         conn_by_room = {}  # init: empty dict

@@ -4,6 +4,8 @@
 
 import pytest
 from src.baa_engine.semantic_analyzer import SemanticAnalyzer, SemanticEntity, SpatialRelation
+from src.baa_engine.semantic_analyzer.main import _evacuation_evidence_level
+from src.baa_engine.atomic_functions import FuncRegistry, Severity
 
 
 class TestEvacuationConnectivity:
@@ -329,6 +331,88 @@ class TestAreaUnitNormalization:
             }
         )
         assert result is not None and result.actual == 112.37
+
+
+class TestEvac001EvidenceGrading:
+    """P139: EVAC-001 证据分级——建模缺口不判违规，真实无出口仍报 critical。"""
+
+    def _execute(self, props):
+        return FuncRegistry().get("EVAC-001").execute(
+            {
+                "id": "ROOM_1",
+                "type": "room",
+                "layer": "WALL",
+                "properties": props,
+            }
+        )
+
+    def test_model_gap_is_not_a_finding(self):
+        """边界有洞口/相邻空间 → 连通图缺边，属 insufficient_evidence。"""
+        res = self._execute(
+            {
+                "area_m2": 20.0,
+                "has_evacuation_route": False,
+                "evacuation_evidence": "model_gap",
+            }
+        )
+        assert res is None
+
+    def test_sealed_no_opening_still_critical(self):
+        """反例：闭合房间且周边无任何洞口/相邻空间 → 真实无出口，仍报 critical。"""
+        res = self._execute(
+            {
+                "area_m2": 20.0,
+                "has_evacuation_route": False,
+                "evacuation_evidence": "sealed_no_opening",
+            }
+        )
+        assert res is not None
+        assert res.result == "FAIL"
+        assert res.severity == Severity.CRITICAL
+
+    def test_route_present_is_pass(self):
+        res = self._execute({"area_m2": 20.0, "has_evacuation_route": True})
+        assert res is not None and res.result == "PASS"
+
+    def test_missing_evidence_is_not_a_finding(self):
+        """旧数据无证据级别：宁可不判，也不把无证据当违规。"""
+        res = self._execute({"area_m2": 20.0, "has_evacuation_route": False})
+        assert res is None
+
+    def _room(self, props):
+        return SemanticEntity(
+            entity_id="ROOM_1",
+            entity_type="room",
+            bbox={"x1": 0, "y1": 0, "x2": 5000, "y2": 4000},
+            layer="WALL",
+            confidence=1.0,
+            properties=props,
+        )
+
+    def test_evidence_sealed_room(self):
+        room = self._room({"closed": True, "point_count": 4})
+        assert _evacuation_evidence_level(room, {}) == "sealed_no_opening"
+
+    def test_evidence_openings_make_model_gap(self):
+        room = self._room({"closed": True, "point_count": 4})
+        assert _evacuation_evidence_level(room, {"ROOM_1": {"door"}}) == "model_gap"
+        assert _evacuation_evidence_level(room, {"ROOM_1": {"doorway"}}) == "model_gap"
+        assert _evacuation_evidence_level(room, {"ROOM_1": {"window"}}) == "model_gap"
+
+    def test_evidence_space_neighbor_makes_model_gap(self):
+        room = self._room({"closed": True, "point_count": 4})
+        assert _evacuation_evidence_level(room, {"ROOM_1": {"corridor"}}) == "model_gap"
+
+    def test_evidence_unclosed_room_is_model_gap(self):
+        """未闭合（closed=False / 扫线法派生）边界完整性不可证，不判违规。"""
+        room = self._room({"closed": False, "point_count": 4})
+        assert _evacuation_evidence_level(room, {}) == "model_gap"
+        room2 = self._room({"point_count": 0})
+        assert _evacuation_evidence_level(room2, {}) == "model_gap"
+
+    def test_evidence_closed_but_too_few_points(self):
+        room = self._room({"closed": True, "point_count": 3})
+        assert _evacuation_evidence_level(room, {}) == "model_gap"
 
 
 if __name__ == "__main__":
