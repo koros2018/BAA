@@ -600,12 +600,19 @@ def _axis_align_merge(segs: List[_Seg]) -> List[_Seg]:
 
     PDF→DXF 贝塞尔离散化产生大量 75°~95° 的近垂直/近水平短段，
     扫线法无法直接闭合。投影到轴后按坐标聚类合并，恢复标准墙线段。
+
+    不变量：合并只能「归并」，不能「删除」几何。短于 _AXIS_MIN_LEN_MM 的
+    墙段原样透传——它们是 T 接锚点（墙垛、洞口边、转角小段），删掉会让
+    相邻长墙的端点变成悬空端。实测东莞通 1,007 个近轴短段中 868 个承担
+    「至少一端连接两根以上保留段」的锚点作用；吞掉它们使合并后悬空端点
+    增加、T 接数从 3,928 降到 2,356。透传短段后悬空端点 3,179→2,809，
+    T 接恢复，剥面碎片率同时从 59.1% 降到 57.9%（段数仍有 7,895→3,285
+    的归并收益）。
     """
     near_axis = []
+    short_passthrough: List[_Seg] = []
     for s in segs:
         x0, y0, x1, y1, _, length = s
-        if length < _AXIS_MIN_LEN_MM:
-            continue
         dx, dy = abs(x1 - x0), abs(y1 - y0)
         if dx + dy < 100:
             continue
@@ -613,8 +620,12 @@ def _axis_align_merge(segs: List[_Seg]) -> List[_Seg]:
         if angle > math.pi / 2:
             angle = math.pi - angle
         tol_rad = math.radians(_AXIS_TOL_DEG)
-        if angle <= tol_rad or angle >= math.pi / 2 - tol_rad:
-            near_axis.append(s)
+        if not (angle <= tol_rad or angle >= math.pi / 2 - tol_rad):
+            continue
+        if length < _AXIS_MIN_LEN_MM:
+            short_passthrough.append(s)
+            continue
+        near_axis.append(s)
 
     if len(near_axis) < 3:
         return []
@@ -651,7 +662,7 @@ def _axis_align_merge(segs: List[_Seg]) -> List[_Seg]:
     for lo, hi, x in v_merged:
         result.append((x, lo, x, hi, "", hi - lo))
 
-    return result
+    return result + short_passthrough
 
 
 def _merge_collinear(

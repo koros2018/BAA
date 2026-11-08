@@ -273,6 +273,48 @@ def test_axis_align_merge_unit():
     print(f"PASS axis_align_merge: {len(segs)} segs → {len(merged)} merged")
 
 
+def test_axis_align_merge_keeps_short_anchor_segments():
+    """回归：短墙段（<500mm）是 T 接锚点，合并后必须原样透传。
+
+    根因：旧实现在 near_axis 筛选里直接 continue 掉短段，等于把墙垛/洞口边
+    删除，导致相邻长墙的端点变成悬空端（东莞通实测悬空端点 2,797→3,179）。
+    """
+    from src.baa_engine.semantic_analyzer.room import _axis_align_merge
+
+    segs = [
+        (0, 0, 3000, 0, "wall", 3000),
+        (3000, 0, 6000, 0, "wall", 3000),
+        (6000, 0, 9000, 0, "wall", 3000),
+        (6000, 0, 6000, 400, "wall", 400),  # 6000 处向下的墙垛（短段锚点）
+        (6000, 400, 7500, 400, "wall", 1500),  # 墙垛另一端接的短墙
+    ]
+    merged = _axis_align_merge(segs)
+
+    # 归并收益仍在：三段 0~9000 共线合并为一条
+    h_runs = [s for s in merged if abs(s[2] - s[0]) > 5000 and abs(s[3] - s[1]) < 1]
+    assert len(h_runs) == 1, f"共线合并失效: {merged}"
+    assert h_runs[0][2] - h_runs[0][0] == pytest.approx(9000)
+
+    # 短段必须保留（端点坐标原样）
+    stub = [s for s in merged if s[0] == 6000 and s[1] == 0 and s[2] == 6000 and s[3] == 400]
+    assert stub, f"短锚点段被吞掉: {merged}"
+
+
+def test_axis_align_merge_keeps_short_vertical_stub():
+    """短近垂直段（如洞口边）同样必须透传，不能只保留短水平段。"""
+    from src.baa_engine.semantic_analyzer.room import _axis_align_merge
+
+    stub = (6000, 0, 6000, 400, "wall", 400)
+    segs = [
+        (0, 0, 3000, 0, "wall", 3000),
+        (3000, 0, 6000, 0, "wall", 3000),
+        (6000, 0, 9000, 0, "wall", 3000),
+        stub,
+    ]
+    merged = _axis_align_merge(segs)
+    assert stub in merged, f"短近垂直段被吞掉: {merged}"
+
+
 @LOCAL_PDF_MARK
 def test_pdf_full_primitives_sweep():
     """扫线法使用全量 primitives，不被采样截断
