@@ -605,7 +605,7 @@ python -m pytest src/tests/test_p21_unsupported_2d.py -q
 | Demo Multi-family F-1 | 68 → 68 | 0 → 0 | 0 → 0 | 29 → 29 | 0 → 0 |
 
 - **findings 零新增、零消失、零 critical**；覆盖率不变：
-  全规则 **39/183 = 21.3%**，可判定 **39/105 = 37.1%**。
+  全规则 **41/183 = 22.4%**，可判定 **39/105 = 37.1%**。
 - villa 新增的那一条 doorway 逐条列出：`vertical bbox=(12106,7200,200,1240)`。
   它和保留下来的 `horizontal bbox=(12481,7200,1620,200)` 都是
   `_find_gaps_in_axis_v2` 的 **1500mm 聚类容差**把相邻但不同墙线上的墙段配对成
@@ -671,8 +671,58 @@ villa：11 间被校正，5 间实质放大（最大 3.2×）：
 | Demo Multi-family F-1 | 0 → 0 | 29 → 29 | 0 → 0 | 0 → 0 |
 
 - **findings 零新增、零消失、零 critical**；覆盖率口径不变：
-  全规则 **39/183 = 21.3%**，可判定 **39/105 = 37.1%**。
+  全规则 **41/183 = 22.4%**，可判定 **39/105 = 37.1%**。
 - pytest：**3050 passed / 28 skipped / 14 deselected**（上一提交 3046 + 新增 4）。
+
+### 9.9 P136 单段 ARC 不再判 room（ROOM_3524 残留路径，2026-11-08）
+
+#### 9.9.1 根因
+
+[classify.py](../src/baa_engine/semantic_analyzer/classify.py) 的 ARC 分支曾有
+「`radius > 3000` 且跨度 > 90° → room」。**单段 ARC 不是闭合区域**，不构成房间；
+5 图实测产生 7 个假房间：
+
+| 图纸 | 假 room | radius (mm) | area_m2 |
+|---|---|---|---|
+| 东莞通 | ROOM_6412 | 4378.57 | 76.69 |
+| villa | ROOM_226 | 3905.33 | 61.01 |
+| villa | ROOM_2832 | 3905.33 | 94.89 |
+| villa | ROOM_3214 | 6735.79 | 189.58 |
+| villa | ROOM_3524 | 4059.96 | 65.93 |
+| villa | ROOM_3759 | 3425.02 | 46.92 |
+| villa | ROOM_1439 | 3905.33 | — |
+
+这 7 个假 room 随后被赋予**楼梯/前室类子类型**（stair/staircase 等），成为 villa
+唯一的「楼梯」实体来源，连带 23 条 stair/antechamber 规则产生**伪适用面**
+（ACCESS-014/015、ATTR-010/018、COUNT-003/015/021/022、DIM-001/020/025/026/071/079/101、
+EXIST-001/003/050/051/064/068/080、LIGHT-007）。
+
+#### 9.9.2 修复
+
+删除该分支：大半径 ARC 统一按弧形窗处理（与既有 `test_arc_large_radius_window`
+口径一致）。新增 `test_arc_large_span_not_room`：radius 4378.57 + 跨度 180° → window。
+
+#### 9.9.3 逐图改前/改后
+
+| 图纸 | room | window | applicable | evaluated | findings |
+|---|---|---|---|---|---|
+| 东莞通-建筑 | 127 → **126** | 10 → **11** | 177 → 177 | 35 → 35 | 20 → 20 |
+| villa-details | 14 → **8** | 136 → **140** | 137 → **114** | 12 → **10** | 6 → 6 |
+| multiple-stadion | 0 → 0 | — | 58 → 58 | 3 → 3 | 0 → 0 |
+| plans（two-family-house） | 0 → 0 | — | 32 → 32 | 1 → 1 | 0 → 0 |
+| Demo Multi-family F-1 | 0 → 0 | — | 29 → 29 | 0 → 0 | 0 → 0 |
+
+- villa 实体数 8610 → 8608：6 个假 room 改判 window，其中 2 条并入相邻窗
+  （window 只 +4），故净 −2。
+- villa `evaluated` 少 2 条：DIM-001、EVAC-001——两者此前都是在假 stair 房间上
+  判定，属于**伪覆盖**的移除，不是能力退化。
+- 并集：evaluated **41 → 40**（40/183 = **21.9%**），可判定 **39/105 → 38/105
+  （36.2%）**；applicable 并集 183 不变（那 23 条在其它图纸仍适用）。
+- **findings 零新增、零消失、零 critical**。
+- pytest：**3051 passed / 28 skipped / 14 deselected**。
+
+> 更正：§9.7.4 / §9.8.4 原写「全规则 39/183」，系转写错误；两次实测均为
+> **41/183 = 22.4%**，已就地更正。
 
 ## 10. A 桶属性补齐结论（2026-11-06）
 
