@@ -11,6 +11,18 @@ from .models import SemanticEntity, SpatialRelation
 STRICT_EXIT_TYPES = ("exit", "exit_door", "stair", "staircase")
 
 
+def _exit_eligible(e: SemanticEntity) -> bool:
+    """实体是否可作为疏散出口。
+
+    扫线法墙洞（doorway）由 room.py 显式标注 ``exit_eligible=False``：
+    几何间隙只证明有开口，不证明是疏散出口。ID 补全后若不拦，这些墙洞
+    会进入 fallback_exits 成为合成出口（旧空 ID 机制只是恰好挡住了）。
+    """
+    props = getattr(e, "properties", None) or {}
+    return props.get("exit_eligible", True) is not False
+
+
+
 def _mark_evacuation_doors_impl(
     self,
     entities: List[SemanticEntity],
@@ -207,19 +219,19 @@ def _analyze_evacuation_routes_impl(
             (rel.source_id, rel.type, rel.distance)
         )  # append: add to list
 
-        # 出口识别：优先用明确的 exit/exit_door/stair
-    # P132-B5: 空 id 实体不能作为图节点/出口。扫线法产出的 doorway 当前
-    # entity_id=""（room.py::_detect_doorway_gaps），若放行会成为合成出口，
-    # 产生 route_key=":50.0"、path=["ROOM",""] 这类无法追溯的疏散路由。
+    # 出口候选必须：有可追溯 ID，且未被显式标记 exit_eligible=False。
+    # 扫线法 doorway 阶段 A 已补 ID，改由 exit_eligible 显式隔离——不再依赖
+    # 「空 ID 恰好挡住」这一隐式约束（旧行为曾产生 route_key=":50.0" 类路由）。
     strict_exits = [
-        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id
+        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id and _exit_eligible(e)
     ]  # assign: membership check
     fallback_exits = [
-        e for e in entities if e.type in ("door", "fire_door") and e.id
+        e for e in entities if e.type in ("door", "fire_door") and e.id and _exit_eligible(e)
     ]  # assign: membership check
     # P107: 扫线法产出的 doorway 可作为疏散路径上的门连接节点
+    # 阶段 A：doorway 已补 ID，但几何墙洞显式 exit_eligible=False，不得作出口
     fallback_exits_sweep = [
-        e for e in entities if e.type == "doorway" and e.id
+        e for e in entities if e.type == "doorway" and e.id and _exit_eligible(e)
     ]  # assign: membership check
     # 有明确出口就用明确出口，否则用 door/fire_door 兜底
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
@@ -345,7 +357,7 @@ def _verify_evacuation_connectivity_impl(
     # 构建实体查找表
     entity_map = {e.id: e for e in entities}  # assign: membership check
 
-    # 构建邻接表（同 analyze_evacuation_routes 逻辑）
+    # 构建邻接表（同 analyze_evacuation_routes 口径）
     adj: Dict[str, List[Tuple[str, str, float]]] = {}  # init: empty dict
     for e in entities:  # loop: for e in entities:
         adj[e.id] = []  # init: empty list
@@ -360,15 +372,15 @@ def _verify_evacuation_connectivity_impl(
         )  # append: add to list
 
     # 出口识别
-    # P132-B5: 空 id 实体不能作为图节点/出口（同 analyze_evacuation_routes 口径）
+    # 与 analyze_evacuation_routes 同口径：需可追溯 ID 且未被标记 exit_eligible=False
     strict_exits = [
-        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id
+        e for e in entities if e.type in STRICT_EXIT_TYPES and e.id and _exit_eligible(e)
     ]  # assign: membership check
     fallback_exits = [
-        e for e in entities if e.type in ("door", "fire_door") and e.id
+        e for e in entities if e.type in ("door", "fire_door") and e.id and _exit_eligible(e)
     ]  # assign: membership check
     fallback_exits_sweep = [
-        e for e in entities if e.type == "doorway" and e.id
+        e for e in entities if e.type == "doorway" and e.id and _exit_eligible(e)
     ]  # assign: membership check
     exits = strict_exits if strict_exits else fallback_exits + fallback_exits_sweep  # assign
     exit_ids = {e.id for e in exits}  # assign: membership check

@@ -86,3 +86,61 @@ def test_route_key_never_starts_with_colon():
     for route in routes:
         if route.get("has_route"):
             assert not str(route.get("route_key", "")).startswith(":"), route
+
+
+def test_id_doorway_with_exit_eligible_false_is_not_an_exit():
+    """阶段 A：扫线 doorway 已补 ID，必须由 exit_eligible=False 隔离出口资格。"""
+    room = _ent("r1", "room", bbox={"x": 0, "y": 0, "width": 3000, "height": 3000})
+    gap = _ent(
+        "doorway_gap_h_3500_0",
+        "doorway",
+        {"gap_width_mm": 1000, "exit_eligible": False, "inferred_from": "wall_gap"},
+        {"x": 2800, "y": 0, "width": 800, "height": 200},
+    )
+    relations = [_rel("r1", "doorway_gap_h_3500_0", "connects_to", 50.0)]
+
+    routes = _analyze_evacuation_routes_impl(_StubAnalyzer(), [room, gap], relations)
+    assert routes == [], "唯一候选被隔离后无出口可用 → 不产生路由"
+
+    conn = _verify_evacuation_connectivity_impl(_StubAnalyzer(), [room, gap], relations, routes)
+    assert all(not r.get("connected") for r in conn), conn
+
+
+def test_ineligible_doorway_not_chosen_when_real_door_exists():
+    """有真实门时，路由必须落到真实门，而不是带 ID 的几何墙洞。"""
+    room = _ent("r1", "room", bbox={"x": 0, "y": 0, "width": 3000, "height": 3000})
+    gap = _ent(
+        "doorway_gap_h_3500_0",
+        "doorway",
+        {"gap_width_mm": 1000, "exit_eligible": False, "inferred_from": "wall_gap"},
+        {"x": 2800, "y": 0, "width": 800, "height": 200},
+    )
+    door = _ent(
+        "DOOR_1",
+        "door",
+        {"width": 0.9},
+        {"x": 3000, "y": 0, "width": 100, "height": 900},
+    )
+    relations = [
+        _rel("r1", "doorway_gap_h_3500_0", "connects_to", 50.0),
+        _rel("r1", "DOOR_1", "connects_to", 800.0),
+    ]
+    routes = _analyze_evacuation_routes_impl(_StubAnalyzer(), [room, gap, door], relations)
+    assert len(routes) == 1
+    assert routes[0]["exit_id"] == "DOOR_1", routes[0]
+
+
+def test_exit_eligible_doorway_can_be_exit():
+    """对照：显式允许的 doorway（exit_eligible=True/缺省）仍可作出口候选（P107 口径不变）。"""
+    room = _ent("r1", "room", bbox={"x": 0, "y": 0, "width": 3000, "height": 3000})
+    gap = _ent(
+        "DOORWAY_1",
+        "doorway",
+        {"gap_width_mm": 1000},
+        {"x": 2800, "y": 0, "width": 800, "height": 200},
+    )
+    routes = _analyze_evacuation_routes_impl(
+        _StubAnalyzer(), [room, gap], [_rel("r1", "DOORWAY_1", "connects_to", 50.0)]
+    )
+    assert len(routes) == 1
+    assert routes[0]["exit_id"] == "DOORWAY_1"

@@ -439,14 +439,24 @@ def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
 
     result: List[SemanticEntity] = []
     for x, y, w, h, direction in _dedup_doorway_gaps(gaps):
+        # 阶段 A：几何推断的墙洞补稳定 ID，便于 finding 追溯与图节点引用。
+        # ID 由中心点几何派生（同图重跑稳定），不含递增计数器，避免与房间 ID 耦合。
+        suffix = "h" if direction == "horizontal" else "v"
+        cx = x + w / 2 if direction == "horizontal" else x
+        cy = y if direction == "horizontal" else y + h / 2
         result.append(
             SemanticEntity(
-                entity_id="",
+                entity_id=f"doorway_gap_{suffix}_{int(round(cx))}_{int(round(cy))}",
                 entity_type="doorway",
                 layer="",
                 properties={
                     "gap_width_mm": w if direction == "horizontal" else h,
                     "direction": direction,
+                    # 阶段 A 隔离：墙线间隙只证明「此处有开口」，不证明是疏散出口。
+                    # doorway 与 exit_door 同属别名组 4，若不带显式否定标记，
+                    # 下游出口识别/BFS 会把它当合成出口。此标记落盘而非隐含。
+                    "exit_eligible": False,
+                    "inferred_from": "wall_gap",
                 },
                 bbox={"x": x, "y": y, "width": w, "height": h},
             )

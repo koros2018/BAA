@@ -395,6 +395,16 @@ def test_detect_doorway_gaps():
     for d in doorways:
         gap = d.properties["gap_width_mm"]
         assert 700 <= gap <= 2500, f"门洞宽度异常: {gap}"
+    # 阶段 A：几何 ID 可追溯且稳定，显式标记不是疏散出口
+    ids = [d.id for d in doorways]
+    assert all(i.startswith("doorway_gap_") for i in ids), ids
+    assert len(set(ids)) == len(ids), f"doorway ID 重复: {ids}"
+    for d in doorways:
+        assert d.properties["exit_eligible"] is False, d.properties
+        assert d.properties["inferred_from"] == "wall_gap", d.properties
+    # 同输入重跑 → 同 ID（不依赖全局计数器）
+    again = [d.id for d in _detect_doorway_gaps(segs)]
+    assert again == ids, (again, ids)
     print("PASS doorway gaps: 2 gaps detected")
 
 
