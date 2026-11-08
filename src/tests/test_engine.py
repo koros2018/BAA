@@ -311,6 +311,34 @@ class TestFuncExecute:  # class definition
         )  # function call
         assert r.result == "FAIL"  # 断言
 
+    def test_dim003_bbox_without_closed_polygon_skips(self, registry):
+        """层规则聚合的道路中心线：bbox 短边是笔迹，不是净宽 → 不判定。"""
+        r = registry.get("DIM-003").execute(
+            {
+                "id": "ROAD_1",
+                "type": "road",
+                "bbox": {"width": 70_000_000, "height": 800},
+                "properties": {},
+            }
+        )
+        assert r is None
+
+    def test_dim003_closed_lane_polygon_uses_bbox_short_edge(self, registry):
+        """闭合车道多边形：bbox 短边是有效净宽证据 → 正常判定。"""
+        r = registry.get("DIM-003").execute(
+            {
+                "id": "LANE_1",
+                "type": "fire_lane",
+                "bbox": {"width": 7_000_000, "height": 800},
+                "properties": {
+                    "points": [[0, 0], [7_000_000, 0], [7_000_000, 800], [0, 800]],
+                    "closed": True,
+                },
+            }
+        )
+        assert r is not None
+        assert r.result == "FAIL"
+
     # DIM-004: 疏散走道宽度
     def test_dim004_civil_pass(
         self, registry

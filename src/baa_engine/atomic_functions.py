@@ -667,6 +667,15 @@ class AtomicFunction:  # class definition
                         or props.get("inferred_type") in ("fire_lane", "road", "driveway")
                     )
                     if lane_semantics:
+                        # 证据门槛：bbox 短边只有在实体是闭合多边形时才是车道净宽。
+                        # 图层规则聚合出的道路中心线/图框 LINE 链（无 points/closed）
+                        # 的 bbox 短边是线宽笔迹，不是净宽——实测 baa-file-584
+                        # ROAD_2527/2841/3290 用 0.5~2.05m 的笔迹宽度被判 4m 净宽
+                        # 不足（3 条无法追溯的 critical）。无闭合证据时不做判定。
+                        points = props.get("points")
+                        closed = props.get("closed")
+                        if not (isinstance(points, (list, tuple)) and closed is True):
+                            return None
                         bbox = entity.get("bbox") or {}
                         bw, bh = bbox.get("width", 0), bbox.get("height", 0)
                         # 防误报：TEXT/标注类实体（bbox 短边 <500mm）不是车道几何，
