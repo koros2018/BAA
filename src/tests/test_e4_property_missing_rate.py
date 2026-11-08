@@ -297,3 +297,28 @@ def test_arc_radius_width_m_unit_heuristic():
     assert _arc_radius_width_m(1.2) == pytest.approx(1.2)
     assert _arc_radius_width_m(0) is None
     assert _arc_radius_width_m(None) is None
+
+
+def test_room_polygon_area_source():
+    """闭合 LWPOLYLINE 房间必须落 _area_source，否则 AREA 类 finding 无法追溯。
+
+    4m×4m 闭合墙线 → area≈16m²，来源标记为 closed_polyline。
+    """
+    from src.baa_engine.drawing_parser import RawPrimitive
+    from src.baa_engine.semantic_analyzer.main import SemanticAnalyzer
+
+    prim = RawPrimitive(
+        dxf_type="LWPOLYLINE",
+        layer="WALL",
+        handle="PL1",
+        bbox={"x": 0.0, "y": 0.0, "width": 4000.0, "height": 4000.0},
+        properties={
+            "points": [[0.0, 0.0], [4000.0, 0.0], [4000.0, 4000.0], [0.0, 4000.0]],
+            "closed": True,
+        },
+    )
+    rooms = SemanticAnalyzer()._sweep_line_detect_rooms([prim])
+    assert rooms, "闭合 LWPOLYLINE 应识别为房间"
+    props = rooms[0].properties
+    assert props["_area_source"] == "closed_polyline"
+    assert props["area"] == pytest.approx(16.0)

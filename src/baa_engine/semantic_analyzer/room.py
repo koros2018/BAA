@@ -237,7 +237,7 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         face_type = _classify_face(bw, bh, area / 1_000_000)
         room_id = f"line_chain_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
-        props = {"area": area / 1_000_000}
+        props = {"area": area / 1_000_000, "_area_source": "polygon_line_chain"}
         props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
@@ -347,7 +347,7 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         face_type = _classify_face(bw, bh, area / 1_000_000)
         room_id = f"line_chain_{face_type}_{self_obj._entity_counter}"
         self_obj._entity_counter += 1
-        props = {"area": area / 1_000_000}
+        props = {"area": area / 1_000_000, "_area_source": "polygon_sweep_face"}
         props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
@@ -2037,7 +2037,7 @@ def _extract_closed_polyline_rooms(
         face_type = _classify_face(bw, bh, area / 1_000_000)
         room_id = f"polyline_{face_type}_{self._entity_counter}"
         self._entity_counter += 1
-        props = {"area": area / 1_000_000}
+        props = {"area": area / 1_000_000, "_area_source": "closed_polyline"}
         props.update(_polygon_props(pts))
         if face_type == "corridor":
             props["clear_width"] = min(bw, bh) * 0.001
