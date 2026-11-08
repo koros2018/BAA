@@ -1226,3 +1226,109 @@ villa-details 共 10,190 图元、25 个用到图层。原始文字 112 条（58
 出现外部 JSON 注入 `properties` 的入口，需在该入口做类型归一化（`"True"/"true"` → `True`），
 届时再补判据与测试。
 
+## 13. EVAC-001 证据分级：区分「建筑无出口」与「建模缺口」（2026-11-08）
+
+### 13.1 问题
+
+§12.1 补 ID 后出现的 6 条 EVAC-001 critical，其旧路径全部经过空字符串伪节点。它们的
+共同成因是**连通图缺边**，不是图纸证明该房间没有出口。但旧实现把两者用同一个
+`actual=0.0 / threshold=1.0` 的 critical 表达，读者无法区分「模型没算出来」与「建筑真违规」——
+与前面几轮反复纠正的「无证据 ≠ 违规」是同一类问题。
+
+### 13.2 判据（新增 `evacuation_evidence` 实体属性）
+
+| 级别 | 条件（全部满足） | 处置 |
+|---|---|---|
+| `sealed_no_opening` | `closed is True`、`point_count >= 4`、邻接实体中没有门/窗/洞口类、也不与其他空间相邻 | 出 EVAC-001 判定；FAIL 为 critical |
+| `model_gap` | 其余全部情形：有门窗/墙洞邻接、有空间邻接、未闭合、顶点不足 | insufficient_evidence，返回 None，不产出 PASS/FAIL |
+
+实现位置：
+
+- [main.py](file:///d:/OpenClawData/BAA/src/baa_engine/semantic_analyzer/main.py) `_evacuation_evidence_level()`，
+  在 Step 5.5 两处「注入 `has_evacuation_route=False`」的路径上同时写 `evacuation_evidence`；
+- [atomic_functions.py](file:///d:/OpenClawData/BAA/src/baa_engine/atomic_functions.py) EVAC-001 `_extract_value`，
+  仅 `sealed_no_opening` 放行；缺失证据级别（旧缓存/旧数据）也不判。
+
+### 13.3 6 条 critical 的逐条降级依据（可核对）
+
+| room | closed | point_count | area_m2 | 邻接证据 | 级别 |
+|---|---|---|---|---|---|
+| ROOM_1803 | False | 4 | 27.11 | room×1 + corridor×1（仅空间相邻） | model_gap |
+| ROOM_3377 | False | 3 | 17.85 | doorway×2 + door×5 | model_gap |
+| ROOM_349 | False | 3 | 13.8 | door×2 | model_gap |
+| ROOM_5066 | False | 4 | 15.86 | door×6 + doorway×4 + room×1 | model_gap |
+| ROOM_7881 | False | 3 | 38.71 | door×2 + doorway×3 + room×1 | model_gap |
+| ROOM_911 | False | 4 | 21.25 | door×2 + doorway×2 + room×2 | model_gap |
+
+6 间房 `closed` 全为 False（扫线/T 字接头派生，边界未显式闭合）；其中 5 间直接邻接
+门或墙洞，ROOM_1803 直接邻接走廊。两条独立理由都指向「建模缺口」，不是「建筑无出口」。
+
+### 13.4 逐图改前 → 改后
+
+| 图 | evaluated | applicable | judgeable | EVAC-001 findings | findings 总数 |
+|---|---|---|---|---|---|
+| 东莞通-建筑 | 35 → 35 | 177 → 177 | 101 → 101 | 6 → 0 | 26 → 20 |
+| villa-details | 10 → 10 | 114 → 114 | 53 → 53 | 0 → 0 | 6 → 6 |
+| multiple-stadion | 3 → 3 | 58 → 58 | 38 → 38 | 0 → 0 | 0 → 0 |
+| two-family-house | 1 → 1 | 32 → 32 | 18 → 18 | 0 → 0 | 0 → 0 |
+| Demo F-1 | 0 → 0 | 29 → 29 | 18 → 18 | 0 → 0 | 0 → 0 |
+
+覆盖率三口径不变；新增 critical 为 0。
+
+### 13.5 「真实违规仍会报」的反例
+
+5 张样本中没有 `sealed_no_opening` 房间（因此这 6 条之外没有真实无出口案例）。用单元测试
+固定反例：`has_evacuation_route=False + evacuation_evidence="sealed_no_opening"` →
+EVAC-001 FAIL / critical；`model_gap` → None。见
+[test_evacuation_connectivity.py](file:///d:/OpenClawData/BAA/src/tests/test_evacuation_connectivity.py)
+`TestEvac001EvidenceGrading`。该判据不会让「闭合房间 + 周边无任何洞口」的真实违规静默。
+
+## 14. 阶段 B 可行性预研：墙洞改为「空间间的边」（2026-11-08）
+
+### 14.1 方法
+
+对每个扫线墙洞，取间隙中心点沿法向（horizontal 墙洞 → y 方向；vertical → x 方向）两侧
+偏移 300/600/1000/1500/2500/4000mm 探测，用射线法判断落点属于哪个 room 多边形。
+统计「两侧各命中一个不同 room」的比例；只在「墙洞 500mm 内存在已识别 room」的子集上评估
+配对算法本身，避免把上游房间提取缺口算到配对头上。
+
+### 14.2 结果
+
+| 图 | doorway | room | 近邻房间(<500mm) | 两侧配对成功 | 单侧命中 | 两侧都无 |
+|---|---|---|---|---|---|---|
+| 东莞通 | 277 | 126 | 27（9.7%） | **0（0%）** | 13（48.1%） | 14（51.9%） |
+| villa | 27 | 8 | 26（96.3%）* | **0（0%）** | 0 | 26（100%） |
+
+\* villa 的 26 个「近邻」主要由一个覆盖全图的假房间 `line_chain_room_9032`（26×15m）造成，
+该房间没有多边形 points，无法做点包含判定，因此 0 命中。
+
+### 14.3 失败模式分布（按影响从大到小）
+
+1. **上游房间覆盖不足**：东莞通 175/277（63.2%）墙洞距最近 room bbox ≥5m，中位 8.0m——
+   这些墙洞位于未被识别为 room 的区域（走廊/外部/其它构件），配对无从谈起。
+2. **房间几何缺失**：东莞通 32/126 个 room 没有 `properties.points`（只有 bbox），
+   无法做真实多边形包含判定。
+3. **全图级假 room**：东莞通 11 个 room 的 bbox >50m²（最大 45×10m、7×37m）；villa 8 个
+   room 中 5 个是 25×24m 级别的全图假房间。它们会让「近邻」统计虚高，并可能把任意墙洞
+   配对到同一个错误空间。
+4. **单侧命中**：东莞通 13 个近邻墙洞只有一侧落进 room，另一侧多为外墙/未识别空间。
+
+### 14.4 结论
+
+**阶段 B 当前不可行**，不是因为配对算法，而是因为前置条件不满足：房间提取覆盖率、
+房间多边形完整性、假 room 抑制三项都未达到可用水平。继续实现「墙洞作边」只会把
+错误的房间配对固化成疏散拓扑，风险高于收益。
+
+后续解锁条件（按顺序）：
+
+1. 房间几何补全：所有 room 必须带多边形 points（bbox-only 房间需回填或标记不可用）；
+2. 假 room 抑制：全图级 bbox（例如 >50m² 且无 points）不得参与空间拓扑；
+3. 再在「两侧都有可靠多边形」的子集上重跑本预研，两侧配对成功率需先达到可用阈值
+   （建议 ≥80% 且失败样本可逐条解释）才进入实现。
+
+### 14.5 第三优先：1500mm 聚类 phantom
+
+阶段 B 预研没有产出足以裁决 `_find_gaps_in_axis_v2` 1500mm 跨墙线聚类的证据（房间侧
+不可靠，无法判断 phantom 是否影响配对）。按纪律**不调容差、不改代码**，缺陷继续挂在
+§9.7.4；待阶段 B 前置条件满足后一并裁决。
+
