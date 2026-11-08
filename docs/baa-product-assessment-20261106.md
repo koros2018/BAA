@@ -1285,6 +1285,9 @@ EVAC-001 FAIL / critical；`model_gap` → None。见
 
 ## 14. 阶段 B 可行性预研：墙洞改为「空间间的边」（2026-11-08）
 
+> **已被 §17 重跑取代**：本节为 2026-11-08 早间快照（房间缺 points、假 room 未抑制），
+> 保留以对照；最新结论、成功率与失败模式见 §17。
+
 ### 14.1 方法
 
 对每个扫线墙洞，取间隙中心点沿法向（horizontal 墙洞 → y 方向；vertical → x 方向）两侧
@@ -1331,4 +1334,360 @@ EVAC-001 FAIL / critical；`model_gap` → None。见
 阶段 B 预研没有产出足以裁决 `_find_gaps_in_axis_v2` 1500mm 跨墙线聚类的证据（房间侧
 不可靠，无法判断 phantom 是否影响配对）。按纪律**不调容差、不改代码**，缺陷继续挂在
 §9.7.4；待阶段 B 前置条件满足后一并裁决。
+
+## 15. 房间多边形完整性（Task 1，2026-11-08）
+
+### 15.1 诊断：32/32 来自「直接闭合多段线」构造路径
+
+东莞通原 126 个 room 中 32 个没有 `properties.points`。逐条回溯后的结论：
+
+| 项 | 结论 |
+|---|---|
+| 来源 | **32/32 全部是 `polyline_room_*`**，由 `_extract_closed_polyline_rooms`（直接闭合 LWPOLYLINE）构造 |
+| 其它路径 | 扫线主面 0、`_sweep_and_filter` 0、文字标签 0、块 0 |
+| 同源但不在 room 口径 | 另有 3 个 `polyline_corridor_*`，同样缺 points |
+| 根因 | **构造期就没写**。该分支已算出 `pts` 并据此算 `area`，但 properties 只写 `{"area": ...}`，未写 `points` / `point_count` / `closed` |
+| 是否写入后丢失 | **不是**。该分支在 `_sweep_line_detect_rooms` 中早返回；Step 1.8 只修正面积，不写 points；全链路无删除 points 的代码 |
+| 非 polyline 房间 | 94 个，`no_points = 0`，说明缺口只在这一条构造路径 |
+
+### 15.2 方案选择：补齐 points，不降级
+
+选择「凡是 room 必须带可用 points」并**补齐**，而不是把 32 个降级为未识别。理由：
+
+1. 几何在构造时已存在：闭合 LWPOLYLINE 的顶点序列直接可得，降级会删掉 17 个真实闭合
+   多边形房间（东莞通 10012 的 124.2m²、10024 的 96.3m² 都在其中），违反「不丢真实房间」。
+2. 「构造不出 points」与「几何不可信」是两类问题。32 个都有几何；其中 15 个的问题在
+   Task 2 的几何合理性（重复/容器/空壳），应由门禁单独降级，不能混同为「无几何」。
+3. 补齐后可立即用于下游点包含/内切/净宽；降级则会让这 32 个空间永久退出几何能力。
+
+实现（[room.py](file:///d:/OpenClawData/BAA/src/baa_engine/semantic_analyzer/room.py)）：
+
+- 新增 `_polygon_props()`：统一写 `points` / `point_count` / `closed=True`；剥离与首点重合的
+  闭合点；顶点 <3 或坐标非法返回 `{}`。
+- 三处房间构造（扫线主循环、`_sweep_and_filter`、`_extract_closed_polyline_rooms`）在写入
+  `area` 后统一 `props.update(_polygon_props(pts))`。
+- DXF/T3 的 LWPOLYLINE 不写 closed 标志且首尾可能相距整条边长，因此不能靠首尾距离判断
+  闭合；面积本就按整环 shoelace 计算，统一记 `closed=True`。
+
+### 15.3 32 个逐条处理结果
+
+**补全保留 17 / 补全后被 Task 2 门禁降级 15 / 仍缺 0。**
+
+| 结果 | 实体 | 顶点 | 面积 m² | 备注 |
+|---|---|---|---|---|
+| 补全保留 | polyline_room_10012 | 8 | 124.2 | 设备房，见 §16.5 |
+| 补全保留 | polyline_room_10024 | 8 | 96.3 | 设备房，见 §16.5 |
+| 补全保留 | polyline_room_10002 | 4 | 27.0 | |
+| 补全保留 | polyline_room_10021 | 4 | 18.1 | |
+| 补全保留 | polyline_room_10019 | 4 | 17.0 | |
+| 补全保留 | polyline_room_10030 | 4 | 15.0 | |
+| 补全保留 | polyline_room_10004 | 4 | 14.5 | |
+| 补全保留 | polyline_room_10007 | 4 | 14.4 | |
+| 补全保留 | polyline_room_10015 | 4 | 13.8 | |
+| 补全保留 | polyline_room_10014 | 4 | 13.5 | |
+| 补全保留 | polyline_room_10001 | 4 | 13.0 | |
+| 补全保留 | polyline_room_10016 | 8 | 12.0 | |
+| 补全保留 | polyline_room_10006 | 4 | 11.0 | |
+| 补全保留 | polyline_room_10028 | 4 | 9.7 | |
+| 补全保留 | polyline_room_10010 | 4 | 9.2 | |
+| 补全保留 | polyline_room_10020 | 4 | 8.0 | |
+| 补全保留 | polyline_room_10017 | 8 | 6.1 | |
+| 降级 | polyline_room_10029 | 4 | 448.0 | duplicate_entity（ROOM_784，IoU 1.0） |
+| 降级 | polyline_room_10011 | 4 | 288.0 | room_container（内 10 个空间实体 + 走道） |
+| 降级 | polyline_room_10027 | 4 | 270.1 | room_container（卫生间二 / 强电间 2 个标注） |
+| 降级 | polyline_room_10032 | 4 | 270.1 | room_container（1 空间实体 + 消防器材室） |
+| 降级 | polyline_room_10034 | 4 | 246.6 | empty_outline（最近洞口 35.98m） |
+| 降级 | polyline_room_10013 | 4 | 121.0 | room_container（内 5 个空间实体） |
+| 降级 | polyline_room_10003 | 4 | 46.5 | duplicate_entity（ROOM_6717，IoU 1.0） |
+| 降级 | polyline_room_10009 | 4 | 37.2 | duplicate_entity（ROOM_1993，IoU 1.0） |
+| 降级 | polyline_room_10033 | 4 | 36.0 | duplicate_entity（ROOM_7353，IoU 0.937） |
+| 降级 | polyline_room_10031 | 4 | 24.5 | duplicate_entity（ROOM_3402，IoU 1.0） |
+| 降级 | polyline_room_10018 | 4 | 21.2 | duplicate_entity（ROOM_9929，IoU 0.99） |
+| 降级 | polyline_room_10000 | 4 | 13.0 | duplicate_entity（ROOM_7506，IoU 1.0） |
+| 降级 | polyline_room_10008 | 4 | 12.8 | duplicate_entity（ROOM_1956，IoU 1.0） |
+| 降级 | polyline_room_10005 | 4 | 6.0 | duplicate_entity（ROOM_9814，IoU 1.0） |
+| 降级 | polyline_room_10026 | 4 | 5.9 | duplicate_entity（ROOM_3966，IoU 1.0） |
+
+> 15 个降级全部有几何（顶点 4），降级原因是几何不可信，不是「无法构造 points」；
+> 若按「无 points 才降级」规则，这 15 个会全部保留，与 §16 的假 room 抑制目标冲突。
+
+### 15.4 补全后的几何质量
+
+| 指标 | 东莞通（107 room/corridor） | villa（24 room） |
+|---|---|---|
+| 顶点数分布 | 3:13、4:88、5:2、8:4 | 4:15、5:8、7:1 |
+| **最小顶点数** | **3**（13 个 3 点房间均为 `ROOM_*`，非 32 个补全对象） | 4 |
+| 补全的 32 个 | 顶点 4–8，最小 4 | — |
+| 自交（shapely `is_valid=False`） | **0 / 107** | **0 / 24** |
+| 被 G 抑制的自交实体 | 1（ROOM_8555，9 点，1.78m²） | 29（§16.4） |
+| 多边形面积 / bbox 面积 | min 0.300（ROOM_3593）、median 1.000 | min 0.704（ROOM_4551）、median ≈1.000 |
+| 补全的 32 个 poly/bbox | min 0.375（10024）、其余多为 1.000 | — |
+| `area` 属性 vs 多边形 shoelace | 补全的 32 个误差 <0.01% | 0 处 >2% |
+| `area_m2` vs 多边形 | 13 个 `ROOM_*` 3 点未闭合房间不一致（见下） | 0 处 >2% |
+
+**面积与 bbox 一致性的残留偏差（如实登记）**：东莞通有 13 个 `ROOM_*` 为 3 点、`closed=False`，
+Step 1.8 的 `_correct_unclosed_room_area` 仍按 bbox 估算 `area_m2`（P131 既有口径），
+与多边形 shoelace 面积不一致，例：ROOM_349 `area_m2=13.8` / 多边形 4.36m²、
+ROOM_634 1.54 / 0.77、ROOM_3377 17.85 / 6.06。最大偏差约 3.2×。
+这 13 个不在 32 个补全对象内，也不是本轮引入；本轮**未改**该口径（改它会牵动 P131 与
+多张图的 EVAC/AREA 判定），在此登记供产品口径裁决。
+
+### 15.5 与 32 个无 points 的关系
+
+- 32 个补全后全部可用：顶点 ≥4、无自交、`area` 与多边形一致。
+- 32 个中 17 个保留、15 个由 Task 2 门禁降级（逐条见 §15.3）；**没有「仍缺 points」**。
+- 加上 3 个同源 corridor：`polyline_corridor_10022` duplicate 降级，10023（27.1m²）、
+  10025（21.8m²）补全保留。东莞通最终 room/corridor = 107。
+
+### 15.6 引擎级不变量（防回归）：room 必须带可用 points
+
+32 个的根因是三条构造路径漏写；已在构造期统一落盘。为避免未来新增路径（如图层规则
+`PLAN→room`、合并产生的 room）再次产出「无 points 的 room」，门禁函数另加兜底：
+
+| 情形 | 处理 | 记录 |
+|---|---|---|
+| `properties.points` 缺失或坐标非法，bbox 有效 | 按 bbox 矩形补全（`points_source=bbox_rect`，`closed=True`，4 点） | 不进抑制日志（属补全） |
+| `properties.points` 缺失且 bbox 无效（宽或高 ≤0） | `entity_type` 降级为 `other` | `room_suppressions` 中 `action=downgraded`、`reasons=[missing_polygon]` |
+
+实测影响：5 张主样本中无此类实体（东莞通 107 / villa 24 的 room 均已在构造期带 points），
+因此本轮数字不变；新增 2 条单元测试固定该不变量（补全保留、无效 bbox 降级）。
+
+## 16. 假 room 抑制（Task 2，2026-11-08）
+
+### 16.1 判据组合：7 条结构/上下文证据，不做面积单判
+
+新增 `_suppress_implausible_rooms(entities, primitives)`，在 Step 1.4 之后、Step 1.8 之前执行
+（[main.py](file:///d:/OpenClawData/BAA/src/baa_engine/semantic_analyzer/main.py) Step 1.4b），
+逐条记录到 `room_suppressions`（id / bbox / reasons / evidence），供报告与审计。
+
+| 代号 | 判据 | 参数 | 实测依据（为什么不是拍脑袋） |
+|---|---|---|---|
+| A | 退化多边形 | 多边形面积 / bbox 面积 **<5%** | 真实房间最低 0.300（ROOM_3593）、10024 0.375、10012 0.45；命中者 0.000–0.001（ROOM_4594/6562），相差 2 个数量级 |
+| B | 未闭合大边界 | `closed != True` 且顶点 **<4** 且 bbox **≥50m²** | 命中 ROOM_4283（45.3×10.3m，3 点）、ROOM_7691（24.4×15.3m，3 点）；13 个 <50m² 的 3 点房间全部保留，避免误杀真实小房间 |
+| C | 重复实体 | bbox IoU **≥0.90** 且面积相对差 **≤5%**，按来源权威度保留 | 11 条命中全部与 `ROOM_*` 同 bbox（IoU 1.0/0.99/0.937）；来源序：ROOM_（显式图元）> polyline_（直接闭合线）> line_chain_（面遍历派生） |
+| D | 容器 / 整层轮廓 | 仅 **≥50m²**；内部空间实体 **≥2**，或不同房间名 **≥2**，或「空间实体 ≥1 且房间名 ≥1」 | 5 条命中：ROOM_784（10 实体 + 走道）、10011（10 实体 + 走道）、10027（卫生间二/强电间）、10032（1 实体 + 消防器材室）、10013（5 实体） |
+| E | 空壳轮廓 | 仅 **≥50m²**；内部空间实体 **0** 且房间名 **0** 且边界 **5m** 内无洞口 | 1 条命中 10034（246.6m²，最近洞口 35.98m）；10012/10024 边界 1m 内有 14/2 个门窗，保留 |
+| F | 贴图框 | bbox 与 titleblock 图框矩形重合 **≤500mm** | 5 张样本 **0 命中**；保留为后续图纸的防线，本轮不产生误杀 |
+| G | 自交多边形 | 边界自交 / 重合边 / 重复顶点（`_is_simple_polygon`） | 东莞通 1 条（ROOM_8555）；villa 29 条，全部 shapely `is_valid=False`；保留房间 0 条无效 |
+
+**为什么不是面积一刀切**：东莞通保留了 2 个 bbox ≥50m² 的真实空间（10012 276.3m² bbox、
+10024 256.6m² bbox），villa 保留 24 个 4–7 顶点简单房间；抑制只发生在 A–G 至少一条成立时。
+
+### 16.2 构造期剔除：有向面积 <0 的外侧包络面
+
+左手法面遍历的定向约定：连通分量的**内面逆时针（signed >0）**，
+**外侧包络面顺时针（signed <0）**。这是精确几何判据，不是面积阈值。
+`_sweep_line_detect_rooms` 两处面循环已改为 `signed <= 0: continue`。
+
+villa 的 5 个 25×24m 级假 room 正是这一类，构造期即被剔除（不会进入 entity 层）：
+
+| 面积 m² | bbox | 顶点 | 内部包含的正向面数 |
+|---|---|---|---|
+| 392.8 | 25.4×23.5m | 105 | 158 |
+| 354.3 | 24.4×21.1m | 95 | 125 |
+| 161.5 | 26.0×15.2m | 96 | 192 |
+| 129.6 | 34.5×12.1m | 92 | 63 |
+| 116.8 | 25.0×11.9m | 93 | 56 |
+
+「内部包含几十到上百个正向面」证明它们是连通分量的外侧包络，不是房间。villa 面遍历
+共 50 个正向面 + 14 个非正面积面（含上表 5 个大面），剔除负向后保留 50 个正向面候选。
+
+东莞通在同一路径的子调用中：43 个正向面、90 个非正面积面；非正面积面最大也落在
+448m²（32×14m）、288m²（32×9m）、270m²（7×37m）量级，与 §14 的大 bbox 假 room 同尺度。
+这些面未进入 entity 层；最终 11 个 bbox ≥50m² 的 room 由 A–G 逐条处置（§16.3）。
+
+### 16.3 东莞通 22 条抑制明细
+
+room/corridor 129 → 107（−22）。逐条：
+
+| # | 实体 | bbox | bbox 面积 | 命中判据 | 证据 |
+|---|---|---|---|---|---|
+| 1 | ROOM_4283 | 45.3×10.3m | 466.6 | unclosed_polygon (B) | 3 点，closed=False |
+| 2 | polyline_room_10029 | 32.0×14.0m | 448.0 | duplicate_entity (C) | duplicate_of=ROOM_784，IoU 1.0 |
+| 3 | ROOM_784 | 32.0×14.0m | 448.0 | room_container (D) | 内 10 个空间实体 + 走道 |
+| 4 | ROOM_7691 | 24.4×15.3m | 375.3 | unclosed_polygon (B) | 3 点，closed=False |
+| 5 | polyline_room_10011 | 32.0×9.0m | 288.0 | room_container (D) | 内 10 个空间实体 + 走道 |
+| 6 | polyline_room_10027 | 7.3×37.0m | 270.1 | room_container (D) | 标注 卫生间二 / 强电间 |
+| 7 | polyline_room_10032 | 7.3×37.0m | 270.1 | room_container (D) | 1 空间实体 + 消防器材室 |
+| 8 | polyline_room_10034 | 9.5×26.1m | 246.6 | empty_outline (E) | 最近洞口 35,982.8mm |
+| 9 | polyline_room_10013 | 13.3×9.1m | 121.0 | room_container (D) | 内 5 个空间实体 |
+| 10 | polyline_room_10003 | 5.0×9.3m | 46.5 | duplicate_entity (C) | ROOM_6717，IoU 1.0 |
+| 11 | polyline_room_10009 | 4.0×9.3m | 37.2 | duplicate_entity (C) | ROOM_1993，IoU 1.0 |
+| 12 | polyline_room_10033 | 6.0×6.0m | 36.0 | duplicate_entity (C) | ROOM_7353，IoU 0.937 |
+| 13 | polyline_corridor_10022 | 10.4×2.6m | 27.1 | duplicate_entity (C) | ROOM_1803，IoU 1.0 |
+| 14 | polyline_room_10031 | 3.5×7.0m | 24.5 | duplicate_entity (C) | ROOM_3402，IoU 1.0 |
+| 15 | polyline_room_10018 | 5.1×4.2m | 21.2 | duplicate_entity (C) | ROOM_9929，IoU 0.99 |
+| 16 | ROOM_4594 | 6.9×2.3m | 15.8 | degenerate_polygon (A) | 多边形 0.000m² |
+| 17 | polyline_room_10000 | 5.2×2.5m | 13.0 | duplicate_entity (C) | ROOM_7506，IoU 1.0 |
+| 18 | polyline_room_10008 | 4.0×3.2m | 12.8 | duplicate_entity (C) | ROOM_1956，IoU 1.0 |
+| 19 | polyline_room_10005 | 2.5×2.4m | 6.0 | duplicate_entity (C) | ROOM_9814，IoU 1.0 |
+| 20 | polyline_room_10026 | 2.7×2.2m | 5.9 | duplicate_entity (C) | ROOM_3966，IoU 1.0 |
+| 21 | ROOM_8555 | 2.8×0.7m | 2.1 | self_intersecting (G) | 9 点，1.778m² |
+| 22 | ROOM_6562 | 1.7×1.0m | 1.8 | degenerate_polygon (A) | 多边形 0.001m² |
+
+判据分布：C 11、D 5、B 2、A 2、E 1、G 1。**D/C 全部有实体证据；A 的比值差 2 个数量级；
+B 只作用于 ≥50m²；E 只作用于 ≥50m² 且 5m 内无洞口。**
+
+### 16.4 villa 29 条抑制明细（全部 G 自交）
+
+| 实体 | bbox | 面积 m² / 顶点 |
+|---|---|---|
+| line_chain_room_9067 | 10.2×7.2m | 61.1 / 52 |
+| line_chain_room_9066 | 10.2×3.9m | 39.5 / 13 |
+| line_chain_room_9039 | 3.8×8.2m | 27.4 / 26 |
+| line_chain_room_9060 | 3.7×7.2m | 27.0 / 17 |
+| line_chain_room_9034 | 7.8×3.0m | 23.5 / 13 |
+| line_chain_corridor_9064 | 2.1×11.3m | 23.4 / 12 |
+| line_chain_corridor_9063 | 2.2×8.2m | 18.0 / 8 |
+| line_chain_corridor_9061 | 2.1×8.2m | 17.5 / 7 |
+| line_chain_room_9058 | 4.0×4.2m | 17.1 / 13 |
+| line_chain_room_9056 | 3.9×4.2m | 16.6 / 24 |
+| line_chain_room_9075 | 3.9×4.1m | 15.9 / 17 |
+| line_chain_room_9055 | 3.9×3.9m | 15.2 / 7 |
+| line_chain_room_9059 | 3.7×3.9m | 14.6 / 7 |
+| line_chain_room_9045 | 3.9×3.4m | 13.3 / 7 |
+| line_chain_room_9074 | 3.9×4.1m | 12.2 / 18 |
+| line_chain_room_9081 | 4.0×3.0m | 11.9 / 10 |
+| line_chain_room_9033 | 3.6×3.2m | 11.6 / 19 |
+| line_chain_room_9038 | 3.9×3.4m | 9.2 / 13 |
+| line_chain_room_9054 | 2.2×4.2m | 9.1 / 14 |
+| line_chain_room_9053 | 2.1×3.9m | 8.3 / 13 |
+| line_chain_room_9065 | 2.1×3.9m | 7.7 / 12 |
+| line_chain_room_9070 | 2.4×3.0m | 7.2 / 14 |
+| line_chain_room_9078 | 2.5×3.0m | 7.2 / 7 |
+| line_chain_room_9049 | 2.1×3.4m | 7.2 / 8 |
+| line_chain_room_9080 | 2.4×3.0m | 7.1 / 9 |
+| line_chain_room_9042 | 3.2×2.1m | 6.7 / 7 |
+| line_chain_room_9036 | 4.0×3.8m | 6.2 / 27 |
+| line_chain_room_9041 | 2.1×2.8m | 5.7 / 7 |
+| line_chain_room_9035 | 3.9×3.2m | 5.2 / 16 |
+
+villa 总量：**53（门禁关）→ 24（门禁开）**；相对 §14 的基线 8 个，实际是
+「5 个 25×24m 假 room 构造期剔除 + 29 个自交面抑制 + 21 个正向简单面转正」。
+29 条自交均无房间名标注（villa 全图没有任何 room-name 文本落在这些多边形内），
+且 shapely 全部 `is_valid=False`，属于 X 型线交叉产生的不可用环，不是可修复的真实房间边界。
+
+### 16.5 未误杀证明：保留的大面积房间逐条核对
+
+东莞通门禁后 bbox ≥50m² 的 room 仅 2 个，全部保留：
+
+| 实体 | bbox | bbox 面积 | 多边形面积 | 顶点 | 类型推断 | 边界 1m 内门窗 |
+|---|---|---|---|---|---|---|
+| polyline_room_10012 | 7.55×36.6m | 276.3 | 124.23 | 8 | equipment_room（0.762） | 14 |
+| polyline_room_10024 | 23.5×10.9m | 256.6 | 96.28 | 8 | equipment_room（0.762） | 2 |
+
+两条均为 L/U 形（poly/bbox 0.45 / 0.375），不是整层矩形；`equipment_room` 推断走
+`room_type_infer` 的「需文本证据」分支，说明附近有设备类房间名；且边界 1m 内有 14/2 个
+门/窗。A（≥0.05）、B（closed）、C（无同 bbox 重复）、D（内部无容器证据）、E（5m 内有洞口）、
+G（简单环）全部不命中，故保留。**没有「大面积 ⇒ 抑制」这条规则。**
+
+villa 门禁后无 bbox ≥50m² 的房间；24 个保留房间全部是 4/5/7 顶点简单多边形，
+`area_m2` 与多边形面积 0 偏差，poly/bbox min 0.704。唯一 ≥50m² 的 9067 是 52 顶点自交
+复合环，按 G 抑制并列入 §16.4。
+
+### 16.6 下游变化（逐图，门禁前 → 门禁后）
+
+同一 `fp_rate_audit.run_review`、同一 HEAD，只切换门禁函数：
+
+| 图 | room/corridor 总数 | evaluated | applicable | findings |
+|---|---|---|---|---|
+| 东莞通-建筑 | 129 → **107** | 35 → **34** | 177 → **171** | 20 → **20** |
+| villa-details | 53 → **24** | 17 → **9** | 159 → **108** | 6 → **6** |
+| multiple-stadion | 0 → 0 | 3 → 3 | 58 → 58 | 0 → 0 |
+| plans（two-family） | 0 → 0 | 1 → 1 | 32 → 32 | 0 → 0 |
+| Demo F-1 | 0 → 0 | 0 → 0 | 29 → 29 | 0 → 0 |
+
+- findings **零变化**：东莞通 20、villa 6，均无 critical；抑制只作用于假 room，未删除
+  任何真实违规，也未新增 critical。
+- evaluated 下降来自「被抑制房间原本承载的可判定规则」：东莞通 −1、villa −8；
+  applicable 对应 −6 / −51。这是分母的诚实收缩，不是判定退化。
+- 5 张样本合计 findings 26（全 low），与门禁前一致。
+
+### 16.7 全量 79 图回归：门禁未引入新的 critical
+
+用 `scripts/fp_rate_audit.py` 无参全量（`data/drawings/real` 79 个文件）复跑，口径与 §8 一致：
+
+| 指标 | 门禁后 |
+|---|---|
+| 审计文件数 | 79 |
+| 有效图纸 | 48（无效 8 + 跳过 22，均剔除出基线） |
+| 规则可达（有效图纸并集） | 79 / 243 = 32.5%；可判定口径 72 / 165 = 43.6% |
+| room 实体总数（含合成样本） | 240 |
+| findings 原始条数 | 76（low 63 / critical 7 / major 4 / minor 2），分布在 9 个文件 |
+| findings 去重后（func_id + entity_id） | 56（low 48 / critical 4 / major 3 / minor 1） |
+
+去重是为了剔除两份同图副本（`baa-file-5840029dbcb8.dwg` 与 `baa-file-b042e240337a.dwg`）
+产生的重复行。4 条唯一 critical 逐条如下：
+
+| severity | 图 | 规则 | 实体 | actual / threshold | 性质 |
+|---|---|---|---|---|---|
+| critical | synth_control_room_violation.dxf | AREA-004 | polyline_room_3 | 16.0 / 30.0 | 人工构造的违规样本，预期 critical |
+| critical | baa-file-5840029dbcb8.dwg | DIM-003 | ROAD_2527 | 0.8 / 4.0 | 道路宽度，与房间门禁无关 |
+| critical | baa-file-5840029dbcb8.dwg | DIM-003 | ROAD_2841 | 0.5 / 4.0 | 同上 |
+| critical | baa-file-5840029dbcb8.dwg | DIM-003 | ROAD_3290 | 2.0578 / 4.0 | 同上 |
+
+结论：**门禁新增 critical = 0**。4 条 critical 中 1 条出自人工违规样本（设计上就该报），
+3 条全部落在 `ROAD_*` 道路实体；没有任何一条挂在被抑制或被补全的 room 实体上。
+对照 5 张主样本 findings 门禁前后 26 → 26（东莞通 20 / villa 6），可判定基数
+（evaluated/applicable）只随假 room 分母收缩，未牵动任何既有 finding。
+
+## 17. 阶段 B 重跑复核（Task 3，2026-11-08）
+
+### 17.1 方法（与 §14.1 完全一致）
+
+墙洞取间隙中心，沿法向（horizontal→y、vertical→x）两侧偏移 300/600/1000/1500/2500/4000mm，
+射线法（shapely 点包含）判断落点属于哪个 room 多边形；只在「墙洞中心距最近 room 多边形
+≤500mm」的近邻子集上评估配对算法本身；paired = 两侧各命中一个不同 room。
+
+### 17.2 结果
+
+| 图 | room | doorway | ≤500mm | 500–1000 | 1000–5000 | >5000 | 近邻子集 | paired | 近邻成功率 |
+|---|---|---|---|---|---|---|---|---|---|
+| 东莞通 | 107 | 277 | 15 | 16 | 59 | 187 | 15 | 4 | **26.7%** |
+| villa | 24 | 27 | 7 | 5 | 11 | 4 | 7 | 1 | **14.3%** |
+| stadion / two-family / Demo F-1 | 0 | 0 | — | — | — | — | 0 | 0 | — |
+| **合计** | 131 | **304** | 22 | 21 | 70 | 191 | **22** | **5** | **22.7%** |
+
+全量口径：5/304 = **1.6%**。
+
+### 17.3 失败模式分布
+
+| 失败模式 | 数量 | 占比（全量 doorway / 近邻子集） | 说明 |
+|---|---|---|---|
+| 上游房间覆盖不足（>500mm 无房间） | 282 | 92.8% / — | 其中 >5m 191 条（62.8%）；东莞通 187、villa 4 |
+| 近邻但两侧零命中 | 14 | 4.6% / 63.6% | 墙洞中心落在房间边界的延长线上，最近房间是**侧向相邻**而非法向对侧；偏移 300–4000mm 均不进入 |
+| 两侧命中同一房间 | 2 | 0.7% / 9.1% | 墙洞位于房间自身边界上，对侧无另一房间（未分割/未识别） |
+| 单侧命中 | 1 | 0.3% / 4.5% | 一侧是已识别房间，另一侧是外墙/未识别空间 |
+| **配对成功** | **5** | **1.6% / 22.7%** | 两侧各命中不同房间 |
+
+典型近邻零命中（东莞通）：`doorway_gap_h_-13300_-36400` 距最近 room 边界 375mm，
+该 room 在墙洞左侧（x 方向），而法向偏移沿 y 方向，任何偏移都不进入；说明墙洞不在
+两个已识别空间之间。villa 同类 5 条的最近距离仅 15–30mm，但偏移仍全部落空，原因相同。
+
+### 17.4 结论：22.7% < 80%，仍不具备可用水平
+
+- 相比 §14 的 **0%**，近邻配对成功率提升到 **22.7%**（东莞通 0→26.7%，villa 0→14.3%）：
+  points 补全与假 room 抑制确实解除了「无多边形可判」和「全图假 room 污染近邻」两个前置障碍。
+- 但离 ≥80% 仍差一大截。瓶颈已从「房间没有 points」转移到**「房间集合不铺满平面图」**：
+  304 个墙洞中 282 个（92.8%）在 500mm 内没有任何 room 多边形；近邻子集里 63.6% 的墙洞
+  也不在两个空间之间。配对算法本身在 5 个成功样本上可复现，问题在前置的房间拓扑。
+- 还差的一环（按顺序）：
+  1. **房间覆盖**：当前东莞通的 room 主要来自「直接闭合 LWPOLYLINE」+ 少量 `ROOM_*`，
+     走廊/管井/楼梯/由墙线围合的房间没有进入 room 集合；需要「墙线闭合环 + 门洞补边」
+     的面提取，而不是只认闭合多段线。
+  2. **面遍历的可信度**：villa 的 50 个正向面中 29 个自交不可用，说明图存在 X 型线交叉
+     且未拆分；需先做边交叉拆分或面修复，才能让 villa 的可用房间数接近平面覆盖率。
+  3. **墙洞有效性**：近邻零命中的 14 条说明 1500mm 聚类产生的部分间隙不是「两个空间
+     之间的洞」，应先按两侧空间存在性过滤，再进入配对。
+- 按 §14.4 的解锁条件，三项前置中「房间多边形完整性」已达成，「假 room 抑制」已达成，
+  **「房间覆盖率」仍未达成**；因此阶段 B 不进入实现，缺陷与阈值均不改动。
+
+### 17.5 本轮变更清单（供复核）
+
+| 文件 | 变更 |
+|---|---|
+| [room.py](file:///d:/OpenClawData/BAA/src/baa_engine/semantic_analyzer/room.py) | `_polygon_props` / `_is_simple_polygon` / `_suppress_implausible_rooms`；两处面循环 `signed<=0 continue`；三处构造写 points；无 points room 的 bbox 补全/降级兜底 |
+| [main.py](file:///d:/OpenClawData/BAA/src/baa_engine/semantic_analyzer/main.py) | Step 1.4b 接入门禁；返回 `room_suppressions` |
+| [test_room_geometry_integrity.py](file:///d:/OpenClawData/BAA/src/tests/test_room_geometry_integrity.py) | 18 条：`_polygon_props`、简单环、A–G 正例、真实大房间/小房间不误杀反例、points 不变量 |
+| 文档 | §14 取代标注；§15/§16/§17 新增 |
 
