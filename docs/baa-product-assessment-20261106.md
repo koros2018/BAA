@@ -1948,8 +1948,10 @@ python "$env:TEMP\baa_probe_face_extract.py"
 
 **5 张里 3 张根本没有墙线候选**：`_collect_wall_lines` 要求 LINE/LWPOLYLINE 边长 ≥2,000（按 mm），
 而 stadion/plans/demo-F1 的坐标单位是米——LINE bbox 边长中位 1.5 / 0.4 / 1.8，≥2,000 的个数为 0。
-plans 的承重墙图层 `Structural - Bearing` 还会被 `STRUCT` 关键词当作非建筑图层排除。
-即清洗的前提不是「图层失效」，而是**单位归一 + 图层词表**两处上游缺口。
+plans 的承重墙图层 `Structural - Bearing` 还会被 `STRUCT` 关键词当作非建筑图层排除
+（该图层性质已由 §20.4 复核：属承重填充线型，排除为正确行为，此处不再计为缺口）。
+即清洗的前提不是「图层失效」，而是**单位归一 + 图层词表**两处上游缺口
+（后续复核：图层词表一项不成立，见 §20.4；单位归一已在 §20 落地）。
 
 **补充实验（即使给出完美主区域）**：取东莞通 2m 最大连通块 bbox（116m×70m，覆盖 51.0% 墙线长度）
 作为主区域裁剪后重跑：12,973 段 / 9,910 面 / 碎片 **63.8%**，比全图 59.4% 更高（裁剪切断跨区墙线）。
@@ -1991,5 +1993,112 @@ plans 的承重墙图层 `Structural - Bearing` 还会被 `STRUCT` 关键词当�
 **复现**：本轮探针均为临时脚本（旧 `_axis_align_merge` 冻结副本 + 网格去重 + 连通块 + 剥面），
 验证后已删除；同一脚本可按 §19 表格逐项重跑。本轮仅修改 `room.py` 一处 + 2 条测试（独立提交），
 其余为文档；未删除任何旧结论，§18 保留为阶段一基线并加前向引用。
+
+
+## 20. 解析层单位归一化（2026-11-08）
+
+> 取代标注：§19 的「停止几何提取路线」结论继续有效（碎片率是墙体网络自身问题，单位不是决定因素）；
+> §19.3「还需要的上游条件」第 1 条（单位归一）本轮落地；第 2 条图层词表经 §20.4 复核不成立。
+> §18–§19 全部保留原文，未删除。
+
+### 20.1 判据与实现
+
+- 判据来源：**复用** `drawing_classifier._area_unit_scale()`（LINE 长度中位数 ≥ `_SHEET_MM_LINE_MEDIAN`=50 → mm，否则 m），
+  解析层不另造推断。`DrawingResult.unit_normalization` 记录 `{applied, source_unit, coordinate_scale, line_median, method, reason}`。
+- 语义差异（已处理）：演示层的 `_area_unit_scale` 接收 `classify_sheet_type` 汇总的 LINE 长度列表
+  （取 `properties["length"]`，缺失回退 bbox 长边）；解析层 `_detect_source_unit` 用**完全相同的取数规则**重建该列表，
+  因此判据同源、同参。差异只在调用时机（解析层在语义分析前、输入为原始图元），不构成判据差异。
+- 归一化范围（仅 `scale=1000` 时）：bbox(x,y,width,height)、`length/radius/diameter/height/measured_length`、
+  `area`（×scale²）、`start_point/end_point`、`insert_x/insert_y`、`points`；DIMENSION 的 `measurement` 与
+  `position/defpoint2/defpoint3/text_midpoint`；块引用 `insert_point`；`sheets[*]` 内 primitives/dimensions。
+  不缩放 `angle/text/closed/point_count/x_scale/y_scale/rotation`。散落的阈值常量一律未动。
+- 不归一化：`scope_mode == "non_plan"`（restroom 属描线矢量化产物，任何尺度都不成立）。
+- 已知不一致（未修，仅记录）：`sheet_type.metrics`（`area_unit`/`micro_primitive_ratio` 等）在归一化**之前**计算，
+  因此米制图的 `metrics.area_unit` 仍标 `m`，与归一化后的 primitives 坐标系不一致。该字段只用于证据文案
+  （`drawing_classifier.py:724`），不参与任何判定；分数与面积阈值不受影响。
+
+### 20.2 逐图前后对比（同图、同链路，仅单位不同）
+
+| 图 | 源单位 / 缩放 | 边长中位（前 → 后） | 实体数 / 未识别（前 → 后） | 主要类型（前 → 后） | 房间数 | 墙线候选 | door 宽度 n / 中位 |
+|---|---|---|---:|---|---:|---:|---:|---|
+| 东莞通 | mm / ×1（no-op） | 701.4941 → 701.4941 | 10,064 / 0 → 同 | 不变 | 107 → 107 | 5,457 → 5,457 | 3,525 / 1.05m → 同 |
+| villa | mm / ×1（no-op） | 212.7318 → 212.7318 | 8,624 / — → 同 | 不变 | 24 → 24 | 847 → 847 | 2,548 / 0.8188m → 同 |
+| stadion | m / ×1000 | 0.7058 → 705.8066 | 2,208 / 366 → 2,552 / 48 | wall1494·stair325·door217·text148·dim12·column10·other2 → wall1730·stair325·door262·text148·doorway48·window16·dim12·room11 | 0 → 11 | 0 → 800 | 10 / 0.5m → 294 / 0.8335m |
+| plans | m / ×1000 | 0.3 → 300.0 | 997 / 512 → 1,101 / 391 | other478·text176·column154·door84·equipment66·wall39 → other412·wall226·text176·door170·equipment66·room30·doorway15·column6 | 0 → 30 | 0 → 128 | 0 → 185 / 1.0m |
+| demo-F1 | m / ×1000 | 1.75 → 1750 | 68 / 0 → 69 / 0 | partition32·wall22·door14 → partition32·wall22·door14·room1 | 0 → 1 | 0 → 14 | 0 → 2 / 0.3m |
+| restroom | unknown / ×1（non_plan） | — | — | — | — | — | — |
+
+类型变化不是丢信息，而是纠正：plans 归一化前 154 个 `column` 是面积 0.03–1.5（原始 m²）的闭合多边形，
+落在 `classify.py:709-716`「小面积近正方 → column」分支；归一化后面积按 mm² 重判为 room/door，
+只剩 6 个 40×40mm 的真实小方块。stadion 同理（`fur`/`section` 层 0.11–4.36 的多边形），`column` 10 → 0。
+
+### 20.3 覆盖率与 findings 前后（`scripts/fp_rate_audit.py`，5 张样本）
+
+| 图 | evaluated 前 → 后 | applicable 前 → 后 | findings 前 → 后 |
+|---|---:|---:|---:|
+| 东莞通 | 34 → 34 | 171 → 171 | 20 → 20 |
+| villa | 9 → 9 | 108 → 108 | 6 → 6 |
+| stadion | **3 → 8** | **58 → 105**（+50/−3） | **0 → 3** |
+| plans | **1 → 5** | **32 → 61**（+29） | 0 → 0 |
+| demo-F1 | **0 → 2** | **29 → 66**（+37） | 0 → 0 |
+| **并集** | **39 → 38（−1）** | **177 → 177（±0）** | 26 → 29 |
+
+**并集口径是唯一可比较口径**：逐图 evaluated 确有上升（stadion 3→8、plans 1→5、demo 0→2），
+但并集 evaluated 反而 −1、applicable 完全不变——因为新增可达规则（DIM-008/009/017、EVAC-001/004 等）
+在东莞通/villa 上早已可达，并集已被这两张 mm 图饱和。**不能把逐图上升当作规则覆盖率提升。**
+
+并集 evaluated 的唯一变化是**失去** `DIM-113`（stadion）。逐条取证：
+
+- 归一化前 stadion 有 115 个 door 被 Step 5.7 标 `is_evacuation_door=True`——该步的相邻判定用毫米容差、
+  而坐标是米，几乎全部门都「相邻于出口」，属错位导致的假标注；
+- 其中 DOOR_2365 / DOOR_2376（`width=1.0` 按米读、bbox 2.1×2.1）挤过宽度提取，撑起 DIM-113 的 2 条判定；
+- 归一化后只剩 8 个真实标注，且这 8 个的 bbox 均为 0×0，被 `atomic_functions.py:646` 的 bbox 合理性门禁拦下。
+
+即 DIM-113 的 `−1` 是**删除一条假判定**，不是能力回退。同理 stadion applicable 失去 STR-006/007/014
+（target 为 `column`，而 10 个假 `column` 被归一化纠正），也是纠正而非丢失。
+
+**新增 findings（3 条，全部 low，critical 0）**
+
+| 图 | func_id | actual / 作用域 | 说明 |
+|---|---|---|---|
+| stadion | EXIST-001 | 5 / 17 | 区域级提示：目标类型全图存在但 12/17 作用域未检出 |
+| stadion | EXIST-064 | 5 / 17 | 区域级提示：12/17 作用域未检出 |
+| stadion | EXIST-081 | 4 / 17 | 区域级提示：13/17 作用域未检出 |
+
+东莞通/villa 的 findings 集合逐条未变（20 / 6 条，全部 low）；plans、demo-F1 仍为 0。
+
+### 20.4 `Structural - Bearing` 图层：判定为「不是缺陷」
+
+plans 该图层 244 条 LINE（归一化后 mm）：中位长 **13.98mm**、p90 **3,210mm**、max 3,210mm；
+≥2,000mm 的 72 条中，端点唯一数 **144**、**共享端点 0**——72 条长线互不接续，不构成任何轮廓链，
+中位 14mm 也远低于墙体轮廓尺度。结论：**承重填充（hatch）线型，不是墙体轮廓**；
+被 `STRUCT` 关键词排除是正确行为，映射成 wall 会造 244 段假墙。**不修改，仅记录**；
+该图层映射代码本轮零改动（与单位归一化彻底拆分）。
+
+### 20.5 图纸自身缺陷（归一化不解决，如实记录）
+
+- plans `micro_primitive_ratio` **51.53%**（1,568 图元，归一化后同量级），demo-F1 全图 **68 图元**（归一化后 69，仅新增 1 个 room）、
+  闭合面 0。这两张图缺少可成环的墙体网络，房间只能靠少量面重建；这不是单位问题，不随归一化改善，本轮不修。
+- 东莞通/villa 是 mm 图，归一化为 no-op，所有指标逐位不变。
+
+### 20.6 判定：这条路线解锁了什么、没解锁什么
+
+| 能力 | 归一化前 | 归一化后 | 判定 |
+|---|---|---|---|
+| 几何面 / 房间重建 | stadion 0、plans 0、demo 0 | 11 / 30 / 1 | **解锁**（墙线候选 0 → 800 / 128 / 14） |
+| 净宽测量输入 | stadion 10 条、中位 0.5m（错位读数） | 294 条、中位 0.8335m；plans 185 条、1.0m | **输入解锁** |
+| 净宽规则判定（DIM-113） | 2 条假判定 | 0 条（8 个显式标注均被 bbox 门禁排除） | **未解锁**：卡在疏散门证据，不是坐标 |
+| 规则覆盖率（并集） | 39 / 177 | 38 / 177 | **未提升** |
+| 洞归属 | 无数值 | doorway 48/15 条已提取，无归属证据 | **未解锁**：坐标层已开，证据层未开 |
+
+结论：归一化真正交付的是**几何与测量的坐标系正确性**（房间/墙线/门宽可用），不是规则覆盖率。
+DIM-113 在 stadion 归一化后 evaluated 为 0，证明"门有了正确宽度"不等于"规则可判"——
+规则缺口在语义证据（`is_evacuation_door` / 洞归属），不在坐标。故本路线到此为止：
+后续转规则侧可确定交付的增量（证据层），不再投入面提取与阈值调参。
+
+**复现**：本轮探针为临时脚本（单位还原克隆 + `_collect_wall_lines` + `fp_rate_audit` on/off 双跑 +
+`Structural - Bearing` 端点连通性统计），验证后已删除；代码改动仅 `drawing_parser.py` 一处 + 12 条测试，
+独立提交；全量 `pytest src/tests` 3,095 passed / 28 skipped。未删除任何旧结论。
+
 
 
