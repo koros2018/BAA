@@ -8,6 +8,7 @@ from collections import Counter
 from src.baa_engine.atomic import (
     ATOMIC_FUNCTIONS,
     IMPLEMENTATION_GATE_DEFECTS,
+    IMPLEMENTATION_GATES,
     UNSUPPORTED_2D_REASONS,
 )
 from src.baa_engine.atomic_functions import FuncRegistry
@@ -106,3 +107,50 @@ class TestImplementationGateDefect:
         after = func.matches(entity)
         func.implementation_gate_defect = True
         assert before == after
+
+
+class TestImplementationGate:
+    """P133: 能力缺失门禁——剔除可判定分母、执行链不产出 PASS/FAIL。"""
+
+    def test_gate_list(self):
+        assert set(IMPLEMENTATION_GATES) == {"EVAC-002", "EVAC-003"}
+
+    def test_gate_flags_applied(self):
+        registry = FuncRegistry()
+        for fid, reason in IMPLEMENTATION_GATES.items():
+            func = registry.get(fid)
+            assert func.implementation_gate is True
+            assert func.implementation_gate_reason == reason
+            # 与 unsupported_2d / 执行缺陷是三种独立标记
+            assert func.unsupported_2d is False
+            assert func.implementation_gate_defect is False
+            assert fid not in UNSUPPORTED_2D_REASONS
+            assert fid not in IMPLEMENTATION_GATE_DEFECTS
+
+    def test_gate_not_executed_in_chain(self):
+        registry = FuncRegistry()
+        entity = {
+            "id": "R1",
+            "type": "room",
+            "properties": {
+                "has_evacuation_route": True,
+                "evacuation_path_length": 40.0,
+                "evacuation_too_far": True,
+                "area_m2": 4.0,
+            },
+        }
+        results = registry.execute_chained(["EVAC-001", "EVAC-002", "EVAC-003"], entity)
+        assert results.get("EVAC-001") is not None
+        assert "EVAC-002" not in results
+        assert "EVAC-003" not in results
+
+    def test_direct_execute_keeps_math(self):
+        """门禁只作用于执行链；直接 execute 保留数值计算，供单测与诊断使用。"""
+        result = FuncRegistry().get("EVAC-002").execute(
+            {
+                "id": "R2",
+                "type": "room",
+                "properties": {"evacuation_path_length": 40.0, "area_m2": 4.0},
+            }
+        )
+        assert result is not None and result.actual == 40.0

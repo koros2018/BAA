@@ -350,7 +350,14 @@ def run_review(dxf_path: Path) -> dict:
         f.func_id for f in funcs if getattr(f, "unsupported_2d", False)
     }
     applicable_unsupported = applicable_ids & unsupported_ids
-    judgeable_count = applicable_count - len(applicable_unsupported)
+    # P133: 实现门禁规则剔除出可判定分母（仍留在全规则口径分母）
+    gate_ids = {
+        f.func_id for f in funcs if getattr(f, "implementation_gate", False)
+    }
+    applicable_gated = applicable_ids & gate_ids
+    judgeable_count = (
+        applicable_count - len(applicable_unsupported) - len(applicable_gated)
+    )
     coverage = {
         "evaluated_rules": evaluated_count,
         "applicable_rules": applicable_count,
@@ -361,6 +368,8 @@ def run_review(dxf_path: Path) -> dict:
         ),
         "unsupported_rules": len(applicable_unsupported),
         "unsupported_func_ids": sorted(applicable_unsupported),
+        "implementation_gate_rules": len(applicable_gated),
+        "implementation_gate_func_ids": sorted(applicable_gated),
         "unrecognized_types": sorted(entity_type_set - referenced_types),
         "evaluated_func_ids": sorted(evaluated_ids),
         "applicable_func_ids": sorted(applicable_ids),
@@ -514,6 +523,9 @@ def main(argv: list[str]) -> int:
         unsupported_union = {
             f.func_id for f in all_funcs if getattr(f, "unsupported_2d", False)
         }
+        gate_union = {
+            f.func_id for f in all_funcs if getattr(f, "implementation_gate", False)
+        }
         applicable_union: set[str] = set()
         evaluated_union: set[str] = set()
         for r in valid_reports:
@@ -523,8 +535,8 @@ def main(argv: list[str]) -> int:
         # 严格口径：全局上下文规则（EXIST-083/093）会产出判定但不在适用集合内，
         # 分子分母必须同集合，否则覆盖率被虚增。
         strict_evaluated = evaluated_union & applicable_union
-        judgeable_union = applicable_union - unsupported_union
-        judgeable_evaluated = strict_evaluated - unsupported_union
+        judgeable_union = applicable_union - unsupported_union - gate_union
+        judgeable_evaluated = strict_evaluated - unsupported_union - gate_union
         print("\n=== 规则可达性（有效图纸并集）===")
         print(
             f"适用规则(别名归并): {len(applicable_union)} / {total_funcs} "
@@ -545,7 +557,8 @@ def main(argv: list[str]) -> int:
         print(
             f"[可判定口径] 实际判定: {len(judgeable_evaluated)} / {len(judgeable_union)} "
             f"({len(judgeable_evaluated) / len(judgeable_union):.1%})"
-            f"（分母剔除 unsupported_2d {len(applicable_union & unsupported_union)} 条）",
+            f"（分母剔除 unsupported_2d {len(applicable_union & unsupported_union)} 条"
+            f" + 实现门禁 {len(applicable_union & gate_union)} 条）",
             flush=True,
         )
         # 产品力评估口径：适用性可达 = 别名归并后能匹配到实体的规则占比

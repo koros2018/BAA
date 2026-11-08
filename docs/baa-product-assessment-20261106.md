@@ -456,6 +456,8 @@ subtype / 别名组命中而返回 `True`，进入作用域聚合后 `execute(No
 
 ### 9.3 双口径结果（并集，5 张参与判定图纸）
 
+> **2026-11-06 快照，已被 §9.6（2026-11-08 P133 复测）取代**；保留以对照变化。
+
 | 口径 | 分母构成 | 分子 | 比例 | 含义 / 适用 |
 |---|---|---|---|---|
 | 全规则口径 | 183（含全部 unsupported） | 42 | **23.0%** | 对外披露、跨版本可比：分母不因规则能力变化而缩放 |
@@ -497,6 +499,68 @@ mosque 0/0/0 · plans 1/32/0 · demo 0/29/0 · 4.通风 跳过 · baa-file 跳�
 python scripts/fp_rate_audit.py            # 打印全规则/严格/可判定三行覆盖率
 python -m pytest src/tests/test_p21_unsupported_2d.py -q
 ```
+
+### 9.6 P133 实现门禁：EVAC-002 / EVAC-003（2026-11-08 复测）
+
+**性质：承认能力缺失，不是修复缺陷。** 这两条规则在真实路径几何就绪前
+不具备判定能力，处理为「实现门禁」而非「判定失败」。
+
+#### 9.6.1 诊断结论（只读实测，东莞通 + villa）
+
+- `relations.py` 产出的 `distance` 是 **bbox 轴向间隙**，单位 mm：
+  相邻 `dist=sqrt(dx²+dy²)`（[relations.py:177](../src/baa_engine/semantic_analyzer/relations.py) 计算、184 赋值），
+  Phase3 `connects_to`（374/398 计算、379/403 赋值），Phase5 host_wall 恒 `0.0`。
+- `evacuation.py` 把各边距离直接累加（[evacuation.py:274](../src/baa_engine/semantic_analyzer/evacuation.py)），
+  `path_length=round(sum,2)`（282），**全程无 /1000**；唯一 mm→m 换算是 442 行的
+  doorway 净宽，与路径长度无关。
+- 因此 `path_length` 是「最短路径各边 bbox 间隙之和」，不是行走距离：
+  东莞通 109 条 has_route 中位 **48.28mm**、最大 **148.28mm**；villa 的 `ROOM_3524`
+  报 `40.64` 实为 `40.63902641154709`mm（room→door 单跳），`50.0` 实为
+  `~50mm`（room→doorway 单跳）。
+- 方向：比较层系统性高估 1000×（mm 数值 vs m 阈值），原 `>80` 守卫又把所有
+  ≥8cm 的路径静默吞掉 → 双重错误：`(30,80]mm` 全是假阳性，`>80mm` 全是假阴性。
+  东莞通「当前判为超距」61/109 → 按真实毫米换算后 **0/109**。
+
+#### 9.6.2 处理方式
+
+- 新增 `src/baa_engine/atomic/__init__.py::IMPLEMENTATION_GATES`，标记
+  `EVAC-002`（path_length 非行走距离）/ `EVAC-003`（`exceeds_max_distance`
+  由同一间隙和与米阈值比较得出）。标记字段 `AtomicFunction.implementation_gate`
+  / `implementation_gate_reason`，与 `unsupported_2d`、`implementation_gate_defect`
+  三者独立。
+- `execute_chained` 跳过被标记规则：**不产出 PASS/FAIL**；但直接 `execute()`
+  保留数值计算，供单测与诊断复算。
+- 删除 `atomic_functions.py` 原 `if val > 80: return None` 守卫。该守卫以
+  「路径计算 bug」掩盖了真正的单位/几何错配，删除后由门禁统一拦截。
+- `path_length` **保留毫米原值、不做 /1000**（换算会让它看起来"像米"，造成
+  二次误用）；改为显式标注语义：路由字段 `path_length_basis="bbox_gap_sum_mm"`，
+  实体属性 `evacuation_path_length_basis` 同步透传。
+
+#### 9.6.3 覆盖率三口径（并集，5 张参与判定图纸）
+
+| 口径 | 分子 | 分母 | 比例 | 与 9.3 快照的差异 |
+|---|---|---|---|---|
+| 全规则口径 | **39** | **183** | **21.3%** | 分母不变（门禁仍计入全规则口径）；分子 −3（DIM-006 早于本提交，EVAC-002/003 本提交） |
+| **可判定口径（正式）** | **39** | **105（183 − 76 − 2）** | **37.1%** | 分母 −2（门禁剔除）；分子 −2 |
+| ~~历史对照~~ | — | — | — | 仍废止，见 9.3 |
+
+> 2026-11-06 快照 `42/183 = 23.0%` 与 `42/107 = 39.3%` 已被本表取代。
+
+#### 9.6.4 逐图标记前后对比（`evaluated / applicable / findings`）
+
+| 图纸 | evaluated（前 → 后） | applicable | findings |
+|---|---|---|---|
+| 东莞通-建筑 | **37 → 35**（严格 35 → 33） | 177 → 177 | 20 → 20 |
+| villa-details | 12 → 12 | 137 → 137 | 6 → 6 |
+| multiple-stadion | 3 → 3 | 58 → 58 | 0 → 0 |
+| plans（two-family-house） | 1 → 1 | 32 → 32 | 0 → 0 |
+| Demo Multi-family F-1 | 1 → 1 | 51 → 51 | 0 → 0 |
+
+- 唯一集合变化：东莞通 `evaluated_func_ids` 去掉 `EVAC-002`、`EVAC-003`；
+  `applicable_func_ids` 逐图零变化。
+- **findings 零新增、零消失**（20/6/0/0/0 前后一致）：这两条规则在东莞通本就
+  被 EVAC-001 依赖门控挡住，标记只是去掉分子里的"伪可达"，不触碰任何结果。
+
 
 ## 10. A 桶属性补齐结论（2026-11-06）
 

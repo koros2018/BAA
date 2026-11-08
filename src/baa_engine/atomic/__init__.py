@@ -148,6 +148,16 @@ IMPLEMENTATION_GATE_DEFECTS = {
     "EXIST-095": "适用面命中但执行侧目标集合为空；缺 sump 实体",
 }
 
+# ── P133: 实现门禁（能力缺失，不是可判定缺陷）──
+# 与 IMPLEMENTATION_GATE_DEFECTS 的区别：后者判据可取、只是执行侧目标集合
+# 为空，仍留在可判定分母；本组所需的判据数据在实现侧根本不存在（path_length
+# 是 bbox 间隙和而非行走距离），因此剔除出可判定分母，同时保留在全规则口径
+# 分母——对外披露的分母不因能力缺失而缩放。
+IMPLEMENTATION_GATES = {
+    "EVAC-002": "path_length 为最短路径各边 bbox 间隙之和（mm），非行走距离，无法与 30m 阈值比较",
+    "EVAC-003": "exceeds_max_distance 由同一 bbox 间隙和与米阈值直接比较得出，非真实超距",
+}
+
 for _func in ATOMIC_FUNCTIONS:
     _reason = UNSUPPORTED_2D_REASONS.get(_func.func_id)
     if _reason is not None:
@@ -157,9 +167,14 @@ for _func in ATOMIC_FUNCTIONS:
     if _defect is not None:
         _func.implementation_gate_defect = True
         _func.defect_note = _defect
+    _gate = IMPLEMENTATION_GATES.get(_func.func_id)
+    if _gate is not None:
+        _func.implementation_gate = True
+        _func.implementation_gate_reason = _gate
 
 __all__ = [
     "ATOMIC_FUNCTIONS",
     "UNSUPPORTED_2D_REASONS",
     "IMPLEMENTATION_GATE_DEFECTS",
+    "IMPLEMENTATION_GATES",
 ]

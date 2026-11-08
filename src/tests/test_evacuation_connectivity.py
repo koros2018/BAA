@@ -314,6 +314,22 @@ class TestAreaUnitNormalization:
         }
         assert FuncRegistry().get("EVAC-002").execute(entity) is None
 
+    def test_evac_002_no_longer_swallows_large_values(self):
+        """P133: 删除 `if val > 80: return None` 守卫，>80 的数值不再被静默吞掉。"""
+        from src.baa_engine.atomic_functions import FuncRegistry
+
+        result = FuncRegistry().get("EVAC-002").execute(
+            {
+                "id": "room3",
+                "type": "room",
+                "properties": {
+                    "area_m2": 3.3,
+                    "evacuation_path_length": 112.37,
+                },
+            }
+        )
+        assert result is not None and result.actual == 112.37
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

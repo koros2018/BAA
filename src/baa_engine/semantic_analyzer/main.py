@@ -477,6 +477,10 @@ class SemanticAnalyzer:
                 ent.properties["has_evacuation_route"] = r.get("has_route", False)  # 操作
                 if r.get("path_length") is not None:  # check: value is not None
                     ent.properties["evacuation_path_length"] = r["path_length"]  # 操作
+                    # P133: 显式标注语义（bbox 间隙和，单位 mm；不是行走距离）
+                    ent.properties["evacuation_path_length_basis"] = r.get(
+                        "path_length_basis", "bbox_gap_sum_mm"
+                    )  # 操作
                 ent.properties["evacuation_too_far"] = r.get("exceeds_max_distance", False)  # 操作
                 # 路由级指标去重：同一条疏散路径只由代表房间判定一次
                 if r.get("route_key"):  # 分支

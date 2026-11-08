@@ -297,6 +297,10 @@ class AtomicFunction:  # class definition
     # unsupported_2d，规则仍留在可判定分母，仅用于缺陷清单。
     implementation_gate_defect: bool = False
     defect_note: str = ""
+    # P133: 实现门禁（能力缺失，不是可判定缺陷）。规则保留在全规则口径分母，
+    # 但剔除出可判定口径分母，执行链不产出 PASS/FAIL。
+    implementation_gate: bool = False
+    implementation_gate_reason: str = ""
 
     def __post_init__(self) -> None:  # hook: normalize set→list (some modules pass {"a", "b"})
         """数据层归一化：将 set 转为有序 list，保证 [0] 索引和 matches() 稳定。"""
@@ -1410,12 +1414,14 @@ class AtomicFunction:  # class definition
             area = props.get("area_m2", props.get("area", 0.0))
             if area and area > 5000:  # check: numeric comparison
                 return None  # return: None
-            val = props.get("evacuation_path_length", props.get("travel_distance", 0.0))
-            # P130: BFS 路径长度使用 bbox 边缘距离累加，超过 80m 基本为路径计算 bug
-            # （如 ROOM_9100=176m、ROOM_4599=112m、ROOM_755=78m 均为异常值）
-            if val and val > 80.0:  # check: numeric comparison
-                return None  # 路径计算异常，跳过判定
-            return val  # return
+            # P133: 删除原 `if val > 80: return None` 守卫。该守卫以"路径计算 bug"
+            # 掩盖了真正的单位错配：path_length 是毫米（各边 bbox 间隙之和），
+            # 却被直接与米阈值比较，任何 >80mm（8cm）的路径都会被静默吞掉。
+            # 单位与几何口径就绪前，EVAC-002 由 implementation_gate 统一拦截，
+            # 不在此处产出 PASS/FAIL；直接 execute 仅保留数值计算供诊断/单测使用。
+            return props.get(
+                "evacuation_path_length", props.get("travel_distance", 0.0)
+            )  # return
         if func_id == "EVAC-003":  # 疏散路径是否超距
             if "evacuation_too_far" not in props:  # check: membership test
                 return None  # 无疏散路径分析结果，跳过判定
@@ -1696,6 +1702,9 @@ class FuncRegistry:  # class definition
         for fid in ordered_ids:  # 循环
             func = self._funcs.get(fid)  # function call
             if func is None:  # condition: func is None:
+                continue  # 跳过
+            # P133: 实现门禁规则不进入判定（能力未就绪，不产出 PASS/FAIL）
+            if getattr(func, "implementation_gate", False):  # check
                 continue  # 跳过
             # P32: 依赖检查 - 前置函数必须已执行且结果为 PASS
             if not self.check_dependencies(func, results):  # function call

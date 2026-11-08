@@ -280,6 +280,10 @@ def _analyze_evacuation_routes_impl(
             "room_bbox": room.bbox,  # 字段
             "has_route": found_route is not None,  # 字段
             "path_length": round(found_route[1], 2) if found_route else None,  # 字段
+            # P133: 该值不是行走距离，而是 BFS 最短路径各边 bbox 间隙之和（mm）。
+            # 保留毫米原值、不做 /1000 换算（换算会让它看起来"像米"，产生二次误用）；
+            # 语义由 path_length_basis 显式标注，EVAC-002/003 已转入实现门禁。
+            "path_length_basis": "bbox_gap_sum_mm",  # 字段
             "path": found_route[0] if found_route else [],  # 字段
             "is_dead_end_room": room.properties.get("is_dead_end", False),  # 字段
             # 死胡同走廊（袋形走道）：疏散距离 ≤ 20m（GB50016-5.5.17注1）
