@@ -1127,3 +1127,102 @@ villa-details 共 10,190 图元、25 个用到图层。原始文字 112 条（58
 但必须写明：critical 从 10 降到 0 是**“移出统计口径”而非“修复误报”**——villa 仍以
 `unknown` 正常审查（低置信），那 10 条 critical 在生产侧仍会输出。它们很可能与 §11.8.0
 的立面构件误判同源，需另做判据约束，不在本次图幅修正范围内。
+
+## 12. 扫线 doorway 补 ID（阶段 A）与 `closed` 真值核查（2026-11-08）
+
+### 12.1 阶段 A：补稳定 ID + 显式 `exit_eligible=False` 隔离
+
+**问题**：`room.py::_detect_doorway_gaps` 产出的扫线墙洞长期 `entity_id=""`。
+
+1. **不可追溯**：finding / 路由 / 关系图里的空 ID 无法定位到具体墙洞；
+2. **依赖隐式约束**：`evacuation.py` 此前用「空 ID」这一巧合挡住 doorway 成为合成出口
+   （P132-B5 已记录该风险），一旦补 ID 就会立刻放行；
+3. **空 ID 还是共享伪节点**：所有墙洞的邻接边都挂在同一个 `""` 节点上，等于把所有有墙洞
+   的空间连成一张全连通网——这不是拓扑证据，是 ID 缺失造成的假连通。
+
+**改动**（`room.py` + `evacuation.py`）：
+
+- ID 由间隙中心点几何派生：`doorway_gap_{h|v}_{cx}_{cy}`（整数毫米）。同图重跑稳定，
+  不占用房间的递增计数器，不会让 `line_chain_room_*` 编号漂移；
+- 属性落盘 `exit_eligible=False`、`inferred_from="wall_gap"`：墙线间隙只证明「此处有开口」，
+  不证明「是疏散出口」。`doorway` 与 `exit_door` 同属原子函数别名组 4，必须显式否定，
+  不能继续靠空 ID 巧合；
+- `evacuation.py` 新增 `_exit_eligible()`，三处出口候选（`strict_exits` / `fallback_exits` /
+  `fallback_exits_sweep`）统一加过滤；
+- 墙洞仍保留为关系图节点（不额外屏蔽），用于后续阶段 B 做「洞口作边」的正确连通建模。
+
+**测试**：
+
+- `test_pdf_pipeline.py::test_detect_doorway_gaps` 增加断言：ID 前缀/唯一性/同输入重跑稳定、
+  `exit_eligible is False`、`inferred_from == "wall_gap"`；
+- `test_p132_b5_empty_exit.py` 新增 3 条：带 ID 但 `exit_eligible=False` 的墙洞不得成为出口；
+  有真实门时路由必须落到真实门；显式缺省（`exit_eligible` 未设）的 doorway 仍可作出口
+  （P107 口径不变）。
+
+**逐图改前 → 改后（`scripts/fp_rate_audit.py` 复现）**：
+
+| 图 | doorway | entity_count | evaluated | applicable | judgeable | findings |
+|---|---|---|---|---|---|---|
+| 东莞通-建筑 | 277 → 277 | 10086 → 10086 | 35 → 35 | 177 → 177 | 101 → 101 | **20 → 26** |
+| villa-details | 27 → 27 | 8608 → 8608 | 10 → 10 | 114 → 114 | 53 → 53 | 6 → 6 |
+| multiple-stadion | 0 → 0 | 2208 | 3 → 3 | 58 → 58 | 38 → 38 | 0 → 0 |
+| two-family-house | 0 → 0 | 997 | 1 → 1 | 32 → 32 | 18 → 18 | 0 → 0 |
+| Demo F-1 | 0 → 0 | 68 | 0 → 0 | 29 → 29 | 18 → 18 | 0 → 0 |
+
+覆盖率三口径**全部不变**（并集 41/183 = 22.4%、可判定 38/105 = 36.2% 的当前值）。
+
+**新增 6 条 critical（全部在东莞通，逐条列出）**：
+
+| func_id | entity_id | actual | threshold | severity |
+|---|---|---|---|---|
+| EVAC-001 | ROOM_1803 | 0.0 | 1.0 | critical |
+| EVAC-001 | ROOM_3377 | 0.0 | 1.0 | critical |
+| EVAC-001 | ROOM_349 | 0.0 | 1.0 | critical |
+| EVAC-001 | ROOM_5066 | 0.0 | 1.0 | critical |
+| EVAC-001 | ROOM_7881 | 0.0 | 1.0 | critical |
+| EVAC-001 | ROOM_911 | 0.0 | 1.0 | critical |
+
+**这 6 条是不是新假阳性？逐条用「补 ID 前的旧邻接复演」核验**：
+
+| room | 旧口径路径（空 ID 回填） |
+|---|---|
+| ROOM_1803 | `ROOM_1803 → polyline_room_10024 → polyline_corridor_10023 → "" → EXIT_2903` |
+| ROOM_3377 | `ROOM_3377 → "" → EXIT_2903` |
+| ROOM_349 | `ROOM_349 → DOOR_5719 → ROOM_4283 → "" → EXIT_2903` |
+| ROOM_5066 | `ROOM_5066 → "" → EXIT_2903` |
+| ROOM_7881 | `ROOM_7881 → "" → EXIT_2903` |
+| ROOM_911 | `ROOM_911 → "" → EXIT_2903` |
+
+6 条旧路径**全部经过空字符串节点**。该节点把 277 个互不相同的墙洞合并成一个点：
+「房间挨着某个墙洞」+「EXIT_2903 挨着另一个墙洞」就足以宣布连通。这不是真实拓扑，
+是 ID 缺失制造的**假阴性（掩盖了无路径）**。补 ID 后该伪节点消失，这 6 间房改为
+如实报告「模型内无疏散路径」。
+
+**结论与边界**：这 6 条**不是新假阳性**，是移除伪拓扑后的真实判定；但也不能据此断言
+建筑违规——当前模型还没有「洞口作为两个空间之间的边」的拓扑（阶段 B 才做）。因此：
+
+- 不调 EVAC-001 判据、不加白名单掩盖这 6 条；
+- 阶段 B 需要让墙洞以**边**而非**节点**参与关系图，届时才能给出「经洞口到达出口」的
+  合格路径；在此之前这 6 条如实输出。
+
+### 12.2 `closed="False"` 字符串真值核查：无真实来源，不改代码
+
+结论：**当前代码链路不存在把布尔值写成字符串的路径，不提交推测性防御改动。**
+
+证据：
+
+1. `properties["closed"]` 的唯一写入点是 `parsers/geometry.py:177` 的
+   `props["closed"] = geo_closed`，`geo_closed` 是 `bool`（`is_closed` 的结果）；
+2. T3 原生解析只把 `closed` 用作局部变量，未写入 `properties`；
+3. 全仓无 API/MCP 入参把 `properties` 反序列化为字符串的路径；持久化缓存与 DB 走 JSON，
+   `true/false` 反序列化回来仍是 `bool`，不会变成 `"False"`；
+4. 规则判定处 `semantic_analyzer/main.py::_is_closed_region` 已用 `is True` 严格判断，
+   即便真的出现字符串也不会被误判为闭合；
+5. `drawing_classifier.py:568/572` 的两处 truthiness 只参与图幅统计
+   （`closed_count` / `closed_polygon_count` 与闭合面积均值），不进入任何规则判定，
+   影响面限于图幅画像指标。
+
+处置：**记录观察，不改代码**。按纪律不为「看起来有进展」提交无实际收益的改动。若未来
+出现外部 JSON 注入 `properties` 的入口，需在该入口做类型归一化（`"True"/"true"` → `True`），
+届时再补判据与测试。
+
