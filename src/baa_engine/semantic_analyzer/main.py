@@ -1442,9 +1442,15 @@ class SemanticAnalyzer:
         polygon 面积严重偏小（polygon_area / bbox_area < 0.5）。
         用 bbox_area 作为更准确的估算。
 
-        触发条件（OR）：
-        - point_count ≤ 3（扫线法只找到 3 个端点，triangle 必是未合龙）
+        触发条件（OR，且必须有未闭合证据）：
+        - 3 个顶点（未合龙的矩形）
         - polygon_area / bbox_area < 0.5（面积严重偏小）
+
+        不覆盖的情形：
+        - closed=True：已确认闭合，polygon 面积可信；L 形/三角房间的 bbox
+          只会高估面积（ROOM 面积被 bbox 越权覆盖的根因）。
+        - point_count=0：扫线法面遍历产出的房间本就没有顶点计数，面遍历
+          保证其闭合，不能当作"未合龙"处理。
 
         不修改 original 'area' 字段（保持原始 polygon 面积供审计），
         只覆盖 'area_m2'（原子函数读取的最终口径）。
@@ -1469,6 +1475,9 @@ class SemanticAnalyzer:
             ratio = area_m2 / bbox_area_m2
             point_count = ent.properties.get("point_count", 0) or 0
             closed = ent.properties.get("closed", None)
+
+            if closed is True or point_count <= 0:
+                continue
 
             is_malformed = (point_count <= 3) or (ratio < 0.5)
 

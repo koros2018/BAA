@@ -121,3 +121,43 @@ def test_small_zone_not_a_scope():
     exits = [_exit("E1", 1000, 1000)]
     SemanticAnalyzer()._inject_zone_exit_counts([zone] + exits)
     assert zone.properties.get("exit_count") is None
+
+
+def _room(entity_id, w, h, props=None):
+    e = SemanticEntity(entity_id, "room", {"x": 0, "y": 0, "width": w, "height": h})
+    if props:
+        e.properties.update(props)
+    return e
+
+
+def test_room_area_correction_skips_closed_region():
+    """closed=True 的三角/L 形房间：bbox 不得越权覆盖 polygon 面积。"""
+    ent = _room("R1", 4000, 4000, props={"area_m2": 8.0, "point_count": 3, "closed": True})
+    SemanticAnalyzer()._correct_unclosed_room_area([ent])
+    assert ent.properties["area_m2"] == pytest.approx(8.0)
+    assert "_area_correction" not in ent.properties
+
+
+def test_room_area_correction_skips_sweep_faces():
+    """point_count=0（扫线面遍历房间）不按未合龙处理：东莞通 L 形 96.28 ㎡ 不得放大到 256.63。"""
+    ent = _room("R2", 23460, 10939, props={"area_m2": 96.28})
+    SemanticAnalyzer()._correct_unclosed_room_area([ent])
+    assert ent.properties["area_m2"] == pytest.approx(96.28)
+    assert "_area_correction" not in ent.properties
+
+
+def test_room_area_correction_still_fixes_unclosed_triangle():
+    """未闭合 3 点指纹（closed=False）仍按 bbox 修正，保留原面积供审计。"""
+    ent = _room("R3", 4000, 4000, props={"area_m2": 8.0, "point_count": 3, "closed": False})
+    SemanticAnalyzer()._correct_unclosed_room_area([ent])
+    assert ent.properties["area_m2"] == pytest.approx(16.0)
+    assert ent.properties["_polygon_area"] == pytest.approx(8.0)
+    assert ent.properties["_area_correction"] == "bbox_unclosed"
+
+
+def test_room_area_correction_still_fixes_low_ratio_polygon():
+    """ratio<0.5 且有多边形顶点证据（point_count=4）→ 仍按 bbox 修正。"""
+    ent = _room("R4", 7000, 2550, props={"area_m2": 6.06, "point_count": 4})
+    SemanticAnalyzer()._correct_unclosed_room_area([ent])
+    assert ent.properties["area_m2"] == pytest.approx(17.85)
+    assert ent.properties["_area_correction"] == "bbox_unclosed"
