@@ -360,6 +360,10 @@ _CORRIDOR_SHORT_EDGE_MAX_MM = 4000.0  # 走廊短边上限（>4000mm 为房间�
 _CORRIDOR_SHORT_EDGE_MIN_MM = 2000.0  # 走廊短边下限（<2000mm 为门洞/窄缝）
 _DOORWAY_GAP_MIN_MM = 700.0  # 门洞最小间隙
 _DOORWAY_GAP_MAX_MM = 2500.0  # 门洞最大间隙
+# 门洞去重容差：同一开洞在双线墙的两条墙线上会各检出一条，墙厚通常 100-300mm。
+# 取 500mm——小于门洞宽度下界 700mm，不会把两个真门洞并成一个；大于常见墙厚，
+# 足以吸收双线墙的重复检出。
+_DOORWAY_DEDUP_TOL_MM = 500.0
 _MIN_AREA_TO_BBOX_RATIO = 0.3  # 面实际面积/包围盒面积最小比（过滤外框面）
 
 # ── P130: 图框/表格区域排除 ──
@@ -410,6 +414,7 @@ def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
     2. Cluster by direction + coordinate
     3. Within each cluster, sort by start point and find gaps
     4. Filter gaps in doorway range (700-2500mm)
+    5. Merge duplicate detections of the same opening (see _dedup_doorway_gaps)
     """
     if len(segs) < 3:
         return []
@@ -433,13 +438,7 @@ def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
     _find_gaps_in_axis_v2(vertical, gaps, "vertical")
 
     result: List[SemanticEntity] = []
-    seen_keys: Set[Tuple[int, int]] = set()
-    for x, y, w, h, direction in gaps:
-        # Dedup by location (500mm grid)
-        key = (round(x, -3), round(y, -3))
-        if key in seen_keys:
-            continue
-        seen_keys.add(key)
+    for x, y, w, h, direction in _dedup_doorway_gaps(gaps):
         result.append(
             SemanticEntity(
                 entity_id="",
@@ -453,6 +452,31 @@ def _detect_doorway_gaps(segs: List[_Seg]) -> List[SemanticEntity]:
             )
         )
     return result
+
+
+def _dedup_doorway_gaps(
+    gaps: List[Tuple[float, float, float, float, str]],
+    tol_mm: float = _DOORWAY_DEDUP_TOL_MM,
+) -> List[Tuple[float, float, float, float, str]]:
+    """合并同一开洞的重复检出：同方向、间隙中心点相距 <= tol_mm 视为一处。
+
+    不同方向的两个间隙即使位置相近也不是同一开洞（转角处横墙与竖墙各有一个），
+    因此方向必须参与判定。旧实现用 (round(x,-3), round(y,-3)) 分格去重：
+    注释写 500mm、代码实际 1000mm，且不区分方向——villa 图 y=7200 处的
+    水平间隙与竖间隙因此被并成一条。
+    """
+    kept: List[Tuple[float, float, float, float, str]] = []
+    seen: List[Tuple[float, float, str]] = []
+    for gap in gaps:
+        x, y, w, h, direction = gap
+        cx, cy = (x + w / 2, y) if direction == "horizontal" else (x, y + h / 2)
+        if any(
+            d == direction and math.hypot(cx - px, cy - py) <= tol_mm for px, py, d in seen
+        ):
+            continue
+        seen.append((cx, cy, direction))
+        kept.append(gap)
+    return kept
 
 
 def _find_gaps_in_axis_v2(

@@ -425,6 +425,50 @@ def test_detect_doorway_gaps_too_wide():
     print("PASS too wide: 0 doorways")
 
 
+def test_doorway_dedup_same_direction_tolerance():
+    """门洞去重口径（500mm）：双线墙重复检出合并，平行墙的不同开洞不合并
+
+    500mm < 门洞宽度下界 700mm；旧实现的 1000mm 分格会把相距 600mm 的两条
+    平行墙上的不同开洞并成一个。
+    """
+    from src.baa_engine.semantic_analyzer.room import _dedup_doorway_gaps
+
+    # 同一开洞在双线墙两面（墙厚 200mm）→ 合并为 1
+    faces = [
+        (0.0, 1000.0, 700.0, 200.0, "horizontal"),
+        (0.0, 1200.0, 700.0, 200.0, "horizontal"),
+    ]
+    assert len(_dedup_doorway_gaps(faces)) == 1
+
+    # 两条平行墙相距 600mm，各自同位置开洞 → 是两个开洞，保留 2
+    parallel = [
+        (0.0, 600.0, 700.0, 200.0, "horizontal"),
+        (0.0, 1400.0, 700.0, 200.0, "horizontal"),
+    ]
+    assert len(_dedup_doorway_gaps(parallel)) == 2
+
+    # 容差边界：中心距 500 合并，501 保留
+    base = (0.0, 1000.0, 700.0, 200.0, "horizontal")
+    near = (500.0, 1000.0, 700.0, 200.0, "horizontal")
+    far = (501.0, 1000.0, 700.0, 200.0, "horizontal")
+    assert len(_dedup_doorway_gaps([base, near])) == 1
+    assert len(_dedup_doorway_gaps([base, far])) == 2
+    print("PASS doorway dedup tolerance: 500mm")
+
+
+def test_doorway_dedup_keeps_perpendicular_openings():
+    """转角处横墙与竖墙的两个开洞不得合并（villa y=7200 实战坐标）"""
+    from src.baa_engine.semantic_analyzer.room import _dedup_doorway_gaps
+
+    gaps = [
+        (12481.0, 7200.0, 1620.0, 200.0, "horizontal"),
+        (12106.0, 7200.0, 200.0, 1240.0, "vertical"),
+    ]
+    kept = _dedup_doorway_gaps(gaps)
+    assert len(kept) == 2, f"横竖两个开洞被误合并: {kept}"
+    print("PASS doorway dedup keeps perpendicular openings")
+
+
 def test_sweep_line_includes_doorways():
     """P105: 扫线法返回结果包含 doorway 类型"""
     from src.baa_engine.drawing_parser import DrawingParser
