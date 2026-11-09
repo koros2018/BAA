@@ -104,6 +104,44 @@ cell（斜线穿过 cell 角），导致漏检。取 cell_size/2 保证任意两
 
 - **DWG 解析本身**（`_parse_dwg` → `_try_ezdwg_direct`）仍是独立瓶颈，
   与房间管线无关。Heavy DWG 的 36 分钟中，房间管线只占约 29 秒（dongguan），
-  其余时间在 DWG 转换/解析。需单独定位。
+  其余时间在 DWG 转换/解析。已由 [dwg-dxf-cache-optimization-20261109.md](file:///d:/OpenClawData/BAA/docs/dwg-dxf-cache-optimization-20261109.md) 处理。
 - **`_merge_collinear` 未优化**：dongguan 的 `_axis_align_merge` 仍为 O(n²)。
   若后续成为瓶颈，需设计保持插入顺序语义的优化（如维护锚点链表 + 哈希）。
+
+---
+
+## 7. 后续优化：grid_pattern 门洞/文字邻接空间索引（2026-11-09）
+
+> 独立提交 `6cf8566`，与 §2-§5 的空间网格索引同源但独立落地。
+
+### 7.1 背景
+
+`_detect_grid_pattern_suppressions` 的 `_has_adjacent_context` 对每个候选
+房间遍历全部 doors/texts（O(n·m)）。dongguan 177 候选 × 474 实体，
+耗时 4.76s，占 `_suppress_implausible_rooms`（6.6s）的 72%。
+
+### 7.2 优化
+
+预构建空间索引：
+- **doors** 按 bbox 对角线路径插入（`insert_segment`，覆盖其跨度）
+- **texts** 按中心点插入（`insert_point`）
+- `_has_adjacent_context` 用 `query_bbox`/`query_point` 查房间邻域候选，
+  再精确双轴重叠/距离判断
+
+### 7.3 功能等价性
+
+五图 grid_pattern 数量完全一致：stadion 19 / dongguan 12 / villa 3 /
+plans 0 / mosque 0（均不变）。
+
+### 7.4 性能提升（dongguan）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `_suppress_implausible_rooms` | 6.6s | 2.53s |
+| 完整 analyze | 14.94s | 10.64s |
+
+### 7.5 剩余热点
+
+- `_split_t_junctions` 3.2s（query_bbox 2.3s）
+- `_find_faces` 1.1s
+- `_build_relations` 1.0s
