@@ -150,3 +150,44 @@ plans 0 / mosque 0（均不变）。
 - `_split_t_junctions` 3.2s（query_bbox 2.3s）
 - `_find_faces` 1.1s
 - `_build_relations` 1.0s
+
+---
+
+## 8. 后续优化：查询合并 + _bbox_iou 微优化（2026-11-09）
+
+> 独立提交 `3b7049c`（查询合并）+ `95a0fac`（_bbox_iou）。
+
+### 8.1 查询合并（`3b7049c`）
+
+`_split_t_junctions` 的 Pass 1（端点投影）和 Pass 2（线段真交叉）各自调用
+`query_bbox`，对同一条线段 i 查询几乎相同的 cell 范围（Pass1 pad=100mm，
+Pass2 pad=0），2659 次查询。合并为一次 pad=100mm 查询并缓存候选供 Pass2
+复用：Pass2 的 pad=0 范围是 pad=100mm 的子集，`_seg_intersection` 精确过滤
+不相交的候选，功能等价。
+
+- query_bbox 调用 2659 → 1310（减半）
+- 基准中位数 1.576s → 1.388s
+
+### 8.2 _bbox_iou 微优化（`95a0fac`）
+
+原实现重复调用 `a.get`/`b.get`（8 次/调用），43753 次调用共 35 万次
+`dict.get`。改用局部变量缓存 width/height/x/y，减少重复 dict 访问。
+
+### 8.3 基准性能
+
+50MB 基准图（`baa-file-2319613b52cb.dxf`，48844 图元）analyze 中位数：
+- 优化前（DDA 版本）：1.576s
+- 优化后（查询合并 + _bbox_iou）：1.388s
+
+> 注：基准图被 `.gitignore` 排除，CI 上 `data_guard` 检测到图缺失会跳过
+> 性能门禁（输出 Notice），不因超阈值失败。本地开发仍应保持达标。
+
+### 8.4 查询优化尝试（负优化，已回退）
+
+以下三种 `query_bbox` 替代方案均**负优化**，已回退（保留全 cell 遍历 + set 去重）：
+- **gen 戳数组去重**：`_seen` 列表扩展 + `_gen` 自增开销超过 set 去重
+- **有序 cell 键二分**：排序 14 万键 + bisect 元组比较慢于直接遍历
+- **行索引二分**：`_build_row_index` 重建排序 + 双层索引慢于直接遍历
+
+结论：`_SpatialGrid` 的 cell 数（14 万）相对查询次数（1310）不大，全遍历
+开销可接受；替代方案的重建/二分开销超过节省的空 cell 遍历。
