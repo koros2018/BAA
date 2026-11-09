@@ -1056,9 +1056,11 @@ class AtomicFunction:  # class definition
             return val  # return
 
         if func_id == "DIST-003":  # 袋形走道长度：length 即走道自身长度，语义正确
-            # 跳过扫描法派生走廊（polyline_corridor_*），非真实建筑走廊
+            # 跳过扫描法派生走廊（polyline_corridor_* / line_chain_corridor_*），非真实建筑走廊。
+            # 改名说明：8f3bb93 仅拦截 polyline_corridor_*；98414a0 把 sweep 面派生的走廊
+            # ID 前缀改为 line_chain_{area}_{idx}，本过滤未同步更新，形成缺口（post-merge-audit 20261109）。
             entity_id = entity.get("id", "")
-            if entity_id.startswith("polyline_corridor_"):
+            if entity_id.startswith(("polyline_corridor_", "line_chain_corridor_")):
                 return None
             val = props.get("length", 0.0)  # function call
             if val < 0.01:  # check: numeric comparison
