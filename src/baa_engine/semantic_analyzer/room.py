@@ -1443,6 +1443,9 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
 
     # Pass 1: 端点到线段的 T-junction
     # 用线段索引：查线段 i 的 bbox 扩张 100mm 内的所有线段（候选）
+    # 缓存候选供 Pass 2 复用（Pass 2 的 pad=0 范围是 pad=100mm 的子集，
+    # _seg_intersection 会精确过滤不相交的候选）
+    cands_by_i: List[List[int]] = [[] for _ in range(n)]
     for i in range(n):
         x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
         dx_i, dy_i = x1i - x0i, y1i - y0i
@@ -1451,6 +1454,7 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
             continue
         # 查询线段 i 的 bbox 扩张 100mm 内的所有候选线段
         cands = seg_grid.query_bbox(x0i, y0i, x1i, y1i, _MATCH_THRESHOLD)
+        cands_by_i[i] = cands
         for j in cands:
             if i == j:
                 continue
@@ -1469,10 +1473,10 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
                 split_pts[i].append((t, proj_x, proj_y))
 
     # Pass 2: 线段-线段交叉检测（非共线的真交叉）
+    # 复用 Pass 1 的候选（pad=100mm 超集），_seg_intersection 精确过滤
     for i in range(n):
         x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
-        # 查线段 i 的 bbox 内所有线段作为候选（真交叉 ⟹ bbox 相交）
-        cands = seg_grid.query_bbox(x0i, y0i, x1i, y1i, 0.0)
+        cands = cands_by_i[i]
         for j in cands:
             if j <= i:
                 continue
