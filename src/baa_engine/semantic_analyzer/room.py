@@ -130,10 +130,75 @@ def _polygon_props(raw_pts: Any) -> Dict[str, Any]:
     return {"points": pts, "point_count": len(pts), "closed": True}
 
 
+def _room_bbox_center(bbox: Dict[str, float]) -> Tuple[float, float]:
+    """bbox 中心点（mm）。"""
+    return (
+        bbox.get("x", 0) + bbox.get("width", 0) / 2,
+        bbox.get("y", 0) + bbox.get("height", 0) / 2,
+    )
+
+
+def _same_space(a: SemanticEntity, b: SemanticEntity) -> bool:
+    """判断两个房间实体是否描述同一物理空间（用于并存去重）。
+
+    只有证据同时满足「覆盖范围基本相同」才判同：
+      1. 面积接近：大小之比 <= _DUP_SOURCE_AREA_RATIO（±30%）；
+      2. 且 (bbox IoU >= _DUP_SOURCE_IOU 或 bbox 中心距 <= _DUP_SOURCE_CENTROID_MM)。
+
+    阈值依据：
+    - 面积 ±30%：闭合多段线是墙中心线/外皮，面遍历是墙内皮，同一空间两种
+      边界口径的差异通常在 10%–30%（2m×2m 房间、200mm 墙 → 3.24/4.0 = 0.81）。
+      超过 30% 说明覆盖范围不同（子区域、跨房间、走廊并入房间），不能丢。
+    - IoU 0.70：允许上述边界偏移；两个仅部分重叠的面（如走廊穿过房间）IoU
+      通常 < 0.5，不会被误判。
+    - 中心距 2000mm 与 sweep 内部质心去重容差一致；但必须与面积接近同时成立，
+      避免把大房间质心附近的真实小房间当重复丢弃。
+    """
+    ba = a.bbox or {}
+    bb = b.bbox or {}
+    wa, ha = ba.get("width", 0), ba.get("height", 0)
+    wb, hb = bb.get("width", 0), bb.get("height", 0)
+    if wa <= 0 or ha <= 0 or wb <= 0 or hb <= 0:
+        return False
+    area_a = float((a.properties or {}).get("area") or (wa * ha) / 1_000_000)
+    area_b = float((b.properties or {}).get("area") or (wb * hb) / 1_000_000)
+    if area_a <= 0 or area_b <= 0:
+        return False
+    if max(area_a, area_b) / min(area_a, area_b) > _DUP_SOURCE_AREA_RATIO:
+        return False
+    if _bbox_iou(ba, bb) >= _DUP_SOURCE_IOU:
+        return True
+    ca = _room_bbox_center(ba)
+    cb = _room_bbox_center(bb)
+    return math.hypot(ca[0] - cb[0], ca[1] - cb[1]) <= _DUP_SOURCE_CENTROID_MM
+
+
+def _merge_room_sources(
+    explicit_rooms: List[SemanticEntity],
+    derived_rooms: List[SemanticEntity],
+) -> List[SemanticEntity]:
+    """闭合多段线房间（显式几何）与面遍历房间（推断）并存，仅剔除同一空间。
+
+    显式几何可信度高，同一空间时保留 polyline 房间；被丢弃的 sweep 面必须
+    被显式房间基本覆盖（判据见 ``_same_space``），否则两者都保留。
+    """
+    if not derived_rooms:
+        return list(explicit_rooms)
+    if not explicit_rooms:
+        return list(derived_rooms)
+    merged: List[SemanticEntity] = list(explicit_rooms)
+    for cand in derived_rooms:
+        if not any(_same_space(cand, kept) for kept in explicit_rooms):
+            merged.append(cand)
+    return merged
+
+
 def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[SemanticEntity]:
     """扫线法房间检测 — 平面图面遍历法。
 
     支持 LINE 和 LWPOLYLINE 墙线：先收集墙线原始图元，再展开为线段。
+    闭合多段线房间与面遍历房间**并存**（不再二选一）：两者描述不同空间时都保留，
+    同一空间时按 ``_same_space`` 只保留显式几何来源。
     """
     wall_prims = _collect_wall_lines(primitives)
     # P130: 排除图框与表格区域——必须在 _extract_closed_polyline_rooms /
@@ -148,20 +213,18 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
     # 注意：此检查须在 len(wall_prims)<3 门槛之前，单个闭合 LWPOLYLINE
     # 也是有效房间（如违规样本 4m×4m 控制室）。
     direct_rooms = _extract_closed_polyline_rooms(wall_prims, self)
-    if len(direct_rooms) >= 1:
-        # P105: 附加门洞检测
-        segs: List[_Seg] = _collect_wall_segments(wall_prims)
-        doorways = _detect_doorway_gaps(segs)
-        return direct_rooms + doorways
-
+    # 回归修复：这里不再「有闭合多段线房间就提前 return」。该短路会让面遍历
+    # 整体跳过——放宽短边门槛后闭合多段线路径多命中 1–3 个房间，反而使只由
+    # 面遍历产出的房间（villa 21 个 line_chain）全部消失。两条路径改为并存，
+    # 同一空间由 _merge_room_sources 去重（保留显式几何来源）。
     if len(wall_prims) < 3:
-        return []
+        return list(direct_rooms)
 
     # ── 2. 转为内部线段表示（LINE + LWPOLYLINE） ──
     segs: List[_Seg] = _collect_wall_segments(wall_prims)
 
     if len(segs) < 3:
-        return []
+        return list(direct_rooms)
 
     # ── 2a. PDF 墙段轴对齐合并（P103）──
     # PDF→DXF 的贝塞尔离散化产生大量近轴对齐的短段（75°~95° 区间为主），
@@ -172,17 +235,22 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         # P105: 门洞检测（使用原始墙段，非 axis-merged）
         doorway_candidates = _detect_doorway_gaps(segs)
         if len(room_candidates) >= 1:
-            return room_candidates + doorway_candidates
+            return _merge_room_sources(direct_rooms, room_candidates) + doorway_candidates
 
     # ── 2. T-junction 分割 ──
+    doorway_segs = segs
     segs = _split_t_junctions(segs)
     if len(segs) < 3:
-        return []
+        return list(direct_rooms) + (
+            _detect_doorway_gaps(doorway_segs) if direct_rooms else []
+        )
 
     # ── 3. 构建平面图：合并近似端点 → 节点，线段 → 边 ──
     graph = _build_planar_graph(segs)
     if not graph["nodes"] or not graph["edges"]:
-        return []
+        return list(direct_rooms) + (
+            _detect_doorway_gaps(doorway_segs) if direct_rooms else []
+        )
 
     # ── 4. 每个节点处按角度排序边（逆时针） ──
     _sort_edges_at_nodes(graph)
@@ -274,7 +342,11 @@ def _sweep_line_detect_rooms(self, primitives: List[RawPrimitive]) -> List[Seman
         if all_contained and len(result) > 1:
             result = result[1:]
 
-    return result
+    merged = _merge_room_sources(direct_rooms, result)
+    if direct_rooms:
+        # 原短路路径在 direct_rooms 分支始终附加门洞（P105）；并存后保持该口径。
+        merged += _detect_doorway_gaps(doorway_segs)
+    return merged
 
 
 def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
@@ -407,6 +479,13 @@ _DOORWAY_GAP_MAX_MM = 2500.0  # 门洞最大间隙
 # 足以吸收双线墙的重复检出。
 _DOORWAY_DEDUP_TOL_MM = 500.0
 _MIN_AREA_TO_BBOX_RATIO = 0.3  # 面实际面积/包围盒面积最小比（过滤外框面）
+
+# 房间来源并存去重（闭合多段线 vs 面遍历）：仅当证据同时满足「覆盖范围基本相同」
+# 才丢弃可信度较低的一方。面积接近（大小比 <= 1.43，即 ±30%）是必要条件，
+# 且 (bbox IoU >= 0.70 或 bbox 中心距 <= 2000mm)。依据见 ``_same_space``。
+_DUP_SOURCE_AREA_RATIO = 1.43
+_DUP_SOURCE_IOU = 0.70
+_DUP_SOURCE_CENTROID_MM = 2000.0
 
 # ── P130: 图框/表格区域排除 ──
 _TABLE_AXIS_TOL_DEG = 3.0  # 判定近轴段的角度容差（度）

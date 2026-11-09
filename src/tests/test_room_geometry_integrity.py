@@ -17,9 +17,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.baa_engine.drawing_parser import RawPrimitive
+from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 from src.baa_engine.semantic_analyzer.models import SemanticEntity
 from src.baa_engine.semantic_analyzer.room import (
     _is_simple_polygon,
+    _merge_room_sources,
     _polygon_props,
     _sweep_line_detect_rooms,
     _suppress_implausible_rooms,
@@ -78,7 +80,6 @@ def test_closed_polyline_room_carries_points():
         {"x": 0, "y": 0, "width": 8000, "height": 6000},
         {"points": [[0, 0], [8000, 0], [8000, 6000], [0, 6000]]},
     )
-    from src.baa_engine.semantic_analyzer import SemanticAnalyzer
 
     rooms = SemanticAnalyzer()._sweep_line_detect_rooms([prim])
     assert len(rooms) == 1
@@ -87,6 +88,97 @@ def test_closed_polyline_room_carries_points():
     assert props["point_count"] == 4
     assert props["closed"] is True
     assert props["area"] == pytest.approx(48.0)
+
+
+# ── 房间来源并存（闭合多段线 vs 面遍历） ──
+
+
+def _line(chandle, x0, y0, x1, y1, layer="WALL"):
+    return RawPrimitive(
+        "LINE",
+        layer,
+        chandle,
+        {
+            "x": min(x0, x1),
+            "y": min(y0, y1),
+            "width": abs(x1 - x0),
+            "height": abs(y1 - y0),
+        },
+        {"start_point": {"x": x0, "y": y0}, "end_point": {"x": x1, "y": y1}},
+    )
+
+
+def _rect_walls(x0, y0, w, h, prefix):
+    return [
+        _line(f"{prefix}_b", x0, y0, x0 + w, y0),
+        _line(f"{prefix}_r", x0 + w, y0, x0 + w, y0 + h),
+        _line(f"{prefix}_t", x0 + w, y0 + h, x0, y0 + h),
+        _line(f"{prefix}_l", x0, y0 + h, x0, y0),
+    ]
+
+
+def test_polyline_room_and_sweep_room_coexist():
+    """回归：有闭合多段线房间时，独立的面遍历房间不得被提前 return 短路丢弃。"""
+    poly = RawPrimitive(
+        "LWPOLYLINE",
+        "WALL",
+        "pl1",
+        {"x": 0, "y": 0, "width": 4000, "height": 4000},
+        {"points": _rect(0, 0, 4000, 4000), "closed": True},
+    )
+    lines = _rect_walls(10000, 0, 5000, 5000, "box")
+
+    rooms = SemanticAnalyzer()._sweep_line_detect_rooms([poly] + lines)
+    ids = [r.id for r in rooms]
+    assert any(i.startswith("polyline_") for i in ids), ids
+    assert any(i.startswith("line_chain_") for i in ids), ids
+    assert len(rooms) == 2
+
+
+def test_merge_keeps_only_explicit_for_same_space():
+    """同一空间：显式几何（闭合多段线）保留，面遍历副本丢弃。"""
+    pts = _rect(0, 0, 4000, 4000)
+    bbox = {"x": 0, "y": 0, "width": 4000, "height": 4000}
+    explicit = _room("polyline_room_1", bbox, pts, area=16.0)
+    derived = _room("line_chain_room_2", bbox, pts, area=16.0)
+    merged = _merge_room_sources([explicit], [derived])
+    assert [e.id for e in merged] == ["polyline_room_1"]
+
+
+def test_merge_keeps_both_for_different_space():
+    """不同空间（不相交）：两个来源都保留。"""
+    explicit = _room(
+        "polyline_room_1",
+        {"x": 0, "y": 0, "width": 4000, "height": 4000},
+        _rect(0, 0, 4000, 4000),
+        area=16.0,
+    )
+    derived = _room(
+        "line_chain_room_2",
+        {"x": 20000, "y": 0, "width": 4000, "height": 4000},
+        _rect(20000, 0, 4000, 4000),
+        area=16.0,
+    )
+    merged = _merge_room_sources([explicit], [derived])
+    assert {e.id for e in merged} == {"polyline_room_1", "line_chain_room_2"}
+
+
+def test_merge_keeps_both_when_area_differs():
+    """质心相近但面积差 >30%（子区域/局部面）：不得当作同一空间丢弃。"""
+    explicit = _room(
+        "polyline_room_1",
+        {"x": 0, "y": 0, "width": 8000, "height": 6000},
+        _rect(0, 0, 8000, 6000),
+        area=48.0,
+    )
+    derived = _room(
+        "line_chain_room_2",
+        {"x": 1000, "y": 1000, "width": 2000, "height": 2000},
+        _rect(1000, 1000, 2000, 2000),
+        area=4.0,
+    )
+    merged = _merge_room_sources([explicit], [derived])
+    assert {e.id for e in merged} == {"polyline_room_1", "line_chain_room_2"}
 
 
 # ── _is_simple_polygon ──
