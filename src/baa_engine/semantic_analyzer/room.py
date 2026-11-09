@@ -1934,6 +1934,32 @@ def _detect_grid_pattern_suppressions(
     """
     from collections import defaultdict as _defaultdict
 
+    # 预构建空间索引：doors 按 bbox 对角线路径插入（覆盖其跨度），
+    # texts 按中心点插入。避免每个候选房间遍历全部 doors/texts（O(n·m)）。
+    DOOR_ONLY_TYPES = {"door", "fire_door", "exit_door", "accessible_door"}
+    door_grid = _SpatialGrid(_MATCH_THRESHOLD)
+    door_list: List[Tuple[float, float, float, float]] = []  # (x0,y0,x1,y1)
+    for d in doors:
+        dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
+        if dtype not in DOOR_ONLY_TYPES:
+            continue
+        dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
+        dx, dy = dbb.get("x", 0), dbb.get("y", 0)
+        dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
+        if dw_v <= 0 or dh_v <= 0:
+            continue
+        door_list.append((dx, dy, dx + dw_v, dy + dh_v))
+        door_grid.insert_segment(len(door_list) - 1, dx, dy, dx + dw_v, dy + dh_v)
+
+    text_grid = _SpatialGrid(_MATCH_THRESHOLD)
+    text_list: List[Tuple[float, float]] = []  # (cx, cy)
+    for t in texts:
+        tb = t.bbox if hasattr(t, "bbox") else (t if isinstance(t, dict) else {}) or {}
+        tx = tb.get("x", 0) + tb.get("width", 0) / 2
+        ty = tb.get("y", 0) + tb.get("height", 0) / 2
+        text_list.append((tx, ty))
+        text_grid.insert_point(len(text_list) - 1, tx, ty)
+
     # Helper: check if an entity bbox has nearby door or text
     def _has_adjacent_context(eid: str) -> bool:
         bb = bbox_by_id.get(eid) or {}
@@ -1943,29 +1969,20 @@ def _detect_grid_pattern_suppressions(
         rbx0, rby0 = bb.get("x", 0), bb.get("y", 0)
         rbx1, rby1 = rbx0 + w, rby0 + h
         # Door adjacency: ONLY count actual doors (not windows/openings)
-        DOOR_ONLY_TYPES = {"door", "fire_door", "exit_door", "accessible_door"}
-        for d in doors:
-            dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
-            if dtype not in DOOR_ONLY_TYPES:
-                continue
-            dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
-            dx, dy = dbb.get("x", 0), dbb.get("y", 0)
-            dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
-            dbx0, dby0 = dx, dy
-            dbx1, dby1 = dx + dw_v, dy + dh_v
+        # 用空间索引查房间 bbox 扩张 1 个 cell 内的候选门洞，再精确双轴重叠
+        short_side = min(w, h) if w > 0 and h > 0 else 0
+        for di in door_grid.query_bbox(rbx0, rby0, rbx1, rby1, _MATCH_THRESHOLD):
+            dbx0, dby0, dbx1, dby1 = door_list[di]
             ox = max(0, min(rbx1, dbx1) - max(rbx0, dbx0))
             oy = max(0, min(rby1, dby1) - max(rby0, dby0))
             # 需双轴均有实质重叠才算邻接：单轴投影重叠不足以说明门洞与该房间相邻
             # （例如看台格间横向与远处门洞投影重合时不应误判）。
             # 阈值取房间短边的一半，确保重叠区域至少覆盖半个房间宽度/高度。
-            short_side = min(w, h) if w > 0 and h > 0 else 0
             if (ox > short_side / 2) and (oy > short_side / 2):
                 return True
         # Text label within 2.5m
-        for t in texts:
-            tb = t.bbox if hasattr(t, "bbox") else (t if isinstance(t, dict) else {}) or {}
-            tx = tb.get("x", 0) + tb.get("width", 0) / 2
-            ty = tb.get("y", 0) + tb.get("height", 0) / 2
+        for ti in text_grid.query_point(cx, cy, 2500):
+            tx, ty = text_list[ti]
             if abs(tx - cx) < 2500 and abs(ty - cy) < 2500:
                 return True
         return False
