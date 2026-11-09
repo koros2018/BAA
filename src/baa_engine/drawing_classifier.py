@@ -833,6 +833,10 @@ def is_likely_corrupt(filepath: str, min_size_bytes: int = 10000) -> Dict[str, A
 _VIEW_GAP_MM = 5_000       # 子视图间距阈值（mm）：两簇之间 >5m 视为不同视框
 _VIEW_MIN_PRIMS = 30        # 形成有效子视框所需最少图元数
 _VIEW_NON_PLAN_SCORE = 20   # 得分 < 此值 → non_plan（非平面区噪声多、缺乏平面证据）
+_VIEW_LINEJUMP_THRESH = 20  # LINE% 突变阈值（pp）：相邻带差值 ≥ 此值则切分
+_VIEW_LINE_STRIP_MM = 3000  # LINE% 滑动窗口带高（mm）
+_VIEW_MIN_SPLIT_MM = 10_000 # 仅对跨度 ≥10m 的簇做 LINE% 二次切分
+_VIEW_LONG_HLINE_PENALTY = 6  # 每根超长横线扣分（>=0.2n 时触发），提高以压制密集线性网格
 
 
 def _centroid(p: Any) -> Tuple[float, float]:
@@ -913,18 +917,52 @@ def classify_view_frames(primitives: list) -> List[Dict[str, Any]]:
     if len(centroids) < _VIEW_MIN_PRIMS:
         return []
 
-    # 1. 按 cy 聚类
+    # 1. 按 cy 聚类（初识切分）
     ys_sorted = [cy for _, cy, _ in centroids]
     raw_clusters = _cluster_y_by_gap(ys_sorted, _VIEW_GAP_MM)
-    if len(raw_clusters) <= 1 and len(centroids) > _VIEW_MIN_PRIMS * 2:
+    if len(raw_clusters) <= 1:
         pass
     elif len(raw_clusters) <= 1:
         return []
 
-    # 2. 构建 cluster 边界 → primitive 索引映射
-    cluster_bounds: List[Tuple[float, float]] = [
-        (min(cl), max(cl)) for cl in raw_clusters
-    ]
+    # 2. 对每个初识簇做二次切分：跨度 ≥10m 的簇，用 LINE% 突变点进一步拆分
+    #    原因：如 Stadion 图元在 Y 轴连续分布（无 >5m 断层），但内部存在明显
+    #    视图类型切换（plan LINE%=30% → section LINE%=76%+）。
+    refined_bounds: List[Tuple[float, float]] = []
+    for cl in raw_clusters:
+        lo, hi = min(cl), max(cl)
+        span = hi - lo
+        if span >= _VIEW_MIN_SPLIT_MM:
+            # 滑动窗口检测 LINE% 跳变点
+            step = _VIEW_LINE_STRIP_MM
+            prev_line_pct: Optional[float] = None
+            split_ys: List[float] = [lo]
+            y = lo
+            while y < hi:
+                w_lo, w_hi = y, min(y + step, hi)
+                strip_prims = [p for (_, cy, p) in centroids
+                               if w_lo <= cy <= w_hi]
+                n_total = len(strip_prims)
+                n_line = sum(1 for p in strip_prims
+                             if (getattr(p, "dxf_type", "") or "") == "LINE")
+                line_pct = n_line / n_total * 100 if n_total > 0 else 0
+                if prev_line_pct is not None and line_pct - prev_line_pct >= _VIEW_LINEJUMP_THRESH:
+                    split_ys.append(round((y + w_hi) / 2))
+                prev_line_pct = line_pct
+                y += step
+            split_ys.append(hi)
+            # 去重 + 排序 + 合并相邻重复点
+            split_ys = sorted(set(split_ys))
+            merged: List[float] = [split_ys[0]]
+            for sy in split_ys[1:]:
+                if sy - merged[-1] >= _VIEW_LINE_STRIP_MM:
+                    merged.append(sy)
+            for i in range(len(merged) - 1):
+                refined_bounds.append((merged[i], merged[i + 1]))
+        else:
+            refined_bounds.append((lo, hi))
+
+    cluster_bounds = refined_bounds
     cent_to_cluster: Dict[int, int] = {}
     for i, (_, cy, _) in enumerate(centroids):
         for ci, (lo, hi) in enumerate(cluster_bounds):
@@ -1019,7 +1057,7 @@ def classify_view_frames(primitives: list) -> List[Dict[str, Any]]:
             score -= elev_n * 10
             evidence.append(f"elev_texts={elev_n}(−)")
         if long_hlines_n > n_prim * 0.2:
-            score -= min(long_hlines_n, 30) * 3
+            score -= min(long_hlines_n, 30) * _VIEW_LONG_HLINE_PENALTY
             evidence.append(f"long_h_lines={long_hlines_n}(−)")
         density = n_prim / max(span / 1000.0, 1)
         if density < 3:
