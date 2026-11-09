@@ -23,6 +23,56 @@ import ezdxf  # 模块级导入：本模块 9 处 ezdxf.* 使用原先全部依�
 
 logger = logging.getLogger(__name__)
 
+# ── DWG→DXF 磁盘缓存 ────────────────────────────────────
+# 同一 DWG 多次 analyze 时，ezdwg.read() + export_dxf() 每次都会重新转换，
+# 大文件（9.9MB）耗时 >2 分钟。缓存转换后的 DXF 到临时目录，按
+# (文件路径, mtime, 大小) 作为缓存键，命中则直接 ezdxf.readfile(cached)。
+_DWG_CACHE_DIR = Path(tempfile.gettempdir()) / "baa_dwg_dxf_cache"
+
+
+def _dwg_cache_key(path: Path) -> str:
+    """生成 DWG 缓存键：路径 + mtime + 大小（避免 hash 大文件成本）。"""
+    try:
+        st = path.stat()
+        return f"{path.resolve()}_{st.st_mtime_ns}_{st.st_size}"
+    except OSError:
+        return f"{path.resolve()}_{os.path.getmtime(path)}_{os.path.getsize(path)}"
+
+
+def _dwg_cache_path(path: Path) -> Path:
+    """缓存 DXF 文件路径（按缓存键命名）。"""
+    import hashlib
+    key = _dwg_cache_key(path)
+    digest = hashlib.md5(key.encode("utf-8")).hexdigest()[:16]
+    return _DWG_CACHE_DIR / f"{digest}.dxf"
+
+
+def _try_dwg_cache(path: Path) -> Optional[Any]:
+    """尝试从磁盘缓存读取 DXF。命中返回 ezdxf 文档，未命中返回 None。"""
+    cached = _dwg_cache_path(path)
+    if cached.exists():
+        try:
+            return ezdxf.readfile(str(cached))
+        except Exception:
+            # 缓存损坏，删除并重新转换
+            cached.unlink(missing_ok=True)
+            return None
+    return None
+
+
+def _write_dwg_cache(path: Path, dxf_path: Path) -> None:
+    """把转换后的 DXF 文件写入磁盘缓存。"""
+    try:
+        _DWG_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cached = _dwg_cache_path(path)
+        # 原子写入：先写临时文件再改名，避免并发读半成品
+        tmp = cached.with_suffix(".tmp")
+        tmp.write_bytes(dxf_path.read_bytes())
+        tmp.replace(cached)
+    except Exception:
+        # 缓存失败不影响主流程
+        pass
+
 # ── ezdwg fallback（系统级安装，venv 可能不可见） ──────
 _ezdwg_raw = None
 try:
@@ -217,6 +267,11 @@ sys.exit(2)
 def _try_ezdwg_export_dxf(path: Path) -> Optional[Any]:  # 独立函数（原签名残留 self）
     """第 1 级：ezdwg.read() + export_dxf() 直转"""
     try:  # try block
+        # 磁盘缓存：命中则跳过 ezdwg.read() + export_dxf()（大文件 >2min）
+        cached_doc = _try_dwg_cache(path)
+        if cached_doc is not None:
+            return cached_doc
+
         import ezdwg as _ezdwg  # import
 
         dwg_doc = _ezdwg.read(str(path))  # str conversion
@@ -225,6 +280,8 @@ def _try_ezdwg_export_dxf(path: Path) -> Optional[Any]:  # 独立函数（原签
         tmp.close()  # function call
         dwg_doc.export_dxf(tmp_path)  # function call
         dxf_doc = ezdxf.readfile(tmp_path)  # function call
+        # 写入磁盘缓存（转换结果复用），再删除临时文件
+        _write_dwg_cache(path, Path(tmp_path))
         Path(tmp_path).unlink(missing_ok=True)  # function call
         return dxf_doc  # return
     except Exception:  # catch exception
@@ -798,6 +855,30 @@ def _try_ezdwg_direct(path: Path) -> Optional[Any]:
         return None
 
     try:
+        # 磁盘缓存：命中则跳过 ezdwg.read() + export_dxf()（大文件 >2min）
+        cached_doc = _try_dwg_cache(path)
+        if cached_doc is not None:
+            # 缓存命中：仍需验证图层信息（缓存文件应保留图层）
+            layer_counts = {}
+            entity_count = 0
+            for e in cached_doc.modelspace():
+                try:
+                    entity_count += 1
+                    layer = e.dxf.layer
+                    layer_counts[layer] = layer_counts.get(layer, 0) + 1
+                except Exception:
+                    pass
+            non_zero_count = sum(v for k, v in layer_counts.items() if k and k != "0")
+            if entity_count > 10 and non_zero_count > 0:
+                logger.info("[E6-DWG] ezdwg 直读缓存命中: %s", path.name)
+                return cached_doc
+            logger.warning(
+                "[E6-DWG] ezdwg 直读缓存无有效图层 (%d 实体, %d 非零), 降级",
+                entity_count,
+                non_zero_count,
+            )
+            return None
+
         dwg_doc = _ezdwg.read(str(path))
         tmp = tempfile.NamedTemporaryFile(suffix=".dxf", delete=False)
         tmp_path = tmp.name
@@ -824,10 +905,11 @@ def _try_ezdwg_direct(path: Path) -> Optional[Any]:
             except Exception:
                 pass
 
-        Path(tmp_path).unlink(missing_ok=True)
-
         non_zero_count = sum(v for k, v in layer_counts.items() if k and k != "0")
         if entity_count > 10 and non_zero_count > 0:
+            # 转换成功且有非零图层：先写磁盘缓存（tmp_path 尚未删除），再删临时文件
+            _write_dwg_cache(path, Path(tmp_path))
+            Path(tmp_path).unlink(missing_ok=True)
             zero_pct = layer_counts.get("0", 0) / entity_count * 100
             logger.info(
                 "[E6-DWG] ezdwg 直读成功: %s → %d 实体, " "layer='0': %.1f%%, 非零图层 %d 个",
