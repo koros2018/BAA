@@ -49,6 +49,11 @@
 cell（斜线穿过 cell 角），导致漏检。取 cell_size/2 保证任意两个相邻采样点
 距离 ≤ cell_size/2，不会跳过任何被线段穿过的 cell。
 
+> **后续优化（`535094c`）**：采样法对斜线会重复插入同一 cell，dongguan
+> 2791 段产生 516714 个 cell entries。改用 Amanatides-Woo DDA 网格遍历
+> （从起点 cell 沿线段方向逐步跨越 cell 边界），精确遍历每个 cell 不重
+> 不漏，entries 减半至 260324，`_split_t_junctions` 0.853s → 0.635s。
+
 ### 2.3 查询（`query_bbox`）
 
 额外扩张 1 个 cell（cell_size）容差：因为采样点间隔 cell_size/2，线段与
