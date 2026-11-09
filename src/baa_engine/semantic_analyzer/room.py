@@ -1340,14 +1340,12 @@ class _SpatialGrid:
         self.cells[self._key(x, y)].append(idx)
 
     def insert_segment(self, idx: int, x0: float, y0: float, x1: float, y1: float) -> None:
-        """把对象 idx 按线段路径采样插入覆盖的 cell（线段对象）。
+        """把对象 idx 按线段路径插入覆盖的所有 cell（线段对象）。
 
-        沿线段从起点到终点按 cell_size/2 步长采样，每个采样点插入其 cell。
-        步长取 cell_size/2 保证任意两个相邻采样点距离 <= cell_size/2，
-        不会跳过任何被线段穿过的 cell（避免漏检）。
-        保证：若线段 j 与查询 bbox 相交，则 j 的某个采样点落在相交区域，
-        从而 j 被插入该区域所在 cell，查询时能被正确找到。
-        超长线段（跨大量 cell）也正确覆盖，不会漏插。
+        用 Amanatides-Woo DDA 网格遍历：从起点 cell 出发，沿线段方向
+        逐步跨越 cell 边界，精确遍历线段穿过的每个 cell（不重不漏）。
+        保证：若线段 j 与查询 bbox 相交，则 j 被插入相交区域所在 cell，
+        查询时能被正确找到。超长线段（跨大量 cell）也正确覆盖。
         """
         dx = x1 - x0
         dy = y1 - y0
@@ -1355,11 +1353,43 @@ class _SpatialGrid:
         if length < 1e-6:
             self.cells[self._key(x0, y0)].append(idx)
             return
-        step = self.cell_size / 2.0
-        n_steps = max(1, int(length / step))
-        for k in range(n_steps + 1):
-            t = k / n_steps
-            self.cells[self._key(x0 + dx * t, y0 + dy * t)].append(idx)
+        cs = self.cell_size
+        # 起点 cell
+        kx = int(math.floor(x0 / cs))
+        ky = int(math.floor(y0 / cs))
+        kx_end = int(math.floor(x1 / cs))
+        ky_end = int(math.floor(y1 / cs))
+        self.cells[(kx, ky)].append(idx)
+        if kx == kx_end and ky == ky_end:
+            return
+        # DDA 步进参数
+        step_x = 1 if dx > 0 else -1
+        step_y = 1 if dy > 0 else -1
+        # 到下一个垂直/水平 cell 边界的参数 t
+        if dx != 0:
+            t_max_x = ((kx + (1 if dx > 0 else 0)) * cs - x0) / dx
+            t_delta_x = abs(cs / dx)
+        else:
+            t_max_x = float("inf")
+            t_delta_x = float("inf")
+        if dy != 0:
+            t_max_y = ((ky + (1 if dy > 0 else 0)) * cs - y0) / dy
+            t_delta_y = abs(cs / dy)
+        else:
+            t_max_y = float("inf")
+            t_delta_y = float("inf")
+        # 防退化：dx/dy 为 0 时步进方向无意义，但已由 inf 处理
+        guard = 0
+        max_steps = (abs(kx_end - kx) + abs(ky_end - ky)) * 2 + 4
+        while (kx != kx_end or ky != ky_end) and guard < max_steps:
+            if t_max_x < t_max_y:
+                kx += step_x
+                t_max_x += t_delta_x
+            else:
+                ky += step_y
+                t_max_y += t_delta_y
+            self.cells[(kx, ky)].append(idx)
+            guard += 1
 
     def query_point(self, x: float, y: float, radius: float) -> List[int]:
         """返回距 (x,y) 半径 radius 内可能匹配的对象索引（3×3 邻域）。"""
