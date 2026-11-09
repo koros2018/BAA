@@ -760,6 +760,10 @@ def _merge_collinear(
     """合并共线区间：先按坐标聚类，再在每簇内合并重叠区间。
 
     intervals: [(lo, hi, coord)]  coord 是与区间垂直的方向坐标。
+
+    保持原始语义：每个簇以「第一个插入的 coord」为锚点，后续 coord
+    按插入顺序找第一个 abs(anchor - coord) <= tol 的簇。此语义依赖
+    插入顺序，无法用排序/二分严格等价，故保留原始 O(n²) 实现。
     """
     coord_list: List[float] = []
     by_coord: Dict[int, List[Tuple[float, float]]] = {}
@@ -1306,19 +1310,118 @@ def _collect_wall_segments(
     return segs
 
 
+class _SpatialGrid:
+    """均匀网格空间索引，用于加速线段/端点的邻域查询。
+
+    把 O(n²) 的全量两两比较降为 O(n·k)（k 为局部邻域对象数）。
+    cell_size 取匹配阈值，保证任意距离 <= cell_size 的点对必落在
+    相邻 cell（含自身）内，查询时只需扫描 3×3 邻域。
+
+    关键设计：**用端点索引而非线段 bbox 索引**。线段可能跨越大量 cell
+    （合并后的墙线可达数万 mm），按 bbox 插入会爆炸或漏插；而端点总是
+    点对象，插入单个 cell 即可。查询线段 i 的候选时，查 i 的 bbox 扩张
+    附近的所有端点，收集这些端点所属的线段——这样超长线段也能正确覆盖。
+
+    用途：
+      - _split_t_junctions Pass 1（端点投影到线段）
+      - _split_t_junctions Pass 2（线段-线段交叉）
+      - _build_planar_graph 端点聚类（_find_or_create）
+    """
+
+    def __init__(self, cell_size: float):
+        self.cell_size = cell_size
+        self.cells: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+
+    def _key(self, x: float, y: float) -> Tuple[int, int]:
+        return (int(math.floor(x / self.cell_size)), int(math.floor(y / self.cell_size)))
+
+    def insert_point(self, idx: int, x: float, y: float) -> None:
+        """把对象 idx 插入其所在 cell（点对象）。"""
+        self.cells[self._key(x, y)].append(idx)
+
+    def insert_segment(self, idx: int, x0: float, y0: float, x1: float, y1: float) -> None:
+        """把对象 idx 按线段路径采样插入覆盖的 cell（线段对象）。
+
+        沿线段从起点到终点按 cell_size/2 步长采样，每个采样点插入其 cell。
+        步长取 cell_size/2 保证任意两个相邻采样点距离 <= cell_size/2，
+        不会跳过任何被线段穿过的 cell（避免漏检）。
+        保证：若线段 j 与查询 bbox 相交，则 j 的某个采样点落在相交区域，
+        从而 j 被插入该区域所在 cell，查询时能被正确找到。
+        超长线段（跨大量 cell）也正确覆盖，不会漏插。
+        """
+        dx = x1 - x0
+        dy = y1 - y0
+        length = math.hypot(dx, dy)
+        if length < 1e-6:
+            self.cells[self._key(x0, y0)].append(idx)
+            return
+        step = self.cell_size / 2.0
+        n_steps = max(1, int(length / step))
+        for k in range(n_steps + 1):
+            t = k / n_steps
+            self.cells[self._key(x0 + dx * t, y0 + dy * t)].append(idx)
+
+    def query_point(self, x: float, y: float, radius: float) -> List[int]:
+        """返回距 (x,y) 半径 radius 内可能匹配的对象索引（3×3 邻域）。"""
+        kx = int(math.floor(x / self.cell_size))
+        ky = int(math.floor(y / self.cell_size))
+        r = int(math.ceil(radius / self.cell_size))
+        out: List[int] = []
+        seen: Set[int] = set()
+        for dx in range(-r, r + 1):
+            for dy in range(-r, r + 1):
+                for idx in self.cells.get((kx + dx, ky + dy), ()):
+                    if idx not in seen:
+                        seen.add(idx)
+                        out.append(idx)
+        return out
+
+    def query_bbox(self, x0: float, y0: float, x1: float, y1: float, pad: float) -> List[int]:
+        """返回 bbox 扩张 pad 后覆盖 cell 内的对象索引。
+
+        额外扩张 1 个 cell（cell_size）：因为 insert_segment 采样点间隔
+        cell_size/2，线段与查询 bbox 相交时其采样点可能落在 bbox 边界外
+        最多 1 个 cell，需额外容差避免漏检。
+        """
+        extra = self.cell_size
+        kx0 = int(math.floor((min(x0, x1) - pad - extra) / self.cell_size))
+        kx1 = int(math.floor((max(x0, x1) + pad + extra) / self.cell_size))
+        ky0 = int(math.floor((min(y0, y1) - pad - extra) / self.cell_size))
+        ky1 = int(math.floor((max(y0, y1) + pad + extra) / self.cell_size))
+        out: List[int] = []
+        seen: Set[int] = set()
+        for kx in range(kx0, kx1 + 1):
+            for ky in range(ky0, ky1 + 1):
+                for idx in self.cells.get((kx, ky), ()):
+                    if idx not in seen:
+                        seen.add(idx)
+                        out.append(idx)
+        return out
+
+
 def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
     """在 T-junction 和交叉点处分割线段。"""
     n = len(segs)
     split_pts: List[List[Tuple[float, float, float]]] = [[] for _ in range(n)]
 
+    # 空间索引：线段按路径采样插入网格（用 insert_segment 覆盖超长线段）。
+    # 保证：若线段 j 与查询 bbox 相交，则 j 的采样点落在相交区域，
+    # 从而 j 被插入该区域所在 cell，查询时能被正确找到。
+    seg_grid = _SpatialGrid(_MATCH_THRESHOLD)
+    for i, s in enumerate(segs):
+        seg_grid.insert_segment(i, s[0], s[1], s[2], s[3])
+
     # Pass 1: 端点到线段的 T-junction
+    # 用线段索引：查线段 i 的 bbox 扩张 100mm 内的所有线段（候选）
     for i in range(n):
         x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
         dx_i, dy_i = x1i - x0i, y1i - y0i
         len2_i = dx_i * dx_i + dy_i * dy_i
         if len2_i < 1e-6:
             continue
-        for j in range(n):
+        # 查询线段 i 的 bbox 扩张 100mm 内的所有候选线段
+        cands = seg_grid.query_bbox(x0i, y0i, x1i, y1i, _MATCH_THRESHOLD)
+        for j in cands:
             if i == j:
                 continue
             x0j, y0j, x1j, y1j = segs[j][0], segs[j][1], segs[j][2], segs[j][3]
@@ -1337,7 +1440,12 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
 
     # Pass 2: 线段-线段交叉检测（非共线的真交叉）
     for i in range(n):
-        for j in range(i + 1, n):
+        x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
+        # 查线段 i 的 bbox 内所有线段作为候选（真交叉 ⟹ bbox 相交）
+        cands = seg_grid.query_bbox(x0i, y0i, x1i, y1i, 0.0)
+        for j in cands:
+            if j <= i:
+                continue
             ix = _seg_intersection(segs[i], segs[j])
             if ix is None:
                 continue
@@ -1410,19 +1518,21 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
         raw_pts.append((x0, y0))
         raw_pts.append((x1, y1))
 
-    # 端点聚类（近似合并）
+    # 端点聚类（近似合并）——用空间网格索引加速最近节点查找
     node_list: List[Tuple[float, float]] = []
     pt_to_node: Dict[Tuple[float, float], int] = {}
+    node_grid = _SpatialGrid(_MATCH_THRESHOLD)
 
     def _find_or_create(x: float, y: float) -> int:
         """查找或创建房间。"""
         key = (x, y)
         if key in pt_to_node:
             return pt_to_node[key]
-        # 找最近节点
+        # 找最近节点（只查 3×3 邻域 cell，而非全量节点）
         best = -1
         best_d = _MATCH_THRESHOLD**2
-        for i, (nx, ny) in enumerate(node_list):
+        for i in node_grid.query_point(x, y, _MATCH_THRESHOLD):
+            nx, ny = node_list[i]
             d = (nx - x) ** 2 + (ny - y) ** 2
             if d < best_d:
                 best_d = d
@@ -1433,6 +1543,7 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
         nid = len(node_list)
         node_list.append((x, y))
         pt_to_node[key] = nid
+        node_grid.insert_point(nid, x, y)
         return nid
 
     for x, y in raw_pts:
