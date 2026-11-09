@@ -457,6 +457,95 @@ class TestSheetTypeGuardsRealSamples:
             assert r.sheet_type.get("scope_mode") != "non_plan", r.sheet_type
 
 
+class TestViewFrames:
+    """P121-V: 混合图集子视框聚类（视图级 scope_mode）。"""
+
+    def _prim(self, dxf_type, layer="0", x=0, y=0, w=1000, h=1000, **props):
+        from src.baa_engine.drawing_parser import RawPrimitive
+
+        return RawPrimitive(
+            dxf_type,
+            layer,
+            f"h{hash((x, y, w, h, dxf_type, layer)) & 0xFFFF}",
+            {"x": x, "y": y, "width": w, "height": h},
+            props,
+        )
+
+    def _hline(self, x, y, length):
+        """水平长线（有 start/end 端点，供退化 bbox 的 _centroid 回退）。"""
+        from src.baa_engine.drawing_parser import RawPrimitive
+
+        return RawPrimitive(
+            "LINE",
+            "0",
+            f"h{hash((x, y, length)) & 0xFFFF}",
+            {"x": x, "y": y, "width": length, "height": 0},
+            {
+                "start_point": {"x": x, "y": y},
+                "end_point": {"x": x + length, "y": y},
+                "length": length,
+            },
+        )
+
+    def _text(self, val, x, y):
+        return self._prim("TEXT", "0", x, y, 100, 100, text=val)
+
+    def _poly(self, x, y, w, h):
+        pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
+        return self._prim("LWPOLYLINE", "0", x, y, w, h, points=pts, closed=True)
+
+    def test_single_band_returns_empty(self):
+        """单视幅（无 Y 断层）→ 无需拆分，返回空列表。"""
+        from src.baa_engine.drawing_classifier import classify_view_frames
+
+        prims = [self._prim("LINE", "0", 0, i * 1000, 1000, 0) for i in range(40)]
+        assert classify_view_frames(prims) == []
+
+    def test_multi_band_detects_non_plan(self):
+        """两簇：上簇为立面（无房间证据），下簇为平面 → 上簇 non_plan。"""
+        from src.baa_engine.drawing_classifier import classify_view_frames
+
+        prims = []
+        # 下簇（平面证据）：闭合多边形 + 房间文字
+        for i in range(20):
+            prims.append(self._poly(0, i * 3000, 4000, 3000))
+        for i in range(8):
+            prims.append(self._text("房间", 500, i * 3000))
+        # 上簇（立面证据）：超长横线 + 剖面文字
+        for i in range(30):
+            prims.append(self._hline(0, 100000 + i * 500, 50000))
+        for i in range(5):
+            prims.append(self._text("剖面", 500, 100000 + i * 500))
+
+        frames = classify_view_frames(prims)
+        assert len(frames) >= 2, frames
+        non_plan = [f for f in frames if f["scope_mode"] == "non_plan"]
+        assert len(non_plan) >= 1, frames
+        assert non_plan[0]["y_min"] > 50000  # 上簇被正确标为 non_plan
+
+    def test_plan_band_stays_plan(self):
+        """平面证据充分的簇保持 plan。"""
+        from src.baa_engine.drawing_classifier import classify_view_frames
+
+        prims = []
+        for i in range(20):
+            prims.append(self._poly(0, i * 3000, 4000, 3000))
+        for i in range(10):
+            prims.append(self._text("房间", 500, i * 3000))
+        for i in range(15):
+            prims.append(self._text("2400", 500, i * 3000 + 100))
+        # 少量立面文字，不足以否定
+        for i in range(3):
+            prims.append(self._text("立面", 0, 100000 + i * 500))
+        for i in range(20):
+            prims.append(self._hline(0, 100000 + i * 500, 50000))
+
+        frames = classify_view_frames(prims)
+        plan = [f for f in frames if f["scope_mode"] == "plan"]
+        assert len(plan) >= 1, frames
+        assert plan[0]["y_min"] < 50000  # 下簇保持 plan
+
+
 class TestCorruptDetection:
     def test_valid_large_dxf(self, tmp_path):
         # 写一个有效 DXF 头 + 足够大小

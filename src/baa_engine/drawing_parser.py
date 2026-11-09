@@ -96,6 +96,7 @@ class DrawingResult:  # class definition
         parse_status: Optional[Dict] = None,  # P127-T3: 解析状态诊断（T3 加密/代理/零图元不静默）
         t3_components: Optional[Dict] = None,  # P127-T3: 天正原生识别构件（墙/门/窗/柱实例）
         unit_normalization: Optional[Dict] = None,  # 解析层单位归一化审计（源单位/缩放系数/依据）
+        view_frames: Optional[List[Dict]] = None,  # P121-V: 视图级 scope_mode（混合图集子视框聚类）
     ):  # 操作
         """初始化实例。"""
         self.file_path = file_path  # assignment
@@ -110,6 +111,7 @@ class DrawingResult:  # class definition
         self.sheet_type = sheet_type or {}  # P121: {sheet_type, scope_mode, evidence, metrics}
         self.corrupt = corrupt or {}  # P121: {corrupt, reason, recoverable}
         self.block_refs = block_refs or []  # P127-S1: 块引用列表
+        self.view_frames = view_frames or []  # P121-V: 视图级 scope_mode（混合图集子视框聚类）
         # P127-T3: 天正 T3 解析状态与原生构件（非 T3 图纸为 None）
         self.parse_status = parse_status
         self.t3_components = t3_components
@@ -577,6 +579,24 @@ class DrawingParser:
                 unit_err,
             )
 
+        # ── P121-V: 视图级 scope_mode（混合图集子视框聚类）──
+        # 必须在单位归一化之后调用：聚类阈值（_VIEW_GAP_MM=5000mm）按毫米设计，
+        # 若在归一化前调用（源单位为米时坐标在 0-100 量级），会因尺度错位
+        # 把所有图元聚成一簇，返回空。仅当整图被判为 plan 且内部存在明显
+        # Y 向断层（多视图共存）时才有值；单视幅图集返回空列表，不影响既有行为。
+        view_frames: List[Dict] = []
+        try:
+            from src.baa_engine.drawing_classifier import classify_view_frames
+
+            view_frames = classify_view_frames(primitives or [])
+        except Exception as vf_err:
+            logger.warning(
+                "[P121-V] 视图级分类异常（已降级为空）: %s: %s",
+                type(vf_err).__name__,
+                vf_err,
+            )
+            view_frames = []
+
         result = DrawingResult(
             file_path=file_path,
             file_id=file_id or f"baa-file-{path.stem}",
@@ -589,6 +609,7 @@ class DrawingParser:
             parse_status=parse_status,
             t3_components=t3_components,
             unit_normalization=unit_normalization,
+            view_frames=view_frames,
         )  # code
 
         # ── P73: 多Sheet 分区检测 ────────────────────────

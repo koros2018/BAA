@@ -3,9 +3,10 @@ P121 Phase 1: 图纸类型分类器
 基于图层名 + 实体类型 + 文件名关键词判断图纸类型（建筑/结构/电气/给排水/暖通/其他）
 """
 
+import math
 import re
 import statistics
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
 
 # ── 分类规则 ──────────────────────────────────────────────
 
@@ -817,3 +818,235 @@ def is_likely_corrupt(filepath: str, min_size_bytes: int = 10000) -> Dict[str, A
         }
 
     return {"corrupt": False, "reason": "", "recoverable": True}
+
+
+# ── P121（视图级延伸）：混合图集内部按 Y 带分区 ───────────────────────
+# 部分真实 DXF 在同一图纸里同时摆放「平面图区」和「立面/剖面/大样区」。
+# 全局 `classify_sheet_type` 只能给出整张图纸一个 scope_mode；
+# 当整体被误判为 plan 时（如 Stadion），非平面区里扫线派生的假房间/假走廊
+# 会照常进入逐实体判定，产出一堆无意义的 findings。
+#
+# 本函数通过几何聚类 + 内容得分，将图元按 Y 坐标拆成多个子视框，并对每个
+# 子视框给出 ``scope_mode``；用于 ``fp_rate_audit.py`` 做实体级局部过滤。
+# 不改变绘图解析主链路；返回空列表表示无需按视图拆分（单视幅图集）。
+
+_VIEW_GAP_MM = 5_000       # 子视图间距阈值（mm）：两簇之间 >5m 视为不同视框
+_VIEW_MIN_PRIMS = 30        # 形成有效子视框所需最少图元数
+_VIEW_NON_PLAN_SCORE = 20   # 得分 < 此值 → non_plan（非平面区噪声多、缺乏平面证据）
+
+
+def _centroid(p: Any) -> Tuple[float, float]:
+    """取单个原始图元的 bbox 中心点；bbox 缺失或非法返回 (nan,nan)。"""
+    bb = getattr(p, "bbox", None) or getattr(p, "get", lambda k, default=None: default)("bbox") or {}
+    if not isinstance(bb, dict):
+        bb = {}
+    w = max(float(bb.get("width", 0) or 0), 0.0)
+    h = max(float(bb.get("height", 0) or 0), 0.0)
+    x = float(bb.get("x", 0) or 0)
+    y = float(bb.get("y", 0) or 0)
+    if w <= 0 or h <= 0:
+        # 退化图元退化为端点中位
+        props = getattr(p, "properties", None) or {} or {}
+        sp = props.get("start_point")
+        ep = props.get("end_point")
+        try:
+            sx, sy = float(sp["x"] or 0), float(sp["y"] or 0)
+            ex, ey = float(ep["x"] or 0), float(ep["y"] or 0)
+            return (sx + ex) / 2, (sy + ey) / 2
+        except Exception:
+            pass
+        return float('nan'), float('nan')
+    return x + w / 2, y + h / 2
+
+
+def _cluster_y_by_gap(coords: list, gap: float) -> List[List[float]]:
+    """把一维坐标按 gap 阈值聚类（相邻差值 > gap 则切段），只保留长度 >=2 的段。"""
+    if not coords:
+        return []
+    coords = sorted(coords)
+    clusters: List[List[float]] = [[coords[0]]]
+    for c in coords[1:]:
+        if c - clusters[-1][-1] > gap:
+            clusters.append([c])
+        else:
+            clusters[-1].append(c)
+    return [c for c in clusters if len(c) >= 2]
+
+
+def classify_view_frames(primitives: list) -> List[Dict[str, Any]]:
+    """将原始图元按 Y 轴几何密度拆分为若干子视框并判定各自的作用域。
+
+    用途：供外部审计工具做「实体级」scope_mode 覆盖，避免混合图集（plan+section
+    共处一 DXF）中非平面子区的派生实体污染 findings。
+
+    算法步骤：
+      1. 收集所有有合法 bbox 的原始图元的质心 (cx,cy)；
+      2. 按 cy 升序排序后做「gap 聚类」（≥2 个坐标且相邻差值 > _VIEW_GAP_MM
+         才切段），每段代表一张可能含多个局部的子视框；
+      3. 对每一段，统计其中的图元类型比例和内容词元作为得分依据；
+      4. 根据得分决定是否标记为 plan/non_plan/unknown。
+
+    返回格式：
+      [
+          {
+              "cluster_id": int,
+              "y_min": float, "y_max": float,
+              "primitive_count": int,
+              "scope_mode": "plan|non_plan|unknown",
+              "score": int,
+              "evidence": List[str],
+          },
+          ...
+      ]
+    """
+    n = len(primitives or [])
+    if n < 10:
+        return []
+
+    centroids: List[Tuple[float, float, Any]] = []
+    for p in primitives:
+        cx, cy = _centroid(p)
+        if math.isnan(cx) or math.isnan(cy):
+            continue
+        centroids.append((cx, cy, p))
+
+    if len(centroids) < _VIEW_MIN_PRIMS:
+        return []
+
+    # 1. 按 cy 聚类
+    ys_sorted = [cy for _, cy, _ in centroids]
+    raw_clusters = _cluster_y_by_gap(ys_sorted, _VIEW_GAP_MM)
+    if len(raw_clusters) <= 1 and len(centroids) > _VIEW_MIN_PRIMS * 2:
+        pass
+    elif len(raw_clusters) <= 1:
+        return []
+
+    # 2. 构建 cluster 边界 → primitive 索引映射
+    cluster_bounds: List[Tuple[float, float]] = [
+        (min(cl), max(cl)) for cl in raw_clusters
+    ]
+    cent_to_cluster: Dict[int, int] = {}
+    for i, (_, cy, _) in enumerate(centroids):
+        for ci, (lo, hi) in enumerate(cluster_bounds):
+            if lo <= cy <= hi:
+                cent_to_cluster[i] = ci
+                break
+
+    # 3. 对每个 cluster 打分
+    RESULTS: List[Dict[str, Any]] = []
+    room_keywords = ("房间", "厅", "室", "卫", "厨", "卧", "套", "厕")
+    door_keywords = ("门", "door", "exit", "防火门")
+    floor_keywords = ("楼梯", "台阶", "平台", "层")
+    elev_keywords = ("立面", "elev", "section", "剖面")
+
+    for ci, (lo, hi) in enumerate(cluster_bounds):
+        span = hi - lo
+        if span < 5000:
+            continue
+
+        prims_in_cl = [
+            centroids[i][2] for i in range(len(centroids))
+            if cent_to_cluster.get(i) == ci
+        ]
+        n_prim = len(prims_in_cl)
+
+        closed_polygon_n = 0
+        room_area_total = 0.0
+        plan_text_n = 0
+        dim_text_n = 0
+        door_exit_n = 0
+        stair_floor_n = 0
+        elev_n = 0
+        long_hlines_n = 0  # 超长横线（立面/剖面常见）
+
+        for p in prims_in_cl:
+            t = getattr(p, "dxf_type", "") or ""
+            pr = getattr(p, "properties", None) or {} or {}
+
+            if t in ("LWPOLYLINE", "POLYLINE"):
+                pts = pr.get("points")
+                if pts and len(pts) >= 3:
+                    area = _polygon_area({"points": pts})
+                    if area > 0:
+                        closed_polygon_n += 1
+                        if area * 1e-6 >= 0.5:  # mm² → m²
+                            room_area_total += area * 1e-6
+            elif t in ("TEXT", "MTEXT"):
+                val = str(pr.get("text") or pr.get("content") or "").strip()
+                if val:
+                    vlow = val.lower()
+                    if any(kw in val for kw in room_keywords):
+                        plan_text_n += 1
+                    if any(kw in vlow for kw in door_keywords):
+                        door_exit_n += 1
+                    if any(kw in vlow for kw in floor_keywords):
+                        stair_floor_n += 1
+                    if any(kw in vlow for kw in elev_keywords):
+                        elev_n += 1
+            elif t == "DIMENSION":
+                dim_text_n += 1
+            elif t == "LINE":
+                length = pr.get("length")
+                bb = getattr(p, "bbox", {}) or {}
+                hdim = abs(bb.get("height", 0) or 0)
+                wdim = abs(bb.get("width", 0) or 0)
+                try:
+                    length = abs(float(length))
+                except (TypeError, ValueError):
+                    length = max(wdim, hdim)
+                if length >= 5000 and hdim < 300:
+                    long_hlines_n += 1
+
+        score = 0
+        evidence: List[str] = []
+
+        if closed_polygon_n >= 8 and room_area_total >= 2.0:
+            score += min(closed_polygon_n, 30) * 2
+            evidence.append(f"closed_polygons={closed_polygon_n},room_area≈{room_area_total:.1f}㎡")
+        if plan_text_n > 0:
+            score += plan_text_n * 3
+            evidence.append(f"room_texts={plan_text_n}")
+        if dim_text_n >= 5:
+            score += dim_text_n * 2
+            evidence.append(f"dims={dim_text_n}")
+        if door_exit_n > 0:
+            score += door_exit_n * 3
+            evidence.append(f"door_texts={door_exit_n}")
+        if stair_floor_n > 0:
+            score += stair_floor_n
+            evidence.append(f"stair_texts={stair_floor_n}")
+        if elev_n > 0:
+            score -= elev_n * 10
+            evidence.append(f"elev_texts={elev_n}(−)")
+        if long_hlines_n > n_prim * 0.2:
+            score -= min(long_hlines_n, 30) * 3
+            evidence.append(f"long_h_lines={long_hlines_n}(−)")
+        density = n_prim / max(span / 1000.0, 1)
+        if density < 3:
+            score -= 10
+            evidence.append(f"density={density:.1f}/m(<)")
+
+        effective_scope = "plan"
+        if score < _VIEW_NON_PLAN_SCORE:
+            effective_scope = "non_plan"
+        elif score < _VIEW_NON_PLAN_SCORE + 10:
+            effective_scope = "unknown"
+            evidence.append("borderline_score")
+
+        RESULTS.append({
+            "cluster_id": ci,
+            "y_min": round(lo, 1),
+            "y_max": round(hi, 1),
+            "span_mm": round(span, 1),
+            "primitive_count": n_prim,
+            "scope_mode": effective_scope,
+            "score": int(score),
+            "evidence": evidence,
+        })
+
+    trimmed: List[Dict[str, Any]] = []
+    for r in RESULTS:
+        if r["primitive_count"] < 10 and r["scope_mode"] != "plan":
+            continue
+        trimmed.append(r)
+    return trimmed

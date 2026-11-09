@@ -160,5 +160,5 @@ if entity_id.startswith(("polyline_corridor_", "line_chain_corridor_")):
 ## 6. 未实施但建议跟进的项（本轮不动）
 
 1. **DGT 柱网格噪声过滤**：实现上述 §1.1 中的三条件判据，或上游在 `_exclude_table_and_frame_prims` / `_collect_wall_segments` 层做 Layer-0 LINE 围合格的排除。
-2. **Stadion P121 视图级过滤**：将 scope_mode 从图纸级推进到视图级（基于局部视框检测）。
+2. ~~**Stadion P121 视图级过滤**~~：**已实施**（见 [p121-view-filter-20261109.md](file:///d:/OpenClawData/BAA/docs/p121-view-filter-20261109.md)）。
 3. **Heavy DWG 性能优化**：在 >5000 primitive 图元时启用 sweep 路径采样/剪枝。

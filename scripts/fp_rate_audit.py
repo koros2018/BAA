@@ -225,7 +225,30 @@ def run_review(dxf_path: Path) -> dict:
     # 所需总净宽（GB50016-5.5.21），用于 DIM-006/DIM-113 的分区级判定。
     width_ctx = WidthContext(entities)
 
+    # P121-V: 视图级 scope_mode 覆盖。混合图集（plan+section 共处一 DXF）中，
+    # 非平面子视框内的派生实体（如看台踏步格间）不应进入逐实体判定。
+    # 判定规则：实体 bbox 中心落在某个 non_plan 视框内 → 跳过本地函数。
+    _view_frames = getattr(result, "view_frames", None) or []
+    _non_plan_bands = [
+        (vf.get("y_min", 0), vf.get("y_max", 0))
+        for vf in _view_frames
+        if vf.get("scope_mode") == "non_plan"
+    ]
+
+    def _in_non_plan_view(bb: dict) -> bool:
+        if not _non_plan_bands:
+            return False
+        if not bb:
+            return False
+        cy = bb.get("y", 0) + bb.get("height", 0) / 2
+        for lo, hi in _non_plan_bands:
+            if lo <= cy <= hi:
+                return True
+        return False
+
     for e in entities:
+        if _in_non_plan_view(e.get("bbox") or {}):
+            continue  # P121-V: 非平面子视框内的实体不参与本地函数判定
         for fid, r in registry.execute_chained(local_ids, e).items():
             if r is None:
                 continue
