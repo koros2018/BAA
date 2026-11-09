@@ -487,7 +487,17 @@ _DUP_SOURCE_AREA_RATIO = 1.43
 _DUP_SOURCE_IOU = 0.70
 _DUP_SOURCE_CENTROID_MM = 2000.0
 
-# ── P130: 图框/表格区域排除 ──
+# ── P121-V：视图级过滤常量（drawing_classifier.py）──
+
+# ── H 格子阵列/看台格间检测 ──────────────────────────────────────────────
+# 当同一视图簇内出现 ≥GRID_MIN_COUNT 个尺寸几乎相同（边长差 < GRID_DIM_TOL）的
+# sweep 派生 line_chain_* 房间，且其质心沿单一方向等距排列（间距变异系数 < GRID_SPACING_CV），
+# 视为看台/货架/图例表类非房间栅格，整体丢弃。
+_GRID_MIN_COUNT = 3        # 同组最少实体数
+_GRID_DIM_TOL = 0.05       # 宽高各自容差（5%）——与真实标准间不同，
+                           # 真实标准间虽然也同质，但通常带门/文字标注作为辅证
+_GRID_SPACING_CV = 0.50    # 沿主方向的中心点间距变异系数上限
+_GRID_AREA_MAX_M2 = 50.0   # 单格面积上限（超过则可能是真实大空间而非格间）
 _TABLE_AXIS_TOL_DEG = 3.0  # 判定近轴段的角度容差（度）
 _TABLE_LEN_TOL_REL = 0.05  # 同一族内线段长度相对容差（分桶用）
 _TABLE_LEN_CV_MAX = 0.05  # 族内长度变异系数上限（长度一律）
@@ -1789,6 +1799,173 @@ def _room_source_rank(entity_id: str) -> int:
     return 3
 
 
+def _detect_grid_pattern_suppressions(
+    room_ids: Set[str],
+    bbox_by_id: Dict[str, Dict[str, float]],
+    poly_by_id: Dict[str, List[List[float]]],
+    doors: List[Any],
+    texts: List[Any],
+) -> Dict[str, Dict[str, Any]]:
+    """P121-V 扩展：检测 sweep 派生格子阵列（看台/货架/图例表）。
+
+    判据：
+      1. 只针对 line_chain_* 派生的房间实体（非显式分类）。
+      2. 同组内所有实体尺寸几乎相同（宽高各自容差 < GRID_DIM_TOL = 5%）。
+      3. 同组实体 ≥ GRID_MIN_COUNT = 3 个。
+      4. 质心沿单一方向等距排列（间距变异系数 < GRID_SPACING_CV = 0.5）。
+      5. 单格面积 ≤ GRID_AREA_MAX_M2 = 50㎡（大空间网格不计入）。
+      6. 组内无实体带门洞邻接或文字标注（若有 → 真实标准间，不抑制）。
+
+    注意第 6 条是关键区分点：真实标准间（酒店客房、病房）虽然也同质等距排列，
+    但通常有门或文字标注作为辅助证据；看台格间/图例表完全没有这些特征。
+
+    返回值：{entity_id: suppression_record}
+    """
+    from collections import defaultdict as _defaultdict
+
+    # Helper: check if an entity bbox has nearby door or text
+    def _has_adjacent_context(eid: str) -> bool:
+        bb = bbox_by_id.get(eid) or {}
+        cx = bb.get("x", 0) + bb.get("width", 0) / 2
+        cy = bb.get("y", 0) + bb.get("height", 0) / 2
+        w, h = bb.get("width", 0), bb.get("height", 0)
+        rbx0, rby0 = bb.get("x", 0), bb.get("y", 0)
+        rbx1, rby1 = rbx0 + w, rby0 + h
+        # Door adjacency: ONLY count actual doors (not windows/openings)
+        DOOR_ONLY_TYPES = {"door", "fire_door", "exit_door", "accessible_door"}
+        for d in doors:
+            dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
+            if dtype not in DOOR_ONLY_TYPES:
+                continue
+            dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
+            dx, dy = dbb.get("x", 0), dbb.get("y", 0)
+            dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
+            dbx0, dby0 = dx, dy
+            dbx1, dby1 = dx + dw_v, dy + dh_v
+            ox = max(0, min(rbx1, dbx1) - max(rbx0, dbx0))
+            oy = max(0, min(rby1, dby1) - max(rby0, dby0))
+            # 需双轴均有实质重叠才算邻接：单轴投影重叠不足以说明门洞与该房间相邻
+            # （例如看台格间横向与远处门洞投影重合时不应误判）。
+            # 阈值取房间短边的一半，确保重叠区域至少覆盖半个房间宽度/高度。
+            short_side = min(w, h) if w > 0 and h > 0 else 0
+            if (ox > short_side / 2) and (oy > short_side / 2):
+                return True
+        # Text label within 2.5m
+        for t in texts:
+            tb = t.bbox if hasattr(t, "bbox") else (t if isinstance(t, dict) else {}) or {}
+            tx = tb.get("x", 0) + tb.get("width", 0) / 2
+            ty = tb.get("y", 0) + tb.get("height", 0) / 2
+            if abs(tx - cx) < 2500 and abs(ty - cy) < 2500:
+                return True
+        return False
+
+    # Build sorted list of grid candidates (only line_chain_ rooms without context)
+    import sys as _sys
+    candidates: List[Tuple[str, float, float, float, float, float]] = []
+    _ctx_count, _no_ctx_count = 0, 0
+    _area_skip = 0
+    _dims_skip = 0
+    _lc_total = 0
+    for eid in room_ids:
+        if not eid.startswith("line_chain_"):
+            continue
+        _lc_total += 1
+        bb = bbox_by_id.get(eid) or {}
+        area_m2 = (bb.get("width", 0) * bb.get("height", 0)) / 1_000_000
+        if area_m2 > _GRID_AREA_MAX_M2:
+            _area_skip += 1
+            continue
+        w = bb.get("width", 0)
+        h = bb.get("height", 0)
+        if w <= 0 or h <= 0:
+            _dims_skip += 1
+            continue
+        cx = bb.get("x", 0) + w / 2
+        cy = bb.get("y", 0) + h / 2
+        has_ctx = _has_adjacent_context(eid)
+        if has_ctx:
+            _ctx_count += 1
+            continue
+        _no_ctx_count += 1
+        candidates.append((eid, w, h, cx, cy, area_m2))
+
+    if len(candidates) < _GRID_MIN_COUNT:
+        return {}
+
+    # Group by rounded size bucket (100mm tolerance for initial grouping)
+    size_groups = _defaultdict(list)
+    for item in candidates:
+        eid, w, h, cx, cy, area = item
+        bw = round(w / 100) * 100
+        bh = round(h / 100) * 100
+        size_groups[(bw, bh)].append(item)
+
+    suppressed: Dict[str, Dict[str, Any]] = {}
+    for (bw, bh), group in size_groups.items():
+        if len(group) < _GRID_MIN_COUNT:
+            continue
+        # Check dimension homogeneity (5%)
+        ws = [g[1] for g in group]
+        hs = [g[2] for g in group]
+        avg_w = sum(ws) / len(ws)
+        avg_h = sum(hs) / len(hs)
+        if avg_w <= 0 or avg_h <= 0:
+            continue
+        w_var = max(abs(w - avg_w) / avg_w for w in ws)
+        h_var = max(abs(h - avg_h) / avg_h for h in hs)
+        if w_var > _GRID_DIM_TOL or h_var > _GRID_DIM_TOL:
+            continue
+
+        # Check alignment: primary direction
+        cx_list = [g[3] for g in group]
+        cy_list = [g[4] for g in group]
+        x_range = max(cx_list) - min(cx_list)
+        y_range = max(cy_list) - min(cy_list)
+
+        if y_range >= x_range and y_range > 500:
+            coords = sorted(cy_list)
+            direction = "vertical"
+        elif x_range > 500:
+            coords = sorted(cx_list)
+            direction = "horizontal"
+        else:
+            continue  # compact cluster — not a grid pattern
+
+        # Check spacing regularity
+        spacings = [coords[i + 1] - coords[i] for i in range(len(coords) - 1)]
+        if not spacings or min(spacings) < 200:
+            continue
+        avg_sp = sum(spacings) / len(spacings)
+        if avg_sp <= 0:
+            continue
+        cv = max(abs(s - avg_sp) / avg_sp for s in spacings)
+        if cv > _GRID_SPACING_CV:
+            continue  # spacing too irregular
+
+        # Suppress all members of this grid group
+        for item in group:
+            eid = item[0]
+            if eid in suppressed:
+                continue
+            suppressed[eid] = {
+                "id": eid,
+                "type": "room",
+                "action": "suppressed",
+                "bbox": bbox_by_id.get(eid, {}),
+                "reasons": ["grid_pattern"],
+                "evidence": {
+                    "group_size": len(group),
+                    "avg_width_mm": round(avg_w),
+                    "avg_height_mm": round(avg_h),
+                    "spacing_avg_mm": round(avg_sp),
+                    "spacing_cv": round(cv, 3),
+                    "direction": direction,
+                },
+            }
+
+    return suppressed
+
+
 def _suppress_implausible_rooms(
     entities: List[Any], primitives: Optional[List[RawPrimitive]] = None
 ) -> Tuple[List[Any], List[Dict[str, Any]]]:
@@ -1862,6 +2039,16 @@ def _suppress_implausible_rooms(
     frames: List[Dict[str, float]] = (
         _detect_frame_rects(primitives, []) if primitives else []
     )
+
+    # H 格子阵列检测（看台/货架/图例表等周期性栅格）：在 A/B/C/D/E/F/G 常规门禁
+    # 之前先跑一次，避免同质栅格的每个成员单独过后续规则造成重复记录。
+    room_ids_set: Set[str] = {e.id for e in rooms}
+    door_entities = [e for e in entities if getattr(e, "type", None) in _OPENING_TYPES]
+    texts_list = [e for e in entities if getattr(e, "type", None) == "text"]
+    grid_suppressions = _detect_grid_pattern_suppressions(
+        room_ids_set, bbox_by_id, poly_by_id, door_entities, texts_list
+    )
+    suppressed.update(grid_suppressions)
 
     def _record(entity: Any, reason: str, evidence: Dict[str, Any]) -> None:
         rec = suppressed.setdefault(
