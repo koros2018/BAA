@@ -1,8 +1,10 @@
 # 房间来源分流修复：闭合多段线 × 扫线面并存（2026-11-09）
 
-> 本文是 [room-short-edge-threshold-20261109.md](file:///d:/OpenClawData/BAA/docs/room-short-edge-threshold-20261109.md)
-> §5/§7 的后续执行记录。**该文 §5.1 的「villa 24→6」与 §7 的「前置（必修）修分流」
-> 已由本次修复取代**；原文保留为历史取证，不删改。
+> **相关文档**：后续两项治理已独立成篇——
+> [p121-view-filter-20261109.md](file:///d:/OpenClawData/BAA/docs/p121-view-filter-20261109.md)
+> （视图级 scope_mode 过滤）及
+> [grid-pattern-suppression-20261109.md](file:///d:/OpenClawData/BAA/docs/grid-pattern-suppression-20261109.md)
+> （H 格子阵列检测）。本文作为分流修复基线保留为历史取证，不删改。
 >
 > 口径：真实图纸 `data/drawings/real` + `data/files/*.dwg`，共 79 张（与
 > `scripts/fp_rate_audit.py` 同集合）。临时脚本用完即删，不随仓库提交。
