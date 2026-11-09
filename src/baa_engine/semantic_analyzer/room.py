@@ -1845,14 +1845,18 @@ def _poly_area_m2(poly: List[List[float]]) -> float:
 
 
 def _bbox_iou(a: Dict[str, float], b: Dict[str, float]) -> float:
+    aw = a.get("width", 0)
+    ah = a.get("height", 0)
+    bw = b.get("width", 0)
+    bh = b.get("height", 0)
     ax0, ay0 = a.get("x", 0), a.get("y", 0)
-    ax1, ay1 = ax0 + a.get("width", 0), ay0 + a.get("height", 0)
     bx0, by0 = b.get("x", 0), b.get("y", 0)
-    bx1, by1 = bx0 + b.get("width", 0), by0 + b.get("height", 0)
+    ax1, ay1 = ax0 + aw, ay0 + ah
+    bx1, by1 = bx0 + bw, by0 + bh
     ox = max(0, min(ax1, bx1) - max(ax0, bx0))
     oy = max(0, min(ay1, by1) - max(ay0, by0))
     inter = ox * oy
-    union = a.get("width", 0) * a.get("height", 0) + b.get("width", 0) * b.get("height", 0) - inter
+    union = aw * ah + bw * bh - inter
     return inter / union if union > 0 else 0.0
 
 
