@@ -1499,8 +1499,9 @@ class _SpatialGrid:
                 continue
             lo = bisect_left(keys, ky0)
             hi = bisect_right(keys, ky1)
-            for ky in keys[lo:hi]:
-                lst = row.get(ky)
+            # 用索引遍历避免 keys[lo:hi] 切片创建列表
+            for _k in range(lo, hi):
+                lst = row.get(keys[_k])
                 if lst is None:
                     continue
                 for idx in lst:
