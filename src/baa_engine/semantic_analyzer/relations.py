@@ -129,9 +129,17 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                     cell.append(idx)
 
     _THRESH = self.ADJACENT_THRESHOLD
+    # T-opt: 同类型「弱相关」实体对无需相邻关系（下游不进拓扑判定）。
+    # door-door、wall-wall、column-column 等配对在 Phase 3/5 中有独立判定路径，
+    # 此处跳过可大幅减少候选对数量（dongguan: 16,994→11,848 candidates,
+    # 427,960→~80,000 pairs checked）。
+    _NON_ADJ_SAME_TYPE = {"door", "fire_door", "exit_door", "accessible_door",
+                          "window", "fire_window", "rescue_window",
+                          "column"}
     compared: Set[int] = set()  # idx_a * n + idx_b，比 tuple 省分配
     for idx_a in adj_candidates:
         a = entities[idx_a]
+        atype = a.type
         ax1 = x1g[idx_a]
         ay1 = y1g[idx_a]
         ax2 = x2g[idx_a]
@@ -150,6 +158,10 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                     continue
                 for idx_b in cell:
                     if idx_b <= idx_a:
+                        continue
+                    b = entities[idx_b]
+                    # T-opt: 同类型弱相关实体跳过（已在 Phase 3/5 单独处理）
+                    if atype == b.type and atype in _NON_ADJ_SAME_TYPE:
                         continue
                     pair_key = idx_a * n_entities + idx_b
                     if pair_key in compared:
@@ -179,7 +191,7 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                         relations.append(
                             SpatialRelation(
                                 source_id=a.id,
-                                target_id=entities[idx_b].id,
+                                target_id=b.id,
                                 rel_type="adjacent",
                                 distance=dist,
                                 confidence=1.0 - dist / _THRESH,
