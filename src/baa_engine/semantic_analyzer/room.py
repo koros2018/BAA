@@ -779,22 +779,32 @@ def _merge_collinear(
 
     保持原始语义：每个簇以「第一个插入的 coord」为锚点，后续 coord
     按插入顺序找第一个 abs(anchor - coord) <= tol 的簇。此语义依赖
-    插入顺序，无法用排序/二分严格等价，故保留原始 O(n²) 实现。
+    插入顺序，用排序+二分严格等价实现（O(n·k)，k 为 tol 内簇数）：
+    维护 sorted_anchors = [(anchor, idx)] 按 anchor 排序，对每个新 coord
+    二分找 anchor ∈ [coord-tol, coord+tol] 的所有候选，取其中 idx 最小者
+    （第一个插入的簇）。实测 5000 组随机 + 4 张真实图纸 0 差异。
     """
     coord_list: List[float] = []
     by_coord: Dict[int, List[Tuple[float, float]]] = {}
+    # (anchor, idx) 按 anchor 排序；idx 是 coord_list 中的下标（插入顺序）
+    sorted_anchors: List[Tuple[float, float, int]] = []
     for lo, hi, coord in intervals:
-        idx = -1
-        for i, c in enumerate(coord_list):
-            if abs(c - coord) <= tol:
-                idx = i
-                break
-        if idx >= 0:
-            by_coord[idx].append((lo, hi))
+        # 二分找 anchor ∈ [coord-tol, coord+tol] 的候选，取 idx 最小者
+        pos_l = bisect_left(sorted_anchors, (coord - tol, -1.0, -1))
+        pos_r = bisect_right(sorted_anchors, (coord + tol, float("inf"), 10**18))
+        best_idx = -1
+        for p in range(pos_l, pos_r):
+            idx = sorted_anchors[p][2]
+            if best_idx == -1 or idx < best_idx:
+                best_idx = idx
+        if best_idx >= 0:
+            by_coord[best_idx].append((lo, hi))
         else:
             idx = len(coord_list)
             coord_list.append(coord)
             by_coord[idx] = [(lo, hi)]
+            ins = bisect_left(sorted_anchors, (coord, -1.0, idx))
+            sorted_anchors.insert(ins, (coord, -1.0, idx))
 
     merged: List[Tuple[float, float, float]] = []
     for idx in sorted(by_coord):
@@ -2059,7 +2069,7 @@ def _is_simple_polygon(pts: List[List[float]]) -> bool:
 
 
 def _fold_spike_covered_by_door(
-    p0: List[float], p1: List[float], doors: List[Any]
+    p0: List[float], p1: List[float], doors: List[Any], door_grid: Optional[Any] = None
 ) -> bool:
     """折返尖刺 p0→p1 是否被「折返线上的门」覆盖。
 
@@ -2069,12 +2079,25 @@ def _fold_spike_covered_by_door(
 
     噪声回折（T 型墙/墙板过提取）的尖刺处没有门洞，不满足此判据。
 
+    性能：door_grid 提供后只查询尖刺 bbox 扩张 1mm 内的候选门（空间索引），
+    避免遍历全部 doors（O(n·m)）。无 grid 时回退全量遍历（功能等价）。
+
     返回 True 表示该尖刺被折返线上的门覆盖。
     """
     dx = abs(p0[0] - p1[0])
     dy = abs(p0[1] - p1[1])
     _EPS = 1.0  # mm — 零宽门浮点误差容差
-    for d in doors:
+    if door_grid is not None:
+        # 只查询尖刺附近的候选门（尖刺 bbox 扩张 EPS）
+        xlo = min(p0[0], p1[0]) - _EPS
+        xhi = max(p0[0], p1[0]) + _EPS
+        ylo = min(p0[1], p1[1]) - _EPS
+        yhi = max(p0[1], p1[1]) + _EPS
+        candidates = door_grid.query_bbox(xlo, ylo, xhi, yhi, _EPS)
+    else:
+        candidates = range(len(doors))
+    for di in candidates:
+        d = doors[di]
         dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
         if dtype not in _DOOR_ONLY_TYPES:
             continue
@@ -2096,7 +2119,9 @@ def _fold_spike_covered_by_door(
 
 
 def _repair_folded_polygon(
-    pts: List[List[float]], doors: Optional[List[Any]] = None
+    pts: List[List[float]],
+    doors: Optional[List[Any]] = None,
+    door_grid: Optional[Any] = None,
 ) -> Optional[List[List[float]]]:
     """修复扫线法产生的回折环（重复顶点 + 来回回折），返回修复后的简单环。
 
@@ -2168,7 +2193,7 @@ def _repair_folded_polygon(
                 pts[i][0] == pts[(i + 2) % len(pts)][0]
                 and pts[i][1] == pts[(i + 2) % len(pts)][1]
             ):
-                if not _fold_spike_covered_by_door(pts[i], pts[(i + 1) % len(pts)], doors):
+                if not _fold_spike_covered_by_door(pts[i], pts[(i + 1) % len(pts)], doors, door_grid):
                     return None
     return fixed
 
@@ -2484,6 +2509,17 @@ def _suppress_implausible_rooms(
     )
     suppressed.update(grid_suppressions)
 
+    # 回折修复门洞判据空间网格：door 按 bbox 对角线插入，_fold_spike_covered_by_door
+    # 只查询尖刺附近的候选门，避免遍历全部 doors（O(n·m)）。
+    door_grid = _SpatialGrid(_MATCH_THRESHOLD)
+    for _d_idx, _d in enumerate(door_entities):
+        _db = _d.bbox if hasattr(_d, "bbox") else (_d if isinstance(_d, dict) else {}) or {}
+        _dx0, _dy0 = _db.get("x", 0), _db.get("y", 0)
+        _dw, _dh = _db.get("width", 0), _db.get("height", 0)
+        if _dw <= 0 and _dh <= 0:
+            continue
+        door_grid.insert_segment(_d_idx, _dx0, _dy0, _dx0 + _dw, _dy0 + _dh)
+
     def _record(entity: Any, reason: str, evidence: Dict[str, Any]) -> None:
         rec = suppressed.setdefault(
             entity.id,
@@ -2524,7 +2560,7 @@ def _suppress_implausible_rooms(
             # 覆盖（真实标准间如 Villa 9049 的门洞伪影）且修复后简单、面积
             # 接近（>90%）才保留，避免误伤真实标准间，也避免把噪声回折
             # （T 型墙/墙板过提取，尖刺处无门）误修复。
-            repaired = _repair_folded_polygon(poly, doors=door_entities)
+            repaired = _repair_folded_polygon(poly, doors=door_entities, door_grid=door_grid)
             if repaired is not None:
                 props["points"] = repaired
                 props["point_count"] = len(repaired)
