@@ -265,3 +265,39 @@ mosque 0（均不变）。基准脚本验证 2791 条线段 query_bbox 结果逐
 > 注：之前 §8.4 尝试的 3 种 `query_bbox` 替代方案（gen 戳数组、有序 cell 键
 > 二分、行索引二分）负优化，是针对**去重机制**；本次嵌套 dict 是**数据结构**
 > 优化（空 cell 跳过），两者不同，不冲突。
+
+---
+
+## 11. 后续优化：_suppress_implausible_rooms 快速拒绝（2026-11-10）
+
+> 独立提交 `1c0e0ad`（bbox 快速拒绝）+ `3a8aaf7`（面积预过滤）。
+
+### 11.1 E 空壳轮廓 bbox 快速拒绝（`1c0e0ad`）
+
+E 判定对每个 opening 计算到多边形边界距离（`_point_boundary_distance_mm`）。
+多边形完全包含在房间 bbox 内，故点到多边形边界距离 >= 点到 bbox 距离。
+新增 `_point_bbox_distance_mm`，若点到 bbox 距离 > 5m 阈值则跳过精确计算。
+
+- `_point_boundary_distance_mm`：0.75s → 0.304s（-59%）
+- `_suppress_implausible_rooms`：1.96s → 1.50s（-23%）
+
+### 11.2 C 重复实体面积预过滤（`3a8aaf7`）
+
+C 判定对每个房间遍历所有其他房间计算 `_bbox_iou`。IoU > `_DUP_BBOX_IOU`(0.90)
+⟹ max/min < 1/0.90 ≈ 1.111，面积差更大时 IoU 必 <= 0.90，可跳过精确计算。
+预计算 `bbox_area_by_id`（单位统一到 m²，注意 `bbox_area_m2` 是 m² 而
+bbox 面积是 mm²，需除以 1e6）。
+
+- `_bbox_iou`：63088 次降至 profile 前 30 名之外
+- `_suppress_implausible_rooms`：1.50s → 1.165s（-23%）
+- 完整 analyze：7.48s → 6.99s
+
+### 11.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。
+
+> 注：面积预过滤首次实现时误用 `bbox_area_m2`（m²）与 `bbox_area_by_id`
+> （mm²）直接比较，单位不一致导致几乎所有房间被跳过（stadion 46→53、
+> dongguan 186→195、plans 30→32）。修正为 `bbox_area_by_id / 1e6` 后
+> 恢复一致。
