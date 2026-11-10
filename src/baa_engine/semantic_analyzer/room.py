@@ -14,6 +14,7 @@ Algorithm:
 from typing import List, Dict, Tuple, Set, Any, Optional
 from collections import defaultdict
 from functools import lru_cache
+from bisect import bisect_left, bisect_right
 import math
 
 from .models import SemanticEntity
@@ -1349,6 +1350,10 @@ class _SpatialGrid:
         # 实测 dongguan query_bbox 遍历 135 万 cell 中 73% 为空，嵌套 dict
         # 让空行整列跳过（row 为 None），query_bbox 0.198s → 0.084s（2.4x）。
         self.cells: Dict[int, Dict[int, List[int]]] = {}
+        # 行内 ky 键排序缓存（懒构建）：非空 row 内仍有 72.7% 空 cell，
+        # 用二分只遍历 ky 范围内的存在键，跳过空 cell 的 row.get 检查。
+        self._row_keys: Dict[int, List[int]] = {}
+        self._row_keys_dirty = False
 
     def _key(self, x: float, y: float) -> Tuple[int, int]:
         return (int(math.floor(x / self.cell_size)), int(math.floor(y / self.cell_size)))
@@ -1364,6 +1369,7 @@ class _SpatialGrid:
             row[ky] = [idx]
         else:
             lst.append(idx)
+        self._row_keys_dirty = True
 
     def insert_point(self, idx: int, x: float, y: float) -> None:
         """把对象 idx 插入其所在 cell（点对象）。"""
@@ -1456,13 +1462,23 @@ class _SpatialGrid:
         kx1 = int(math.floor((max(x0, x1) + pad + extra) / self.cell_size))
         ky0 = int(math.floor((min(y0, y1) - pad - extra) / self.cell_size))
         ky1 = int(math.floor((max(y0, y1) + pad + extra) / self.cell_size))
+        # 懒构建行内 ky 键排序缓存：非空 row 内仍有 72.7% 空 cell，
+        # 用二分只遍历 ky 范围内的存在键，跳过空 cell 的 row.get 检查。
+        if self._row_keys_dirty:
+            self._row_keys = {kx: sorted(row.keys()) for kx, row in self.cells.items()}
+            self._row_keys_dirty = False
         out: List[int] = []
         seen: Set[int] = set()
         for kx in range(kx0, kx1 + 1):
             row = self.cells.get(kx)
             if row is None:
                 continue
-            for ky in range(ky0, ky1 + 1):
+            keys = self._row_keys.get(kx)
+            if keys is None:
+                continue
+            lo = bisect_left(keys, ky0)
+            hi = bisect_right(keys, ky1)
+            for ky in keys[lo:hi]:
                 lst = row.get(ky)
                 if lst is None:
                     continue
