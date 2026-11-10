@@ -1934,6 +1934,31 @@ def _point_boundary_distance_mm(
     return best
 
 
+def _point_bbox_distance_mm(
+    point: Tuple[float, float], bbox: Dict[str, float]
+) -> float:
+    """点到矩形 bbox 边界的最近距离（mm）；点在 bbox 内返回 0。
+
+    用于 E 空壳轮廓判定的快速拒绝：多边形完全包含在 bbox 内，故
+    点到多边形边界距离 >= 点到 bbox 边界距离。若点到 bbox 距离 > 阈值，
+    则点到多边形边界距离必 > 阈值，可安全跳过精确计算。
+    """
+    px, py = point
+    bx = bbox.get("x", 0)
+    by = bbox.get("y", 0)
+    bw = bbox.get("width", 0)
+    bh = bbox.get("height", 0)
+    if bw <= 0 or bh <= 0:
+        return 0.0
+    bx2 = bx + bw
+    by2 = by + bh
+    if bx <= px <= bx2 and by <= py <= by2:
+        return 0.0
+    dx = max(bx - px, 0.0, px - bx2)
+    dy = max(by - py, 0.0, py - by2)
+    return math.hypot(dx, dy)
+
+
 def _orient(a: List[float], b: List[float], c: List[float]) -> float:
     return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 
@@ -2416,6 +2441,10 @@ def _suppress_implausible_rooms(
                 ob.get("x", 0) + ob.get("width", 0) / 2,
                 ob.get("y", 0) + ob.get("height", 0) / 2,
             )
+            # 快速拒绝：点到 bbox 距离 > 阈值 ⟹ 点到多边形边界距离必 > 阈值
+            # （多边形完全包含在 bbox 内）。避免对远处 opening 做精确计算。
+            if _point_bbox_distance_mm(center, b) > _EMPTY_OUTLINE_OPENING_RADIUS_MM:
+                continue
             dist = _point_boundary_distance_mm(center, poly)
             if nearest_opening is None or dist < nearest_opening:
                 nearest_opening = dist
