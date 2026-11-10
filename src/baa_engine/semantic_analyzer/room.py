@@ -1397,7 +1397,18 @@ class _SpatialGrid:
         ky = int(math.floor(y0 / cs))
         kx_end = int(math.floor(x1 / cs))
         ky_end = int(math.floor(y1 / cs))
-        self._append_cell(kx, ky, idx)
+        # 内联 _append_cell + 缓存当前 row：DDA 遍历中同一 kx 重复出现，
+        # 缓存 row 避免重复 self.cells.get(kx)。
+        row = self.cells.get(kx)
+        if row is None:
+            row = {}
+            self.cells[kx] = row
+        lst = row.get(ky)
+        if lst is None:
+            row[ky] = [idx]
+        else:
+            lst.append(idx)
+        self._row_keys_dirty = True
         if kx == kx_end and ky == ky_end:
             return
         # DDA 步进参数
@@ -1423,10 +1434,20 @@ class _SpatialGrid:
             if t_max_x < t_max_y:
                 kx += step_x
                 t_max_x += t_delta_x
+                # kx 变化，重新获取 row
+                row = self.cells.get(kx)
+                if row is None:
+                    row = {}
+                    self.cells[kx] = row
             else:
                 ky += step_y
                 t_max_y += t_delta_y
-            self._append_cell(kx, ky, idx)
+            lst = row.get(ky)
+            if lst is None:
+                row[ky] = [idx]
+            else:
+                lst.append(idx)
+            self._row_keys_dirty = True
             guard += 1
 
     def query_point(self, x: float, y: float, radius: float) -> List[int]:
