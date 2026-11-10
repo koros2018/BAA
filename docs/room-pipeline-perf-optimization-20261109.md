@@ -368,3 +368,35 @@ mosque 0（均不变）。
 | 完整 analyze | 3.523s | 3.179s（-10%） |
 
 > 累计自 §1 基线 10.2s 降 69%。
+
+---
+
+## 14. 后续优化：E 空壳轮廓 opening 空间网格索引（2026-11-10）
+
+> 独立提交 `93f3438`。
+
+### 14.1 背景
+
+E 判定对每个大空间遍历全部 openings（dongguan 10 个大空间 × 11169
+openings = 111690 次检查），`_point_bbox_distance_mm` 74319 次。
+
+### 14.2 优化
+
+构建 `opening_grid`（openings 中心点索引，cell_size = 5m 阈值），
+E 判定用 `query_bbox` 只查询大空间 bbox 扩张 5m 内的 openings。
+
+### 14.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。
+
+### 14.4 性能提升（dongguan，完整 analyze profile）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `_point_bbox_distance_mm` | 74319 次（profile 前 30） | 从 profile 消失 |
+| `_suppress_implausible_rooms` | 0.400s | 0.244s（-39%） |
+| 完整 analyze | 3.18s | 3.09s |
+
+> 累计自 §1 基线 10.2s 降 70%。注：首次 profile 显示 6.156s 系系统负载
+> 波动（后台进程），复测 3.089s 确认优化有效。
