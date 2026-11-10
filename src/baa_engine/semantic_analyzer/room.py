@@ -1485,18 +1485,20 @@ class _SpatialGrid:
         ky1 = int(math.floor((max(y0, y1) + pad + extra) / self.cell_size))
         # 懒构建行内 ky 键排序缓存：非空 row 内仍有 72.7% 空 cell，
         # 用二分只遍历 ky 范围内的存在键，跳过空 cell 的 row.get 检查。
+        # 缓存 (row, sorted_keys) 元组，避免 query_bbox 中 cells.get(kx)
+        # 和 _row_keys.get(kx) 两次行查询。
         if self._row_keys_dirty:
-            self._row_keys = {kx: sorted(row.keys()) for kx, row in self.cells.items()}
+            self._row_keys = {
+                kx: (row, sorted(row.keys())) for kx, row in self.cells.items()
+            }
             self._row_keys_dirty = False
         out: List[int] = []
         seen: Set[int] = set()
         for kx in range(kx0, kx1 + 1):
-            row = self.cells.get(kx)
-            if row is None:
+            entry = self._row_keys.get(kx)
+            if entry is None:
                 continue
-            keys = self._row_keys.get(kx)
-            if keys is None:
-                continue
+            row, keys = entry
             lo = bisect_left(keys, ky0)
             hi = bisect_right(keys, ky1)
             # 用索引遍历避免 keys[lo:hi] 切片创建列表
