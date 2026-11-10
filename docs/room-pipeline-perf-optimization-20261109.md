@@ -301,3 +301,38 @@ mosque 0（均不变）。
 > （mm²）直接比较，单位不一致导致几乎所有房间被跳过（stadion 46→53、
 > dongguan 186→195、plans 30→32）。修正为 `bbox_area_by_id / 1e6` 后
 > 恢复一致。
+
+---
+
+## 12. 后续优化：query_bbox 行内二分（2026-11-10）
+
+> 独立提交 `2da8cd6`。
+
+### 12.1 背景
+
+嵌套 dict 后 `query_bbox` 对每个非空 row 遍历 `ky0..ky1` 全部 cell。实测
+dongguan 非空 row 内仍有 **72.7% 空 cell**（966396 空 vs 362646 非空），
+`row.get(ky)` 对空 cell 返回 None 是主要浪费。
+
+### 12.2 优化
+
+懒构建 `_row_keys`（每行排序的 ky 键列表，`_append_cell` 标记 dirty），
+`query_bbox` 用 `bisect_left`/`bisect_right` 只遍历 ky 范围内的存在键，
+跳过空 cell 的 `row.get` 检查。
+
+### 12.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。
+
+### 12.4 性能提升（dongguan，完整 analyze profile）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `query_bbox` | 0.90s | 0.296s（-67%） |
+| `_split_t_junctions` | 1.41s | 0.678s（-52%） |
+| 完整 analyze | 6.99s | 3.17s（-55%） |
+
+> 累计自 §1 基线 10.2s 降 69%。§8.4 曾尝试行索引二分负优化，但那是针对
+> 旧的全 cell 遍历实现（排序 14 万键 + 双层索引）；本次嵌套 dict 已把
+> 遍历降到非空 row，行内二分只排序非空行键（10557 行），不再负优化。
