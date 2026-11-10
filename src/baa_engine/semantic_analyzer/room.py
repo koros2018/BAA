@@ -2271,6 +2271,13 @@ def _suppress_implausible_rooms(
     suppressed: Dict[str, Dict[str, Any]] = {}
     poly_by_id = {e.id: _room_polygon(e) for e in rooms}
     bbox_by_id = {e.id: (e.bbox or {}) for e in rooms}
+    # C 重复实体判定预计算 bbox 面积：IoU > 0.90 ⟹ max/min < 1/0.90 ≈ 1.111，
+    # 面积差更大时 IoU 必 <= 0.90，可跳过 _bbox_iou 精确计算。
+    bbox_area_by_id: Dict[str, float] = {}
+    for _rid, _rb in bbox_by_id.items():
+        _rw = _rb.get("width", 0)
+        _rh = _rb.get("height", 0)
+        bbox_area_by_id[_rid] = _rw * _rh if _rw > 0 and _rh > 0 else 0.0
     texts = [e for e in entities if getattr(e, "type", None) == "text"]
     spatial = [
         e
@@ -2376,6 +2383,13 @@ def _suppress_implausible_rooms(
         for other in rooms:
             if other.id == ent.id or other.id in suppressed:
                 continue
+            # 面积预过滤：IoU > _DUP_BBOX_IOU ⟹ max/min < 1/_DUP_BBOX_IOU。
+            # 面积差更大时 IoU 必 <= 阈值，跳过 _bbox_iou 精确计算。
+            # bbox_area_m2 单位 m²，bbox_area_by_id 单位 mm²，统一到 m²。
+            _oa = bbox_area_by_id.get(other.id, 0.0) / 1_000_000
+            if _oa > 0 and bbox_area_m2 > 0:
+                if max(bbox_area_m2, _oa) / min(bbox_area_m2, _oa) > 1.0 / _DUP_BBOX_IOU:
+                    continue
             ob = bbox_by_id[other.id]
             if _bbox_iou(b, ob) < _DUP_BBOX_IOU:
                 continue
