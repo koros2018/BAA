@@ -229,3 +229,39 @@ mosque 0（均不变）。`_find_faces` 返回 faces 数 10696 不变。
 > 注：基准图（50MB 电气图）analyze 中位数受系统负载波动大（1.27–1.93s），
 > 本次优化主要收益在含大量房间的图纸（dongguan 等），基准图房间数 188
 > 收益有限。CI 上基准图被 `.gitignore` 排除，性能门禁会跳过。
+
+---
+
+## 10. 后续优化：_SpatialGrid 改嵌套 dict（2026-11-10）
+
+> 独立提交 `0ac0eee`。
+
+### 10.1 背景
+
+`_SpatialGrid.cells` 原为 `Dict[(kx,ky), List[int]]`（defaultdict）。`query_bbox`
+遍历 bbox 内所有 cell，对空 cell 仍要构造 `(kx,ky)` 元组并哈希。实测 dongguan
+`query_bbox` 遍历 135 万 cell 中 **73% 为空**（空 cell 占比 0.7329）。
+
+### 10.2 优化
+
+改嵌套 dict `cells[kx][ky] = [idx]`：`query_bbox`/`query_point` 先查
+`row = self.cells.get(kx)`，row 为 None 则整列跳过，避免空 cell 的元组
+构造/哈希。新增 `_append_cell` 辅助方法统一插入（insert_point/insert_segment
+共用）。
+
+### 10.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。基准脚本验证 2791 条线段 query_bbox 结果逐条一致。
+
+### 10.4 性能提升（dongguan，完整 analyze profile）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `query_bbox` | 1.66s | 0.855s（-48%） |
+| `_split_t_junctions` | 2.34s | 1.36s（-42%） |
+| 完整 analyze | 10.2s | 7.8s（-24%） |
+
+> 注：之前 §8.4 尝试的 3 种 `query_bbox` 替代方案（gen 戳数组、有序 cell 键
+> 二分、行索引二分）负优化，是针对**去重机制**；本次嵌套 dict 是**数据结构**
+> 优化（空 cell 跳过），两者不同，不冲突。
