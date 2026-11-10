@@ -650,22 +650,31 @@ def _find_gaps_in_axis_v2(
     tol = 1500.0  # coordinate clustering tolerance
     coord_list: List[float] = []
     by_coord: Dict[int, List[_Seg]] = {}
+    # 排序+二分"第一个匹配簇"（与 _merge_collinear 同模式）：维护
+    # sorted_anchors 按 anchor 排序，对每个新 coord 二分找
+    # anchor ∈ [coord-tol, coord+tol] 的候选，取 idx 最小者（第一个插入的簇）。
+    # 严格等价于原线性扫描，O(n·k)（k 为 tol 内簇数）。
+    sorted_anchors: List[Tuple[float, float, int]] = []
 
     for s in segs:
         x0, y0, x1, y1, _, _ = s
         coord = (y0 + y1) / 2 if direction == "horizontal" else (x0 + x1) / 2
 
-        idx = -1
-        for i, c in enumerate(coord_list):
-            if abs(c - coord) <= tol:
-                idx = i
-                break
-        if idx >= 0:
-            by_coord[idx].append(s)
+        pos_l = bisect_left(sorted_anchors, (coord - tol, -1.0, -1))
+        pos_r = bisect_right(sorted_anchors, (coord + tol, float("inf"), 10**18))
+        best_idx = -1
+        for p in range(pos_l, pos_r):
+            idx = sorted_anchors[p][2]
+            if best_idx == -1 or idx < best_idx:
+                best_idx = idx
+        if best_idx >= 0:
+            by_coord[best_idx].append(s)
         else:
             idx = len(coord_list)
             coord_list.append(coord)
             by_coord[idx] = [s]
+            ins = bisect_left(sorted_anchors, (coord, -1.0, idx))
+            sorted_anchors.insert(ins, (coord, -1.0, idx))
 
     for idx in sorted(by_coord):
         cluster = by_coord[idx]
