@@ -348,7 +348,9 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                 cell = row.get(gy)
                 if cell is not None:
                     out.extend(cell)
-        return sorted(set(out))
+        # 调用方只遍历候选（不依赖顺序），sorted 是多余的；set 去重必要
+        # （同一 pi 可能出现在多个 cell）。
+        return list(set(out))
 
     corridor_grid = _pair_grid(corridor_geo)
     room_grid = _pair_grid(room_geo)
