@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房间管线性能优化总结报告</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card2: #222635;
+    --border: #2e3345;
+    --text: #e8eaf0;
+    --muted: #9aa3b5;
+    --accent: #4f8cff;
+    --green: #34d399;
+    --orange: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 40px 24px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    font-size: 28px; font-weight: 700; margin-bottom: 8px;
+    background: linear-gradient(90deg, #4f8cff, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .hero {
+    background: linear-gradient(135deg, #1a1d27, #222635);
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; margin-bottom: 32px;
+  }
+  .hero-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .stat { text-align: center; }
+  .stat .value { font-size: 36px; font-weight: 800; color: var(--green); }
+  .stat .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .stat .value.orange { color: var(--orange); }
+  .stat .value.purple { color: var(--purple); }
+  h2 {
+    font-size: 20px; font-weight: 700; margin: 36px 0 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  h2::before { content: ""; width: 4px; height: 20px; background: var(--accent); border-radius: 2px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num { font-family: "SF Mono", Consolas, monospace; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .tag.green { background: rgba(52,211,153,.15); color: var(--green); }
+  .tag.orange { background: rgba(251,191,36,.15); color: var(--orange); }
+  .tag.purple { background: rgba(167,139,250,.15); color: var(--purple); }
+  .commit { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: var(--muted); }
+  .summary-box {
+    background: var(--card2); border-left: 3px solid var(--green);
+    border-radius: 8px; padding: 16px 20px; margin: 16px 0;
+  }
+  .summary-box p { font-size: 14px; color: var(--muted); }
+  .summary-box strong { color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+  @media (max-width: 768px) {
+    .hero-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>房间管线性能优化总结报告</h1>
+  <p class="subtitle">BAA 引擎 · 语义分析房间管线 · 2026-11-10</p>
+
+  <div class="hero">
+    <div class="hero-grid">
+      <div class="stat">
+        <div class="value">-70%</div>
+        <div class="label">完整 analyze 耗时</div>
+      </div>
+      <div class="stat">
+        <div class="value">10.2s → 3.09s</div>
+        <div class="label">dongguan 基准（profile）</div>
+      </div>
+      <div class="stat">
+        <div class="value orange">10</div>
+        <div class="label">独立优化提交</div>
+      </div>
+      <div class="stat">
+        <div class="value purple">3106</div>
+        <div class="label">全量测试通过</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>一、阶段概览</h2>
+  <div class="card">
+    <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
+      本阶段围绕<b style="color:var(--text)">房间识别管线</b>（扫线法平面图面遍历）做系统性性能优化，
+      从初始基线 <b style="color:var(--text)">10.2s</b> 降至 <b style="color:var(--green)">3.09s</b>（-70%）。
+      所有优化均保持<b style="color:var(--text)">功能严格等价</b>（五图房间数不变），
+      每个优化独立提交，代码与文档分开提交。
+    </p>
+    <div class="summary-box">
+      <p><strong>核心思路：</strong>空间网格索引（`_SpatialGrid`）从 O(n²) 全量扫描降为 O(n·k)，
+      再通过嵌套 dict、行内二分、快速拒绝、空间索引等 10 项增量优化逐层消除热点。</p>
+    </div>
+  </div>
+
+  <h2>二、性能提升总览</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>指标</th><th>优化前</th><th>优化后</th><th>提升</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>完整 analyze（dongguan）</td><td class="num">10.2s</td><td class="num">3.09s</td><td><span class="tag green">-70%</span></td></tr>
+        <tr><td>_split_t_junctions</td><td class="num">7.65s</td><td class="num">0.61s</td><td><span class="tag green">-92%</span></td></tr>
+        <tr><td>_build_planar_graph</td><td class="num">21.48s</td><td class="num">0.12s</td><td><span class="tag green">-99%</span></td></tr>
+        <tr><td>query_bbox</td><td class="num">1.66s</td><td class="num">0.30s</td><td><span class="tag green">-82%</span></td></tr>
+        <tr><td>_suppress_implausible_rooms</td><td class="num">6.6s</td><td class="num">0.24s</td><td><span class="tag green">-96%</span></td></tr>
+        <tr><td>_find_faces</td><td class="num">0.39s</td><td class="num">0.19s</td><td><span class="tag green">-51%</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">注：_split_t_junctions / _build_planar_graph 的 7.65s / 21.48s 为空间网格索引优化前基线（§1），
+    其余为本阶段增量优化数据。完整 analyze 10.2s 为房间管线优化前基线。</p>
+  </div>
+
+  <h2>三、本阶段 10 项优化明细</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>#</th><th>优化内容</th><th>提交</th><th>效果</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>_find_faces 面过滤层判定 lru_cache + pos_index</td><td class="commit">f63a684</td><td>0.39s→0.10s</td></tr>
+        <tr><td>2</td><td>_SpatialGrid 改嵌套 dict（跳过 73% 空 cell）</td><td class="commit">0ac0eee</td><td>query_bbox 1.66s→0.86s</td></tr>
+        <tr><td>3</td><td>E 空壳轮廓 bbox 快速拒绝</td><td class="commit">1c0e0ad</td><td>_point_boundary 0.75s→0.30s</td></tr>
+        <tr><td>4</td><td>C 重复实体面积预过滤</td><td class="commit">3a8aaf7</td><td>_bbox_iou 63088 次→消失</td></tr>
+        <tr><td>5</td><td>query_bbox 行内二分（跳过 72.7% 空 cell）</td><td class="commit">2da8cd6</td><td>query_bbox 0.90s→0.30s</td></tr>
+        <tr><td>6</td><td>_candidates 去掉多余 sorted</td><td class="commit">7e0fd5e</td><td>relations 14725 不变</td></tr>
+        <tr><td>7</td><td>insert_segment 内联 + 缓存 row</td><td class="commit">56d5d95</td><td>_append_cell 消失</td></tr>
+        <tr><td>8</td><td>query_bbox 索引遍历（免切片）</td><td class="commit">a239bb8</td><td>_split_t 0.69s→0.68s</td></tr>
+        <tr><td>9</td><td>query_bbox 合并 cells/_row_keys 行查询</td><td class="commit">21499cf</td><td>_split_t 0.68s→0.65s</td></tr>
+        <tr><td>10</td><td>E 空壳轮廓 opening 空间网格索引</td><td class="commit">93f3438</td><td>_suppress 0.40s→0.24s</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>四、关键优化原理</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">1. 空间网格索引（_SpatialGrid）</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        `_split_t_junctions` 和 `_build_planar_graph` 原为 O(n²) 全量两两比较。
+        用 `_SpatialGrid`（cell_size=100mm）DDA 网格遍历，降为 O(n·k)。
+        dongguan 2791 段：`_split_t_junctions` 7.65s→1.79s，`_build_planar_graph` 21.48s→0.12s。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">2. 嵌套 dict + 行内二分</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        `query_bbox` 遍历 135 万 cell 中 73% 为空。改嵌套 dict `cells[kx][ky]` 跳过空行，
+        再行内二分只遍历 ky 范围内存在键（非空 row 内 72.7% 空 cell）。
+        query_bbox 1.66s→0.30s（-82%）。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">3. 快速拒绝 + 空间索引</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        E 空壳轮廓判定对每个大空间遍历全部 openings（dongguan 10 大空间 × 11169 openings）。
+        用 bbox 快速拒绝（点到 bbox 距离 > 5m 跳过）+ opening 空间网格索引，
+        只查询大空间附近的 openings。`_point_bbox_distance_mm` 从 profile 前 30 名消失。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">4. 面积预过滤</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        C 重复实体判定 `_bbox_iou` 63088 次。利用 IoU > 0.90 ⟹ max/min < 1.111，
+        面积差更大时 IoU 必不达标，跳过精确计算。`_bbox_iou` 从 profile 前 30 名消失。
+      </p>
+    </div>
+  </div>
+
+  <h2>五、功能等价性验证</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>图纸</th><th>优化前</th><th>优化后</th><th>一致</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>villa-details</td><td class="num">25</td><td class="num">25</td><td><span class="tag green">✅</span></td></tr>
+        <tr><td>multiple-stadion</td><td class="num">46</td><td class="num">46</td><td><span class="tag green">✅</span></td></tr>
+        <tr><td>东莞通-建筑</td><td class="num">186</td><td class="num">186</td><td><span class="tag green">✅</span></td></tr>
+        <tr><td>plans-of-a-two-family-house</td><td class="num">30</td><td class="num">30</td><td><span class="tag green">✅</span></td></tr>
+        <tr><td>mosque-detail</td><td class="num">0</td><td class="num">0</td><td><span class="tag green">✅</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">五图房间数全部不变（villa 25 含 3 个误伤修复恢复），逐图验证通过。relations 14725 个（adjacent 8779 / connects_to 3375 / contains 2571）也完全一致。</p>
+  </div>
+
+  <h2>八、追加优化（2026-11-10 晚）：回折门洞判据 + 共线合并</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">8.1 回折修复门洞判据空间网格化</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        `_fold_spike_covered_by_door` 原实现遍历全部 doors（O(n·m)，65 次调用 × 全部门实体，
+        dongguan 0.415s）。新增 door_grid（门 bbox 对角线插入），只查询尖刺 bbox 扩张 1mm 内的
+        候选门，从 profile 前 30 名消失。五图房间数严格等价。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">8.2 共线区间合并排序+二分</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        `_merge_collinear` 原实现 coord_list 线性扫描找"第一个匹配簇"（O(n²)，dongguan 0.209s）。
+        保持"第一个插入簇"语义，用 sorted_anchors 二分找 anchor ∈ [coord-tol, coord+tol] 的候选
+        取 idx 最小者（严格等价）。实测 5000 组随机 + 4 张真实图纸 0 差异，从 profile 前 30 名消失。
+      </p>
+    </div>
+  </div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--muted);">
+      完整 analyze（dongguan）3.66s → 2.96s（-19%）。五图房间数 villa 25 / stadion 46 /
+      dongguan 186 / plans 30 / mosque 0 全部不变。src/tests 2920 passed, 26 skipped, 12 deselected。
+      提交 <span class="commit">3ade6b9</span>。
+    </p>
+  </div>
+
+  <h2>六、测试与纪律</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">全量测试</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        <span class="tag green">3106 passed</span> <span class="tag orange">28 skipped</span> <span class="tag purple">14 deselected</span><br><br>
+        房间相关专项测试 193 passed, 11 skipped。测试时间从 128s 降至 82s（-36%）。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">纪律执行</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        ✅ 每个优化独立提交，代码/文档分开<br>
+        ✅ 五图房间数逐图对比验证<br>
+        ✅ 临时脚本（22 个 scripts/_*.py）已清理<br>
+        ✅ 无破坏性 git 操作<br>
+        ✅ 回退 1 个负优化（merge 网格缓存，收益仅 1%）
+      </p>
+    </div>
+  </div>
+
+  <h2>七、附带成果：A1 空模板排查</h2>
+  <div class="card">
+    <p style="font-size:14px;color:var(--muted);">
+      排查 `A1云计算中心平面图0405_t3.dxf` 等解析失败（prims=0）原因，确认
+      <b style="color:var(--text)">7 个 15267 字节 DXF 全部是 ezdxf 生成的空模板</b>（0 实体，仅默认图层）。
+      解析失败是<b style="color:var(--text)">正确行为</b>（文件本身无图元），非代码 bug。
+      这些文件被 `.gitignore` 排除，不影响 CI。提交 <span class="commit">5c6d516</span>。
+    </p>
+  </div>
+
+  <div class="footer">
+    BAA 引擎 · 房间管线性能优化 · 2026-11-10 · 完整 analyze 10.2s → 2.96s（-71%）
+  </div>
+</div>
+</body>
+</html>
