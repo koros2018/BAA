@@ -1860,6 +1860,10 @@ _OPENING_TYPES = {
     "rescue_window",
     "smoke_exhaust_window",
 }
+# 门洞邻接/回折修复只算真正的门（不含 window/opening）。
+# 窗是外墙采光口，不构成房间入口；opening 语义模糊（可能是墙洞），
+# 不能作为「房间有入口」的证据，否则看台格间/货架格会被误保留。
+_DOOR_ONLY_TYPES: Set[str] = {"door", "fire_door", "exit_door", "accessible_door"}
 # 房间名/功能标注关键词：复用 room_type_infer 的规则词表，并补充通用空间名
 # （走道/强电间/消防器材室等不在 subtype 推断表内，但同样是功能标注）
 _SPACE_LABEL_KEYWORDS: Tuple[str, ...] = (
@@ -2054,6 +2058,121 @@ def _is_simple_polygon(pts: List[List[float]]) -> bool:
     return True
 
 
+def _fold_spike_covered_by_door(
+    p0: List[float], p1: List[float], doors: List[Any]
+) -> bool:
+    """折返尖刺 p0→p1 是否被「折返线上的门」覆盖。
+
+    扫线法在门洞开口处会绕门折返：尖刺是垂直线段（x 恒定）或水平线段
+    （y 恒定），且门洞（零宽/零高门）恰好位于该折返线上、跨度与尖刺重叠。
+    这类回折是真实房间边界的门洞伪影，应修复保留。
+
+    噪声回折（T 型墙/墙板过提取）的尖刺处没有门洞，不满足此判据。
+
+    返回 True 表示该尖刺被折返线上的门覆盖。
+    """
+    dx = abs(p0[0] - p1[0])
+    dy = abs(p0[1] - p1[1])
+    _EPS = 1.0  # mm — 零宽门浮点误差容差
+    for d in doors:
+        dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
+        if dtype not in _DOOR_ONLY_TYPES:
+            continue
+        dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
+        dx0, dy0 = dbb.get("x", 0), dbb.get("y", 0)
+        dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
+        if dw_v <= _EPS and dh_v <= _EPS:
+            continue
+        dx1, dy1 = dx0 + dw_v, dy0 + dh_v
+        if dx <= _EPS:  # 垂直尖刺（x 恒定）
+            if abs(dx0 - p0[0]) <= _EPS and abs(dx1 - p0[0]) <= _EPS:
+                if min(dy0, dy1) <= max(p0[1], p1[1]) and max(dy0, dy1) >= min(p0[1], p1[1]):
+                    return True
+        elif dy <= _EPS:  # 水平尖刺（y 恒定）
+            if abs(dy0 - p0[1]) <= _EPS and abs(dy1 - p0[1]) <= _EPS:
+                if min(dx0, dx1) <= max(p0[0], p1[0]) and max(dx0, dx1) >= min(p0[0], p1[0]):
+                    return True
+    return False
+
+
+def _repair_folded_polygon(
+    pts: List[List[float]], doors: Optional[List[Any]] = None
+) -> Optional[List[List[float]]]:
+    """修复扫线法产生的回折环（重复顶点 + 来回回折），返回修复后的简单环。
+
+    扫线法在 T 型墙/门洞处会生成「回折」环：顶点序列沿某方向走到头再折回
+    （如 (x,y0)→(x,y1)→(x,y0)），产生重复顶点和自交。这类回折是几何噪声，
+    不是真实自交（蝴蝶结），修复后应保留真实房间。
+
+    修复策略（迭代）：
+      1. 去除相邻重复顶点（pts[i] == pts[i+1]）。
+      2. 去除来回回折（pts[i] == pts[i+2]，中间点是被折返的冗余顶点）。
+
+    门洞判据（关键区分点）：真实标准间的回折环由门洞开口引起——**每个**
+    折返尖刺都必须被「折返线上的门」覆盖（``_fold_spike_covered_by_door``）。
+    噪声回折（T 型墙/墙板过提取）至少有一个尖刺处无门洞，不满足，返回 None。
+
+    返回修复后的顶点列表；若无法修复（点数 < 3、仍自交、或存在未被门洞
+    覆盖的尖刺）返回 None。仅当修复后面积与原始面积接近（>90%）才接受，
+    避免把真实自交（蝴蝶结，面积远小于 bbox）误修复。
+    """
+    if not pts or len(pts) < 3:
+        return None
+    orig_area = abs(_signed_area(pts))
+    fixed = [list(p) for p in pts]
+    changed = True
+    while changed:
+        changed = False
+        # 去除相邻重复顶点
+        i = 0
+        while i < len(fixed):
+            n = len(fixed)
+            if n >= 2 and fixed[i][0] == fixed[(i + 1) % n][0] and fixed[i][1] == fixed[(i + 1) % n][1]:
+                del fixed[i]
+                changed = True
+                continue
+            i += 1
+        # 去除来回回折 pts[i] == pts[i+2]
+        i = 0
+        while i < len(fixed):
+            n = len(fixed)
+            if n >= 3 and fixed[i][0] == fixed[(i + 2) % n][0] and fixed[i][1] == fixed[(i + 2) % n][1]:
+                del fixed[(i + 1) % n]
+                del fixed[(i + 1) % (n - 1)]
+                changed = True
+                continue
+            i += 1
+    if len(fixed) < 3:
+        return None
+    if not _is_simple_polygon(fixed):
+        return None
+    # 面积守卫：修复后面积与原始面积接近（>90%）才接受
+    fixed_area = abs(_signed_area(fixed))
+    if orig_area > 0 and fixed_area / orig_area < 0.90:
+        return None
+    # bbox 填充守卫：回折环是房间边界上的门洞伪影，修复后应几乎填满 bbox
+    # （面积/bbox 面积 ≥ 90%）。真实自交多边形（蝴蝶结/复杂轮廓，如 plans
+    # ROOM_317 面积比 0.075）即使有门洞覆盖的尖刺，修复后仍远小于 bbox，
+    # 不应修复。Villa 9049 回折环面积比 0.984，保留。
+    _xs = [p[0] for p in fixed]
+    _ys = [p[1] for p in fixed]
+    _bbox_area = (max(_xs) - min(_xs)) * (max(_ys) - min(_ys))
+    if _bbox_area > 0 and fixed_area / _bbox_area < 0.90:
+        return None
+    # 门洞判据：每个折返尖刺都必须被折返线上的门覆盖。
+    # 真实标准间（如 Villa 9049）的回折由门洞开口引起，尖刺处有门；
+    # 噪声回折（T 型墙/墙板过提取）至少一个尖刺处无门，不修复。
+    if doors is not None:
+        for i in range(len(pts)):
+            if (
+                pts[i][0] == pts[(i + 2) % len(pts)][0]
+                and pts[i][1] == pts[(i + 2) % len(pts)][1]
+            ):
+                if not _fold_spike_covered_by_door(pts[i], pts[(i + 1) % len(pts)], doors):
+                    return None
+    return fixed
+
+
 def _room_source_rank(entity_id: str) -> int:
     """重复房间实体取舍：显式图元 > 直接闭合多段线 > 面遍历派生。"""
     if entity_id.startswith("ROOM_"):
@@ -2091,17 +2210,19 @@ def _detect_grid_pattern_suppressions(
 
     # 预构建空间索引：doors 按 bbox 对角线路径插入（覆盖其跨度），
     # texts 按中心点插入。避免每个候选房间遍历全部 doors/texts（O(n·m)）。
-    DOOR_ONLY_TYPES = {"door", "fire_door", "exit_door", "accessible_door"}
     door_grid = _SpatialGrid(_MATCH_THRESHOLD)
     door_list: List[Tuple[float, float, float, float]] = []  # (x0,y0,x1,y1)
     for d in doors:
         dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
-        if dtype not in DOOR_ONLY_TYPES:
+        if dtype not in _DOOR_ONLY_TYPES:
             continue
         dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
         dx, dy = dbb.get("x", 0), dbb.get("y", 0)
         dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
-        if dw_v <= 0 or dh_v <= 0:
+        # 只跳过完全退化的门（宽高均为 0）。零宽度/零高度门是真实门洞
+        # （竖直线段/水平线段代表门），必须纳入邻接判定，否则 Villa 等
+        # 真实标准间因门 bbox 零宽被误判为"无门洞邻接"而被 grid_pattern 误伤。
+        if dw_v <= 0 and dh_v <= 0:
             continue
         door_list.append((dx, dy, dx + dw_v, dy + dh_v))
         door_grid.insert_segment(len(door_list) - 1, dx, dy, dx + dw_v, dy + dh_v)
@@ -2128,6 +2249,8 @@ def _detect_grid_pattern_suppressions(
         short_side = min(w, h) if w > 0 and h > 0 else 0
         for di in door_grid.query_bbox(rbx0, rby0, rbx1, rby1, _MATCH_THRESHOLD):
             dbx0, dby0, dbx1, dby1 = door_list[di]
+            dw = dbx1 - dbx0
+            dh = dby1 - dby0
             ox = max(0, min(rbx1, dbx1) - max(rbx0, dbx0))
             oy = max(0, min(rby1, dby1) - max(rby0, dby0))
             # 需双轴均有实质重叠才算邻接：单轴投影重叠不足以说明门洞与该房间相邻
@@ -2135,6 +2258,18 @@ def _detect_grid_pattern_suppressions(
             # 阈值取房间短边的一半，确保重叠区域至少覆盖半个房间宽度/高度。
             if (ox > short_side / 2) and (oy > short_side / 2):
                 return True
+            # 零宽度/零高度门（竖直线段/水平线段代表门洞）：双轴判据中
+            # ox 或 oy 恒为 0，需用"门线段与房间 bbox 相交"判定。
+            # 零宽度门（dw==0）：门 x 坐标在房间 x 范围内（含边界，无容差），
+            # 且 y 方向与房间有交集（oy>0）。门 x 在房间范围内 ⟹ 门在房间边界上。
+            # 远处门（如看台格间 75mm 外的门 x=44451 < 格间 x0=44526）因
+            # x 不在房间范围内不会误判。
+            if dw == 0 and dh > 0:
+                if rbx0 <= dbx0 <= rbx1 and oy > 0:
+                    return True
+            elif dh == 0 and dw > 0:
+                if rby0 <= dby0 <= rby1 and ox > 0:
+                    return True
         # Text label within 2.5m
         for ti in text_grid.query_point(cx, cy, 2500):
             tx, ty = text_list[ti]
@@ -2384,15 +2519,29 @@ def _suppress_implausible_rooms(
 
         # G 自交多边形：几何上不可用（内部计算需要简单闭合环）
         if not _is_simple_polygon(poly):
-            _record(
-                ent,
-                "self_intersecting_polygon",
-                {
-                    "point_count": len(poly),
-                    "area_m2": round(poly_area_m2, 3),
-                },
-            )
-            continue
+            # 回折修复：扫线法在 T 型墙/门洞处产生回折环（重复顶点+自交），
+            # 是几何噪声而非真实自交。仅当每个折返尖刺都被「折返线上的门」
+            # 覆盖（真实标准间如 Villa 9049 的门洞伪影）且修复后简单、面积
+            # 接近（>90%）才保留，避免误伤真实标准间，也避免把噪声回折
+            # （T 型墙/墙板过提取，尖刺处无门）误修复。
+            repaired = _repair_folded_polygon(poly, doors=door_entities)
+            if repaired is not None:
+                props["points"] = repaired
+                props["point_count"] = len(repaired)
+                poly = repaired
+                poly_area_m2 = _poly_area_m2(poly)
+                # 更新 poly_by_id 供后续门禁使用
+                poly_by_id[ent.id] = poly
+            else:
+                _record(
+                    ent,
+                    "self_intersecting_polygon",
+                    {
+                        "point_count": len(poly),
+                        "area_m2": round(poly_area_m2, 3),
+                    },
+                )
+                continue
 
         # B 未闭合边界（顶点不足 4 的 P131 兜底面）
         # 只对大面积使用：小面积 3 点面可能是真实小房间（墙体检测缺口），
