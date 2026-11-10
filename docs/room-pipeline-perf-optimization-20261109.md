@@ -191,3 +191,41 @@ Pass2 pad=0），2659 次查询。合并为一次 pad=100mm 查询并缓存候�
 
 结论：`_SpatialGrid` 的 cell 数（14 万）相对查询次数（1310）不大，全遍历
 开销可接受；替代方案的重建/二分开销超过节省的空 cell 遍历。
+
+---
+
+## 9. 后续优化：_find_faces 面过滤层判定缓存 + pos_index（2026-11-10）
+
+> 独立提交 `f63a684`。
+
+### 9.1 背景
+
+`_find_faces` 的 profile 显示两个热点：
+1. **面过滤层判定**：对每条边做 `any(kw in layer for kw in _NON_ROOM_LAYER_KW)`
+   （36 关键字子串匹配），191 万次生成器调用，占 `_find_faces` 66%。
+2. **`neighbors.index(prev)`**：O(k) 线性查找。
+
+### 9.2 优化
+
+1. **层判定 lru_cache**：新增 `_is_non_room_layer(layer)` 用 `@lru_cache(4096)`
+   缓存判定结果。实测 dongguan 53290 次边访问只有 2 个唯一层名（'' 和 '0'），
+   缓存命中率 100%。O(36) 子串匹配降为 O(1) 字典查找。
+2. **pos_index**：`_sort_edges_at_nodes` 额外构建 `pos_index[nid][neighbor]=position`
+   字典，`_find_faces` 用 O(1) 查找替代 `neighbors.index(prev)`。
+
+### 9.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。`_find_faces` 返回 faces 数 10696 不变。
+
+### 9.4 性能提升（dongguan）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `_find_faces` 函数调用 | 2382111 | 357091（-85%） |
+| `_find_faces` profile 耗时 | 0.390s | 0.103s |
+| `_find_faces` 裸计时 | 0.096s | 0.031s（3.1x） |
+
+> 注：基准图（50MB 电气图）analyze 中位数受系统负载波动大（1.27–1.93s），
+> 本次优化主要收益在含大量房间的图纸（dongguan 等），基准图房间数 188
+> 收益有限。CI 上基准图被 `.gitignore` 排除，性能门禁会跳过。
