@@ -2326,6 +2326,15 @@ def _suppress_implausible_rooms(
         and getattr(e, "id", "") not in ("", None)
     ]
     openings = [e for e in entities if getattr(e, "type", None) in _OPENING_TYPES]
+    # E 空壳轮廓判定空间网格：openings 中心点索引，只查询大空间 bbox 扩张
+    # 5m 内的 openings，避免遍历全部 11169 个。实测 dongguan 10 个大空间 ×
+    # 11169 openings = 111690 次检查，空间索引后只查附近 openings。
+    opening_grid = _SpatialGrid(_EMPTY_OUTLINE_OPENING_RADIUS_MM)
+    for _op_idx, _op in enumerate(openings):
+        _ob = _op.bbox or {}
+        _cx = _ob.get("x", 0) + _ob.get("width", 0) / 2
+        _cy = _ob.get("y", 0) + _ob.get("height", 0) / 2
+        opening_grid.insert_point(_op_idx, _cx, _cy)
     frames: List[Dict[str, float]] = (
         _detect_frame_rects(primitives, []) if primitives else []
     )
@@ -2489,7 +2498,15 @@ def _suppress_implausible_rooms(
             continue
         # E 空壳轮廓：内部无空间实体、无房间名，且边界 5m 内没有任何洞口
         nearest_opening = None
-        for op in openings:
+        # 只查询大空间 bbox 扩张 5m 内的 openings（空间网格索引）
+        for _op_idx in opening_grid.query_bbox(
+            b.get("x", 0),
+            b.get("y", 0),
+            b.get("x", 0) + b.get("width", 0),
+            b.get("y", 0) + b.get("height", 0),
+            _EMPTY_OUTLINE_OPENING_RADIUS_MM,
+        ):
+            op = openings[_op_idx]
             ob = op.bbox or {}
             center = (
                 ob.get("x", 0) + ob.get("width", 0) / 2,
