@@ -336,3 +336,35 @@ mosque 0（均不变）。
 > 累计自 §1 基线 10.2s 降 69%。§8.4 曾尝试行索引二分负优化，但那是针对
 > 旧的全 cell 遍历实现（排序 14 万键 + 双层索引）；本次嵌套 dict 已把
 > 遍历降到非空 row，行内二分只排序非空行键（10557 行），不再负优化。
+
+---
+
+## 13. 后续优化：insert_segment 内联 _append_cell（2026-11-10）
+
+> 独立提交 `56d5d95`。
+
+### 13.1 背景
+
+`insert_segment` 的 DDA 遍历对每条线段调用 `_append_cell` 多次（281514 次）。
+`_append_cell` 每次调用都做 `self.cells.get(kx)`，DDA 遍历中同一 kx 重复出现，
+重复获取 row。
+
+### 13.2 优化
+
+内联 `_append_cell` 到 `insert_segment` 并缓存当前 row（kx 变化时重新获取），
+避免重复 `dict.get` 和 28 万次函数调用。
+
+### 13.3 功能等价性
+
+五图房间数完全一致：villa 22 / stadion 46 / dongguan 186 / plans 30 /
+mosque 0（均不变）。
+
+### 13.4 性能提升（dongguan，完整 analyze profile）
+
+| 指标 | 优化前 | 优化后 |
+|------|--------|--------|
+| `_append_cell` | 0.234s（281514 次） | 从 profile 消失 |
+| `_split_t_junctions` | 0.710s | 0.625s |
+| 完整 analyze | 3.523s | 3.179s（-10%） |
+
+> 累计自 §1 基线 10.2s 降 69%。
