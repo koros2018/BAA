@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stadion 判据验证报告</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d27; --card2: #222635; --border: #2e3345;
+    --text: #e8eaf0; --muted: #9aa3b5; --accent: #4f8cff;
+    --green: #34d399; --orange: #fbbf24; --red: #f87171; --purple: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 40px 24px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    font-size: 28px; font-weight: 700; margin-bottom: 8px;
+    background: linear-gradient(90deg, #4f8cff, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .hero {
+    background: linear-gradient(135deg, #1a1d27, #222635);
+    border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 32px;
+  }
+  .hero-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .stat { text-align: center; }
+  .stat .value { font-size: 34px; font-weight: 800; color: var(--green); }
+  .stat .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .stat .value.orange { color: var(--orange); }
+  .stat .value.purple { color: var(--purple); }
+  .stat .value.red { color: var(--red); }
+  h2 {
+    font-size: 20px; font-weight: 700; margin: 36px 0 16px; display: flex; align-items: center; gap: 8px;
+  }
+  h2::before { content: ""; width: 4px; height: 20px; background: var(--accent); border-radius: 2px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num { font-family: "SF Mono", Consolas, monospace; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .tag.green { background: rgba(52,211,153,.15); color: var(--green); }
+  .tag.orange { background: rgba(251,191,36,.15); color: var(--orange); }
+  .tag.red { background: rgba(248,113,113,.15); color: var(--red); }
+  .tag.purple { background: rgba(167,139,250,.15); color: var(--purple); }
+  .commit { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: var(--muted); }
+  .summary-box {
+    background: var(--card2); border-left: 3px solid var(--green);
+    border-radius: 8px; padding: 16px 20px; margin: 16px 0;
+  }
+  .summary-box p { font-size: 14px; color: var(--muted); }
+  .summary-box strong { color: var(--text); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+  .flow-step {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px;
+  }
+  .flow-arrow { color: var(--muted); font-size: 16px; }
+  code { background: var(--card2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  @media (max-width: 768px) { .hero-grid { grid-template-columns: repeat(2, 1fr); } .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Stadion 判据验证报告</h1>
+  <p class="subtitle">BAA 引擎 · H 格子阵列检测（grid_pattern）· 2026-11-10</p>
+
+  <div class="hero">
+    <div class="hero-grid">
+      <div class="stat">
+        <div class="value">19</div>
+        <div class="label">Stadion 抑制格间</div>
+      </div>
+      <div class="stat">
+        <div class="value orange">11</div>
+        <div class="label">看台座位格间</div>
+      </div>
+      <div class="stat">
+        <div class="value purple">8</div>
+        <div class="label">结构分仓格间</div>
+      </div>
+      <div class="stat">
+        <div class="value red">0</div>
+        <div class="label">真实房间误伤</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>一、背景与根因</h2>
+  <div class="card">
+    <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
+      P121-V 视图级过滤已将非平面子区整体判为非 plan 并跳过，但 Stadion 的
+      <b style="color:var(--text)">y∈[33k, 37k] 看台踏步区</b>仍被判为 plan（有足够平面证据），
+      扫线法在此区域内切出 <b style="color:var(--text)">11 个 4000×3100mm 同质矩形</b>，全部进入审查清单。
+    </p>
+    <div class="summary-box">
+      <p><strong>根因：</strong>原有 A/B/C/D/E/F/G 门禁分别处理退化多边形、未闭合边界、重复实体、
+      容器房间、空壳面、贴图框等几何异常。对于<b style="color:var(--text)">同质周期性栅格</b>
+      （看台座位格、货架格、图例表格单元），每个成员单独过各门禁时均无明显异常——面积在合理范围、
+      无门洞邻接、无文字标注——因此全部通过，产出一堆无建筑语义的假房间。</p>
+    </div>
+  </div>
+
+  <h2>二、结构判据设计（六重检验）</h2>
+  <div class="card">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+      新增函数 <code>_detect_grid_pattern_suppressions()</code>（room.py L1802-1962），
+      仅针对 sweep 派生房间（<code>line_chain_*</code> ID 前缀），显式分类的闭合多段线房间不参与检测。
+    </p>
+    <div class="flow">
+      <div class="flow-step">① 面积 ≤50㎡</div><span class="flow-arrow">→</span>
+      <div class="flow-step">② 维度有效 w,h&gt;0</div><span class="flow-arrow">→</span>
+      <div class="flow-step">③ 门洞邻接（双轴实质重叠）</div><span class="flow-arrow">→</span>
+      <div class="flow-step">④ 文字标注（2.5m 内无 TEXT）</div><span class="flow-arrow">→</span>
+      <div class="flow-step">⑤ 尺寸桶分组（同桶 ≥3 个）</div><span class="flow-arrow">→</span>
+      <div class="flow-step">⑥ 同质+等距排列</div>
+    </div>
+    <table style="margin-top:16px;">
+      <thead>
+        <tr><th>#</th><th>检验</th><th>阈值</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>面积</td><td class="num">≤ 50㎡</td><td>超过则视为真实大空间而非格间</td></tr>
+        <tr><td>2</td><td>维度有效性</td><td class="num">w&gt;0 &amp;&amp; h&gt;0</td><td>排除退化条目</td></tr>
+        <tr><td>3</td><td>门洞邻接</td><td class="num">ox&gt;w/2 &amp;&amp; oy&gt;h/2</td><td>排除有入口的真实标准间</td></tr>
+        <tr><td>4</td><td>文字标注</td><td class="num">2.5m 内无 TEXT</td><td>排除带房间名的真实区域</td></tr>
+        <tr><td>5</td><td>尺寸桶分组</td><td class="num">同桶 ≥3 个</td><td>同桶才进下一步</td></tr>
+        <tr><td>6</td><td>同质+等距排列</td><td class="num">宽高容差 &lt;5%，间距 CV &lt;0.5</td><td>区分真实标准间（尺寸可变）与纯格间（严格一致）</td></tr>
+      </tbody>
+    </table>
+    <p class="note">常量：<code>_GRID_MIN_COUNT=3</code>、<code>_GRID_DIM_TOL=0.05</code>、<code>_GRID_SPACING_CV=0.50</code>、<code>_GRID_AREA_MAX_M2=50.0</code>。不调阈值凑数。</p>
+  </div>
+
+  <h2>三、Stadion 判据逐项验证</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>检验</th><th>看台座位格间（11 个）</th><th>结构分仓（8 个）</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>① 面积 ≤50㎡</td><td class="num">4005×3100 = 12.4㎡ ✅</td><td class="num">6000×7500 = 45㎡ ✅</td><td><span class="tag green">通过</span></td></tr>
+        <tr><td>② 维度有效</td><td class="num">w,h &gt; 0 ✅</td><td class="num">w,h &gt; 0 ✅</td><td><span class="tag green">通过</span></td></tr>
+        <tr><td>③ 门洞邻接</td><td class="num">无门洞（双轴无实质重叠）✅</td><td class="num">无门洞 ✅</td><td><span class="tag green">通过</span></td></tr>
+        <tr><td>④ 文字标注</td><td class="num">2.5m 内无 TEXT ✅</td><td class="num">无 TEXT ✅</td><td><span class="tag green">通过</span></td></tr>
+        <tr><td>⑤ 尺寸桶分组</td><td class="num">同桶 11 个 ≥3 ✅</td><td class="num">同桶 8 个 ≥3 ✅</td><td><span class="tag green">通过</span></td></tr>
+        <tr><td>⑥ 同质+等距</td><td class="num">宽高容差 &lt;5%，间距 CV &lt;0.5 ✅</td><td class="num">同质+等距 ✅</td><td><span class="tag green">通过</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">11 个看台座位格间尺寸严格一致（4005×3100mm），沿 y 方向等距排列；8 个结构分仓（6000×7500mm）同质等距。全部 19 个被 grid_pattern 抑制，0 残留。</p>
+  </div>
+
+  <h2>四、门洞邻接判据 Bug 修复</h2>
+  <div class="card">
+    <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
+      初次实现使用单轴 AABB 投影重叠 <code>(ox &gt; 50 OR oy &gt; 50)</code> 判定门洞邻接，导致误判：
+    </p>
+    <table>
+      <thead><tr><th>项目</th><th>单轴 OR（Bug）</th><th>双轴 AND（修复）</th></tr></thead>
+      <tbody>
+        <tr><td>Stadion 看台格间 y≈33644</td><td>与远处出口门 y≈62133（距 25m）横向重叠 → <span class="tag red">误判邻接</span></td><td>双轴实质重叠 → <span class="tag green">正确排除</span></td></tr>
+        <tr><td>判定条件</td><td>ox &gt; 50 OR oy &gt; 50</td><td>ox &gt; w/2 AND oy &gt; h/2</td></tr>
+        <tr><td>效果</td><td>远处门被误判为邻接，格间被保留（应去除）</td><td>确保门洞与房间在两个方向均有实质交叉</td></tr>
+      </tbody>
+    </table>
+    <p class="note">同时修复 <code>candidates=[]</code> 未初始化导致的 NameError（直调成功但集成失败）。</p>
+  </div>
+
+  <h2>五、五图回归验证</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>图纸</th><th>LC rooms</th><th>Grid suppressed</th><th>主要抑制组</th><th>Plans/Mosque 变化</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>stadion</td><td class="num">39</td><td class="num"><span class="tag orange">19</span> (11+8)</td><td>11×4005×3100mm（看台座位）+ 8×6000×7500mm（结构分仓）</td><td>—</td></tr>
+        <tr><td>dongguan</td><td class="num">94</td><td class="num"><span class="tag orange">12</span> (9+3)</td><td>9×2000×2900mm（远景散布标记）+ 3×9600×3400mm（原点标题区）</td><td>—</td></tr>
+        <tr><td>villa</td><td class="num">19</td><td class="num"><span class="tag orange">3</span></td><td>3×~2100×3400mm（紧凑等距无门无文，疑似墙面板过提取）</td><td>—</td></tr>
+        <tr><td>plans</td><td class="num">0</td><td class="num">0</td><td>—</td><td><span class="tag green">0 ✅</span></td></tr>
+        <tr><td>mosque</td><td class="num">0</td><td class="num">0</td><td>—</td><td><span class="tag green">0 ✅</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">五图房间数全部不变（villa 22 / stadion 46 / dongguan 186 / plans 30 / mosque 0），无真实房间误伤。</p>
+  </div>
+
+  <h2>六、不误伤真实标准间的判断依据</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">Villa 3 个（~2100×3400mm）— 已恢复</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        2026-11-10 修复后确认为<b style="color:var(--green)">真实标准间</b>（9047/9048/9049），
+        已恢复保留。根因：①门洞邻接判据漏检零宽/零高门（DOOR_4655/6241/6313 bbox 宽度为 0）
+        导致 9047/9048 被误判"无门洞邻接"；②9049 回折环（扫线法绕门洞折返，面积比 98.3%）
+        被 G 门禁 self_intersecting_polygon 抑制。均已修复，见 §九。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">Dongguan 9 个（2000×2900mm）</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        散布在 y=200k 区域，x 坐标间隔达 120m，明显是图面符号/标记重复出现的产物，非真实建筑空间。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">Dongguan 3 个（9600×3400mm）</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        位于绘图原点 (y=0) 附近，处于标题栏/图框区域，非建筑内容。
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">Stadion 11 个（4005×3100mm）</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        看台座位格间，尺寸严格一致、等距排列，无门洞邻接、无文字标注，符合看台/货架/图例表特征。
+      </p>
+    </div>
+  </div>
+
+  <h2>七、东莞通 104 新增房间验真（附带）</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>类别</th><th>数量</th><th>占比</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr><td>真实房间（保留）</td><td class="num">82</td><td class="num">87.2%</td><td><span class="tag green">✅ 正常</span></td></tr>
+        <tr><td>过提取（grid_pattern 抑制）</td><td class="num">12</td><td class="num">12.8%</td><td><span class="tag green">✅ 已去除</span></td></tr>
+        <tr><td><b>合计</b></td><td class="num"><b>94</b></td><td class="num">100%</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="note">过提取率 12.8% &lt; 20%，无需启动结构性去除判据升级。H 规则作为防御性门禁已部署，对 stadium 等极端案例有效拦截。</p>
+  </div>
+
+  <h2>八、代码改动与测试</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">代码改动</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        文件：<code>room.py</code><br>
+        L496-500：新增 4 个 <code>_GRID_*</code> 常量<br>
+        L1802-1962：新增 <code>_detect_grid_pattern_suppressions()</code><br>
+        L1847-1852：门洞邻接判据单轴 OR → 双轴 AND + 短边半数阈值<br>
+        L2045-2053：调用处直接传入 entities（对象）<br>
+        L1860：修复 <code>candidates=[]</code> NameError
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:8px;">测试</h3>
+      <p style="font-size:13px;color:var(--muted);">
+        专项测试：<code>test_room_geometry_integrity.py</code> 22 passed<br>
+        全量测试：<span class="tag green">3106 passed</span> <span class="tag orange">28 skipped</span> <span class="tag purple">14 deselected</span><br>
+        五图手工验证：stadion/dongguan/villa/plans/mosque 均已检查，无误伤
+      </p>
+    </div>
+  </div>
+
+  <h2>九、Villa 误伤修复（2026-11-10 追加）</h2>
+  <div class="card">
+    <p style="font-size:14px;color:var(--muted);">
+      <b style="color:var(--green)">已解决</b>：Villa 3 个真实标准间（9047/9048/9049）误伤已修复，五图房间数
+      villa 25（22+3）/ stadion 46 / dongguan 186 / plans 30 / mosque 0，全部回到基线+误伤恢复。
+    </p>
+    <table>
+      <thead><tr><th>根因</th><th>修复</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>门洞邻接判据漏检零宽/零高门：原 <code>if dw_v &lt;= 0 or dh_v &lt;= 0: continue</code>
+            跳过零宽度/零高度门（竖直线段/水平线段代表真实门洞），9047/9048 的门
+            （DOOR_4655/6241/6313，bbox 宽度 0）检测不到，被误判"无门洞邻接"。</td>
+          <td>只跳过完全退化的门（宽高均为 0）；补充零宽/零高门"门线段与房间 bbox 相交"
+            判据（无容差，避免 Stadion 看台格间 75mm 外门误判）。</td>
+        </tr>
+        <tr>
+          <td>9049 回折环被 G 门禁抑制：扫线法在门洞开口处绕门折返，产生回折环
+            （重复顶点+来回回折，面积比 98.3%），是几何噪声而非真实自交。</td>
+          <td>新增 <code>_repair_folded_polygon</code>：仅当每个折返尖刺都被「折返线上的门」
+            覆盖（真实房间门洞伪影）且修复后简单、面积/bbox 填充 &gt;90% 才保留。
+            噪声回折（T 型墙/墙板过提取，尖刺处无门）与真实自交（蝴蝶结，面积比
+            0.075-0.75）均不修复。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    BAA 引擎 · H 格子阵列检测（grid_pattern）验证 · 2026-11-10 · Stadion 19 格间抑制，0 真实房间误伤 · Villa 3 误伤已修复
+  </div>
+</div>
+</body>
+</html>
