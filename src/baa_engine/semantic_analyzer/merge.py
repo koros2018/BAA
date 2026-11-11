@@ -122,8 +122,16 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
             gy1_a[idx] = gy2_a[idx] = cy
 
     # 按类型分组
+    # T-opt8: 跳过零面积实体（bbox 宽或高为 0）。IoU>0.5 需要正面积交集，
+    # 零面积实体的交集面积恒为 0 → IoU=0，从不合并。这类实体占 dongguan
+    # 60.1%（19,860/33,031，other 59.1% / door 73.9% / wall 64.6% 零面积），
+    # 作为发起方/被查询方都只产生无效候选遍历。跳过它们（不建网格、不作为
+    # 发起方）输出严格等价：零面积实体当前也从不合并，仅浪费 stamp+面积预过滤。
+    # 注意：area_r 用原始 bbox 面积（bw*bh），零面积指 bw<=0 或 bh<=0。
     type_indices: Dict[str, List[int]] = defaultdict(list)
     for idx in range(n):
+        if area_r[idx] <= 0.0:
+            continue
         type_indices[entities[idx].type].append(idx)
 
     # 每种类型独立建 grid（仅对 >=2 个实体的类型）；嵌套 dict 免 tuple 键
@@ -155,6 +163,11 @@ def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEnt
             continue
         a = entities[i]
         used[i] = 1
+
+        # T-opt8: 零面积实体不作为发起方（从不合并，见 type_indices 注释）
+        if area_r[i] <= 0.0:
+            merged.append(a)
+            continue
 
         grid = type_grids.get(a.type)
         if grid is None:

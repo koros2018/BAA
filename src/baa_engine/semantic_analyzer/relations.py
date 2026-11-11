@@ -110,8 +110,37 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         adj_candidates = [
             i for i in range(n_entities) if entities[i].type in _KEY_ENTITY_TYPES
         ]
+    # T-opt3: door 类实体不作为 Phase 1 查询发起方（只作为被查询方）。
+    # door 有 11,422 个（dongguan），作为发起方时每个 expand=1 遍历 9 cell，
+    # 产生 35,135 个 door 相关配对（占 Phase 1 候选对 78%）。door 的 adjacent
+    # 关系方向不影响任何下游消费者（evacuation.py L56-57 用无向 adj；
+    # main.py L1703-1708 只消费 room-corridor 有向）。door 与其他实体的相邻
+    # 由对方作为发起方时生成（wall/room/corridor/exit/stair 检查 grid 中的 door），
+    # 关系仍存在，仅方向翻转，下游无向消费不受影响。
+    # 注意：grid_p1 必须用完整候选集（含 door）构建，否则查询方（room/corridor）
+    # 在 grid 中找不到 door；只有「查询发起方」排除 door。
+    _DOOR_QUERY_TYPES = {"door", "fire_door", "exit_door", "doorway", "accessible_door"}
+    # T-opt7: wall 类实体不作为 Phase 1 查询发起方（只作为被查询方）。
+    # wall 有 5,023 个（dongguan），平均跨 13.9 个 1000mm cell，作为发起方时
+    # cell 邻域极大，产生 509,956/522,991 = 97.5% 的 candidate refs 和
+    # 99,488/104,270 = 95.4% 的 unique pairs（实测）。wall 的 adjacent 关系
+    # 方向不影响任何下游消费者（evacuation.py 无向 adj；Phase 5 只按 wall.id
+    # 查 room-wall 映射；ifc_export 只按 id 查 host_wall）。wall 与其他实体
+    # （room/corridor/door/stair/exit）的相邻由对方作为发起方时生成（对方查询
+    # grid 中的 wall），关系仍存在，仅方向翻转。
+    # 注意：grid_p1 必须含 wall（作为被查询方），否则 room/corridor 查询不到。
+    # 纯 door-wall 对（无 room/corridor/stair/exit 参与）不再生成 adjacent——
+    # 经核查无任何下游消费者（Phase 2 host_wall 用 edge-coordinate grid 独立判定，
+    # 不依赖 Phase 1 adjacent；evacuation.py 只消费 door-exit/stair 相邻）。
+    _WALL_QUERY_TYPES = {"wall", "shear_wall", "fire_wall", "exterior_wall"}
+    _grid_candidates = adj_candidates  # grid 含全部候选（含 door/wall）
+    adj_candidates = [
+        i for i in adj_candidates
+        if entities[i].type not in _DOOR_QUERY_TYPES
+        and entities[i].type not in _WALL_QUERY_TYPES
+    ]
 
-    for idx in adj_candidates:
+    for idx in _grid_candidates:
         x1c = int(x1g[idx] / _P1_CELL_SIZE)
         x2c = int(x2g[idx] / _P1_CELL_SIZE)
         y1c = int(y1g[idx] / _P1_CELL_SIZE)
@@ -136,6 +165,12 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     _NON_ADJ_SAME_TYPE = {"door", "fire_door", "exit_door", "accessible_door",
                           "window", "fire_window", "rescue_window",
                           "column"}
+    # T-opt2: wall-wall 相邻关系在下游无任何消费者（evacuation.py 只消费
+    # corridor-corridor，Phase 5 只消费 room-wall，ifc_export 只按 id 查 host_wall）。
+    # wall 实体平均跨 13.9 个 1000mm cell（50% 跨 >4 cell），wall-wall 配对占
+    # dongguan Phase 1 候选对 26,589/303,580（8.8%），跳过可显著减少重复查询。
+    # 注意：wall 与其他类型（room/corridor/door/doorway/stair/exit）的相邻仍保留。
+    _WALL_TYPES = {"wall", "shear_wall", "fire_wall", "exterior_wall"}
     compared: Set[int] = set()  # idx_a * n + idx_b，比 tuple 省分配
     for idx_a in adj_candidates:
         a = entities[idx_a]
@@ -162,6 +197,9 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                     b = entities[idx_b]
                     # T-opt: 同类型弱相关实体跳过（已在 Phase 3/5 单独处理）
                     if atype == b.type and atype in _NON_ADJ_SAME_TYPE:
+                        continue
+                    # T-opt2: wall-wall 配对跳过（无下游消费者，见上）
+                    if atype in _WALL_TYPES and b.type in _WALL_TYPES:
                         continue
                     pair_key = idx_a * n_entities + idx_b
                     if pair_key in compared:

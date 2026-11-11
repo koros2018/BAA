@@ -1372,6 +1372,10 @@ class _SpatialGrid:
         # 行内 ky 键排序缓存（懒构建）：非空 row 内仍有 72.7% 空 cell，
         # 用二分只遍历 ky 范围内的存在键，跳过空 cell 的 row.get 检查。
         self._row_keys: Dict[int, List[int]] = {}
+        # 全局 kx 键排序缓存（懒构建）：query_bbox 的 kx 循环若线性遍历
+        # range(kx0,kx1+1)，大量空行 get 返回 None（实测 1.3M 次 dict.get）。
+        # 用二分只遍历存在的 kx，跳过空行。
+        self._sorted_kx: List[int] = []
         self._row_keys_dirty = False
 
     def _key(self, x: float, y: float) -> Tuple[int, int]:
@@ -1497,7 +1501,10 @@ class _SpatialGrid:
         cell_size/2，线段与查询 bbox 相交时其采样点可能落在 bbox 边界外
         最多 1 个 cell，需额外容差避免漏检。
         """
-        extra = self.cell_size
+        extra = 0.0  # T-opt4: insert_segment 已改用 DDA 精确遍历（非采样点），
+        # 线段穿过的每个 cell 都被插入，查询 bbox 扩张 pad 即可覆盖相交区域，
+        # 无需额外 1 个 cell 容差。实测 dongguan query_bbox 平均覆盖 486 cell
+        # （pad+extra=200mm 扩张 2 cell/边），去掉 extra 后覆盖减半。
         kx0 = int(math.floor((min(x0, x1) - pad - extra) / self.cell_size))
         kx1 = int(math.floor((max(x0, x1) + pad + extra) / self.cell_size))
         ky0 = int(math.floor((min(y0, y1) - pad - extra) / self.cell_size))
@@ -1510,11 +1517,22 @@ class _SpatialGrid:
             self._row_keys = {
                 kx: (row, sorted(row.keys())) for kx, row in self.cells.items()
             }
+            self._sorted_kx = sorted(self.cells.keys())
             self._row_keys_dirty = False
         out: List[int] = []
+        # T-opt9: 候选去重用 set 替代 list 线性查找。实测 dongguan query_bbox
+        # idx 访问 avg 113/query（315,454 次），去重后候选 avg 6.8（19,050 个，
+        # 仅 6.0%）——94% 的 idx 访问是同一实体跨多 cell 的重复。list 线性
+        # 查找 O(候选数) 每 idx → 113×6.8≈768 次比较/query；set 是 O(1)，
+        # 113 次/query。T-opt5 曾因「候选少 list 更快」改 list，但那是基于
+        # 候选数而非 idx 访问数，重复率 94% 下 set 更优。
         seen: Set[int] = set()
-        for kx in range(kx0, kx1 + 1):
-            entry = self._row_keys.get(kx)
+        # T-opt6: kx 也用二分只遍历存在的行（跳过空行），避免线性遍历
+        # range(kx0,kx1+1) 时大量空行 get 返回 None。
+        kx_lo = bisect_left(self._sorted_kx, kx0)
+        kx_hi = bisect_right(self._sorted_kx, kx1)
+        for _ki in range(kx_lo, kx_hi):
+            entry = self._row_keys.get(self._sorted_kx[_ki])
             if entry is None:
                 continue
             row, keys = entry
@@ -2244,31 +2262,46 @@ def _detect_grid_pattern_suppressions(
 
     # 预构建空间索引：doors 按 bbox 对角线路径插入（覆盖其跨度），
     # texts 按中心点插入。避免每个候选房间遍历全部 doors/texts（O(n·m)）。
-    door_grid = _SpatialGrid(_MATCH_THRESHOLD)
-    door_list: List[Tuple[float, float, float, float]] = []  # (x0,y0,x1,y1)
-    for d in doors:
-        dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
-        if dtype not in _DOOR_ONLY_TYPES:
-            continue
-        dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
-        dx, dy = dbb.get("x", 0), dbb.get("y", 0)
-        dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
-        # 只跳过完全退化的门（宽高均为 0）。零宽度/零高度门是真实门洞
-        # （竖直线段/水平线段代表门），必须纳入邻接判定，否则 Villa 等
-        # 真实标准间因门 bbox 零宽被误判为"无门洞邻接"而被 grid_pattern 误伤。
-        if dw_v <= 0 and dh_v <= 0:
-            continue
-        door_list.append((dx, dy, dx + dw_v, dy + dh_v))
-        door_grid.insert_segment(len(door_list) - 1, dx, dy, dx + dw_v, dy + dh_v)
+    # T-opt10: 惰性构建——door_grid 构建成本 288ms（dongguan 11,145 个 door 的
+    # DDA 遍历），但 _has_adjacent_context 只查询 line_chain_ 候选房间（211 个，
+    # 27.8ms）。若候选房间 <3（grid_pattern 判据），door_grid 完全不需要。
+    # 改为 _has_adjacent_context 首次调用时构建（缓存），避免无候选时的浪费。
+    # 注意：door_grid 与 door_list 必须同步构建（door_list[di] 索引对应 grid 内
+    # 插入的 door 序号），text_grid/text_list 同理。
+    _door_grid_cache: Dict[str, Any] = {}
 
-    text_grid = _SpatialGrid(_MATCH_THRESHOLD)
-    text_list: List[Tuple[float, float]] = []  # (cx, cy)
-    for t in texts:
-        tb = t.bbox if hasattr(t, "bbox") else (t if isinstance(t, dict) else {}) or {}
-        tx = tb.get("x", 0) + tb.get("width", 0) / 2
-        ty = tb.get("y", 0) + tb.get("height", 0) / 2
-        text_list.append((tx, ty))
-        text_grid.insert_point(len(text_list) - 1, tx, ty)
+    def _ensure_context_grids() -> None:
+        if _door_grid_cache:
+            return
+        dg = _SpatialGrid(_MATCH_THRESHOLD)
+        dl: List[Tuple[float, float, float, float]] = []
+        for d in doors:
+            dtype = getattr(d, "type", None) or (d.get("type") if isinstance(d, dict) else None)
+            if dtype not in _DOOR_ONLY_TYPES:
+                continue
+            dbb = d.bbox if hasattr(d, "bbox") else (d if isinstance(d, dict) else {}) or {}
+            dx, dy = dbb.get("x", 0), dbb.get("y", 0)
+            dw_v, dh_v = dbb.get("width", 0), dbb.get("height", 0)
+            # 只跳过完全退化的门（宽高均为 0）。零宽度/零高度门是真实门洞
+            # （竖直线段/水平线段代表门），必须纳入邻接判定，否则 Villa 等
+            # 真实标准间因门 bbox 零宽被误判为"无门洞邻接"而被 grid_pattern 误伤。
+            if dw_v <= 0 and dh_v <= 0:
+                continue
+            dl.append((dx, dy, dx + dw_v, dy + dh_v))
+            dg.insert_segment(len(dl) - 1, dx, dy, dx + dw_v, dy + dh_v)
+
+        tg = _SpatialGrid(_MATCH_THRESHOLD)
+        tl: List[Tuple[float, float]] = []
+        for t in texts:
+            tb = t.bbox if hasattr(t, "bbox") else (t if isinstance(t, dict) else {}) or {}
+            tx = tb.get("x", 0) + tb.get("width", 0) / 2
+            ty = tb.get("y", 0) + tb.get("height", 0) / 2
+            tl.append((tx, ty))
+            tg.insert_point(len(tl) - 1, tx, ty)
+        _door_grid_cache["door_grid"] = dg
+        _door_grid_cache["door_list"] = dl
+        _door_grid_cache["text_grid"] = tg
+        _door_grid_cache["text_list"] = tl
 
     # Helper: check if an entity bbox has nearby door or text
     def _has_adjacent_context(eid: str) -> bool:
@@ -2278,6 +2311,12 @@ def _detect_grid_pattern_suppressions(
         w, h = bb.get("width", 0), bb.get("height", 0)
         rbx0, rby0 = bb.get("x", 0), bb.get("y", 0)
         rbx1, rby1 = rbx0 + w, rby0 + h
+        # T-opt10: 惰性构建 grid（首次调用时才构建，见 _ensure_context_grids）
+        _ensure_context_grids()
+        door_grid = _door_grid_cache["door_grid"]
+        door_list = _door_grid_cache["door_list"]
+        text_grid = _door_grid_cache["text_grid"]
+        text_list = _door_grid_cache["text_list"]
         # Door adjacency: ONLY count actual doors (not windows/openings)
         # 用空间索引查房间 bbox 扩张 1 个 cell 内的候选门洞，再精确双轴重叠
         short_side = min(w, h) if w > 0 and h > 0 else 0
@@ -2520,14 +2559,32 @@ def _suppress_implausible_rooms(
 
     # 回折修复门洞判据空间网格：door 按 bbox 对角线插入，_fold_spike_covered_by_door
     # 只查询尖刺附近的候选门，避免遍历全部 doors（O(n·m)）。
-    door_grid = _SpatialGrid(_MATCH_THRESHOLD)
-    for _d_idx, _d in enumerate(door_entities):
-        _db = _d.bbox if hasattr(_d, "bbox") else (_d if isinstance(_d, dict) else {}) or {}
-        _dx0, _dy0 = _db.get("x", 0), _db.get("y", 0)
-        _dw, _dh = _db.get("width", 0), _db.get("height", 0)
-        if _dw <= 0 and _dh <= 0:
-            continue
-        door_grid.insert_segment(_d_idx, _dx0, _dy0, _dx0 + _dw, _dy0 + _dh)
+    # T-opt11: 惰性构建 + 只插 _DOOR_ONLY_TYPES。door_grid 构建 0.5s（dongguan
+    # 11,145 个 door 的 DDA 遍历），但 _fold_spike_covered_by_door 只消费
+    # _DOOR_ONLY_TYPES（door/fire_door/exit_door/accessible_door），且只在自交
+    # 房间（106 个）出现时才需要。改为首次自交房间时构建，且跳过 doorway/window
+    # 等非 DOOR_ONLY 插入（_fold_spike_covered_by_door 过滤它们，插入浪费）。
+    door_grid: Optional[Any] = None
+
+    def _ensure_fold_door_grid() -> Any:
+        nonlocal door_grid
+        if door_grid is not None:
+            return door_grid
+        dg = _SpatialGrid(_MATCH_THRESHOLD)
+        for _d_idx, _d in enumerate(door_entities):
+            _dtype = getattr(_d, "type", None) or (
+                _d.get("type") if isinstance(_d, dict) else None
+            )
+            if _dtype not in _DOOR_ONLY_TYPES:
+                continue
+            _db = _d.bbox if hasattr(_d, "bbox") else (_d if isinstance(_d, dict) else {}) or {}
+            _dx0, _dy0 = _db.get("x", 0), _db.get("y", 0)
+            _dw, _dh = _db.get("width", 0), _db.get("height", 0)
+            if _dw <= 0 and _dh <= 0:
+                continue
+            dg.insert_segment(_d_idx, _dx0, _dy0, _dx0 + _dw, _dy0 + _dh)
+        door_grid = dg
+        return dg
 
     def _record(entity: Any, reason: str, evidence: Dict[str, Any]) -> None:
         rec = suppressed.setdefault(
@@ -2569,7 +2626,9 @@ def _suppress_implausible_rooms(
             # 覆盖（真实标准间如 Villa 9049 的门洞伪影）且修复后简单、面积
             # 接近（>90%）才保留，避免误伤真实标准间，也避免把噪声回折
             # （T 型墙/墙板过提取，尖刺处无门）误修复。
-            repaired = _repair_folded_polygon(poly, doors=door_entities, door_grid=door_grid)
+            repaired = _repair_folded_polygon(
+                poly, doors=door_entities, door_grid=_ensure_fold_door_grid()
+            )
             if repaired is not None:
                 props["points"] = repaired
                 props["point_count"] = len(repaired)
