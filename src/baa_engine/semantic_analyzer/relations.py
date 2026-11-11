@@ -263,15 +263,28 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         e for e in entities if e.type in ("door", "window", "fire_door", "exit_door", "doorway")
     ]
 
+    # T-opt21: 预提取 wall bbox 坐标到 flat arrays，避免 grid_build 循环重复
+    # wb.get("x") 等 dict 调用（dongguan: 5023 walls × 4 get = 20,092 次）。
+    # Phase 2 候选遍历的 ob.get 不在本循环内（opening bbox 用于 ogx/ogy 计算，
+    # 次数与 openings 数相同 ~11k，开销较小），故仅对 walls 做预提取。
+    w_x1: List[float] = []
+    w_y1: List[float] = []
+    w_x2: List[float] = []
+    w_y2: List[float] = []
+    for wall in walls:
+        wb = wall.bbox
+        x = wb.get("x", 0)
+        y = wb.get("y", 0)
+        w_x1.append(x); w_y1.append(y)
+        w_x2.append(x + wb.get("width", 0))
+        w_y2.append(y + wb.get("height", 0))
+
     _EDGE_CELL = 100.0
     x_edge_grid: Dict[int, List[SemanticEntity]] = {}
     y_edge_grid: Dict[int, List[SemanticEntity]] = {}
-    for wall in walls:
-        wb = wall.bbox
-        wx1 = wb.get("x", 0)
-        wy1 = wb.get("y", 0)
-        wx2 = wx1 + wb.get("width", 0)
-        wy2 = wy1 + wb.get("height", 0)
+    for wi, wall in enumerate(walls):
+        wx1 = w_x1[wi]; wy1 = w_y1[wi]
+        wx2 = w_x2[wi]; wy2 = w_y2[wi]
         x_edge_grid.setdefault(int(wx1 / _EDGE_CELL), []).append(wall)
         x_edge_grid.setdefault(int(wx2 / _EDGE_CELL), []).append(wall)
         y_edge_grid.setdefault(int(wy1 / _EDGE_CELL), []).append(wall)
