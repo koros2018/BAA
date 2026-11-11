@@ -292,22 +292,16 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         # 查 o_cx 附近的 x 边 + o_cy 附近的 y 边（expand=1 覆盖 < 50mm）
         ogx = int(o_cx / _EDGE_CELL)
         ogy = int(o_cy / _EDGE_CELL)
+        # T-opt20: 去掉 seen_wall_ids 去重。实测 dongguan x_edge_grid 与
+        # y_edge_grid 的候选集合不重叠（cands=seen=393,291，无重复），
+        # seen set 是纯浪费（393,291 次 add + 查询）。若未来数据出现同一
+        # wall 同时满足 x 边和 y 边近 opening，候选会重复（dist_to_edge
+        # 检查仍正确，仅多算一次，best_overlap 取 max 不受影响）。
         candidate_walls: List[SemanticEntity] = []
-        seen_wall_ids: Set[int] = set()
         for dx in (-1, 0, 1):
-            for w in x_edge_grid.get(ogx + dx, []):
-                wid = id(w)
-                if wid in seen_wall_ids:
-                    continue
-                seen_wall_ids.add(wid)
-                candidate_walls.append(w)
+            candidate_walls.extend(x_edge_grid.get(ogx + dx, []))
         for dy in (-1, 0, 1):
-            for w in y_edge_grid.get(ogy + dy, []):
-                wid = id(w)
-                if wid in seen_wall_ids:
-                    continue
-                seen_wall_ids.add(wid)
-                candidate_walls.append(w)
+            candidate_walls.extend(y_edge_grid.get(ogy + dy, []))
 
         for wall in candidate_walls:
             wb = wall.bbox
