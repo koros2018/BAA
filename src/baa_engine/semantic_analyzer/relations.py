@@ -409,30 +409,34 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     _PAIR_CELL = 1000.0
 
     def _pair_grid(geo_list):
-        g: Dict[int, Dict[int, List[int]]] = {}
+        # T-opt26: 平铺 dict[(gx, gy)] -> [pi]，单次访问省一次 .get()。
+        # 嵌套 dict[gx][gy] 每次 cell 访问需 2×dict.get；平铺后仅 1×dict.get。
+        g: Dict[Tuple[int, int], List[int]] = {}
         for pi in range(len(geo_list)):
             x1, y1, x2, y2 = geo_list[pi][1], geo_list[pi][2], geo_list[pi][3], geo_list[pi][4]
-            for gx in range(int(x1 / _PAIR_CELL), int(x2 / _PAIR_CELL) + 1):
-                row = g.get(gx)
-                if row is None:
-                    row = {}
-                    g[gx] = row
-                for gy in range(int(y1 / _PAIR_CELL), int(y2 / _PAIR_CELL) + 1):
-                    cell = row.get(gy)
-                    if cell is None:
-                        row[gy] = [pi]
+            gx0 = int(x1 / _PAIR_CELL); gx1 = int(x2 / _PAIR_CELL)
+            gy0 = int(y1 / _PAIR_CELL); gy1 = int(y2 / _PAIR_CELL)
+            for gx in range(gx0, gx1 + 1):
+                for gy in range(gy0, gy1 + 1):
+                    key = (gx, gy)
+                    row = g.get(key)
+                    if row is None:
+                        g[key] = [pi]
                     else:
-                        cell.append(pi)
+                        row.append(pi)
         return g
 
     def _candidates(grid, x1, y1, x2, y2, expand):
+        # T-opt26: 预计算 gx/gy 范围，避免循环内重复 int 除法；
+        # 单步 iter 替代嵌套循环，直接用 flat tuple key 查 grid，省去 row 中间层。
+        gx_start = int(x1 / _PAIR_CELL) - expand
+        gx_end   = int(x2 / _PAIR_CELL) + expand
+        gy_start = int(y1 / _PAIR_CELL) - expand
+        gy_end   = int(y2 / _PAIR_CELL) + expand
         out = []
-        for gx in range(int(x1 / _PAIR_CELL) - expand, int(x2 / _PAIR_CELL) + expand + 1):
-            row = grid.get(gx)
-            if row is None:
-                continue
-            for gy in range(int(y1 / _PAIR_CELL) - expand, int(y2 / _PAIR_CELL) + expand + 1):
-                cell = row.get(gy)
+        for gx in range(gx_start, gx_end + 1):
+            for gy in range(gy_start, gy_end + 1):
+                cell = grid.get((gx, gy))  # flat tuple key, 单次 .get()
                 if cell is not None:
                     out.extend(cell)
         # 调用方只遍历候选（不依赖顺序），sorted 是多余的；set 去重必要
@@ -553,29 +557,29 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     # 网格，room 查询 expand=1（dist<500mm ⟹ 轴向间隙<500mm<1000mm ⟹ 必落在
     # 对方 cell 的 ±1 邻域，候选为合法对超集）。输出等价：wall_rooms 是 set，
     # 最终 L543 按 sorted(wall_rooms.get(host_id)) 排序，候选顺序不影响结果。
-    _P5_GRID: Dict[int, Dict[int, List[str]]] = {}
+    _P5_GRID: Dict[Tuple[int, int], List[str]] = {}
     for _wid, (_wall, wx1, wy1, wx2, wy2) in door_wall_map.items():
-        for _gx in range(int(wx1 / _PAIR_CELL), int(wx2 / _PAIR_CELL) + 1):
-            _row = _P5_GRID.get(_gx)
-            if _row is None:
-                _row = {}
-                _P5_GRID[_gx] = _row
-            for _gy in range(int(wy1 / _PAIR_CELL), int(wy2 / _PAIR_CELL) + 1):
-                _cell = _row.get(_gy)
-                if _cell is None:
-                    _row[_gy] = [_wid]
+        gx0 = int(wx1 / _PAIR_CELL); gx1 = int(wx2 / _PAIR_CELL)
+        gy0 = int(wy1 / _PAIR_CELL); gy1 = int(wy2 / _PAIR_CELL)
+        for _gx in range(gx0, gx1 + 1):
+            for _gy in range(gy0, gy1 + 1):
+                key = (_gx, _gy)
+                cell = _P5_GRID.get(key)
+                if cell is None:
+                    _P5_GRID[key] = [_wid]
                 else:
-                    _cell.append(_wid)
+                    cell.append(_wid)
     for (room, rx1, ry1, rx2, ry2) in room_geo:
         if room.id in wall_rooms:
             continue
         # 查询 room bbox 扩张 500mm 的 cell 邻域（expand=1 覆盖 1000mm）
-        for _gx in range(int(rx1 / _PAIR_CELL) - 1, int(rx2 / _PAIR_CELL) + 2):
-            _row = _P5_GRID.get(_gx)
-            if _row is None:
-                continue
-            for _gy in range(int(ry1 / _PAIR_CELL) - 1, int(ry2 / _PAIR_CELL) + 2):
-                _cell = _row.get(_gy)
+        rgx_start = int(rx1 / _PAIR_CELL) - 1
+        rgx_end   = int(rx2 / _PAIR_CELL) + 1
+        rgy_start = int(ry1 / _PAIR_CELL) - 1
+        rgy_end   = int(ry2 / _PAIR_CELL) + 1
+        for _gx in range(rgx_start, rgx_end + 1):
+            for _gy in range(rgy_start, rgy_end + 1):
+                _cell = _P5_GRID.get((_gx, _gy))
                 if _cell is None:
                     continue
                 for wid in _cell:
