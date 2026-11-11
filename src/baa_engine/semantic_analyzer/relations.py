@@ -280,15 +280,18 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         w_y2.append(y + wb.get("height", 0))
 
     _EDGE_CELL = 100.0
-    x_edge_grid: Dict[int, List[SemanticEntity]] = {}
-    y_edge_grid: Dict[int, List[SemanticEntity]] = {}
+    # T-opt23: x_edge_grid/y_edge_grid 存 wall index（int）而非 SemanticEntity，
+    # 避免内层循环重复 wb.get() 调用（dongguan 406K×4 = 1.6M 次 dict lookup）。
+    # 配合 T-opt21 的 w_x1/w_y1/w_x2/w_y2 flat arrays，内层直接索引，O(1) 读取。
+    x_edge_grid: Dict[int, List[int]] = {}
+    y_edge_grid: Dict[int, List[int]] = {}
     for wi, wall in enumerate(walls):
         wx1 = w_x1[wi]; wy1 = w_y1[wi]
         wx2 = w_x2[wi]; wy2 = w_y2[wi]
-        x_edge_grid.setdefault(int(wx1 / _EDGE_CELL), []).append(wall)
-        x_edge_grid.setdefault(int(wx2 / _EDGE_CELL), []).append(wall)
-        y_edge_grid.setdefault(int(wy1 / _EDGE_CELL), []).append(wall)
-        y_edge_grid.setdefault(int(wy2 / _EDGE_CELL), []).append(wall)
+        x_edge_grid.setdefault(int(wx1 / _EDGE_CELL), []).append(wi)
+        x_edge_grid.setdefault(int(wx2 / _EDGE_CELL), []).append(wi)
+        y_edge_grid.setdefault(int(wy1 / _EDGE_CELL), []).append(wi)
+        y_edge_grid.setdefault(int(wy2 / _EDGE_CELL), []).append(wi)
 
     for opening in openings:
         best_wall = None
@@ -297,39 +300,31 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
 
         ob = opening.bbox
         ox1, oy1 = ob.get("x", 0), ob.get("y", 0)
-        ox2 = ox1 + ob.get("width", 0)
-        oy2 = oy1 + ob.get("height", 0)
+        ow = ob.get("width", 0); oh = ob.get("height", 0)
+        ox2 = ox1 + ow; oy2 = oy1 + oh
+        # T-opt24: 预计算除数（opening bbox 对同一 opening 不变，省内层 406K×2 dict.get）
+        o_wh = max(oh, 1); o_ww = max(ow, 1)
         o_cx = (ox1 + ox2) / 2
         o_cy = (oy1 + oy2) / 2
 
         # 查 o_cx 附近的 x 边 + o_cy 附近的 y 边（expand=1 覆盖 < 50mm）
         ogx = int(o_cx / _EDGE_CELL)
         ogy = int(o_cy / _EDGE_CELL)
-        # T-opt22: 用 set.update() 替代 seen+append 去重。实测 dongguan 两者
-        # matches 完全一致（177,924），但 set().update() 收集路径省掉二次遍历
-        # unique_idx 的开销，整体候选遍历从 ~476ms → ~388ms（-18.5%，~88ms）。
-        # wall 在 x_edge_grid 和 y_edge_grid 都出现时，set 自动去重；同一 wall
-        # 仅检查一次，best_overlap 取 max 语义不受影响。
+        # T-opt22/T-opt23: set.update() + wall index storage。grid 存 wall index（int），
+        # 内层用预提取的 w_x1/w_y1/w_x2/w_y2 flat arrays，避免 wb.get() 调用。
+        # dongguan: 406K×4 = 1.6M 次 dict lookup → 1.6M 次数组下标访问，显著更快。
         wi_set = set()
         for dx in (-1, 0, 1):
             wi_set.update(x_edge_grid.get(ogx + dx, []))
         for dy in (-1, 0, 1):
             wi_set.update(y_edge_grid.get(ogy + dy, []))
-        candidate_walls: List[SemanticEntity] = list(wi_set)
+        cand_ws: List[int] = list(wi_set)  # wall indices, not entities
 
-        for wall in candidate_walls:
-            wb = wall.bbox
-            wx1, wy1 = wb.get("x", 0), wb.get("y", 0)
-            wx2 = wx1 + wb.get("width", 0)
-            wy2 = wy1 + wb.get("height", 0)
+        for wi in cand_ws:
+            wx1 = w_x1[wi]; wy1 = w_y1[wi]
+            wx2 = w_x2[wi]; wy2 = w_y2[wi]
 
             # T-opt19: AABB 提前拒绝（dist_to_edge 拒绝的超集）。
-            # dist_to_edge = min(min_dx, min_dy)，其中 min_dx 是 opening 中心到
-            # wall x 边的距离（>= 轴向间隙 gx），min_dy >= gy。故 gx>=50 且
-            # gy>=50 ⟹ min_dx>=50 且 min_dy>=50 ⟹ dist_to_edge>=50 ⟹ 必被
-            # dist_to_edge 判据拒绝。注意：必须 gx 和 gy 都 >=50 才拒绝
-            # （单个 gx>=50 但 gy<50 时 min_dy 可能 <50，dist_to_edge<50 应通过）。
-            # gx/gy 计算无 abs（仅比较），比 4 次 abs + 2 次 min 便宜。
             gx = ox1 - wx2
             if gx < 0.0:
                 gx = wx1 - ox2
@@ -358,17 +353,17 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
             overlap = 0.0
             if min_dx <= min_dy:
                 overlap_y = max(0, min(oy2, wy2) - max(oy1, wy1))
-                overlap = overlap_y / max(ob.get("height", 1), 1)
+                overlap = overlap_y / o_wh
             else:
                 overlap_x = max(0, min(ox2, wx2) - max(ox1, wx1))
-                overlap = overlap_x / max(ob.get("width", 1), 1)
+                overlap = overlap_x / o_ww
 
             if overlap > best_overlap or (
                 overlap == best_overlap and dist_to_edge < best_distance
             ):
                 best_overlap = overlap
                 best_distance = dist_to_edge
-                best_wall = wall
+                best_wall = walls[wi]  # 仅需要时取 entity（用于 id 字段）
 
         if best_wall:
             relations.append(
