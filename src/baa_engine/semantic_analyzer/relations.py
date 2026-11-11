@@ -42,8 +42,12 @@ from .spatial_grid import (
     CELL_SIZE as _CELL_SIZE,
     MAX_CELLS_PER_ENTITY as _MAX_CELLS_PER_ENTITY,
 )
-# T-opt29: Numba JIT kernel for Phase 2 candidate traversal.
-# Only imported when numpy+numba are installed; falls back to pure-Python loop.
+# T-opt29: Phase 2 C 扩展（优先） > Numba JIT fallback。
+try:
+    from .phase2_match import match_phase2 as _c_match
+    _HAS_C = True
+except ImportError:
+    _HAS_C = False
 try:
     from .phase2_kernel import run_phase2_numba as _run_phase2
 except ImportError:
@@ -296,10 +300,76 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         y_edge_grid.setdefault(int(wy1 / _EDGE_CELL), []).append(wi)
         y_edge_grid.setdefault(int(wy2 / _EDGE_CELL), []).append(wi)
 
-    # T-opt29: 当 numba + numpy 可用时，将候选遍历移至 JIT 编译内核执行。
-    # 完全 nopython 模式（无 object array），仅传数值数组；结果以整数下标返回，
-    # 再由 Python 层映射回实体 ID。实测 dongguan ~280ms → ~30ms（~9× 加速）。
-    _phase2_matches = _run_phase2(openings, walls, x_edge_grid, y_edge_grid) if _run_phase2 else None
+    # T-opt29: Phase 2 墙体-开洞匹配。优先级：C扩展 > Numba JIT > Python fallback。
+    _phase2_matches = None
+    if _HAS_C:
+        import numpy as np
+        n_op = len(openings); n_w = len(walls)
+        # 预提取坐标到 contiguous numpy 数组
+        ox1_a = np.empty(n_op, dtype=np.float64)
+        oy1_a = np.empty(n_op, dtype=np.float64)
+        ox2_a = np.empty(n_op, dtype=np.float64)
+        oy2_a = np.empty(n_op, dtype=np.float64)
+        ocx_a = np.empty(n_op, dtype=np.float64)
+        ocy_a = np.empty(n_op, dtype=np.float64)
+        owh_a = np.empty(n_op, dtype=np.float64)
+        oww_a = np.empty(n_op, dtype=np.float64)
+        wx1_a = np.fromiter(w_x1, dtype=np.float64, count=n_w)
+        wy1_a = np.fromiter(w_y1, dtype=np.float64, count=n_w)
+        wx2_a = np.fromiter(w_x2, dtype=np.float64, count=n_w)
+        wy2_a = np.fromiter(w_y2, dtype=np.float64, count=n_w)
+        for i, op in enumerate(openings):
+            b = op.bbox; ow = b.get("width",0); oh = b.get("height",0)
+            x = b.get("x",0.0); y = b.get("y",0.0)
+            ox1_a[i]=x; oy1_a[i]=y; ox2_a[i]=x+ow; oy2_a[i]=y+oh
+            ocx_a[i]=(x+x+ow)*0.5; ocy_a[i]=(y+y+oh)*0.5
+            owh_a[i]=max(oh,1.0); oww_a[i]=max(ow,1.0)
+        # 构建 flat edge grid + 唯一键表
+        all_entries = []
+        seen = set()
+        for k, ws in x_edge_grid.items():
+            for wi in ws:
+                p = (k, wi)
+                if p not in seen:
+                    seen.add(p); all_entries.append(p)
+        for k, ws in y_edge_grid.items():
+            for wi in ws:
+                p = (k, wi)
+                if p not in seen:
+                    seen.add(p); all_entries.append(p)
+        all_entries.sort()
+        e_keys_a = np.array([k for k,_ in all_entries], dtype=np.int64)
+        e_wis_a  = np.array([wi for _,wi in all_entries], dtype=np.int64)
+        uniq_list, offs_list, lens_list = [], [], []
+        cur = 0; i = 0
+        while i < len(all_entries):
+            kk = all_entries[i][0]
+            j = i
+            while j < len(all_entries) and all_entries[j][0] == kk: j += 1
+            uniq_list.append(int(kk)); offs_list.append(cur); lens_list.append(j - i)
+            cur = j; i = j
+        uk_a = np.array(uniq_list, dtype=np.int64)
+        off_a = np.array(offs_list, dtype=np.int64)
+        ln_a  = np.array(lens_list, dtype=np.int64)
+        max_m = n_op
+        osrc = np.empty(max_m, dtype=np.int64)
+        otgt = np.empty(max_m, dtype=np.int64)
+        ocf  = np.empty(max_m, dtype=np.float64)
+        on_  = np.array([0], dtype=np.int64)
+        _c_match(
+            ox1_a, oy1_a, ox2_a, oy2_a, ocx_a, ocy_a, owh_a, oww_a,
+            wx1_a, wy1_a, wx2_a, wy2_a,
+            e_keys_a, e_wis_a, uk_a, off_a, ln_a,
+            int(n_op), int(len(uniq_list)),
+            osrc, otgt, ocf, on_,
+        )
+        _n = int(on_[0])
+        _phase2_matches = [
+            (walls[s].id, openings[t].id, float(ocf[i]))
+            for i, (s, t) in enumerate(zip(osrc[:_n], otgt[:_n]))
+        ]
+    elif _run_phase2:
+        _phase2_matches = _run_phase2(openings, walls, x_edge_grid, y_edge_grid)
     if _phase2_matches is not None:
         # Numba path: matches are (wall_id, opening_id, confidence) tuples
         for wid, tid, conf in _phase2_matches:

@@ -380,6 +380,22 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
 
     result: List[SemanticEntity] = []
     seen_centers: Set[Tuple[int, int]] = set()
+    # P104: bbox 重叠去重空间网格（cell=1000mm）。按已存 room bbox 覆盖的
+    # cell 插入索引，查询新面时只检查与其 bbox 相交的 cell 内的房间，
+    # 将 O(n²) 全量遍历降为 O(n)·局部邻域。
+    _dup_grid: Dict[Tuple[int, int], List[int]] = {}
+    _DUP_CELL = 1000.0
+
+    def _grid_insert(gx0: int, gx1: int, gy0: int, gy1: int, idx: int) -> None:
+        for gx in range(gx0, gx1 + 1):
+            for gy in range(gy0, gy1 + 1):
+                key = (gx, gy)
+                lst = _dup_grid.get(key)
+                if lst is None:
+                    _dup_grid[key] = [idx]
+                else:
+                    lst.append(idx)
+
     for face in faces:
         pts = [(graph["nodes"][nid][0], graph["nodes"][nid][1]) for nid in face]
         if len(pts) < 3:
@@ -413,14 +429,28 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
             continue
         bbox = {"x": min(xs), "y": min(ys), "width": bw, "height": bh}
         # P104: bbox 重叠去重——新 face 若与已存 room bbox 重叠 >80% 则跳过
+        # 用空间网格只查询邻域 cell，替代对全部 result 的 O(n²) 遍历。
         is_dup = False
-        for existing in result:
-            eb = existing.bbox
+        bx0 = bbox["x"]
+        by0 = bbox["y"]
+        bx1 = bx0 + bbox["width"]
+        by1 = by0 + bbox["height"]
+        gx0 = int(math.floor(bx0 / _DUP_CELL))
+        gx1 = int(math.floor(bx1 / _DUP_CELL))
+        gy0 = int(math.floor(by0 / _DUP_CELL))
+        gy1 = int(math.floor(by1 / _DUP_CELL))
+        cand_idxs: Set[int] = set()
+        for gx in range(gx0, gx1 + 1):
+            for gy in range(gy0, gy1 + 1):
+                for cand in _dup_grid.get((gx, gy), ()):
+                    cand_idxs.add(cand)
+        for cand in cand_idxs:
+            eb = result[cand].bbox
             ox = max(
-                0, min(bbox["x"] + bbox["width"], eb["x"] + eb["width"]) - max(bbox["x"], eb["x"])
+                0, min(bx1, eb["x"] + eb["width"]) - max(bx0, eb["x"])
             )
             oy = max(
-                0, min(bbox["y"] + bbox["height"], eb["y"] + eb["height"]) - max(bbox["y"], eb["y"])
+                0, min(by1, eb["y"] + eb["height"]) - max(by0, eb["y"])
             )
             if ox <= 0 or oy <= 0:
                 continue
@@ -449,6 +479,8 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
                 bbox=bbox,
             )
         )
+        # 将新面的 bbox 覆盖 cell 插入去重网格，供后续面查询。
+        _grid_insert(gx0, gx1, gy0, gy1, len(result) - 1)
     # 剔除外框面
     if len(result) > 1:
         result.sort(key=lambda r: r.properties["area"], reverse=True)
@@ -1555,9 +1587,34 @@ class _SpatialGrid:
 
 
 def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
-    """在 T-junction 和交叉点处分割线段。"""
+    """在 T-junction 和交叉点处分割线段。
+
+    优化：Pass 1 只处理 j>i 的线段对，双向检查（端点 of j 在 segment i 上
+    且 端点 of i 在 segment j 上），避免每对线段被重复处理两次。
+    用 set 做 O(1) 重复 t 值检查，替代 O(k) 线性扫描。
+    """
     n = len(segs)
     split_pts: List[List[Tuple[float, float, float]]] = [[] for _ in range(n)]
+    split_t_sets: List[Set[float]] = [set() for _ in range(n)]
+
+    # 预计算线段属性，避免内层循环重复计算 dx/dy/len2
+    seg_x0 = [0.0] * n
+    seg_y0 = [0.0] * n
+    seg_dx = [0.0] * n
+    seg_dy = [0.0] * n
+    seg_len2 = [0.0] * n
+    seg_valid = [False] * n
+    for i in range(n):
+        x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
+        seg_x0[i] = x0i
+        seg_y0[i] = y0i
+        dx_i = x1i - x0i
+        dy_i = y1i - y0i
+        seg_dx[i] = dx_i
+        seg_dy[i] = dy_i
+        len2_i = dx_i * dx_i + dy_i * dy_i
+        seg_len2[i] = len2_i
+        seg_valid[i] = len2_i >= 1e-6
 
     # 空间索引：线段按路径采样插入网格（用 insert_segment 覆盖超长线段）。
     # 保证：若线段 j 与查询 bbox 相交，则 j 的采样点落在相交区域，
@@ -1578,20 +1635,23 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
     # 用线段索引：查线段 i 的 bbox 扩张 100mm 内的所有线段（候选）
     # 缓存候选供 Pass 2 复用（Pass 2 的 pad=0 范围是 pad=100mm 的子集，
     # _seg_intersection 会精确过滤不相交的候选）
+    # 只处理 j>i，双向检查：(端点 of j on segment i) 和 (端点 of i on segment j)
     cands_by_i: List[List[int]] = [[] for _ in range(n)]
     for i in range(n):
-        x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
-        dx_i, dy_i = x1i - x0i, y1i - y0i
-        len2_i = dx_i * dx_i + dy_i * dy_i
-        if len2_i < 1e-6:
+        if not seg_valid[i]:
             continue
+        x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
+        dx_i = seg_dx[i]
+        dy_i = seg_dy[i]
+        len2_i = seg_len2[i]
         # 查询线段 i 的 bbox 扩张 100mm 内的所有候选线段
         cands = seg_grid.query_bbox(x0i, y0i, x1i, y1i, _MATCH_THRESHOLD)
         cands_by_i[i] = cands
         for j in cands:
-            if i == j:
+            if j <= i or not seg_valid[j]:
                 continue
             x0j, y0j, x1j, y1j = segs[j][0], segs[j][1], segs[j][2], segs[j][3]
+            # 方向 A: 端点 of j 在 segment i 上
             for px, py in [(x0j, y0j), (x1j, y1j)]:
                 t = ((px - x0i) * dx_i + (py - y0i) * dy_i) / len2_i
                 if t < 0.001 or t > 0.999:
@@ -1601,31 +1661,50 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
                 dist = math.sqrt((px - proj_x) ** 2 + (py - proj_y) ** 2)
                 if dist > _MATCH_THRESHOLD:
                     continue
-                if any(abs(t - s[0]) < 0.001 for s in split_pts[i]):
+                if t in split_t_sets[i]:
                     continue
+                split_t_sets[i].add(t)
                 split_pts[i].append((t, proj_x, proj_y))
+            # 方向 B: 端点 of i 在 segment j 上
+            dx_j = seg_dx[j]
+            dy_j = seg_dy[j]
+            len2_j = seg_len2[j]
+            x0j_start = seg_x0[j]
+            y0j_start = seg_y0[j]
+            for px, py in [(x0i, y0i), (x1i, y1i)]:
+                t = ((px - x0j_start) * dx_j + (py - y0j_start) * dy_j) / len2_j
+                if t < 0.001 or t > 0.999:
+                    continue
+                proj_x = x0j_start + t * dx_j
+                proj_y = y0j_start + t * dy_j
+                dist = math.sqrt((px - proj_x) ** 2 + (py - proj_y) ** 2)
+                if dist > _MATCH_THRESHOLD:
+                    continue
+                if t in split_t_sets[j]:
+                    continue
+                split_t_sets[j].add(t)
+                split_pts[j].append((t, proj_x, proj_y))
 
     # Pass 2: 线段-线段交叉检测（非共线的真交叉）
     # 复用 Pass 1 的候选（pad=100mm 超集），_seg_intersection 精确过滤
     for i in range(n):
-        x0i, y0i, x1i, y1i = segs[i][0], segs[i][1], segs[i][2], segs[i][3]
+        if not seg_valid[i]:
+            continue
         cands = cands_by_i[i]
         for j in cands:
-            if j <= i:
+            if j <= i or not seg_valid[j]:
                 continue
             ix = _seg_intersection(segs[i], segs[j])
             if ix is None:
                 continue
             tx_i = ix[0]
             ty_i = ix[1]
-            # 确保不重复添加端点附近的交叉点
-            if any(abs(tx_i - s[0]) < 0.001 for s in split_pts[i]) or any(
-                abs(ty_i - s[0]) < 0.001 for s in split_pts[j]
-            ):
+            if tx_i in split_t_sets[i] or ty_i in split_t_sets[j]:
                 continue
-            # 避免在端点处添加交叉点（端点处已有端点处理）
             if tx_i < 0.001 or tx_i > 0.999 or ty_i < 0.001 or ty_i > 0.999:
                 continue
+            split_t_sets[i].add(tx_i)
+            split_t_sets[j].add(ty_i)
             split_pts[i].append((tx_i, ix[2], ix[3]))
             split_pts[j].append((ty_i, ix[2], ix[3]))
 
@@ -1679,19 +1758,13 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
             "edge_layers": Dict[(int, int), str],
         }
     """
-    # 收集所有端点，合并近似的
-    raw_pts: List[Tuple[float, float]] = []
-    for x0, y0, x1, y1, _, _ in segs:
-        raw_pts.append((x0, y0))
-        raw_pts.append((x1, y1))
-
     # 端点聚类（近似合并）——用空间网格索引加速最近节点查找
     node_list: List[Tuple[float, float]] = []
     pt_to_node: Dict[Tuple[float, float], int] = {}
     node_grid = _SpatialGrid(_MATCH_THRESHOLD)
 
     def _find_or_create(x: float, y: float) -> int:
-        """查找或创建房间。"""
+        """查找或创建节点。"""
         key = (x, y)
         if key in pt_to_node:
             return pt_to_node[key]
@@ -1713,19 +1786,18 @@ def _build_planar_graph(segs: List[_Seg]) -> Dict[str, Any]:
         node_grid.insert_point(nid, x, y)
         return nid
 
-    for x, y in raw_pts:
-        _find_or_create(x, y)
-
-    # 构建边
-    edges: Set[Tuple[int, int]] = set()
+    # 构建边（无独立的 raw_pts 预遍历，端点在边构建时即聚类）
     edge_layers: Dict[Tuple[int, int], str] = {}
     for x0, y0, x1, y1, layer, _ in segs:
         na = _find_or_create(x0, y0)
         nb = _find_or_create(x1, y1)
         if na == nb:
             continue
-        edge = tuple(sorted((na, nb)))
-        edges.add(edge)
+        # 手动排序边端点，避免 tuple(sorted(...)) 的分配开销
+        if na < nb:
+            edge = (na, nb)
+        else:
+            edge = (nb, na)
         edge_layers[edge] = layer
 
     # 邻接表
@@ -2546,7 +2618,6 @@ def _suppress_implausible_rooms(
         and getattr(e, "id", "") not in ("", None)
     ]
     openings = [e for e in entities if getattr(e, "type", None) in _OPENING_TYPES]
-    # E 空壳轮廓判定空间网格：openings 中心点索引，只查询大空间 bbox 扩张
     # 5m 内的 openings，避免遍历全部 11169 个。实测 dongguan 10 个大空间 ×
     # 11169 openings = 111690 次检查，空间索引后只查附近 openings。
     opening_grid = _SpatialGrid(_EMPTY_OUTLINE_OPENING_RADIUS_MM)
@@ -2612,6 +2683,29 @@ def _suppress_implausible_rooms(
         )
         rec["reasons"].append(reason)
         rec["evidence"].update(evidence)
+
+    # C 重复实体：按 bbox 空间网格索引（cell=1000mm），替代对全部 rooms 的
+    # O(n²) 遍历。IoU > 0.90 ⟹ 两 bbox 必相交，必落在共同 cell，不漏检。
+    _dup2_cell = 1000.0
+    _dup2_grid: Dict[Tuple[int, int], List[int]] = {}
+    for _di, _ent in enumerate(rooms):
+        _bb = _ent.bbox or {}
+        _x0 = _bb.get("x", 0)
+        _y0 = _bb.get("y", 0)
+        _x1 = _x0 + _bb.get("width", 0)
+        _y1 = _y0 + _bb.get("height", 0)
+        _gx0 = int(math.floor(_x0 / _dup2_cell))
+        _gx1 = int(math.floor(_x1 / _dup2_cell))
+        _gy0 = int(math.floor(_y0 / _dup2_cell))
+        _gy1 = int(math.floor(_y1 / _dup2_cell))
+        for _gx in range(_gx0, _gx1 + 1):
+            for _gy in range(_gy0, _gy1 + 1):
+                _k = (_gx, _gy)
+                _lst = _dup2_grid.get(_k)
+                if _lst is None:
+                    _dup2_grid[_k] = [_di]
+                else:
+                    _lst.append(_di)
 
     for ent in rooms:
         if ent.id in suppressed:
@@ -2694,7 +2788,25 @@ def _suppress_implausible_rooms(
             continue
 
         # C 重复实体（同一物理空间重复建模）
-        for other in rooms:
+        # 用 bbox 空间网格仅查询与当前房间 bbox 重叠的 cell 内的房间，
+        # 替代对全部 rooms 的 O(n²) 遍历。IoU > _DUP_BBOX_IOU ⟹ 两框必相交，
+        # 必落在共同 cell，不漏检。
+        ent_bb = ent.bbox or {}
+        e_x0 = ent_bb.get("x", 0)
+        e_y0 = ent_bb.get("y", 0)
+        e_x1 = e_x0 + ent_bb.get("width", 0)
+        e_y1 = e_y0 + ent_bb.get("height", 0)
+        _egx0 = int(math.floor(e_x0 / _dup2_cell))
+        _egx1 = int(math.floor(e_x1 / _dup2_cell))
+        _egy0 = int(math.floor(e_y0 / _dup2_cell))
+        _egy1 = int(math.floor(e_y1 / _dup2_cell))
+        _dup2_cand: Set[int] = set()
+        for _gx in range(_egx0, _egx1 + 1):
+            for _gy in range(_egy0, _egy1 + 1):
+                for _ci in _dup2_grid.get((_gx, _gy), ()):
+                    _dup2_cand.add(_ci)
+        for _ci in _dup2_cand:
+            other = rooms[_ci]
             if other.id == ent.id or other.id in suppressed:
                 continue
             # 面积预过滤：IoU > _DUP_BBOX_IOU ⟹ max/min < 1/_DUP_BBOX_IOU。
