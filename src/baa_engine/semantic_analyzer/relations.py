@@ -280,9 +280,50 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         w_y2.append(y + wb.get("height", 0))
 
     _EDGE_CELL = 100.0
-    # T-opt23: x_edge_grid/y_edge_grid 存 wall index（int）而非 SemanticEntity，
-    # 避免内层循环重复 wb.get() 调用（dongguan 406K×4 = 1.6M 次 dict lookup）。
-    # 配合 T-opt21 的 w_x1/w_y1/w_x2/w_y2 flat arrays，内层直接索引，O(1) 读取。
+    # T-opt23: x/y 边坐标桶存 wall index（int）。grid 存 wall index（int）而非
+    # SemanticEntity，内层用 w_x1/w_y1/w_x2/w_y2 flat arrays。
+    x_edge_grid: Dict[int, List[int]] = {}
+    y_edge_grid: Dict[int, List[int]] = {}
+    for wi, wall in enumerate(walls):
+        wx1 = w_x1[wi]; wy1 = w_y1[wi]
+        wx2 = w_x2[wi]; wy2 = w_y2[wi]
+        x_edge_grid.setdefault(int(wx1 / _EDGE_CELL), []).append(wi)
+        x_edge_grid.setdefault(int(wx2 / _EDGE_CELL), []).append(wi)
+        y_edge_grid.setdefault(int(wy1 / _EDGE_CELL), []).append(wi)
+        y_edge_grid.setdefault(int(wy2 / _EDGE_CELL), []).append(wi)
+
+    # ── Phase 2 墙体-门窗拓扑关系（edge-coordinate grid 加速）──
+    # P0-2 优化（2026-11-04）：原 O(W×O) 双循环耗时 0.37s（历史值）。
+    # 注意原始 dist_to_edge 只看 wall 四条边坐标到 opening center 的距离，
+    # 不检查 wall 范围（一条 y 接近的水平墙即使 x 差 80m 也会匹配）。
+    # 因此不能按 bbox 分桶——改为按边坐标值分桶：x1/x2 入 x_edge_grid，
+    # y1/y2 入 y_edge_grid。opening 查 o_cx±50mm 和 o_cy±50mm 附近的
+    # edges（cell=100mm，expand=1 覆盖），candidates 等价于 dist_to_edge<50
+    # 的全部 walls，输出完全一致。837 walls × 600 openings → 候选降至个位数。
+    walls = [e for e in entities if e.type == "wall"]
+    openings = [
+        e for e in entities if e.type in ("door", "window", "fire_door", "exit_door", "doorway")
+    ]
+
+    # T-opt21: 预提取 wall bbox 坐标到 flat arrays，避免 grid_build 循环重复
+    # wb.get("x") 等 dict 调用（dongguan: 5023 walls × 4 get = 20,092 次）。
+    # Phase 2 候选遍历的 ob.get 不在本循环内（opening bbox 用于 ogx/ogy 计算，
+    # 次数与 openings 数相同 ~11k，开销较小），故仅对 walls 做预提取。
+    w_x1: List[float] = []
+    w_y1: List[float] = []
+    w_x2: List[float] = []
+    w_y2: List[float] = []
+    for wall in walls:
+        wb = wall.bbox
+        x = wb.get("x", 0)
+        y = wb.get("y", 0)
+        w_x1.append(x); w_y1.append(y)
+        w_x2.append(x + wb.get("width", 0))
+        w_y2.append(y + wb.get("height", 0))
+
+    _EDGE_CELL = 100.0
+    # T-opt23: x/y 边坐标桶存 wall index（int）。grid 存 wall index（int）而非
+    # SemanticEntity，内层用 w_x1/w_y1/w_x2/w_y2 flat arrays。
     x_edge_grid: Dict[int, List[int]] = {}
     y_edge_grid: Dict[int, List[int]] = {}
     for wi, wall in enumerate(walls):
@@ -312,7 +353,6 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         ogy = int(o_cy / _EDGE_CELL)
         # T-opt22/T-opt23: set.update() + wall index storage。grid 存 wall index（int），
         # 内层用预提取的 w_x1/w_y1/w_x2/w_y2 flat arrays，避免 wb.get() 调用。
-        # dongguan: 406K×4 = 1.6M 次 dict lookup → 1.6M 次数组下标访问，显著更快。
         wi_set = set()
         for dx in (-1, 0, 1):
             wi_set.update(x_edge_grid.get(ogx + dx, []))
