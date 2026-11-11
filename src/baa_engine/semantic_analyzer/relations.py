@@ -315,6 +315,26 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
             wx2 = wx1 + wb.get("width", 0)
             wy2 = wy1 + wb.get("height", 0)
 
+            # T-opt19: AABB 提前拒绝（dist_to_edge 拒绝的超集）。
+            # dist_to_edge = min(min_dx, min_dy)，其中 min_dx 是 opening 中心到
+            # wall x 边的距离（>= 轴向间隙 gx），min_dy >= gy。故 gx>=50 且
+            # gy>=50 ⟹ min_dx>=50 且 min_dy>=50 ⟹ dist_to_edge>=50 ⟹ 必被
+            # dist_to_edge 判据拒绝。注意：必须 gx 和 gy 都 >=50 才拒绝
+            # （单个 gx>=50 但 gy<50 时 min_dy 可能 <50，dist_to_edge<50 应通过）。
+            # gx/gy 计算无 abs（仅比较），比 4 次 abs + 2 次 min 便宜。
+            gx = ox1 - wx2
+            if gx < 0.0:
+                gx = wx1 - ox2
+                if gx < 0.0:
+                    gx = 0.0
+            gy = oy1 - wy2
+            if gy < 0.0:
+                gy = wy1 - oy2
+                if gy < 0.0:
+                    gy = 0.0
+            if gx >= 50.0 and gy >= 50.0:
+                continue
+
             dx_left = abs(o_cx - wx1)
             dx_right = abs(o_cx - wx2)
             dy_bottom = abs(o_cy - wy1)
