@@ -510,27 +510,56 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
                 )
 
     _THRESH_P5 = 500.0
+    # T-opt15: Phase 5 用空间网格替代 O(房间×door_wall_map) 全量遍历。
+    # door_wall_map 有 2589 个（dongguan），353 个 room × 2589 = 91.4 万对
+    # 全量检查（实测 Phase5 202ms）。改为对 door_wall_map 的 wall 建 1000mm
+    # 网格，room 查询 expand=1（dist<500mm ⟹ 轴向间隙<500mm<1000mm ⟹ 必落在
+    # 对方 cell 的 ±1 邻域，候选为合法对超集）。输出等价：wall_rooms 是 set，
+    # 最终 L543 按 sorted(wall_rooms.get(host_id)) 排序，候选顺序不影响结果。
+    _P5_GRID: Dict[int, Dict[int, List[str]]] = {}
+    for _wid, (_wall, wx1, wy1, wx2, wy2) in door_wall_map.items():
+        for _gx in range(int(wx1 / _PAIR_CELL), int(wx2 / _PAIR_CELL) + 1):
+            _row = _P5_GRID.get(_gx)
+            if _row is None:
+                _row = {}
+                _P5_GRID[_gx] = _row
+            for _gy in range(int(wy1 / _PAIR_CELL), int(wy2 / _PAIR_CELL) + 1):
+                _cell = _row.get(_gy)
+                if _cell is None:
+                    _row[_gy] = [_wid]
+                else:
+                    _cell.append(_wid)
     for (room, rx1, ry1, rx2, ry2) in room_geo:
         if room.id in wall_rooms:
             continue
-        for wid, (_wall, wx1, wy1, wx2, wy2) in door_wall_map.items():
-            gx = rx1 - wx2
-            if gx < 0.0:
-                gx = wx1 - rx2
-                if gx < 0.0:
-                    gx = 0.0
-            if gx >= _THRESH_P5:
+        # 查询 room bbox 扩张 500mm 的 cell 邻域（expand=1 覆盖 1000mm）
+        for _gx in range(int(rx1 / _PAIR_CELL) - 1, int(rx2 / _PAIR_CELL) + 2):
+            _row = _P5_GRID.get(_gx)
+            if _row is None:
                 continue
-            gy = ry1 - wy2
-            if gy < 0.0:
-                gy = wy1 - ry2
-                if gy < 0.0:
-                    gy = 0.0
-            if gy >= _THRESH_P5:
-                continue
-            dist = (gx ** 2 + gy ** 2) ** 0.5
-            if dist < _THRESH_P5:
-                wall_rooms.setdefault(wid, set()).add(room.id)
+            for _gy in range(int(ry1 / _PAIR_CELL) - 1, int(ry2 / _PAIR_CELL) + 2):
+                _cell = _row.get(_gy)
+                if _cell is None:
+                    continue
+                for wid in _cell:
+                    (_wall, wx1, wy1, wx2, wy2) = door_wall_map[wid]
+                    gx = rx1 - wx2
+                    if gx < 0.0:
+                        gx = wx1 - rx2
+                        if gx < 0.0:
+                            gx = 0.0
+                    if gx >= _THRESH_P5:
+                        continue
+                    gy = ry1 - wy2
+                    if gy < 0.0:
+                        gy = wy1 - ry2
+                        if gy < 0.0:
+                            gy = 0.0
+                    if gy >= _THRESH_P5:
+                        continue
+                    dist = (gx ** 2 + gy ** 2) ** 0.5
+                    if dist < _THRESH_P5:
+                        wall_rooms.setdefault(wid, set()).add(room.id)
 
     seen_conn: set = set()
     for door in doors:
