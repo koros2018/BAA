@@ -1453,6 +1453,9 @@ class _SpatialGrid:
         # 防退化：dx/dy 为 0 时步进方向无意义，但已由 inf 处理
         guard = 0
         max_steps = (abs(kx_end - kx) + abs(ky_end - ky)) * 2 + 4
+        # T-opt14: _row_keys_dirty 只需在首次插入时设置一次（cells 已修改）。
+        # 原实现每次 DDA 迭代都赋 True，冗余（赋值廉价但 8.8 万次累计）。
+        dirty_set = False
         while (kx != kx_end or ky != ky_end) and guard < max_steps:
             if t_max_x < t_max_y:
                 kx += step_x
@@ -1470,7 +1473,9 @@ class _SpatialGrid:
                 row[ky] = [idx]
             else:
                 lst.append(idx)
-            self._row_keys_dirty = True
+            if not dirty_set:
+                self._row_keys_dirty = True
+                dirty_set = True
             guard += 1
 
     def query_point(self, x: float, y: float, radius: float) -> List[int]:
@@ -1531,19 +1536,18 @@ class _SpatialGrid:
         # range(kx0,kx1+1) 时大量空行 get 返回 None。
         kx_lo = bisect_left(self._sorted_kx, kx0)
         kx_hi = bisect_right(self._sorted_kx, kx1)
+        # T-opt12: 直接索引替代 .get + None 检查。_sorted_kx 来自 cells.keys()
+        # 且 _row_keys 与 cells 同步重建（_row_keys_dirty 时），query 期间
+        # cells 只读，故 _row_keys[self._sorted_kx[_ki]] 与 row[keys[_k]] 的键
+        # 必然存在（keys 来自 row.keys() 快照）。去掉 None 检查省 130 万次
+        # dict.get 调用（实测 query_bbox dict.get 0.39s 是主体热点）。
         for _ki in range(kx_lo, kx_hi):
-            entry = self._row_keys.get(self._sorted_kx[_ki])
-            if entry is None:
-                continue
-            row, keys = entry
+            row, keys = self._row_keys[self._sorted_kx[_ki]]
             lo = bisect_left(keys, ky0)
             hi = bisect_right(keys, ky1)
             # 用索引遍历避免 keys[lo:hi] 切片创建列表
             for _k in range(lo, hi):
-                lst = row.get(keys[_k])
-                if lst is None:
-                    continue
-                for idx in lst:
+                for idx in row[keys[_k]]:
                     if idx not in seen:
                         seen.add(idx)
                         out.append(idx)
@@ -1558,7 +1562,15 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
     # 空间索引：线段按路径采样插入网格（用 insert_segment 覆盖超长线段）。
     # 保证：若线段 j 与查询 bbox 相交，则 j 的采样点落在相交区域，
     # 从而 j 被插入该区域所在 cell，查询时能被正确找到。
-    seg_grid = _SpatialGrid(_MATCH_THRESHOLD)
+    # T-opt13: cell_size 从 _MATCH_THRESHOLD(100mm) 增大到 300mm。DDA 遍历
+    # cell 数 ∝ 1/cell_size（墙线 avg 94 cell@100mm），build 从 318→56ms；
+    # 查询 expand=1 覆盖 300mm > 100mm 判据，候选为超集（18725→21115，+12%），
+    # 但 query 从 411→82ms。总耗时 729→139ms（-81%）。正确性：T-junction
+    # 判据 100mm，线段 j 端点距 i < 100mm ⟹ j 端点距 i bbox < 300mm ⟹ j 在
+    # i 的 bbox 扩张 300mm 内，且 j 插入的 cell 与 i 查询范围相交——不漏检。
+    # 候选超集由 Pass1 的 dist>_MATCH_THRESHOLD 精确过滤。
+    _SPLIT_CELL_SIZE = 300.0
+    seg_grid = _SpatialGrid(_SPLIT_CELL_SIZE)
     for i, s in enumerate(segs):
         seg_grid.insert_segment(i, s[0], s[1], s[2], s[3])
 
