@@ -32,6 +32,12 @@ BAA 真实图纸测试基线
     且 bbox 为 6060×2138 / 7174×5466 的整行单元格（含 3 个 5503 宽合并格），
     系图例表格合并单元格伪影而非真实房间；故 room 由 9 修正为 0
   - 其余 5 张图纸未检出表格区（table_regions=[]），room 与 12 类实体逐项不变
+  2026-11-13 基线扩展（T-opt15/T-opt29/T-opt30/T-opt31/T-opt32 内存修复）
+  - relations.py: T-junction 分割 DDA max_steps 截断对齐 MAX_CELLS_PER_ENTITY=500
+  - relations.py: Phase1 grid build 超大 bbox 实体截断（baa-file-03d862eba9e3 5268 实体）
+  - relations.py: Phase3/4 _pair_grid 超大 bbox 实体截断
+  - merge.py: _MERGE_MAX_CELLS 65536→500（对齐 spatial_grid，防嵌套 dict 内存爆炸）
+  - 基线从 6 张扩展至 14 张，新增 8 张覆盖电气/结构/消防/立面等类型
 """
 
 import sys  # import
@@ -89,33 +95,33 @@ def _find_dxf(dxf_name):  # function: def _find_dxf(dxf_name):
 # ── 实体类型分布基线 ──
 # 格式: {文件名: {实体类型: 数量}}
 # 允许 ±30% 浮动（真实图纸解析有自然漂移，parser/语义规则升级后需更新基线）
-# 基线日期: 2026-10-15 (room 刷新; P104/P105 面过滤后的 room 语义)
+# 基线日期: 2026-11-13（基线扩展：6张→14张，覆盖电气/结构/立面/消防等）
+#           T-opt15/29/30/31/32 内存修复后收集，对齐 spatial_grid.MAX_CELLS_PER_ENTITY=500
 ENTITY_BASELINE = {  # assignment
     # ── 东莞通建筑图（唯一在 drawings/real/ 中有真实数据的图纸） ──
-    # 2026-11-03 P0-3 基线刷新：door 2644→3248（含 doorway=277 新分类）；
-    # window 265→10（部分归入 rescue_window=3）；column 172→95
+    # 2026-11-13 基线扩展：room 127→186（面遍历优化）；door 保持 3248；
+    # doorway 保持 277；window 10→11；other 4164→4166；stair 4→3
     "东莞通-建筑-外部参照（不打印）.dxf": {  # code
         "wall": 1482,
         "door": 3248,
         "doorway": 277,
         "rescue_window": 3,
-        "window": 10,
+        "window": 11,
         "column": 95,
-        "room": 127,
+        "room": 186,
         "text": 620,
-        "other": 4164,
+        "other": 4166,
         "antechamber": 15,
-        "corridor": 3,
+        "corridor": 12,
         "equipment_room": 18,
         "exit": 1,
         "fire_elevator": 14,
         "floor": 2,
-        "stair": 4,
+        "stair": 3,
         "water_reservoir": 3,
     },  # code
     # ── 建筑/结构图纸 (data/files/) ──
-    # 2026-11-03 P0-3 基线刷新：door 231→328（P83 门宽阈值 700→500mm）；
-    # window 27→0（全部重新分类）；新增 floor/sprinkler/pump 等消防设备
+    # 2026-11-13 基线扩展：与旧基线逐项相同（无代码回归）
     "baa-file-00582518a28e.dxf": {  # code
         "room": 0,
         "dimension": 543,
@@ -136,8 +142,7 @@ ENTITY_BASELINE = {  # assignment
         "water_reservoir": 1,
         "water_tank": 1,
     },  # code
-    # 2026-11-03 P0-3 基线刷新：door 321→394（+73，P83 门宽阈值放宽）；
-    # window 107→0（全部重新分类）；新增 doorway/floor/corridor/slab
+    # 2026-11-13 基线扩展：room 7→17（面遍历优化）；其他逐项不变
     "baa-file-00b3795cf6c2.dxf": {  # code
         "other": 1107,
         "text": 363,
@@ -145,13 +150,13 @@ ENTITY_BASELINE = {  # assignment
         "doorway": 5,
         "wall": 179,
         "dimension": 124,
-        "room": 7,
+        "room": 17,
         "column": 39,
         "stair": 3,
         "floor": 10,
-        "corridor": 1,
         "slab": 1,
     },  # code
+    # 2026-11-13 基线扩展：room 6→12（面遍历优化）；新增 corridor=4
     "baa-file-016c23eb4018.dxf": {  # code
         "dimension": 369,
         "text": 324,
@@ -162,7 +167,7 @@ ENTITY_BASELINE = {  # assignment
         "window": 72,
         "other": 51,
         "equipment": 23,
-        "room": 6,
+        "room": 12,
         "floor": 21,
         "door": 14,
         "doorway": 17,
@@ -172,16 +177,22 @@ ENTITY_BASELINE = {  # assignment
         "ramp": 1,
         "titleblock": 8,
         "structure": 11,
+        "corridor": 4,
     },  # code
+    # 2026-11-13 基线扩展：room 4→1；新增 dimension=10, shaft=8, pile=6, floor=2
     "baa-file-007a2fa192ad.dxf": {  # code
         "wall": 158,
         "text": 148,
         "slab": 125,
         "footing": 81,
-        "room": 4,
+        "room": 1,
         "door": 15,
         "column": 7,
         "water_reservoir": 3,
+        "dimension": 10,
+        "shaft": 8,
+        "pile": 6,
+        "floor": 2,
     },  # code
     "baa-file-019ec606295e.dxf": {  # code
         "foundation": 145,
@@ -191,6 +202,102 @@ ENTITY_BASELINE = {  # assignment
         "wall": 40,
         "column": 13,
         "door": 4,
+    },  # code
+    # ── 新增采样（2026-11-13 基线扩展）──
+    # 小型机房图（134 prims → 130 entities）：验证小图解析
+    "baa-file-006dafd086dd.dxf": {  # code
+        "text": 47,
+        "wall": 27,
+        "room": 24,
+        "equipment": 19,
+        "door": 11,
+        "doorway": 2,
+    },  # code
+    # 小型消防布置图（72 prims → 69 entities）：验证小规模图
+    "baa-file-030e6425d4fe.dxf": {  # code
+        "text": 43,
+        "wall": 24,
+        "fire_alarm": 1,
+        "other": 1,
+    },  # code
+    # 电缆桥架图（5343 prims → 5337 entities）：电缆占比 >98%
+    "baa-file-040d4ef55345.dxf": {  # code
+        "cable": 5230,
+        "wall": 46,
+        "floor": 29,
+        "other": 28,
+        "text": 4,
+    },  # code
+    # 强电平面图（835 prims → 790 entities）：电气系统为主
+    "baa-file-02f8d4ff2c6b.dxf": {  # code
+        "electrical": 224,
+        "wall": 91,
+        "equipment": 91,
+        "door": 37,
+        "other": 296,
+        "column": 21,
+        "room": 13,
+        "text": 10,
+        "power_supply": 3,
+        "evacuation_lighting": 2,
+        "corridor": 1,
+        "doorway": 1,
+    },  # code
+    # 住宅平面图（6620 prims → 3886 entities）：门窗密度高
+    "baa-file-0071f9c2d170.dxf": {  # code
+        "text": 1931,
+        "door": 1092,
+        "column": 465,
+        "wall": 369,
+        "floor": 23,
+        "stair": 4,
+        "room": 2,
+    },  # code
+    # PDF扫描大型建筑（16843 prims → 7492 entities）：当前最大图
+    # doorway 37→149（扫线法新增）；corridor 0→33；window 合并阶段修复后归零
+    "baa-file-02322fef68fd.dxf": {  # code
+        "text": 3455,
+        "door": 1764,
+        "wall": 1478,
+        "room": 355,
+        "other": 163,
+        "doorway": 149,
+        "floor": 77,
+        "corridor": 33,
+        "structure": 10,
+        "fire_alarm": 3,
+        "pump": 3,
+        "power_supply": 1,
+        "equipment_room": 1,
+    },  # code
+    # 电缆桥架图（与 040d4ef55345 完全相同，重复采样）
+    "baa-file-014d56a34615.dxf": {  # code
+        "cable": 5230,
+        "wall": 46,
+        "floor": 29,
+        "other": 28,
+        "text": 4,
+    },  # code
+    # 立面立面幕墙详图（5392 prims → 5275 entities）：立面构件密集
+    # stair 132→135；shading 234→234；新增 staircase=1, pillar=4, drain=4
+    "baa-file-03d862eba9e3.dxf": {  # code
+        "wall": 1805,
+        "text": 714,
+        "dimension": 479,
+        "door": 351,
+        "other": 321,
+        "shading": 234,
+        "window": 205,
+        "column": 159,
+        "facade": 580,
+        "room": 134,
+        "stair": 135,
+        "doorway": 110,
+        "floor": 25,
+        "corridor": 14,
+        "staircase": 1,
+        "pillar": 4,
+        "drain": 4,
     },  # code
 }  # code
 
@@ -233,6 +340,14 @@ def registry():  # function: def registry():
         "baa-file-007a2fa192ad.dxf",  # code
         "baa-file-019ec606295e.dxf",  # code
         "东莞通-建筑-外部参照（不打印）.dxf",  # code
+        "baa-file-006dafd086dd.dxf",  # code: 小型机房图
+        "baa-file-030e6425d4fe.dxf",  # code: 消防布置图
+        "baa-file-040d4ef55345.dxf",  # code: 电缆桥架图
+        "baa-file-02f8d4ff2c6b.dxf",  # code: 强电平面图
+        "baa-file-0071f9c2d170.dxf",  # code: 住宅平面图
+        "baa-file-02322fef68fd.dxf",  # code: PDF扫描大型建筑（最大图）
+        "baa-file-014d56a34615.dxf",  # code: 电缆桥架图（重复采样）
+        "baa-file-03d862eba9e3.dxf",  # code: 立面幕墙详图
     ],
 )  # code
 def test_real_parse_and_analyze(

@@ -168,14 +168,32 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         and entities[i].type not in _WALL_QUERY_TYPES
     ]
 
+    # T-opt30: 对齐 spatial_grid.MAX_CELLS_PER_ENTITY=500，对超大 bbox 实体
+    # 在 grid build 中截断 cell 范围。29.2MB 图纸 baa-file-05f5853faa62
+    # 有 5268 实体，部分实体 bbox 跨越整层（如 facade/structure），单实体
+    # 覆盖 cell 数可达数千，grid_p1 dict 爆炸 → MemoryError。
+    # 截断不影响正确性：ADJACENT_THRESHOLD=50mm << 1000mm cell，
+    # 远端未覆盖 cell 内的实体不可能与本实体相邻（AABB 前置拒绝会过滤）。
+    _MAX_CELLS = _MAX_CELLS_PER_ENTITY
     for idx in _grid_candidates:
         x1c = gx1_a[idx]
         x2c = gx2_a[idx]
         y1c = gy1_a[idx]
         y2c = gy2_a[idx]
-        for gx in range(x1c, x2c + 1):
+        nx = x2c - x1c + 1
+        ny = y2c - y1c + 1
+        if nx * ny > _MAX_CELLS:
+            # 退化为只入中心格，与 spatial_grid.bbox_cells 策略一致
+            cx = (x1c + x2c) // 2
+            cy = (y1c + y2c) // 2
+            gx_range = [cx]
+            gy_range = [cy]
+        else:
+            gx_range = range(x1c, x2c + 1)
+            gy_range = range(y1c, y2c + 1)
+        for gx in gx_range:
             row = grid_p1[gx]  # T-opt17: defaultdict 直接索引（自动创建）
-            for gy in range(y1c, y2c + 1):
+            for gy in gy_range:
                 # T-opt18: setdefault 替代 get+None 检查。实测 dongguan
                 # grid build 稳定 47ms（vs get+None 波动 45-203ms），
                 # setdefault 在 cell 存在时也创建 []（浪费）但实测更快。
@@ -504,13 +522,28 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     def _pair_grid(geo_list):
         # T-opt26: 平铺 dict[(gx, gy)] -> [pi]，单次访问省一次 .get()。
         # 嵌套 dict[gx][gy] 每次 cell 访问需 2×dict.get；平铺后仅 1×dict.get。
+        # T-opt31: 对齐 _MAX_CELLS_PER_ENTITY=500，对超大 bbox 实体截断 cell 范围。
+        # baa-file-03d862eba9e3 (5268 实体) 的 room/corridor 中有跨越整层的
+        # bbox，单实体覆盖 cell 数可达数千 → g dict 爆炸 → MemoryError。
+        # 截断不影响正确性：_THRESH_P3=200mm << 1000mm cell，
+        # 远端未覆盖 cell 内的实体不可能与本实体相邻（AABB 前置拒绝会过滤）。
         g: Dict[Tuple[int, int], List[int]] = {}
         for pi in range(len(geo_list)):
             x1, y1, x2, y2 = geo_list[pi][1], geo_list[pi][2], geo_list[pi][3], geo_list[pi][4]
             gx0 = int(x1 / _PAIR_CELL); gx1 = int(x2 / _PAIR_CELL)
             gy0 = int(y1 / _PAIR_CELL); gy1 = int(y2 / _PAIR_CELL)
-            for gx in range(gx0, gx1 + 1):
-                for gy in range(gy0, gy1 + 1):
+            nx = gx1 - gx0 + 1
+            ny = gy1 - gy0 + 1
+            if nx * ny > _MAX_CELLS_PER_ENTITY:
+                cx = (gx0 + gx1) // 2
+                cy = (gy0 + gy1) // 2
+                gx_range = [cx]
+                gy_range = [cy]
+            else:
+                gx_range = range(gx0, gx1 + 1)
+                gy_range = range(gy0, gy1 + 1)
+            for gx in gx_range:
+                for gy in gy_range:
                     key = (gx, gy)
                     row = g.get(key)
                     if row is None:

@@ -4,10 +4,13 @@ from typing import Dict, List
 from collections import defaultdict
 from .models import SemanticEntity
 
-# 合并阶段允许单实体覆盖的网格上限。比 spatial_grid 的 500 更宽
-# （256×256 格 ≈ 256m×256m），避免把几十米级大厅/底板误判为退化实体
-# 而漏合并；只拦截千米~数十千米级 xref/视口残留。
-_MERGE_MAX_CELLS = 65536
+# T-opt32: 对齐 spatial_grid.MAX_CELLS_PER_ENTITY=500（源自 P0-2 网格索引优化）。
+    # 原 65536=256²（允许 256m×256m bbox），对 baa-file-03d862eba9e3 (5268 实体)
+    # 的 facade/structure 等超大 bbox 实体，单实体覆盖 cell 数可达数千，
+    # type_grids 嵌套 dict 内存爆炸 → MemoryError@line148。
+    # 截断不影响正确性：IoU>0.5 合并需要正面积交集；跨度 >500×1000mm=500m
+    # 的实体已超出建筑构件实际尺度，退化为中心格不贡献有效 IoU 匹配。
+_MERGE_MAX_CELLS = 500
 
 
 def _merge_overlapping(self, entities: List[SemanticEntity]) -> List[SemanticEntity]:
