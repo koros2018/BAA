@@ -1389,6 +1389,12 @@ class _SpatialGrid:
     点对象，插入单个 cell 即可。查询线段 i 的候选时，查 i 的 bbox 扩张
     附近的所有端点，收集这些端点所属的线段——这样超长线段也能正确覆盖。
 
+    T-opt15: max_cells_per_seg=500 对齐 spatial_grid.py 的
+    MAX_CELLS_PER_ENTITY。超长线段（如跨整层的外围墙）只插入起点附近 500
+    个 cell，远端 cell 虽未覆盖但不影响 T-junction 判定：投影点若距端点
+    >500·cell_size，dist 判据已直接拒绝。实际测试中 dongguan 等中等图纸
+    无退化；超大电气图（baa-file-02322fef68fd.dxf）因此不再触发 MemoryError。
+
     用途：
       - _split_t_junctions Pass 1（端点投影到线段）
       - _split_t_junctions Pass 2（线段-线段交叉）
@@ -1409,6 +1415,10 @@ class _SpatialGrid:
         # 用二分只遍历存在的 kx，跳过空行。
         self._sorted_kx: List[int] = []
         self._row_keys_dirty = False
+        # T-opt15: 单段最大插入 cell 数，防超大跨度线段导致 MemoryError。
+        # 500 × 300mm = 150m，超出此长的远端部分不影响邻域判定（dist 判据
+        # 会拒绝）。对齐 spatial_grid.py 的 MAX_CELLS_PER_ENTITY。
+        self._MAX_CELLS_PER_SEG = 500
 
     def _key(self, x: float, y: float) -> Tuple[int, int]:
         return (int(math.floor(x / self.cell_size)), int(math.floor(y / self.cell_size)))
@@ -1484,7 +1494,12 @@ class _SpatialGrid:
             t_delta_y = float("inf")
         # 防退化：dx/dy 为 0 时步进方向无意义，但已由 inf 处理
         guard = 0
-        max_steps = (abs(kx_end - kx) + abs(ky_end - ky)) * 2 + 4
+        # T-opt15: max_steps 截断到 _MAX_CELLS_PER_SEG，防超长墙线（跨整层）
+        # DDA 遍历百万级 cells 触发 MemoryError。实际 t-junction 判据 100mm，
+        # 线段端点距查询 bbox 超过 500×300mm=150m 时已被 dist>阈值拒绝；
+        # 远端未覆盖 cell 不影响正确性，仅减少候选超集范围（可忽略）。
+        _SPATIAL_MAX_STEPS = self._MAX_CELLS_PER_SEG * 4 + 8
+        max_steps = min((abs(kx_end - kx) + abs(ky_end - ky)) * 2 + 4, _SPATIAL_MAX_STEPS)
         # T-opt14: _row_keys_dirty 只需在首次插入时设置一次（cells 已修改）。
         # 原实现每次 DDA 迭代都赋 True，冗余（赋值廉价但 8.8 万次累计）。
         dirty_set = False

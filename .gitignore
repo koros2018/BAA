@@ -75,3 +75,8 @@ tessdata/
 
 # FP rate audit report
 data/fp_rate_audit_report.json
+
+# Baseline collection scripts and outputs
+scripts/collect_*.py
+scripts/entity_baseline_output.txt
+scripts/baseline_output*.txt
