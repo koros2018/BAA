@@ -226,8 +226,24 @@ def _inject_text_attributes(
             bw = max(b.get("width", 0), 1.0); bh = max(b.get("height", 0), 1.0)
             gx1 = int(bx / _TEXT_CELL); gx2 = int((bx + bw) / _TEXT_CELL)
             gy1 = int(by / _TEXT_CELL); gy2 = int((by + bh) / _TEXT_CELL)
-            for gx in range(gx1, gx2 + 1):
-                for gy in range(gy1, gy2 + 1):
+            # T-opt32: 截断超大 bbox 实体的 cell 范围（对齐 spatial_grid
+            # MAX_CELLS_PER_ENTITY=500）。第15张图纸 wall 中位长边 578m，
+            # range(gx1,gx2+1)×range(gy1,gy2+1) 覆盖 33 万 cells/实体 →
+            # grid 爆炸（11 亿插入）。截断到中心格不影响正确性：
+            # _TEXT_ATTR_MAX_DIST=10m << 578m 跨度，远端 cell 内的实体
+            # 不可能与 TEXT 在 10m 内（AABB 前置拒绝会过滤）。
+            _nx = gx2 - gx1 + 1
+            _ny = gy2 - gy1 + 1
+            if _nx * _ny > 500:
+                _pcx = (gx1 + gx2) // 2
+                _pcy = (gy1 + gy2) // 2
+                _gx_range = [_pcx]
+                _gy_range = [_pcy]
+            else:
+                _gx_range = range(gx1, gx2 + 1)
+                _gy_range = range(gy1, gy2 + 1)
+            for gx in _gx_range:
+                for gy in _gy_range:
                     g.setdefault((gx, gy), []).append(ent)
         return g
 

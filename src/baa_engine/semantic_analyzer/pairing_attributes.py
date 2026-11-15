@@ -39,6 +39,9 @@ _THICKNESS_MIN_MM = 100.0  # 平行线间距下限（mm）
 _THICKNESS_MAX_MM = 600.0  # 平行线间距上限（mm）
 _OVERLAP_MIN = 0.5  # 纵向投影重叠率下限（按较短线段归一）
 _DEGENERATE_MM = 1.0  # bbox 短边 ≤1mm 视为退化线元
+# T-opt32: 配对跨度上限（mm）。>100m 的墙是测绘噪声（第15张图纸 wall 中位
+# 578m），不参与厚度配对，避免 O(n²) 爆炸。
+_MAX_PAIR_SPAN_MM = 100_000.0
 _DIST_GROUP_TOL_MM = 5.0  # 候选间距聚类容差（同组视为同一对墙面）
 _COMMON_TOL_MM = 5.0  # 常见墙厚表命中容差
 # 常见墙厚表（mm）：仲裁加分项，非硬门槛——唯一候选组不在表内同样注入
@@ -159,6 +162,17 @@ def _pair_wall_thickness(entities: List[SemanticEntity]) -> List[SemanticEntity]
         if ent.type not in _WALL_TYPES:
             continue
         if _is_excluded_layer(ent.layer):
+            continue
+        # T-opt32: 跳过超大跨度墙（>100m）。第15张图纸（baa-file-05f5853faa62）
+        # wall 中位长边 578m，大量平行线元 cross 值密集，O(n²) 配对爆炸
+        # （3,311² ≈ 1100万对）。跨度 >100m 的墙是测绘噪声而非建筑构件，
+        # 不参与厚度配对（厚度 ∈[100,600]mm 远小于 100m）。
+        _bbox = ent.bbox or {}
+        _span = max(
+            abs(float(_bbox.get("width") or 0)),
+            abs(float(_bbox.get("height") or 0)),
+        )
+        if _span > _MAX_PAIR_SPAN_MM:
             continue
         ln = _degenerate_line(ent)
         if ln is not None:

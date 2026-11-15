@@ -1607,7 +1607,17 @@ def _split_t_junctions(segs: List[_Seg]) -> List[_Seg]:
     优化：Pass 1 只处理 j>i 的线段对，双向检查（端点 of j 在 segment i 上
     且 端点 of i 在 segment j 上），避免每对线段被重复处理两次。
     用 set 做 O(1) 重复 t 值检查，替代 O(k) 线性扫描。
+
+    T-opt32: 跳过超大跨度线段（>100m）。第15张图纸（baa-file-05f5853faa62）
+    wall 中位长边 578m，DDA 覆盖数千 cell，query_bbox 返回海量候选，
+    Pass 1 O(n·cands) 爆炸（24.4s）。跨度 >100m 的线段是测绘噪声而非
+    真实墙线，不参与 T-junction 分割（分割仅对 <100m 的真实墙线有意义）。
     """
+    # T-opt32: 过滤超长线段（>100m），避免 DDA/query 爆炸
+    _MAX_SPLIT_SPAN = 100_000.0
+    segs = [s for s in segs if max(abs(s[2]-s[0]), abs(s[3]-s[1])) <= _MAX_SPLIT_SPAN]
+    if len(segs) < 3:
+        return segs
     n = len(segs)
     split_pts: List[List[Tuple[float, float, float]]] = [[] for _ in range(n)]
     split_t_sets: List[Set[float]] = [set() for _ in range(n)]

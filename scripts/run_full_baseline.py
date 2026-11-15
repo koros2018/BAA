@@ -13,7 +13,7 @@ from src.baa_engine.drawing_parser import DrawingParser
 from src.baa_engine.parsers.isolated_analysis import analyze_isolated_file
 
 # Config
-SEMANTIC_ANALYSIS_TIMEOUT_SEC = 240.0
+SEMANTIC_ANALYSIS_TIMEOUT_SEC = 120.0
 LARGE_DRAWING_THRESHOLD = 50000
 
 DATA_DIR = PROJECT_ROOT / "data"

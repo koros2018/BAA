@@ -27,7 +27,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 # 超时配置（秒）
-_SOFT_TIMEOUT_SEC = 300.0
+# T-opt32: 从 300s 降到 120s。第15张图纸（28483 primitives）优化后 5.2s
+# 完成（原 240s+ 超时）。最大图纸（东莞通 34748 primitives）5.2s。
+# 120s 留足余量（最坏情况 <30s），同时避免超时等待过长。
+_SOFT_TIMEOUT_SEC = 120.0
 # 超大图纸阈值（primitives 数），超过则强制走独立进程
 _LARGE_DRAWING_THRESHOLD = 50000
 # 子进程内存软上限（MB），超过则建议走独立进程

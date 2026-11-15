@@ -174,8 +174,23 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     # 覆盖 cell 数可达数千，grid_p1 dict 爆炸 → MemoryError。
     # 截断不影响正确性：ADJACENT_THRESHOLD=50mm << 1000mm cell，
     # 远端未覆盖 cell 内的实体不可能与本实体相邻（AABB 前置拒绝会过滤）。
+    # T-opt32: 超大 bbox 实体（跨度 > _MAX_CELLS*CELL_SIZE = 500m）不入格。
+    # 第15张图纸实测：wall 中位长边 578m、facade 1150m、slab 36km，这些
+    # 是测绘噪声而非建筑构件。作为被查询方时，它们被截断到中心格，中心格
+    # 聚集大量实体 → 查询方与所有截断实体配对 → compared set 爆炸（26GB）。
+    # 跳过不入格不影响正确性：跨度 >500m 的实体与正常构件（<50mm 阈值）
+    # 不可能相邻（AABB 快速拒绝会过滤），且这类实体本身是测绘噪声。
     _MAX_CELLS = _MAX_CELLS_PER_ENTITY
+    # T-opt32: 相邻关系查询的实体跨度上限。建筑构件实际跨度 <100m
+    # （墙体/房间/门窗），超过即测绘噪声（第15张图纸 wall 中位 578m、
+    # facade 1150m、slab 36km）。跨度 >100m 的实体不参与 Phase 1 相邻
+    # 查询（发起方与被查询方均跳过），避免 compared set 爆炸（26GB）。
+    # 100m 阈值远大于 ADJACENT_THRESHOLD（50mm），跳过不影响正确性。
+    _MAX_SPAN = 100_000.0  # mm = 100m
     for idx in _grid_candidates:
+        # T-opt32: 跳过超大跨度实体（不入格，不作为被查询方）
+        if max(x2g[idx] - x1g[idx], y2g[idx] - y1g[idx]) > _MAX_SPAN:
+            continue
         x1c = gx1_a[idx]
         x2c = gx2_a[idx]
         y1c = gy1_a[idx]
@@ -221,6 +236,18 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         ay1 = y1g[idx_a]
         ax2 = x2g[idx_a]
         ay2 = y2g[idx_a]
+        # T-opt32: 超大 bbox 实体跳过相邻查询。
+        # 第15张图纸（baa-file-05f5853faa62）实测：wall 中位长边 578m、
+        # 最大 237km，facade 大量 >100m。这些实体跨度远超 ADJACENT_THRESHOLD
+        # （50mm），不可能与正常构件相邻，但作为查询发起方会产生海量候选对
+        # （compared set 爆炸 → 26GB 内存）。跳过不影响正确性：
+        # 相邻关系需要 dist < 50mm，而跨度 >500m 的实体与任何实体的
+        # 最小距离要么 0（重叠）要么 >50mm；重叠时 AABB 快速拒绝已过滤
+        # （dx/dy 间隙为 0 但 dist 计算仍会通过），但这类跨层实体本身是
+        # 测绘噪声，不构成建筑语义相邻。
+        _a_span = max(ax2 - ax1, ay2 - ay1)
+        if _a_span > _MAX_SPAN:
+            continue
         # T-opt30 修复：查询循环也需截断 cell 范围，防止大 bbox 实体
         # 在 grid build 中已截断，但查询时用原始 gx1_a/gx2_a 导致
         # range() 生成数万次迭代（即使 grid.get 返回 None）。
@@ -700,8 +727,23 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
     for _wid, (_wall, wx1, wy1, wx2, wy2) in door_wall_map.items():
         gx0 = int(wx1 / _PAIR_CELL); gx1 = int(wx2 / _PAIR_CELL)
         gy0 = int(wy1 / _PAIR_CELL); gy1 = int(wy2 / _PAIR_CELL)
-        for _gx in range(gx0, gx1 + 1):
-            for _gy in range(gy0, gy1 + 1):
+        # T-opt32: 截断超大 wall 的 cell 范围（对齐 _MAX_CELLS_PER_ENTITY）。
+        # 第15张图纸 door 的 host_wall 中位长边 578m，_P5_GRID 遍历
+        # range(gx0,gx1+1)×range(gy0,gy1+1) 产生数百万 cell → 内存爆炸（14GB）。
+        # 截断不影响正确性：_THRESH_P5=500mm << 1000mm cell，远端未覆盖
+        # cell 内的 room 不可能与本 wall 相邻（AABB 前置拒绝会过滤）。
+        _p5_nx = gx1 - gx0 + 1
+        _p5_ny = gy1 - gy0 + 1
+        if _p5_nx * _p5_ny > _MAX_CELLS_PER_ENTITY:
+            _pcx = (gx0 + gx1) // 2
+            _pcy = (gy0 + gy1) // 2
+            _gx_range = [_pcx]
+            _gy_range = [_pcy]
+        else:
+            _gx_range = range(gx0, gx1 + 1)
+            _gy_range = range(gy0, gy1 + 1)
+        for _gx in _gx_range:
+            for _gy in _gy_range:
                 key = (_gx, _gy)
                 cell = _P5_GRID.get(key)
                 if cell is None:
