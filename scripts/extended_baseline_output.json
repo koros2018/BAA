@@ -1,0 +1,1318 @@
+{
+  "baa-file-0003f84333d4.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2481589317321777,
+    "status": "ok"
+  },
+  "baa-file-001162c7d14e.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3640952110290527,
+    "status": "ok"
+  },
+  "baa-file-002fbc06aa78.dxf": {
+    "primitives": 4694,
+    "entities": 4582,
+    "relations": 142,
+    "elapsed": 1.3881254196166992,
+    "status": "ok"
+  },
+  "baa-file-00582518a28e.dxf": {
+    "primitives": 2054,
+    "entities": 1444,
+    "relations": 816,
+    "elapsed": 1.3775241374969482,
+    "status": "ok"
+  },
+  "baa-file-006dafd086dd.dxf": {
+    "primitives": 134,
+    "entities": 130,
+    "relations": 161,
+    "elapsed": 1.0121891498565674,
+    "status": "ok"
+  },
+  "baa-file-0071f9c2d170.dxf": {
+    "primitives": 6620,
+    "entities": 3886,
+    "relations": 777,
+    "elapsed": 1.3981680870056152,
+    "status": "ok"
+  },
+  "baa-file-007a2fa192ad.dxf": {
+    "primitives": 612,
+    "entities": 564,
+    "relations": 291,
+    "elapsed": 1.6063909530639648,
+    "status": "ok"
+  },
+  "baa-file-00877f184d81.dxf": {
+    "primitives": 12,
+    "entities": 13,
+    "relations": 3,
+    "elapsed": 0.96563720703125,
+    "status": "ok"
+  },
+  "baa-file-00b3795cf6c2.dxf": {
+    "primitives": 2967,
+    "entities": 2242,
+    "relations": 668,
+    "elapsed": 1.2464003562927246,
+    "status": "ok"
+  },
+  "baa-file-00c20405845b.dxf": {
+    "primitives": 2691,
+    "entities": 2660,
+    "relations": 95,
+    "elapsed": 2.0131146907806396,
+    "status": "ok"
+  },
+  "baa-file-00f62348db75.dxf": {
+    "primitives": 7,
+    "entities": 10,
+    "relations": 3,
+    "elapsed": 0.9687008857727051,
+    "status": "ok"
+  },
+  "baa-file-014d56a34615.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3666470050811768,
+    "status": "ok"
+  },
+  "baa-file-016c23eb4018.dxf": {
+    "primitives": 1466,
+    "entities": 1469,
+    "relations": 1806,
+    "elapsed": 1.4159681797027588,
+    "status": "ok"
+  },
+  "baa-file-019ec606295e.dxf": {
+    "primitives": 376,
+    "entities": 366,
+    "relations": 179,
+    "elapsed": 1.2633583545684814,
+    "status": "ok"
+  },
+  "baa-file-01e2e326fb40.dxf": {
+    "primitives": 1059,
+    "entities": 1045,
+    "relations": 1178,
+    "elapsed": 2.3163414001464844,
+    "status": "ok"
+  },
+  "baa-file-020aeb76f466.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-02322fef68fd.dxf": {
+    "primitives": 16843,
+    "entities": 11923,
+    "relations": 12007,
+    "elapsed": 3.6315133571624756,
+    "status": "ok"
+  },
+  "baa-file-028543f7e014.dxf": {
+    "primitives": 418,
+    "entities": 418,
+    "relations": 135,
+    "elapsed": 1.3573706150054932,
+    "status": "ok"
+  },
+  "baa-file-02f8d4ff2c6b.dxf": {
+    "primitives": 835,
+    "entities": 790,
+    "relations": 2443,
+    "elapsed": 1.3422794342041016,
+    "status": "ok"
+  },
+  "baa-file-030e6425d4fe.dxf": {
+    "primitives": 72,
+    "entities": 69,
+    "relations": 0,
+    "elapsed": 1.0118069648742676,
+    "status": "ok"
+  },
+  "baa-file-03107949826a.dxf": {
+    "primitives": 5846,
+    "entities": 4873,
+    "relations": 1642,
+    "elapsed": 2.8755624294281006,
+    "status": "ok"
+  },
+  "baa-file-03be81d081f3.dxf": {
+    "primitives": 505,
+    "entities": 496,
+    "relations": 41053,
+    "elapsed": 1.2001192569732666,
+    "status": "ok"
+  },
+  "baa-file-03d1f1d48d50.dxf": {
+    "primitives": 3363,
+    "entities": 3208,
+    "relations": 640,
+    "elapsed": 1.6721436977386475,
+    "status": "ok"
+  },
+  "baa-file-03d862eba9e3.dxf": {
+    "primitives": 5392,
+    "entities": 5275,
+    "relations": 2776,
+    "elapsed": 2.459468126296997,
+    "status": "ok"
+  },
+  "baa-file-03f44a7e67f1.dxf": {
+    "primitives": 29931,
+    "entities": 26305,
+    "relations": 13602,
+    "elapsed": 8.715728044509888,
+    "status": "ok"
+  },
+  "baa-file-04337e177108.dxf": {
+    "primitives": 74,
+    "entities": 74,
+    "relations": 25,
+    "elapsed": 1.215618371963501,
+    "status": "ok"
+  },
+  "baa-file-0452627f1df8.dxf": {
+    "primitives": 50120,
+    "entities": 47064,
+    "relations": 5299,
+    "elapsed": 40.12613344192505,
+    "status": "ok"
+  },
+  "baa-file-04b7236abfa8.dxf": {
+    "primitives": 7,
+    "entities": 10,
+    "relations": 3,
+    "elapsed": 1.0169341564178467,
+    "status": "ok"
+  },
+  "baa-file-0573bca2e247.dxf": {
+    "primitives": 1199,
+    "entities": 1204,
+    "relations": 2007,
+    "elapsed": 2.341747283935547,
+    "status": "ok"
+  },
+  "baa-file-05f5853faa62.dxf": {
+    "primitives": 28483,
+    "entities": 21762,
+    "relations": 504,
+    "elapsed": 14.224915027618408,
+    "status": "ok"
+  },
+  "baa-file-0605510ab3fd.dxf": {
+    "primitives": 343,
+    "entities": 287,
+    "relations": 262,
+    "elapsed": 1.3877995014190674,
+    "status": "ok"
+  },
+  "baa-file-061e6b2828eb.dxf": {
+    "primitives": 1631,
+    "entities": 1641,
+    "relations": 2073,
+    "elapsed": 1.5791540145874023,
+    "status": "ok"
+  },
+  "baa-file-067f0201b08f.dxf": {
+    "primitives": 28401,
+    "entities": 27625,
+    "relations": 5497,
+    "elapsed": 12.17379879951477,
+    "status": "ok"
+  },
+  "baa-file-06a87bb75133.dxf": {
+    "primitives": 19429,
+    "entities": 17274,
+    "relations": 1243,
+    "elapsed": 7.116934537887573,
+    "status": "ok"
+  },
+  "baa-file-074c9274af1a.dxf": {
+    "primitives": 45726,
+    "entities": 40962,
+    "relations": 18774,
+    "elapsed": 27.667762756347656,
+    "status": "ok"
+  },
+  "baa-file-074d4e310757.dxf": {
+    "primitives": 5217,
+    "entities": 5204,
+    "relations": 45,
+    "elapsed": 2.965658187866211,
+    "status": "ok"
+  },
+  "baa-file-075052cf3bd9.dxf": {
+    "primitives": 389,
+    "entities": 345,
+    "relations": 0,
+    "elapsed": 1.3663315773010254,
+    "status": "ok"
+  },
+  "baa-file-07a6eb970441.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2484209537506104,
+    "status": "ok"
+  },
+  "baa-file-07ba5b0a123b.dxf": {
+    "primitives": 145,
+    "entities": 140,
+    "relations": 157,
+    "elapsed": 1.2539348602294922,
+    "status": "ok"
+  },
+  "baa-file-08673ef3e12b.dxf": {
+    "primitives": 5942,
+    "entities": 5885,
+    "relations": 540,
+    "elapsed": 2.4717257022857666,
+    "status": "ok"
+  },
+  "baa-file-0874e9f07970.dxf": {
+    "primitives": 3220,
+    "entities": 2096,
+    "relations": 323,
+    "elapsed": 1.383490800857544,
+    "status": "ok"
+  },
+  "baa-file-0877bb689b66.dxf": {
+    "primitives": 6065,
+    "entities": 6180,
+    "relations": 1073,
+    "elapsed": 1.8509883880615234,
+    "status": "ok"
+  },
+  "baa-file-08781a592040.dxf": {
+    "primitives": 607,
+    "entities": 605,
+    "relations": 38,
+    "elapsed": 1.1541101932525635,
+    "status": "ok"
+  },
+  "baa-file-08c32647298b.dxf": {
+    "primitives": 432,
+    "entities": 272,
+    "relations": 218,
+    "elapsed": 1.173581838607788,
+    "status": "ok"
+  },
+  "baa-file-08f1d49b7342.dxf": {
+    "primitives": 22834,
+    "entities": 21223,
+    "relations": 7778,
+    "elapsed": 13.825089931488037,
+    "status": "ok"
+  },
+  "baa-file-09c1e4e1c232.dxf": {
+    "primitives": 3538,
+    "entities": 3383,
+    "relations": 696,
+    "elapsed": 1.3746931552886963,
+    "status": "ok"
+  },
+  "baa-file-09cd7c272be4.dxf": {
+    "primitives": 8296,
+    "entities": 8266,
+    "relations": 0,
+    "elapsed": 1.5693471431732178,
+    "status": "ok"
+  },
+  "baa-file-0a22c36420c6.dxf": {
+    "primitives": 125,
+    "entities": 108,
+    "relations": 41,
+    "elapsed": 1.1756253242492676,
+    "status": "ok"
+  },
+  "baa-file-0a718248afe5.dxf": {
+    "primitives": 3,
+    "entities": 3,
+    "relations": 0,
+    "elapsed": 2.028654098510742,
+    "status": "ok"
+  },
+  "baa-file-0ab93dd4fbdb.dxf": {
+    "primitives": 3084,
+    "entities": 3100,
+    "relations": 131,
+    "elapsed": 1.823662281036377,
+    "status": "ok"
+  },
+  "baa-file-0af978d48e7c.dxf": {
+    "primitives": 334,
+    "entities": 324,
+    "relations": 349,
+    "elapsed": 1.144813060760498,
+    "status": "ok"
+  },
+  "baa-file-0b4758ac780e.dxf": {
+    "primitives": 604,
+    "entities": 566,
+    "relations": 270,
+    "elapsed": 1.3841700553894043,
+    "status": "ok"
+  },
+  "baa-file-0b6025b7207b.dxf": {
+    "primitives": 13946,
+    "entities": 11918,
+    "relations": 982,
+    "elapsed": 3.382045269012451,
+    "status": "ok"
+  },
+  "baa-file-0b982dffa36b.dxf": {
+    "primitives": 3305,
+    "entities": 3222,
+    "relations": 488,
+    "elapsed": 1.3766505718231201,
+    "status": "ok"
+  },
+  "baa-file-0c3d446c1db3.dxf": {
+    "primitives": 12479,
+    "entities": 11701,
+    "relations": 959,
+    "elapsed": 6.3844099044799805,
+    "status": "ok"
+  },
+  "baa-file-0c68821e2673.dxf": {
+    "primitives": 26178,
+    "entities": 17397,
+    "relations": 13720,
+    "elapsed": 12.252434492111206,
+    "status": "ok"
+  },
+  "baa-file-0c80a5791485.dxf": {
+    "primitives": 482,
+    "entities": 454,
+    "relations": 227,
+    "elapsed": 1.3625905513763428,
+    "status": "ok"
+  },
+  "baa-file-0cd43a3b0955.dxf": {
+    "primitives": 449,
+    "entities": 407,
+    "relations": 150,
+    "elapsed": 1.3627593517303467,
+    "status": "ok"
+  },
+  "baa-file-0d32df6ebf78.dxf": {
+    "primitives": 3227,
+    "entities": 3225,
+    "relations": 0,
+    "elapsed": 1.2557148933410645,
+    "status": "ok"
+  },
+  "baa-file-0d8ce13639fa.dxf": {
+    "primitives": 61385,
+    "entities": 56870,
+    "relations": 6002,
+    "elapsed": 55.600199460983276,
+    "status": "ok"
+  },
+  "baa-file-0e0c2b1555a6.dxf": {
+    "primitives": 7107,
+    "entities": 6558,
+    "relations": 144,
+    "elapsed": 3.48709774017334,
+    "status": "ok"
+  },
+  "baa-file-0e2b4851b71d.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-0e606ff36772.dxf": {
+    "primitives": 9248,
+    "entities": 8832,
+    "relations": 690,
+    "elapsed": 2.029644250869751,
+    "status": "ok"
+  },
+  "baa-file-0e87f1fa4a8d.dxf": {
+    "primitives": 4576,
+    "entities": 3559,
+    "relations": 129,
+    "elapsed": 1.3965106010437012,
+    "status": "ok"
+  },
+  "baa-file-0ee88b0ee208.dxf": {
+    "primitives": 1229,
+    "entities": 825,
+    "relations": 172,
+    "elapsed": 1.3621182441711426,
+    "status": "ok"
+  },
+  "baa-file-101f28c758e7.dxf": {
+    "primitives": 19523,
+    "entities": 16372,
+    "relations": 955,
+    "elapsed": 17.87218451499939,
+    "status": "ok"
+  },
+  "baa-file-106190213130.dxf": {
+    "primitives": 14385,
+    "entities": 13513,
+    "relations": 5819,
+    "elapsed": 6.722452640533447,
+    "status": "ok"
+  },
+  "baa-file-1072c1287c4b.dxf": {
+    "primitives": 2,
+    "entities": 3,
+    "relations": 3,
+    "elapsed": 0.9862561225891113,
+    "status": "ok"
+  },
+  "baa-file-1072d7aa1d05.dxf": {
+    "primitives": 29776,
+    "entities": 27482,
+    "relations": 6687,
+    "elapsed": 9.321197032928467,
+    "status": "ok"
+  },
+  "baa-file-10a060b9e273.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-115c542684bb.dxf": {
+    "primitives": 3506,
+    "entities": 3046,
+    "relations": 800,
+    "elapsed": 1.8654735088348389,
+    "status": "ok"
+  },
+  "baa-file-117d58f28f51.dxf": {
+    "primitives": 1157,
+    "entities": 851,
+    "relations": 1552,
+    "elapsed": 1.4097990989685059,
+    "status": "ok"
+  },
+  "baa-file-1182029a5d84.dxf": {
+    "primitives": 2764,
+    "entities": 2788,
+    "relations": 165,
+    "elapsed": 1.4630796909332275,
+    "status": "ok"
+  },
+  "baa-file-11a86bc7fbce.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-11d910faa885.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-11e4504ed29b.dxf": {
+    "primitives": 129,
+    "entities": 46,
+    "relations": 760,
+    "elapsed": 1.1326420307159424,
+    "status": "ok"
+  },
+  "baa-file-12122be1959d.dxf": {
+    "primitives": 1700,
+    "entities": 1431,
+    "relations": 4141,
+    "elapsed": 2.7630398273468018,
+    "status": "ok"
+  },
+  "baa-file-121f8914fa9e.dxf": {
+    "primitives": 6333,
+    "entities": 3672,
+    "relations": 778,
+    "elapsed": 1.4153387546539307,
+    "status": "ok"
+  },
+  "baa-file-12502d7158cf.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3661832809448242,
+    "status": "ok"
+  },
+  "baa-file-12d8bf940612.dxf": {
+    "primitives": 3463,
+    "entities": 3461,
+    "relations": 561,
+    "elapsed": 1.4760234355926514,
+    "status": "ok"
+  },
+  "baa-file-1303edf6ef1d.dxf": {
+    "primitives": 55380,
+    "entities": 52639,
+    "relations": 4900,
+    "elapsed": 23.42427086830139,
+    "status": "ok"
+  },
+  "baa-file-13090800680f.dxf": {
+    "primitives": 28057,
+    "entities": 28765,
+    "relations": 1876,
+    "elapsed": 5.141262769699097,
+    "status": "ok"
+  },
+  "baa-file-1315df989ec4.dxf": {
+    "primitives": 547,
+    "entities": 544,
+    "relations": 161,
+    "elapsed": 1.3765783309936523,
+    "status": "ok"
+  },
+  "baa-file-1357cd33bcb7.dxf": {
+    "primitives": 5380,
+    "entities": 5374,
+    "relations": 1702,
+    "elapsed": 1.5991432666778564,
+    "status": "ok"
+  },
+  "baa-file-13bedeb3a4a3.dxf": {
+    "primitives": 13101,
+    "entities": 12766,
+    "relations": 10920,
+    "elapsed": 3.5466809272766113,
+    "status": "ok"
+  },
+  "baa-file-13f151adb7a5.dxf": {
+    "primitives": 10227,
+    "entities": 9699,
+    "relations": 514,
+    "elapsed": 3.58075213432312,
+    "status": "ok"
+  },
+  "baa-file-1424c967d130.dxf": {
+    "primitives": 6,
+    "entities": 7,
+    "relations": 7,
+    "elapsed": 0.9669439792633057,
+    "status": "ok"
+  },
+  "baa-file-154a01546499.dxf": {
+    "primitives": 20,
+    "entities": 17,
+    "relations": 2,
+    "elapsed": 0.9971141815185547,
+    "status": "ok"
+  },
+  "baa-file-15537d9aa5d0.dxf": {
+    "primitives": 183,
+    "entities": 62,
+    "relations": 1559,
+    "elapsed": 1.0029819011688232,
+    "status": "ok"
+  },
+  "baa-file-15550ad2ac38.dxf": {
+    "primitives": 423,
+    "entities": 266,
+    "relations": 105,
+    "elapsed": 1.1399312019348145,
+    "status": "ok"
+  },
+  "baa-file-15709af317e9.dxf": {
+    "primitives": 33952,
+    "entities": 27576,
+    "relations": 8381,
+    "elapsed": 7.869353294372559,
+    "status": "ok"
+  },
+  "baa-file-15d17a8186ab.dxf": {
+    "primitives": 5421,
+    "entities": 4576,
+    "relations": 1351,
+    "elapsed": 2.014583110809326,
+    "status": "ok"
+  },
+  "baa-file-15d8e6632f1d.dxf": {
+    "primitives": 1,
+    "entities": 1,
+    "relations": 0,
+    "elapsed": 0.960197925567627,
+    "status": "ok"
+  },
+  "baa-file-163dcbfa9473.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-16d463c51aa3.dxf": {
+    "primitives": 14693,
+    "entities": 10464,
+    "relations": 4975,
+    "elapsed": 3.9144420623779297,
+    "status": "ok"
+  },
+  "baa-file-17e2b811e0d3.dxf": {
+    "primitives": 24498,
+    "entities": 24871,
+    "relations": 1351,
+    "elapsed": 4.439057350158691,
+    "status": "ok"
+  },
+  "baa-file-183f3195b37a.dxf": {
+    "primitives": 773,
+    "entities": 732,
+    "relations": 408,
+    "elapsed": 1.4014525413513184,
+    "status": "ok"
+  },
+  "baa-file-1909ae150493.dxf": {
+    "primitives": 10716,
+    "entities": 7106,
+    "relations": 2014,
+    "elapsed": 3.8582534790039062,
+    "status": "ok"
+  },
+  "baa-file-192e8bb99ce7.dxf": {
+    "primitives": 3136,
+    "entities": 2946,
+    "relations": 257,
+    "elapsed": 1.8285908699035645,
+    "status": "ok"
+  },
+  "baa-file-197021bd25eb.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2225291728973389,
+    "status": "ok"
+  },
+  "baa-file-19bc68134a2c.dxf": {
+    "primitives": 53749,
+    "entities": 47490,
+    "relations": 6677,
+    "elapsed": 41.28566932678223,
+    "status": "ok"
+  },
+  "baa-file-1a6e8fe97057.dxf": {
+    "primitives": 23651,
+    "entities": 21977,
+    "relations": 17149,
+    "elapsed": 12.69770884513855,
+    "status": "ok"
+  },
+  "baa-file-1a8a260e0d08.dxf": {
+    "primitives": 42627,
+    "entities": 34346,
+    "relations": 22022,
+    "elapsed": 22.1286039352417,
+    "status": "ok"
+  },
+  "baa-file-1b37a5ba9ae0.dxf": {
+    "primitives": 4764,
+    "entities": 3709,
+    "relations": 136,
+    "elapsed": 1.4774110317230225,
+    "status": "ok"
+  },
+  "baa-file-1bb12a27738e.dxf": {
+    "primitives": 134,
+    "entities": 106,
+    "relations": 13,
+    "elapsed": 1.3668079376220703,
+    "status": "ok"
+  },
+  "baa-file-1d4d9505c0e9.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-1db62a5b4c9e.dxf": {
+    "primitives": 1056,
+    "entities": 919,
+    "relations": 471,
+    "elapsed": 1.1820507049560547,
+    "status": "ok"
+  },
+  "baa-file-1eaf5f7efe77.dxf": {
+    "primitives": 42,
+    "entities": 42,
+    "relations": 1,
+    "elapsed": 1.1705222129821777,
+    "status": "ok"
+  },
+  "baa-file-1f2e1b070314.dxf": {
+    "primitives": 254,
+    "entities": 250,
+    "relations": 8,
+    "elapsed": 1.020941972732544,
+    "status": "ok"
+  },
+  "baa-file-1fe894c1ded3.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-2104475283ef.dxf": {
+    "primitives": 12334,
+    "entities": 5820,
+    "relations": 5,
+    "elapsed": 3.9241135120391846,
+    "status": "ok"
+  },
+  "baa-file-2178c0dec99d.dxf": {
+    "primitives": 189,
+    "entities": 63,
+    "relations": 1640,
+    "elapsed": 1.0019469261169434,
+    "status": "ok"
+  },
+  "baa-file-220bf3f95560.dxf": {
+    "primitives": 148,
+    "entities": 143,
+    "relations": 162,
+    "elapsed": 1.3620686531066895,
+    "status": "ok"
+  },
+  "baa-file-22c17164d5ef.dxf": {
+    "primitives": 104,
+    "entities": 104,
+    "relations": 92,
+    "elapsed": 1.2178013324737549,
+    "status": "ok"
+  },
+  "baa-file-2319613b52cb.dxf": {
+    "primitives": 48844,
+    "entities": 47966,
+    "relations": 3659,
+    "elapsed": 25.599868535995483,
+    "status": "ok"
+  },
+  "baa-file-235b3394ab90.dxf": {
+    "primitives": 42629,
+    "entities": 34348,
+    "relations": 22022,
+    "elapsed": 22.21305561065674,
+    "status": "ok"
+  },
+  "baa-file-23646ad63fc3.dxf": {
+    "primitives": 33952,
+    "entities": 27576,
+    "relations": 8381,
+    "elapsed": 14.60044550895691,
+    "status": "ok"
+  },
+  "baa-file-2372f8d077a1.dxf": {
+    "primitives": 487,
+    "entities": 385,
+    "relations": 283,
+    "elapsed": 1.369081974029541,
+    "status": "ok"
+  },
+  "baa-file-23e7d18b2a7e.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2319633960723877,
+    "status": "ok"
+  },
+  "baa-file-24fa4f2567e0.dxf": {
+    "primitives": 7041,
+    "entities": 6589,
+    "relations": 587,
+    "elapsed": 15.88542914390564,
+    "status": "ok"
+  },
+  "baa-file-25922f2e5b53.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-2627812bffd3.dxf": {
+    "primitives": 37448,
+    "entities": 30483,
+    "relations": 7972,
+    "elapsed": 8.589638948440552,
+    "status": "ok"
+  },
+  "baa-file-2638adea3131.dxf": {
+    "primitives": 71,
+    "entities": 71,
+    "relations": 0,
+    "elapsed": 1.2621829509735107,
+    "status": "ok"
+  },
+  "baa-file-26538347d042.dxf": {
+    "primitives": 3099,
+    "entities": 3100,
+    "relations": 1079,
+    "elapsed": 2.7373368740081787,
+    "status": "ok"
+  },
+  "baa-file-288573eb6bea.dxf": {
+    "primitives": 20337,
+    "entities": 19393,
+    "relations": 523,
+    "elapsed": 4.596336126327515,
+    "status": "ok"
+  },
+  "baa-file-295e9d468b57.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-2a8f6c367b8c.dxf": {
+    "primitives": 1032,
+    "entities": 915,
+    "relations": 901,
+    "elapsed": 1.1928000450134277,
+    "status": "ok"
+  },
+  "baa-file-2ae6266b82a2.dxf": {
+    "primitives": 9068,
+    "entities": 8086,
+    "relations": 1383,
+    "elapsed": 2.2495620250701904,
+    "status": "ok"
+  },
+  "baa-file-2b5f0ef30ea0.dxf": {
+    "primitives": 1552,
+    "entities": 1457,
+    "relations": 222189,
+    "elapsed": 4.938629150390625,
+    "status": "ok"
+  },
+  "baa-file-2ba280308fc9.dxf": {
+    "primitives": 4620,
+    "entities": 4454,
+    "relations": 492,
+    "elapsed": 1.7983286380767822,
+    "status": "ok"
+  },
+  "baa-file-2c8745d41d87.dxf": {
+    "primitives": 54112,
+    "entities": 47890,
+    "relations": 6661,
+    "elapsed": 31.1387038230896,
+    "status": "ok"
+  },
+  "baa-file-2dee3a46d6ed.dxf": {
+    "primitives": 214,
+    "entities": 197,
+    "relations": 91,
+    "elapsed": 1.124086856842041,
+    "status": "ok"
+  },
+  "baa-file-2e1971b6670d.dxf": {
+    "primitives": 2968,
+    "entities": 2244,
+    "relations": 668,
+    "elapsed": 1.2664191722869873,
+    "status": "ok"
+  },
+  "baa-file-2e2127274304.dxf": {
+    "primitives": 7883,
+    "entities": 7769,
+    "relations": 192,
+    "elapsed": 2.4705679416656494,
+    "status": "ok"
+  },
+  "baa-file-2e3369f41e21.dxf": {
+    "primitives": 1284,
+    "entities": 1023,
+    "relations": 559,
+    "elapsed": 1.3733773231506348,
+    "status": "ok"
+  },
+  "baa-file-2eee0a73302e.dxf": {
+    "primitives": 2054,
+    "entities": 1444,
+    "relations": 816,
+    "elapsed": 1.3758490085601807,
+    "status": "ok"
+  },
+  "baa-file-3069e77b9e31.dxf": {
+    "primitives": 537,
+    "entities": 534,
+    "relations": 174,
+    "elapsed": 1.368478775024414,
+    "status": "ok"
+  },
+  "baa-file-30d9334ecf89.dxf": {
+    "primitives": 187,
+    "entities": 184,
+    "relations": 0,
+    "elapsed": 1.342010498046875,
+    "status": "ok"
+  },
+  "baa-file-313127017116.dxf": {
+    "primitives": 94,
+    "entities": 94,
+    "relations": 0,
+    "elapsed": 1.1661186218261719,
+    "status": "ok"
+  },
+  "baa-file-31d72732cdc1.dxf": {
+    "primitives": 2,
+    "entities": 3,
+    "relations": 3,
+    "elapsed": 0.9738020896911621,
+    "status": "ok"
+  },
+  "baa-file-331b7652aff2.dxf": {
+    "primitives": 3756,
+    "entities": 3131,
+    "relations": 336,
+    "elapsed": 1.8124611377716064,
+    "status": "ok"
+  },
+  "baa-file-3326533bda53.dxf": {
+    "primitives": 37444,
+    "entities": 22305,
+    "relations": 9591,
+    "elapsed": 8.08740234375,
+    "status": "ok"
+  },
+  "baa-file-3476949911f9.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-3676b8ee4f27.dxf": {
+    "primitives": 612,
+    "entities": 436,
+    "relations": 164,
+    "elapsed": 1.4041423797607422,
+    "status": "ok"
+  },
+  "baa-file-39a55ef1c617.dxf": {
+    "primitives": 412,
+    "entities": 409,
+    "relations": 146,
+    "elapsed": 1.2218174934387207,
+    "status": "ok"
+  },
+  "baa-file-3b22791ff598.dxf": {
+    "primitives": 24498,
+    "entities": 24871,
+    "relations": 1351,
+    "elapsed": 4.3949809074401855,
+    "status": "ok"
+  },
+  "baa-file-3b5a8dbae248.dxf": {
+    "primitives": 294,
+    "entities": 283,
+    "relations": 3,
+    "elapsed": 1.2005107402801514,
+    "status": "ok"
+  },
+  "baa-file-3edb3ab1e66e.dxf": {
+    "primitives": 520,
+    "entities": 363,
+    "relations": 78,
+    "elapsed": 1.3652942180633545,
+    "status": "ok"
+  },
+  "baa-file-3ee790cc35cf.dxf": {
+    "primitives": 9,
+    "entities": 9,
+    "relations": 0,
+    "elapsed": 0.994713544845581,
+    "status": "ok"
+  },
+  "baa-file-3eee84dca745.dxf": {
+    "primitives": 872,
+    "entities": 840,
+    "relations": 800,
+    "elapsed": 1.1931159496307373,
+    "status": "ok"
+  },
+  "baa-file-41b17723294b.dxf": {
+    "primitives": 1511,
+    "entities": 1290,
+    "relations": 1187,
+    "elapsed": 7.31084418296814,
+    "status": "ok"
+  },
+  "baa-file-41f1b620e3c9.dxf": {
+    "primitives": 17074,
+    "entities": 14655,
+    "relations": 9690,
+    "elapsed": 5.964569807052612,
+    "status": "ok"
+  },
+  "baa-file-427ba07752df.dxf": {
+    "primitives": 661,
+    "entities": 580,
+    "relations": 124,
+    "elapsed": 1.3762092590332031,
+    "status": "ok"
+  },
+  "baa-file-43d21f7ccd8f.dxf": {
+    "primitives": 23651,
+    "entities": 21977,
+    "relations": 17149,
+    "elapsed": 7.021664142608643,
+    "status": "ok"
+  },
+  "baa-file-458e056da3c5.dxf": {
+    "primitives": 22217,
+    "entities": 19802,
+    "relations": 2540,
+    "elapsed": 7.76172137260437,
+    "status": "ok"
+  },
+  "baa-file-470695c59f4b.dxf": {
+    "primitives": 7,
+    "entities": 10,
+    "relations": 3,
+    "elapsed": 0.9872000217437744,
+    "status": "ok"
+  },
+  "baa-file-470e61063f39.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3849639892578125,
+    "status": "ok"
+  },
+  "baa-file-47d167320178.dxf": {
+    "primitives": 37520,
+    "entities": 22380,
+    "relations": 9603,
+    "elapsed": 8.121634244918823,
+    "status": "ok"
+  },
+  "baa-file-4a0841093157.dxf": {
+    "primitives": 47198,
+    "entities": 44739,
+    "relations": 4689,
+    "elapsed": 19.47130250930786,
+    "status": "ok"
+  },
+  "baa-file-4a980440c13c.dxf": {
+    "primitives": 577,
+    "entities": 574,
+    "relations": 179,
+    "elapsed": 1.4279210567474365,
+    "status": "ok"
+  },
+  "baa-file-4aaf804a7fbc.dxf": {
+    "primitives": 138,
+    "entities": 130,
+    "relations": 155,
+    "elapsed": 1.2516582012176514,
+    "status": "ok"
+  },
+  "baa-file-4cf17c046cc1.dxf": {
+    "primitives": 489,
+    "entities": 437,
+    "relations": 0,
+    "elapsed": 1.408998966217041,
+    "status": "ok"
+  },
+  "baa-file-4d76e85d49d0.dxf": {
+    "primitives": 3,
+    "entities": 3,
+    "relations": 3,
+    "elapsed": 0.9926052093505859,
+    "status": "ok"
+  },
+  "baa-file-4da0052c5d92.dxf": {
+    "primitives": 1333,
+    "entities": 992,
+    "relations": 905,
+    "elapsed": 1.5663425922393799,
+    "status": "ok"
+  },
+  "baa-file-4e24a1752b08.dxf": {
+    "primitives": 4022,
+    "entities": 2135,
+    "relations": 1479,
+    "elapsed": 1.3849918842315674,
+    "status": "ok"
+  },
+  "baa-file-5111b43a2591.dxf": {
+    "primitives": 34748,
+    "entities": 33380,
+    "relations": 30538,
+    "elapsed": 5.027009963989258,
+    "status": "ok"
+  },
+  "baa-file-564ab3e115fd.dxf": {
+    "primitives": 752,
+    "entities": 747,
+    "relations": 214,
+    "elapsed": 1.4801967144012451,
+    "status": "ok"
+  },
+  "baa-file-56d3d1510f31.dxf": {
+    "primitives": 20909,
+    "entities": 18007,
+    "relations": 10160,
+    "elapsed": 5.336954832077026,
+    "status": "ok"
+  },
+  "baa-file-57c2533610fe.dxf": {
+    "primitives": 633,
+    "entities": 451,
+    "relations": 167,
+    "elapsed": 1.376572608947754,
+    "status": "ok"
+  },
+  "baa-file-5acf6e4fa9f5.dxf": {
+    "primitives": 149,
+    "entities": 114,
+    "relations": 12,
+    "elapsed": 1.246598243713379,
+    "status": "ok"
+  },
+  "baa-file-5afd528cc4f9.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2367384433746338,
+    "status": "ok"
+  },
+  "baa-file-5bee6d1132ea.dxf": {
+    "primitives": 6,
+    "entities": 7,
+    "relations": 7,
+    "elapsed": 0.987579345703125,
+    "status": "ok"
+  },
+  "baa-file-617fcfbc803c.dxf": {
+    "primitives": 3390,
+    "entities": 3234,
+    "relations": 632,
+    "elapsed": 1.364492654800415,
+    "status": "ok"
+  },
+  "baa-file-640c1dcecf49.dxf": {
+    "primitives": 1368,
+    "entities": 1023,
+    "relations": 909,
+    "elapsed": 1.3832147121429443,
+    "status": "ok"
+  },
+  "baa-file-6457b5f611b6.dxf": {
+    "primitives": 1,
+    "entities": 1,
+    "relations": 0,
+    "elapsed": 0.9686095714569092,
+    "status": "ok"
+  },
+  "baa-file-65d1d9fec875.dxf": {
+    "primitives": 47198,
+    "entities": 44739,
+    "relations": 4689,
+    "elapsed": 19.54009485244751,
+    "status": "ok"
+  },
+  "baa-file-6832fe6ae827.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-740cb639fca4.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.4313154220581055,
+    "status": "ok"
+  },
+  "baa-file-7853b1cc8829.dxf": {
+    "primitives": 24,
+    "entities": 23,
+    "relations": 20,
+    "elapsed": 1.0004169940948486,
+    "status": "ok"
+  },
+  "baa-file-8059557339a8.dxf": {
+    "primitives": 4694,
+    "entities": 4582,
+    "relations": 142,
+    "elapsed": 1.392575740814209,
+    "status": "ok"
+  },
+  "baa-file-8924fe5dd5b4.dxf": {
+    "primitives": 502,
+    "entities": 466,
+    "relations": 0,
+    "elapsed": 1.3601207733154297,
+    "status": "ok"
+  },
+  "baa-file-9e6f9b8830b1.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-a1138e745638.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2320294380187988,
+    "status": "ok"
+  },
+  "baa-file-ae4b47150de1.dxf": {
+    "primitives": 3505,
+    "entities": 3351,
+    "relations": 654,
+    "elapsed": 3.8506221771240234,
+    "status": "ok"
+  },
+  "baa-file-b199a72bd02f.dxf": {
+    "status": "empty",
+    "primitives": 0,
+    "elapsed": 0
+  },
+  "baa-file-b68ca428121a.dxf": {
+    "primitives": 2054,
+    "entities": 1444,
+    "relations": 816,
+    "elapsed": 1.3963227272033691,
+    "status": "ok"
+  },
+  "baa-file-bf9062d6453b.dxf": {
+    "primitives": 12047,
+    "entities": 11895,
+    "relations": 1078,
+    "elapsed": 2.097787380218506,
+    "status": "ok"
+  },
+  "baa-file-bfc16efdc650.dxf": {
+    "primitives": 4694,
+    "entities": 4582,
+    "relations": 142,
+    "elapsed": 1.375485897064209,
+    "status": "ok"
+  },
+  "baa-file-ce85bc7cc737.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.2288436889648438,
+    "status": "ok"
+  },
+  "baa-file-d1bdd85b3f76.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3692295551300049,
+    "status": "ok"
+  },
+  "baa-file-d55d075e002f.dxf": {
+    "primitives": 5343,
+    "entities": 5337,
+    "relations": 0,
+    "elapsed": 1.3628404140472412,
+    "status": "ok"
+  },
+  "baa-file-f05c57acd7ec.dxf": {
+    "primitives": 3003,
+    "entities": 3003,
+    "relations": 0,
+    "elapsed": 1.236375093460083,
+    "status": "ok"
+  }
+}
