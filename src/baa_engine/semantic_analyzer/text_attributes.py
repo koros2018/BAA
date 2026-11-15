@@ -219,7 +219,11 @@ def _inject_text_attributes(
     _TEXT_EXPAND = int(_TEXT_ATTR_MAX_DIST / _TEXT_CELL) + 1  # 覆盖 10m 半径
 
     def _build_ent_grid(cands):
-        g = {}
+        # T-opt34: 改用嵌套 defaultdict(dict) 替代平铺 dict[(gx,gy)]。
+        # 与 relations.py Phase 3/Phase 1 同策略（T-opt17/T-opt33），
+        # 查询时只遍历存在的 gx row，跳过空 cell。
+        from collections import defaultdict as _dd
+        g = _dd(lambda: _dd(list))
         for ent in cands:
             b = ent.bbox
             bx = b.get("x", 0); by = b.get("y", 0)
@@ -237,14 +241,15 @@ def _inject_text_attributes(
             if _nx * _ny > 500:
                 _pcx = (gx1 + gx2) // 2
                 _pcy = (gy1 + gy2) // 2
-                _gx_range = [_pcx]
-                _gy_range = [_pcy]
+                gx_range = [_pcx]
+                gy_range = [_pcy]
             else:
-                _gx_range = range(gx1, gx2 + 1)
-                _gy_range = range(gy1, gy2 + 1)
-            for gx in _gx_range:
-                for gy in _gy_range:
-                    g.setdefault((gx, gy), []).append(ent)
+                gx_range = range(gx1, gx2 + 1)
+                gy_range = range(gy1, gy2 + 1)
+            for gx in gx_range:
+                row = g[gx]  # defaultdict 自动创建空 dict
+                for gy in gy_range:
+                    row[gy].append(ent)
         return g
 
     wall_slab_grid = _build_ent_grid(wall_slab)
@@ -261,9 +266,13 @@ def _inject_text_attributes(
         best = None
         best_dist = float("inf")
         seen = set()
+        # T-opt34: 遍历存在的 gx row，跳过空行；gy 仍逐格 .get（内层 dict 稀疏）
         for gx in range(gx1 - _TEXT_EXPAND, gx2 + _TEXT_EXPAND + 1):
+            row = grid.get(gx)
+            if row is None:
+                continue
             for gy in range(gy1 - _TEXT_EXPAND, gy2 + _TEXT_EXPAND + 1):
-                for ent in grid.get((gx, gy), ()):
+                for ent in row.get(gy, ()):
                     eid = id(ent)
                     if eid in seen:
                         continue
