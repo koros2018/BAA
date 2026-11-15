@@ -1024,6 +1024,87 @@ class AtomicFunction:  # class definition
                 return val_m
             return val_m * 1000.0  # DIM-021/022 返回 mm 口径
 
+        # ── 通用 DIMENSION 宽度/高度提取（P0-1 扩展：覆盖其余规则）──
+        # 此前 DIM-011/020/025/026/030/031/033/034/048/049/056/068/071/072/078/080
+        # 083/084/085/086/092/094/095/096/098/101/103/104/105/106/108 等均无提取分支，
+        # 永远返回 None，导致跨 47 张图纸适用但未判定（覆盖率缺口核心）。
+        # 设计原则：按 func_id→(prop_key, unit, guards) 映射提取，同单位/阈值口径
+        # 对齐 DIM-006/009/012/021/022 已有守卫（普通门不判定、宽度下限兜底）。
+        _GENERIC_DIM_RULES = {
+            "DIM-011": ("width", "mm", ("road", "fire_lane", "driveway")),
+            "DIM-020": ("width", "mm", ("stair", "staircase", "stairs")),
+            "DIM-025": ("width", "mm", ("stair", "staircase", "stairs")),
+            "DIM-026": ("width", "mm", ("external_stair", "stair", "staircase")),
+            "DIM-030": ("width", "mm", ("road", "rescue_area", "driveway")),
+            "DIM-031": ("width", "mm", ("road", "fire_lane", "driveway")),
+            "DIM-033": ("clear_width", "mm", None),  # staircase_door/door/fire_door
+            "DIM-034": ("clear_width", "mm", None),  # exit_door/door/fire_door
+            "DIM-048": ("width", "mm", None),         # accessible_door/door
+            "DIM-049": ("width", "mm", None),         # elevator/elevator_door
+            "DIM-056": ("length", "mm", None),        # basement_shop/store/room（≤30m）
+            "DIM-068": ("width", "mm", None),         # aisle/corridor/driveway（≥5.5m）
+            "DIM-071": ("width", "mm", ("stair", "staircase")),
+            "DIM-072": ("clear_width", "mm", None),   # exit/door/fire_door
+            "DIM-078": ("width", "mm", None),         # corridor/hallway/passage（≥1.1m）
+            "DIM-080": ("width", "mm", None),         # corridor/hallway/passage（≥1.1m）
+            "DIM-083": ("width", "mm", ("external_stair", "outdoor_stair")),
+            "DIM-084": ("width", "mm", ("exit_door", "external_door")),
+            "DIM-085": ("width", "mm", ("road", "fire_lane", "driveway")),
+            "DIM-086": ("width", "mm", ("road", "fire_lane", "driveway")),
+            "DIM-092": ("width", "mm", None),         # accessible_door/door
+            "DIM-094": ("width", "mm", None),         # corridor/dead_end（≤15m）
+            "DIM-095": ("width", "mm", None),         # corridor/hallway/passage/walkway（≥1.2m）
+            "DIM-096": ("width", "mm", None),         # exit/exit_door/fire_door/door
+            "DIM-098": ("width", "mm", ("road", "fire_lane", "access_road", "driveway")),
+            "DIM-101": ("width", "mm", ("stair", "staircase", "antechamber")),
+            "DIM-103": ("width", "mm", None),         # aisle/corridor/walkway（≥1.0m）
+            "DIM-104": ("width", "mm", None),         # corridor/walkway（≥1.0m）
+            "DIM-105": ("width", "mm", None),         # door/residential_door/entrance_door
+            "DIM-106": ("width", "mm", ("escape_stair", "external_stair", "outdoor_stair")),
+            "DIM-108": ("width", "mm", ("road", "fire_lane", "fire_access", "driveway")),
+        }
+        if func_id in _GENERIC_DIM_RULES:
+            prop_key, req_unit, req_types = _GENERIC_DIM_RULES[func_id]
+            # 宽度属性优先级：clear_width > width（语义层可能分别存储）
+            raw = props.get(prop_key)
+            if prop_key == "clear_width" and (not isinstance(raw, (int, float)) or raw < 0.01):
+                raw = props.get("width", 0.0)
+            if not isinstance(raw, (int, float)) or raw < 0.01:
+                return None
+            # 单位归一：语义层以 m 为单位存储；req_unit="mm" 则 ×1000，否则直接取值
+            if req_unit == "mm":
+                val = raw * 1000.0
+            else:
+                val = raw
+            etype = entity.get("type", "")
+            # 类型门禁：req_types 非空时要求实体或 subtype 命中才提取
+            if req_types:
+                sub = entity.get("subtype") or ""
+                if etype not in req_types and sub not in req_types:
+                    return None
+            # 门类防误报：普通 door/doorway 缺疏散语义（同 DIM-006/009/021）
+            if etype in ("door", "doorway"):
+                explicit_evac = props.get("is_evacuation_door")
+                if not explicit_evac:
+                    return None
+            # 走道类下限：<0.5m 必为线元/填充误分类（同 DIM-012）
+            if func_id in ("DIM-078", "DIM-080", "DIM-095", "DIM-103", "DIM-104"):
+                val_m = val / 1000.0
+                if val_m < 0.5:
+                    return None
+            # 距离类（≤）防止合成实体误判：polyline_* / line_chain_* 为扫线法生成
+            # 的派生实体，其 width/length 来自聚合几何而非真实测量，不适用于距离/尺度判定。
+            # 与 DIST-003（line_chain_corridor_* 过滤）同理。
+            # 注意：entity.id 可能在顶层或 properties 内，两者都要检查。
+            raw_eid = entity.get("id", "") or ""
+            prop_eid = (props.get("id", "") or "") if isinstance(props, dict) else ""
+            eid = raw_eid or prop_eid
+            if func_id in ("DIM-056", "DIM-094") and any(eid.startswith(p) for p in (
+                "polyline_", "line_chain_"
+            )):
+                return None
+            return val
+
         # ── DIM-016 消防车道净高（height 口径）──
         # corridor 实体通常无 height 属性（净高需 CAD 标注），无数据 → 不可判定。
         if func_id == "DIM-016":

@@ -401,3 +401,63 @@ class TestDimWidthExtraction:
         """DIM-016 corridor height=4.5（m）→ 返回 4500（mm 口径）"""
         ent = self._entity("corridor", height=4.5)
         assert self._val("DIM-016", ent) == pytest.approx(4500.0)
+
+    # ── P0-1 通用 DIMENSION 提取扩展测试 ────────────────────────
+
+    def test_dim033_door_clear_width_mm(self):
+        """DIM-033 door clear_width=900mm → 返回 900（mm 口径，需疏散语义守卫）"""
+        # 普通 door 无 is_evacuation_door → None（防误报）
+        ent = self._entity("door", clear_width=0.9)
+        assert self._val("DIM-033", ent) is None
+        # exit_door 有 width=0.9m → 返回 900mm
+        ent = self._entity("exit_door", width=0.9)
+        assert self._val("DIM-033", ent) == pytest.approx(900.0)
+
+    def test_dim072_fire_door_mm(self):
+        """DIM-072 fire_door clear_width=900mm → 返回 900"""
+        ent = self._entity("fire_door", clear_width=0.9)
+        assert self._val("DIM-072", ent) == pytest.approx(900.0)
+
+    def test_dim084_exit_door_m(self):
+        """DIM-084 exit_door width=1.2m → 返回 1200（阈值 1.2m）"""
+        ent = self._entity("exit_door", width=1.2)
+        assert self._val("DIM-084", ent) == pytest.approx(1200.0)
+
+    def test_dim012_stair_width_mm(self):
+        """DIM-020 stair width=1.1m → 返回 1100mm（阈值 1100mm）"""
+        ent = self._entity("stair", width=1.1)
+        assert self._val("DIM-020", ent) == pytest.approx(1100.0)
+        # 类型门禁：非 stair 实体跳过
+        ent = self._entity("room", width=1.1)
+        assert self._val("DIM-020", ent) is None
+
+    def test_dim096_door_generic_no_evac_skipped(self):
+        """DIM-096 普通 door 无疏散标注 → None（同 DIM-006/021 防误报）"""
+        ent = self._entity("door", width=0.8)
+        assert self._val("DIM-096", ent) is None
+        ent = self._entity("exit_door", width=0.8)
+        assert self._val("DIM-096", ent) == pytest.approx(800.0)
+
+    def test_dim_corridor_guard_too_narrow(self):
+        """DIM-078 corridor width <0.5m → None（防线元误分类）"""
+        ent = self._entity("corridor", width=0.3)
+        assert self._val("DIM-078", ent) is None
+        ent = self._entity("corridor", width=1.2)
+        assert self._val("DIM-078", ent) == pytest.approx(1200.0)
+
+    def test_dim_synthetic_room_skipped(self):
+        """DIM-056/DIM-094 polyline_* 合成实体 → None（同 DIST-003 过滤逻辑）"""
+        # 真实场景：entity.id 在顶层（如 validate_roundtrip 输出）
+        ent = self._entity("room", length=5.0)
+        ent["id"] = "polyline_room_6"
+        assert self._val("DIM-056", ent) is None
+        assert self._val("DIM-094", ent) is None
+        # 真实 room 应正常提取
+        ent = self._entity("room", width=2.0)
+        ent["id"] = "real_room_1"
+        assert self._val("DIM-094", ent) == pytest.approx(2000.0)
+
+    def test_dim_no_property_returns_none(self):
+        """缺失目标属性 → None（不触发异常）"""
+        ent = self._entity("road")  # 无 width
+        assert self._val("DIM-011", ent) is None
