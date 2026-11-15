@@ -149,6 +149,7 @@ class SemanticAnalyzer:
         building_type: str = "civil",  # assign
         dxf_path: Optional[str] = None,
         block_refs: Optional[List[Dict]] = None,
+        progress_callback: Optional[callable] = None,
     ) -> Dict[str, Any]:  # init: set to None
         """
         执行语义分析
@@ -160,9 +161,20 @@ class SemanticAnalyzer:
             dxf_path: DXF 文件路径（可选），提供后启用 YOLO 检测增强
             block_refs: P127-S1 块引用列表（Dict），提供后把 ATTRIB/旋转/缩放
                 落库到 INSERT 图元，用于块名未命中时的图例兜底分类
+            progress_callback: 进度回调函数 callback(stage: str, percent: float, message: str)
 
         输出: 结构化语义数据（entities + relations + attributes）
         """
+        def _report(stage: str, percent: float, message: str = ""):
+            """内部进度报告辅助函数"""
+            if progress_callback:
+                try:
+                    progress_callback(stage, percent, message)
+                except Exception:
+                    pass  # 进度回调失败不影响分析
+
+        _report("init", 0.0, "初始化分析环境")
+        self._warnings = []  # 初始化警告列表
         self._entity_counter = 0  # assign: self attribute
         self._classify_total = 0
         self._classify_unclassified = 0
@@ -257,8 +269,30 @@ class SemanticAnalyzer:
 
         self._legend_learned = _learn_legend_blocks(primitives)
 
+        # ── 大图纸警告 ──
+        LARGE_DRAWING_THRESHOLD = 50000
+        if len(primitives) > LARGE_DRAWING_THRESHOLD:
+            _report("warning", 0.05,
+                    f"大图纸警告：{len(primitives):,} 个图元，分析可能需要较长时间")
+
         # Step 1: 图元分类归并
+        _report("classify", 0.1, "图元分类归并")
         entities = self._classify_entities(primitives)  # assign
+
+        # ── 实体数上限保护（防止 merge O(n²) OOM）──
+        MAX_SAFE_ENTITIES = 15000
+        if len(entities) > MAX_SAFE_ENTITIES:
+            _report("warning", 0.15,
+                    f"实体数 {len(entities):,} 超过安全上限 {MAX_SAFE_ENTITIES:,}，"
+                    f"merge 可能耗时较长")
+            # 记录警告到属性（供调用方检查）
+            if not hasattr(self, '_warnings'):
+                self._warnings = []
+            self._warnings.append({
+                "type": "entity_count_exceeded",
+                "count": len(entities),
+                "limit": MAX_SAFE_ENTITIES,
+            })
 
         # Step 1.05: 楼层/区域检测（P35新增）
         floor_levels = self._detect_floor_levels(primitives)  # assign
@@ -426,6 +460,8 @@ class SemanticAnalyzer:
         # Step 1.9: 将有效 room 的面积传播给附近无面积的标记实体（前室/电梯厅等）
         self._propagate_room_area(entities)  # 操作
 
+        _report("relations", 0.3, f"构建空间关系（{len(entities):,} 实体）")
+
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
 
@@ -475,8 +511,12 @@ class SemanticAnalyzer:
         # T3 native > 尺寸/TEXT 标注 > 拓扑配对 > bbox 几何兜底。
         entities = self._inject_paired_attributes(entities, full_primitives)  # assign
 
+        _report("topology", 0.5, "走廊拓扑网络构建")
+
         # Step 4: 走廊拓扑网络（V2新增）
         corridor_topology = self.build_corridor_topology(entities, relations)  # assign
+
+        _report("evacuation", 0.6, f"疏散路径分析（{len(relations):,} 关系）")
 
         # Step 5: 疏散路径分析（V2新增）
         evacuation_routes = self.analyze_evacuation_routes(entities, relations) or []  # assign
@@ -643,7 +683,11 @@ class SemanticAnalyzer:
                     else 0.0
                 ),
             },  # 字段
+            # 分析警告（大图纸/实体数超限等）
+            "warnings": getattr(self, '_warnings', []),
         }  # code
+
+        _report("complete", 1.0, f"分析完成：{len(entities):,} 实体，{len(relations):,} 关系")
 
         # ── 写入缓存 ──────────────────────────────────────
         if fingerprint and result:  # check: AND condition

@@ -514,6 +514,20 @@ def _classify_entities(self, primitives: List[RawPrimitive]) -> List[SemanticEnt
         )
 
     # 归并同类重叠图元
+    # 大图纸保护：实体数 > 2000 时使用空间哈希，否则 O(n²)
+    # 超过 15000 时发出警告（merge 耗时可能超过 30s）
+    if len(entities) > 15000:
+        warn_msg = f"实体数 {len(entities):,} 超过 15000，merge 操作可能耗时较长"
+        import warnings
+        warnings.warn(warn_msg, RuntimeWarning, stacklevel=2)
+        # 同时记录到 analyzer 的 warnings 列表（供结果返回）
+        if hasattr(self, '_warnings'):
+            self._warnings.append({
+                "type": "merge_entity_count_warning",
+                "count": len(entities),
+                "limit": 15000,
+                "message": warn_msg,
+            })
     entities = _merge_overlapping(self, entities)
 
     # 过滤过小的走廊实体（LINE 类型容易被误识别为走廊）
