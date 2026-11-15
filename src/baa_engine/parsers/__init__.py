@@ -3,6 +3,7 @@
 
 - dwg_convert.py: DWG 转换（10个方法，~968行 → 独立模块）
 - geometry.py: 几何计算（compute_bbox, extract_properties, compute_polygon_area, transform_point）
+- isolated_analysis.py: 独立进程语义分析（防内存失控）
 """
 
 from .dwg_convert import (
@@ -31,6 +32,13 @@ from .block_refs import (
     extract_block_refs,
     summarize_block_refs,
 )
+from .isolated_analysis import (
+    IsolatedResult,
+    analyze_isolated,
+    analyze_isolated_file,
+    is_large_drawing,
+    should_use_isolated,
+)
 
 __all__ = [
     # DWG
@@ -56,4 +64,10 @@ __all__ = [
     "read_block_ref",
     "extract_block_refs",
     "summarize_block_refs",
+    # isolated analysis
+    "IsolatedResult",
+    "analyze_isolated",
+    "analyze_isolated_file",
+    "is_large_drawing",
+    "should_use_isolated",
 ]
