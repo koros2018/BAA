@@ -221,15 +221,28 @@ def _build_relations(self, entities: List[SemanticEntity]) -> List[SpatialRelati
         ay1 = y1g[idx_a]
         ax2 = x2g[idx_a]
         ay2 = y2g[idx_a]
-        x1c = gx1_a[idx_a]
-        x2c = gx2_a[idx_a]
-        y1c = gy1_a[idx_a]
-        y2c = gy2_a[idx_a]
-        for gx in range(x1c - 1, x2c + 2):
+        # T-opt30 修复：查询循环也需截断 cell 范围，防止大 bbox 实体
+        # 在 grid build 中已截断，但查询时用原始 gx1_a/gx2_a 导致
+        # range() 生成数万次迭代（即使 grid.get 返回 None）。
+        qx1c = gx1_a[idx_a]
+        qx2c = gx2_a[idx_a]
+        qy1c = gy1_a[idx_a]
+        qy2c = gy2_a[idx_a]
+        q_nx = qx2c - qx1c + 1
+        q_ny = qy2c - qy1c + 1
+        if q_nx * q_ny > _MAX_CELLS:
+            qcx = (qx1c + qx2c) // 2
+            qcy = (qy1c + qy2c) // 2
+            gx_range = [qcx]
+            gy_range = [qcy]
+        else:
+            gx_range = range(qx1c - 1, qx2c + 2)
+            gy_range = range(qy1c - 1, qy2c + 2)
+        for gx in gx_range:
             row = grid_p1.get(gx)
             if row is None:
                 continue
-            for gy in range(y1c - 1, y2c + 2):
+            for gy in gy_range:
                 cell = row.get(gy)
                 if cell is None:
                     continue
