@@ -916,7 +916,10 @@ def _bind_dimensions(
     # ── 1. 建网格：entity center 按 CELL_SIZE 分桶 ──
     _BIND_CELL = 1000.0
     _EXPAND = 10
-    grid: Dict[Tuple[int, int], List[Tuple[float, float, int]]] = {}
+    # T-opt35: 改用 2 层嵌套 dict（gx → gy → [(cx,cy,idx)]），构建与查询都
+    # 只遍历存在的 gx row，跳过全部空 cell。平铺 dict[(gx,gy)] 在每 gx/gy
+    # 区间内逐一 .get()，大实体 bbox 时产生大量无效查找。
+    grid: Dict[int, Dict[int, List[Tuple[float, float, int]]]] = {}
     # 预计算实体 bbox 轴向区间：候选循环内直接取数组，省去 ent.bbox 逐次取键。
     x1_a: List[float] = [0.0] * len(entities)
     x2_a: List[float] = [0.0] * len(entities)
@@ -936,19 +939,27 @@ def _bind_dimensions(
         cy = by + bh / 2
         gx = int(cx / _BIND_CELL)
         gy = int(cy / _BIND_CELL)
-        grid.setdefault((gx, gy), []).append((cx, cy, idx))
+        _row = grid.get(gx)
+        if _row is None:
+            grid[gx] = {gy: [(cx, cy, idx)]}
+        else:
+            _lst = _row.get(gy)
+            if _lst is None:
+                _row[gy] = [(cx, cy, idx)]
+            else:
+                _lst.append((cx, cy, idx))
 
     # T4 优化（2026-11-06）：原实现每个 dim 遍历 441 个 (gx,gy) tuple 并各做
     # 非空集合判断 + dict.get（1680×441≈74 万次 tuple 哈希）。改为
     # 「gx 升序表 + 列内 gy 有序表 + 二分定位」：每 dim 仅 ≤21 次列定位与
     # 列内二分，命中的非空 cell 才取实体。迭代顺序仍为 gx 升序 → gy 升序 →
     # cell 内实体插入序，与原实现逐对一致（含并列打分的先后顺序）。
-    gx_keys = sorted({k[0] for k in grid})
+    # T-opt35: 2 层嵌套 dict 下，gx_keys 直接取外层 keys，gy_keys_by_gx 取
+    # 各 row 的 keys（已按插入序，需 sort 保持二分正确性）。
+    gx_keys = sorted(grid.keys())
     gy_keys_by_gx: Dict[int, List[int]] = {}
-    for (gx, _gy) in grid:
-        gy_keys_by_gx.setdefault(gx, []).append(_gy)
-    for _gx in gy_keys_by_gx:
-        gy_keys_by_gx[_gx].sort()
+    for _gx, _row in grid.items():
+        gy_keys_by_gx[_gx] = sorted(_row.keys())
 
     # ── 2. 逐 dim 查询邻域 cell ──
     _MAX_SQ = _DIM_MATCH_MAX_DIST * _DIM_MATCH_MAX_DIST
@@ -1003,7 +1014,8 @@ def _bind_dimensions(
             j0 = bisect_left(gys, ylo)
             j1 = bisect_right(gys, yhi)
             for gj in range(j0, j1):
-                for cx, cy, idx in grid[(gx, gys[gj])]:
+                # T-opt35: 2 层嵌套 dict 直接取 grid[gx][gy]
+                for cx, cy, idx in grid[gx][gys[gj]]:
                     # 距离平方预过滤：避免 99% 无效 sqrt
                     ddx = rx - cx
                     ddy = ry - cy

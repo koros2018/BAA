@@ -383,16 +383,22 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
     # P104: bbox 重叠去重空间网格（cell=1000mm）。按已存 room bbox 覆盖的
     # cell 插入索引，查询新面时只检查与其 bbox 相交的 cell 内的房间，
     # 将 O(n²) 全量遍历降为 O(n)·局部邻域。
-    _dup_grid: Dict[Tuple[int, int], List[int]] = {}
+    # T-opt35: 改用 2 层嵌套 dict（gx → gy → [idx]），查询时只遍历存在的
+    # gx row，跳过全部空 cell（平铺 dict[(gx,gy)] 在每 gx/gy 区间内逐一
+    # .get()，大 room bbox 时产生大量无效查找）。
+    _dup_grid: Dict[int, Dict[int, List[int]]] = {}
     _DUP_CELL = 1000.0
 
     def _grid_insert(gx0: int, gx1: int, gy0: int, gy1: int, idx: int) -> None:
         for gx in range(gx0, gx1 + 1):
+            _row = _dup_grid.get(gx)
+            if _row is None:
+                _row = {}
+                _dup_grid[gx] = _row
             for gy in range(gy0, gy1 + 1):
-                key = (gx, gy)
-                lst = _dup_grid.get(key)
+                lst = _row.get(gy)
                 if lst is None:
-                    _dup_grid[key] = [idx]
+                    _row[gy] = [idx]
                 else:
                     lst.append(idx)
 
@@ -441,8 +447,12 @@ def _sweep_and_filter(segs: List[_Seg], self_obj: Any) -> List[SemanticEntity]:
         gy1 = int(math.floor(by1 / _DUP_CELL))
         cand_idxs: Set[int] = set()
         for gx in range(gx0, gx1 + 1):
+            # T-opt35: 只遍历存在的 gx row（2 层嵌套 dict），跳过空 cell
+            _row = _dup_grid.get(gx)
+            if _row is None:
+                continue
             for gy in range(gy0, gy1 + 1):
-                for cand in _dup_grid.get((gx, gy), ()):
+                for cand in _row.get(gy, ()):
                     cand_idxs.add(cand)
         for cand in cand_idxs:
             eb = result[cand].bbox

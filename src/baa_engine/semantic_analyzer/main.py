@@ -1729,15 +1729,26 @@ class SemanticAnalyzer:
         id_to_type: Dict[str, str] = {e.id: e.type for e in entities}
 
         # P0-2 优化：TEXT 按中心点分桶到 grid，每个 room 只查附近 cells
+        # T-opt35: 改用 2 层嵌套 dict（gx → gy → [tp]），查询时只遍历存在的
+        # gx row，跳过全部空 cell。平铺 dict[(gx,gy)] 需在每 gx/gy 区间内
+        # 逐一 .get()，大 room bbox 时产生大量无效查找（第15张图纸实测）。
         _TEXT_CELL = 2000.0  # 2m cell
-        text_grid: Dict[Tuple[int, int], List[RawPrimitive]] = {}
+        text_grid: Dict[int, Dict[int, List[RawPrimitive]]] = {}
         for tp in text_primitives:
             tb = tp.bbox or {}
             tcx = tb.get("x", 0) + tb.get("width", 0) / 2
             tcy = tb.get("y", 0) + tb.get("height", 0) / 2
-            text_grid.setdefault(
-                (int(tcx / _TEXT_CELL), int(tcy / _TEXT_CELL)), []
-            ).append(tp)
+            _tgx = int(tcx / _TEXT_CELL)
+            _tgy = int(tcy / _TEXT_CELL)
+            _row = text_grid.get(_tgx)
+            if _row is None:
+                text_grid[_tgx] = {_tgy: [tp]}
+            else:
+                _lst = _row.get(_tgy)
+                if _lst is None:
+                    _row[_tgy] = [tp]
+                else:
+                    _lst.append(tp)
 
         # 2. 建立 room_id → 相邻 corridor/doorway 计数
         corridor_adj: Dict[str, int] = {}
@@ -1781,8 +1792,12 @@ class SemanticAnalyzer:
             cy2 = int((ry + rh + pad) / _TEXT_CELL)
             nearby_texts = []
             for gx in range(cx1, cx2 + 1):
+                # T-opt35: 只遍历存在的 gx row（2 层嵌套 dict），跳过空 cell
+                _row = text_grid.get(gx)
+                if _row is None:
+                    continue
                 for gy in range(cy1, cy2 + 1):
-                    for tp in text_grid.get((gx, gy), []):
+                    for tp in _row.get(gy, ()):
                         tb = tp.bbox or {}
                         tx, ty = tb.get("x", 0), tb.get("y", 0)
                         tw, th = tb.get("width", 0), tb.get("height", 0)
