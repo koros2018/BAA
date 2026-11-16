@@ -170,6 +170,19 @@ UNSUPPORTED_2D_REASONS = {
     "STR-012": "structural",
     "STR-013": "structural",
     "STR-015": "structural",
+    # ── 设备流体参数规则（2026-11-16 机电图评估补齐）──
+    # DIM-038 稳压泵流量 ≥1.0L/s：需流量参数，2D 无载体
+    # DIM-041 消防水泵流量 ≥20L/s：需流量参数，2D 无载体
+    # DIM-042 消防水泵启动时间 ≤2min：需时间参数，2D 无载体
+    # DIM-043 消防管道管径 ≥DN100：需管径参数（pipe bbox 是管道网络范围非单管径）
+    # DIM-044 消防水泵吸水高度 ≤6m：需吸高参数，2D 无载体
+    # DIM-045 消防水泵出水管压力 ≥0.8MPa：需压力参数，2D 无载体
+    "DIM-038": "product_spec",
+    "DIM-041": "product_spec",
+    "DIM-042": "product_spec",
+    "DIM-043": "product_spec",
+    "DIM-044": "product_spec",
+    "DIM-045": "product_spec",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
