@@ -295,3 +295,37 @@ actual=3157.2mm < 5000mm → FAIL 间距不足；synth_office_compliant
 **结论：** DIST 距离提取缺口已修复。真实建筑图无 rescue_window/exit/
 hydrant 实体（样本覆盖限制），DIST-004~010 判据在建筑图不可得；合成图
 与机电图（fire_hydrant 1 图）可判定。
+
+### 8.11 COUNT 聚合容器识别补齐（2026-11-16 续）
+
+**背景：** COUNT-016/020/026（房间疏散门 ≥2）需 room 容器聚合疏散门数；
+COUNT-001/017/025（安全出口 ≥2）需 floor/fire_zone 容器聚合出口数。
+2D 图纸未建模 fire_zone（真实图 0 个），floor 是楼层标签非空间范围，
+COUNT-001/017 判据不可得。COUNT-013/024/025 target 含 door/exit，逐
+door 判 count 无意义（door 无 count 属性）→ 全部未判定（COUNT-004 适用
+43 图、COUNT-013/024/025 适用 47 图、COUNT-016/020 适用 43 图、COUNT-026
+适用 47 图，判定均 0）。
+
+**修复：**
+1. `main.py` 新增 `_inject_container_counts`（Step 1.7c）：对 room 容器
+   （room/public_room/hall/auditorium/classroom）聚合疏散门数注入
+   `door_count`、出口数注入 `exit_count`（bbox 包含 + 疏散语义门禁）。
+   疏散语义门禁与 DIM-113 同口径：仅 exit_door/evacuation_door 或显式
+   is_evacuation_door 标注的门计入，普通门（卫生间/设备/管井）不计，
+   避免逐门误报。
+2. `atomic_functions.py` `_extract_value` 添加 COUNT-016/020/026 handler：
+   读 `door_count`（room 容器聚合）。
+3. `count_functions.py` COUNT-026 target 加入 room 容器类型：判定对象
+   是 room 容器（读 door_count），door 类 target 保留兼容旧口径但 door
+   实体无 door_count → 不判定。
+
+**验证：** 合成图 room 容器注入 exit_count（polyline_room_48 exit_count=1）；
+door_count 未注入（合成图 door 无疏散语义标注，门禁正确拦截）。真实图
+（Demo 模板）room 无疏散门实体（door_inj=0），判据不可得——样本覆盖
+限制，非架构缺口。新增 6 个 COUNT-016/020/026 单元测试，3175 测试通过
+无回归。
+
+**结论：** COUNT 聚合容器识别已打通（room 容器 door_count 注入 +
+COUNT-016/020/026 handler）。样本覆盖限制下判据不可得（Demo 模板图无
+疏散门标注、fire_zone 未建模），但注入链路与 handler 已就绪，图纸含
+exit_door/evacuation_door 标注时可判定。

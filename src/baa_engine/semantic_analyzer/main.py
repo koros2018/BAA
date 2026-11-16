@@ -450,6 +450,11 @@ class SemanticAnalyzer:
         # 禁止把全图出口数摊派到 floor 标签/楼层线。
         self._inject_zone_exit_counts(entities)  # 操作
 
+        # Step 1.7c: COUNT 聚合容器识别（2026-11-16 深挖补齐）
+        # COUNT-016/020/026（房间疏散门 ≥2）需 room 容器聚合疏散门数。
+        # 2D 图纸未建模 fire_zone，floor 非空间范围，COUNT-001/017 判据不可得。
+        self._inject_container_counts(entities)  # 操作
+
         # Step 1.8: 面积单位归一（area 可能同时存在 m² 与 mm² 两种来源）
         self._normalize_area_units(entities)  # 操作
 
@@ -1540,6 +1545,63 @@ class SemanticAnalyzer:
             if count > 0:
                 props["exit_count"] = count
                 props["_exit_count_source"] = "zone_bbox"
+
+    def _inject_container_counts(self, entities) -> None:
+        """Step 1.7c：COUNT 聚合容器识别（2026-11-16 深挖补齐）。
+
+        COUNT-016/020/026（房间疏散门 ≥2）需 room 容器聚合疏散门数；
+        COUNT-001/017/025（安全出口 ≥2）需 floor/fire_zone 容器聚合出口数。
+        2D 图纸未建模 fire_zone（真实图 0 个），floor 是楼层标签非空间范围，
+        故 COUNT-001/017 判据不可得（保持 None，不摊派全图出口数）。
+
+        对 room 容器注入 door_count（房间内疏散门数，bbox 包含 + 疏散语义
+        门禁）与 exit_count（房间内出口数）。疏散语义门禁与 DIM-113 同口径：
+        仅 exit_door/evacuation_door 或显式 is_evacuation_door 标注的门计入，
+        普通门（卫生间/设备/管井）不计，避免逐门误报。
+        """
+        rooms = [e for e in entities if e.type in ("room", "public_room", "hall",
+                                                   "auditorium", "classroom")]
+        if not rooms:
+            return
+        # 疏散门：exit_door/evacuation_door 或显式疏散标注
+        evac_doors = [
+            e for e in entities
+            if e.type in ("exit_door", "evacuation_door")
+            or (e.properties or {}).get("is_evacuation_door") is True
+            or (e.properties or {}).get("evacuation_door") is True
+        ]
+        exits = [
+            e for e in entities
+            if e.type in ("exit", "safety_exit")
+            or (e.properties or {}).get("is_exit") is True
+        ]
+        for room in rooms:
+            props = room.properties
+            if "door_count" in props or "exit_count" in props:
+                continue
+            bbox = room.bbox or {}
+            bw = bbox.get("width", 0) or 0
+            bh = bbox.get("height", 0) or 0
+            if bw <= 0 or bh <= 0:
+                continue
+            x1 = bbox.get("x", 0)
+            y1 = bbox.get("y", 0)
+            x2 = x1 + bw
+            y2 = y1 + bh
+
+            def _inside(eb: dict) -> bool:
+                cx = (eb.get("x", 0) or 0) + (eb.get("width", 0) or 0) / 2
+                cy = (eb.get("y", 0) or 0) + (eb.get("height", 0) or 0) / 2
+                return x1 <= cx <= x2 and y1 <= cy <= y2
+
+            door_count = sum(1 for d in evac_doors if _inside(d.bbox or {}))
+            exit_count = sum(1 for ex in exits if _inside(ex.bbox or {}))
+            if door_count > 0:
+                props["door_count"] = door_count
+                props["_door_count_source"] = "room_bbox"
+            if exit_count > 0:
+                props["exit_count"] = exit_count
+                props["_exit_count_source"] = "room_bbox"
 
     def _normalize_area_units(self, entities) -> None:
         """Step 1.8：把实体面积统一折算为 m² 写入 area_m2。

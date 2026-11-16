@@ -768,6 +768,17 @@ class AtomicFunction:  # class definition
                 return None  # 无出口数量属性，跳过判定
             return float(val)
 
+        # COUNT-016/020/026：房间疏散门数量判定（2026-11-16 深挖补齐）
+        # 语义层 _inject_container_counts 已为 room 容器注入 door_count
+        # （房间内疏散门数，bbox 包含 + 疏散语义门禁）。COUNT-016/020 的
+        # 判定对象是 room 容器（读 door_count）；COUNT-026 target 是 door
+        # 类，但语义是「房间疏散门 ≥2」，需 room 容器聚合，逐 door 判无意义。
+        if func_id in ("COUNT-016", "COUNT-020", "COUNT-026"):
+            val = props.get("door_count")
+            if val is None:
+                return None  # 无房间疏散门数属性，跳过判定
+            return float(val)
+
         if func_id == "ATTR-001":  # 防火门等级
             # 区分"属性不存在"和"属性值为0"：
             # - 属性不存在（真实图纸）：跳过判定，不产生违规

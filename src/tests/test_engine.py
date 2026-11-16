@@ -666,6 +666,49 @@ class TestFuncExecute:  # class definition
         )
         assert r.result == "FAIL"  # 160m > 150m
 
+    # COUNT-016/020/026：房间疏散门数量判定（2026-11-16 深挖补齐）
+    # 语义层 _inject_container_counts 为 room 容器注入 door_count。
+    def test_count016_room_door_pass(self, registry):
+        # COUNT-016 房间疏散门 ≥2：door_count 注入后判定
+        r = registry.get("COUNT-016").execute(
+            {"id": "R1", "type": "room", "properties": {"door_count": 2.0}}
+        )
+        assert r.result == "PASS"  # 2 ≥ 2
+
+    def test_count016_room_door_fail(self, registry):
+        r = registry.get("COUNT-016").execute(
+            {"id": "R2", "type": "room", "properties": {"door_count": 1.0}}
+        )
+        assert r.result == "FAIL"  # 1 < 2
+
+    def test_count016_no_door_count_skip(self, registry):
+        # 无 door_count（普通门不计/无疏散门）→ 不判定
+        r = registry.get("COUNT-016").execute(
+            {"id": "R3", "type": "room", "properties": {}}
+        )
+        assert r is None
+
+    def test_count020_room_door_pass(self, registry):
+        # COUNT-020 面积>50㎡房间疏散门 ≥2
+        r = registry.get("COUNT-020").execute(
+            {"id": "R4", "type": "hall", "properties": {"door_count": 3.0}}
+        )
+        assert r.result == "PASS"  # 3 ≥ 2
+
+    def test_count026_room_door_pass(self, registry):
+        # COUNT-026 房间疏散门 ≥2（target 含 room 容器）
+        r = registry.get("COUNT-026").execute(
+            {"id": "R5", "type": "classroom", "properties": {"door_count": 2.0}}
+        )
+        assert r.result == "PASS"  # 2 ≥ 2
+
+    def test_count026_door_entity_skip(self, registry):
+        # COUNT-026 对 door 实体（无 door_count）→ 不判定
+        r = registry.get("COUNT-026").execute(
+            {"id": "D1", "type": "door", "properties": {}}
+        )
+        assert r is None
+
     # DIM-009: 疏散出口宽度
     def test_dim009_pass(self, registry):  # function: def test_dim009_pass(self, registry):
         r = registry.get("DIM-009").execute(

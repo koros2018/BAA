@@ -206,7 +206,11 @@ MODULE_FUNCS = [
         description="建筑面积大于50m²的房间应设不少于2个疏散门（GB50016-5.5.16）",
         category=FuncCategory.COUNT,
         clause_id="GB50016-5.5.16",
-        target_entities={"door", "room_door", "exit_door", "evacuation_door"},
+        # 判定对象是 room 容器（聚合房间内疏散门数，_inject_container_counts
+        # 注入 door_count）；door 类 target 保留兼容旧口径，但 door 实体无
+        # door_count 属性 → _extract_value 返回 None → 不判定。
+        target_entities={"room", "public_room", "hall", "auditorium", "classroom",
+                         "door", "room_door", "exit_door", "evacuation_door"},
         operator=">=",
         threshold=2.0,
         unit="个",
