@@ -129,8 +129,14 @@ UNSUPPORTED_2D_REASONS = {
     # ── 2 条依赖前置不可判定 ──
     "DIM-073": "prereq_unsupported",
     "DIM-075": "prereq_unsupported",
-    # ── 1 条需疏散路径拓扑 ──
+    # ── 3 条需疏散路径拓扑 ──
     "DIST-001": "path_topology",
+    # DIM-056/DIM-094（2026-11-16）：疏散距离规则，需疏散路径拓扑而非房间
+    # bbox 尺寸。此前 _GENERIC_DIM_RULES 用 room.length/room.width 判定，
+    # 产生 1000× 单位错配 + 语义错配的假 FAIL（DIM-056 1470 条、DIM-094
+    # 1187 条，全部落在 room 实体）。已从 _GENERIC_DIM_RULES 移除提取分支。
+    "DIM-056": "path_topology",
+    "DIM-094": "path_topology",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──

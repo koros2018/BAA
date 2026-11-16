@@ -446,16 +446,17 @@ class TestDimWidthExtraction:
         assert self._val("DIM-078", ent) == pytest.approx(1200.0)
 
     def test_dim_synthetic_room_skipped(self):
-        """DIM-056/DIM-094 polyline_* 合成实体 → None（同 DIST-003 过滤逻辑）"""
+        """DIM-056/DIM-094 已标记 path_topology（2026-11-16）：疏散距离规则
+        需疏散路径拓扑，不用房间 bbox 尺寸判定 → 任何实体均返回 None。"""
         # 真实场景：entity.id 在顶层（如 validate_roundtrip 输出）
         ent = self._entity("room", length=5.0)
         ent["id"] = "polyline_room_6"
         assert self._val("DIM-056", ent) is None
         assert self._val("DIM-094", ent) is None
-        # 真实 room 应正常提取
+        # 真实 room 也不再提取（疏散距离 ≠ 房间 bbox 尺寸）
         ent = self._entity("room", width=2.0)
         ent["id"] = "real_room_1"
-        assert self._val("DIM-094", ent) == pytest.approx(2000.0)
+        assert self._val("DIM-094", ent) is None
 
     def test_dim_no_property_returns_none(self):
         """缺失目标属性 → None（不触发异常）"""

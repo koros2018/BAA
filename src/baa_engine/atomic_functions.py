@@ -1041,7 +1041,10 @@ class AtomicFunction:  # class definition
             "DIM-034": ("clear_width", "mm", None),  # exit_door/door/fire_door
             "DIM-048": ("width", "mm", None),         # accessible_door/door
             "DIM-049": ("width", "mm", None),         # elevator/elevator_door
-            "DIM-056": ("length", "mm", None),        # basement_shop/store/room（≤30m）
+            # DIM-056 已从通用提取移除（2026-11-16）：地下商店疏散距离 ≤30m 是
+            # 疏散路径距离，不是房间 bbox 尺寸。room.length 是房间几何长边，
+            # 用其判定疏散距离会产生 1000× 单位错配 + 语义错配的假 FAIL
+            # （实测 1470 条）。已标记 unsupported_2d=path_topology。
             "DIM-068": ("width", "mm", None),         # aisle/corridor/driveway（≥5.5m）
             "DIM-071": ("width", "mm", ("stair", "staircase")),
             "DIM-072": ("clear_width", "mm", None),   # exit/door/fire_door
@@ -1052,7 +1055,10 @@ class AtomicFunction:  # class definition
             "DIM-085": ("width", "mm", ("road", "fire_lane", "driveway")),
             "DIM-086": ("width", "mm", ("road", "fire_lane", "driveway")),
             "DIM-092": ("width", "mm", None),         # accessible_door/door
-            "DIM-094": ("width", "mm", None),         # corridor/dead_end（≤15m）
+            # DIM-094 已从通用提取移除（2026-11-16）：袋形走道疏散距离 ≤15m 是
+            # 疏散路径距离，不是房间 bbox 尺寸。room.width 是房间几何短边，
+            # 用其判定疏散距离会产生 1000× 单位错配 + 语义错配的假 FAIL
+            # （实测 1187 条）。已标记 unsupported_2d=path_topology。
             "DIM-095": ("width", "mm", None),         # corridor/hallway/passage/walkway（≥1.2m）
             "DIM-096": ("width", "mm", None),         # exit/exit_door/fire_door/door
             "DIM-098": ("width", "mm", ("road", "fire_lane", "access_road", "driveway")),
