@@ -266,3 +266,38 @@ def test_dim031_radius_fail(self, registry):
    「宽度 ≥4m AND 净高 ≥4m」语义。
 4. **`_inject_attr` 不覆盖既有值**：若实体已有 height（如门窗编号注入），净高标注
    不覆盖，避免冲突。
+
+## 7. 实施结果（2026-11-16）
+
+### 7.1 已实施
+- **text_attributes.py**：新增 `_parse_clear_height_m` / `_parse_turning_radius_m`
+  （含合理范围门禁 2-6m / 3-30m、无单位大数视为 mm 启发式）；`_inject_text_attributes`
+  新增净高/转弯半径标注注入（`_LANE_TYPES` 车道候选 + lane_grid）。
+- **atomic_functions.py**：`_GENERIC_DIM_RULES` 移除 DIM-011/031/085/086/098/108；
+  新增 `_CLEAR_HEIGHT_RULES`（读 height，仅接受 `text_clear_height` 来源）与
+  `_RADIUS_RULES`（读 radius，仅接受 `text_radius` 来源）；DIM-108 宽度+净高复合
+  （净高不足优先 FAIL，bbox 短边 fallback 同 DIM-003）。
+- **gen_synth_3d_attrs.py**：生成 synth_3d_clear_height.dxf（净高 4.5m）与
+  synth_3d_turning_radius.dxf（转弯半径 12m），闭合 LWPOLYLINE 消防车道。
+- **test_engine.py**：新增 16 个测试（解析器 5 + handler 11）。
+
+### 7.2 关键修复：CAD 原生 height/radius 来源门禁
+真实图纸 road 实体自带 CAD 原生 height（如 1500）/radius（如 500），非净高/转弯
+半径标注。初版 handler 读 `props.get("height")` 误用这些值，导致单位错配误判
+（DIM-011 判 1500 ≥ 4.0 → PASS 假阳性）。修复：handler 只接受
+`_attribute_source` 为 `text_clear_height`/`text_radius` 的 height/radius，
+忽略 CAD 原生值。实测 baa-file-5840029dbcb8.dwg 判定数从误判降为 0。
+
+### 7.3 验证结果
+- **全量测试**：3195 通过（新增 16 个），无回归。
+- **合成图验证**：synth_3d_clear_height 的 DIM-003/011/085/098/108 判定 PASS；
+  synth_3d_turning_radius 的 DIM-003/031/086/108 判定 PASS。
+- **真实图验证**：baa-file-5840029dbcb8.dwg / baa-file-b042e240337a.dwg 的
+  DIM-011/031/085/086/098 判定 0（CAD 原生值被来源门禁拦截），无 FAIL 误判。
+- **可判定口径**：113/243 = 46.5%（严格口径）；DIM-011/085/098 判定图=1，
+  DIM-031/086 判定图=1，DIM-108 判定图=3。
+
+### 7.4 后续
+真实图纸（baa-file-5840029dbcb8.dwg 等）road 无净高/转弯半径标注，判据载体仍
+不可得。需引入含净高/转弯半径标注的真实图纸（消防车道剖面图/总平面图）才能
+提升真实样本覆盖。

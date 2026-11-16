@@ -738,6 +738,111 @@ class TestFuncExecute:  # class definition
         )
         assert r is None
 
+    # 净高/转弯半径标注解析（2026-11-16 引入 3D 属性图纸）
+    def test_parse_clear_height(self):
+        from src.baa_engine.semantic_analyzer.text_attributes import _parse_clear_height_m
+        assert _parse_clear_height_m("净高4.5m") == 4.5
+        assert _parse_clear_height_m("H=4.5m") == 4.5
+        assert _parse_clear_height_m("净高4500") == 4.5  # 无单位大数视为 mm
+        assert _parse_clear_height_m("层高4.5米") == 4.5
+        assert _parse_clear_height_m("普通尺寸") is None
+        assert _parse_clear_height_m("净高10m") is None  # 越界
+
+    def test_parse_turning_radius(self):
+        from src.baa_engine.semantic_analyzer.text_attributes import _parse_turning_radius_m
+        assert _parse_turning_radius_m("转弯半径12m") == 12.0
+        assert _parse_turning_radius_m("R=12m") == 12.0
+        assert _parse_turning_radius_m("转弯半径12000") == 12.0  # 无单位大数视为 mm
+        assert _parse_turning_radius_m("普通尺寸") is None
+        assert _parse_turning_radius_m("半径2m") is None  # 越界
+
+    # DIM-011/085/098 净高 handler（语义错配修复：读 height 而非 width）
+    def test_dim011_clear_height_pass(self, registry):
+        r = registry.get("DIM-011").execute(
+            {"id": "L1", "type": "fire_lane",
+             "properties": {"height": 4.5, "_attribute_source": "text_clear_height"}})
+        assert r.result == "PASS"  # 4.5m ≥ 4.0m
+
+    def test_dim011_clear_height_fail(self, registry):
+        r = registry.get("DIM-011").execute(
+            {"id": "L2", "type": "fire_lane",
+             "properties": {"height": 3.5, "_attribute_source": "text_clear_height"}})
+        assert r.result == "FAIL"  # 3.5m < 4.0m
+
+    def test_dim011_no_height_skip(self, registry):
+        # 无净高标注（只有 width）→ 不判定，不误判宽度
+        r = registry.get("DIM-011").execute(
+            {"id": "L3", "type": "fire_lane", "properties": {"width": 4.5}})
+        assert r is None
+
+    def test_dim011_cad_native_height_skip(self, registry):
+        # CAD 原生 height（无 text_clear_height 来源）→ 不判定，避免单位错配误判
+        r = registry.get("DIM-011").execute(
+            {"id": "L3b", "type": "road", "properties": {"height": 1500.0}})
+        assert r is None
+
+    def test_dim085_clear_height_pass(self, registry):
+        r = registry.get("DIM-085").execute(
+            {"id": "L4", "type": "fire_lane",
+             "properties": {"height": 4.5, "_attribute_source": "text_clear_height"}})
+        assert r.result == "PASS"
+
+    def test_dim098_clear_height_pass(self, registry):
+        r = registry.get("DIM-098").execute(
+            {"id": "L5", "type": "fire_lane",
+             "properties": {"height": 4.5, "_attribute_source": "text_clear_height"}})
+        assert r.result == "PASS"
+
+    # DIM-031/086 转弯半径 handler（语义错配修复：读 radius 而非 width）
+    def test_dim031_radius_pass(self, registry):
+        r = registry.get("DIM-031").execute(
+            {"id": "L6", "type": "road",
+             "properties": {"radius": 12.0, "_attribute_source": "text_radius"}})
+        assert r.result == "PASS"  # 12m ≥ 9m
+
+    def test_dim031_radius_fail(self, registry):
+        r = registry.get("DIM-031").execute(
+            {"id": "L7", "type": "road",
+             "properties": {"radius": 8.0, "_attribute_source": "text_radius"}})
+        assert r.result == "FAIL"  # 8m < 9m
+
+    def test_dim031_no_radius_skip(self, registry):
+        # 无转弯半径标注（只有 width）→ 不判定，不误判宽度
+        r = registry.get("DIM-031").execute(
+            {"id": "L8", "type": "road", "properties": {"width": 12.0}})
+        assert r is None
+
+    def test_dim031_cad_native_radius_skip(self, registry):
+        # CAD 原生 radius（无 text_radius 来源）→ 不判定，避免单位错配误判
+        r = registry.get("DIM-031").execute(
+            {"id": "L8b", "type": "road", "properties": {"radius": 500.0}})
+        assert r is None
+
+    def test_dim086_radius_pass(self, registry):
+        r = registry.get("DIM-086").execute(
+            {"id": "L9", "type": "road",
+             "properties": {"radius": 12.0, "_attribute_source": "text_radius"}})
+        assert r.result == "PASS"  # 12m ≥ 12m
+
+    def test_dim086_radius_fail(self, registry):
+        r = registry.get("DIM-086").execute(
+            {"id": "L10", "type": "road",
+             "properties": {"radius": 8.0, "_attribute_source": "text_radius"}})
+        assert r.result == "FAIL"  # 8m < 12m
+
+    # DIM-108 宽度+净高复合（净高不足优先 FAIL）
+    def test_dim108_height_fail(self, registry):
+        r = registry.get("DIM-108").execute(
+            {"id": "L11", "type": "fire_lane",
+             "properties": {"width": 4.5, "height": 3.5,
+                            "_attribute_source": "text_clear_height"}})
+        assert r.result == "FAIL"  # 净高 3.5m < 4.0m
+
+    def test_dim108_width_pass(self, registry):
+        r = registry.get("DIM-108").execute(
+            {"id": "L12", "type": "fire_lane", "properties": {"width": 4.5}})
+        assert r.result == "PASS"  # 宽度 4.5m ≥ 4.0m
+
     # DIM-009: 疏散出口宽度
     def test_dim009_pass(self, registry):  # function: def test_dim009_pass(self, registry):
         r = registry.get("DIM-009").execute(

@@ -1054,12 +1054,12 @@ class AtomicFunction:  # class definition
         # 设计原则：按 func_id→(prop_key, unit, guards) 映射提取，同单位/阈值口径
         # 对齐 DIM-006/009/012/021/022 已有守卫（普通门不判定、宽度下限兜底）。
         _GENERIC_DIM_RULES = {
-            "DIM-011": ("width", "mm", ("road", "fire_lane", "driveway")),
+            # DIM-011/031/085/086/098/108 已移除（2026-11-16）：语义是净高/转弯
+            # 半径，非车道宽度。由 _CLEAR_HEIGHT_RULES / _RADIUS_RULES 分支处理。
             "DIM-020": ("width", "mm", ("stair", "staircase", "stairs")),
             "DIM-025": ("width", "mm", ("stair", "staircase", "stairs")),
             "DIM-026": ("width", "mm", ("external_stair", "stair", "staircase")),
             "DIM-030": ("width", "mm", ("road", "rescue_area", "driveway")),
-            "DIM-031": ("width", "mm", ("road", "fire_lane", "driveway")),
             "DIM-033": ("clear_width", "mm", None),  # staircase_door/door/fire_door
             "DIM-034": ("clear_width", "mm", None),  # exit_door/door/fire_door
             "DIM-048": ("width", "mm", None),         # accessible_door/door
@@ -1075,8 +1075,6 @@ class AtomicFunction:  # class definition
             "DIM-080": ("width", "mm", None),         # corridor/hallway/passage（≥1.1m）
             "DIM-083": ("width", "mm", ("external_stair", "outdoor_stair")),
             "DIM-084": ("width", "mm", ("exit_door", "external_door")),
-            "DIM-085": ("width", "mm", ("road", "fire_lane", "driveway")),
-            "DIM-086": ("width", "mm", ("road", "fire_lane", "driveway")),
             "DIM-092": ("width", "mm", None),         # accessible_door/door
             # DIM-094 已从通用提取移除（2026-11-16）：袋形走道疏散距离 ≤15m 是
             # 疏散路径距离，不是房间 bbox 尺寸。room.width 是房间几何短边，
@@ -1084,14 +1082,67 @@ class AtomicFunction:  # class definition
             # （实测 1187 条）。已标记 unsupported_2d=path_topology。
             "DIM-095": ("width", "mm", None),         # corridor/hallway/passage/walkway（≥1.2m）
             "DIM-096": ("width", "mm", None),         # exit/exit_door/fire_door/door
-            "DIM-098": ("width", "mm", ("road", "fire_lane", "access_road", "driveway")),
             "DIM-101": ("width", "mm", ("stair", "staircase", "antechamber")),
             "DIM-103": ("width", "mm", None),         # aisle/corridor/walkway（≥1.0m）
             "DIM-104": ("width", "mm", None),         # corridor/walkway（≥1.0m）
             "DIM-105": ("width", "mm", None),         # door/residential_door/entrance_door
             "DIM-106": ("width", "mm", ("escape_stair", "external_stair", "outdoor_stair")),
-            "DIM-108": ("width", "mm", ("road", "fire_lane", "fire_access", "driveway")),
         }
+        # 净高/转弯半径规则（2026-11-16 引入 3D 属性图纸）：语义是消防车道净高/
+        # 转弯半径，非车道宽度。从 _GENERIC_DIM_RULES 移除后在此拦截，读 height/
+        # radius（由 text_attributes 净高/转弯半径标注注入）。无标注 → 跳过判定
+        # （不误判宽度）。
+        _CLEAR_HEIGHT_RULES = {"DIM-011", "DIM-085", "DIM-098"}
+        _RADIUS_RULES = {"DIM-031", "DIM-086"}
+        if func_id in _CLEAR_HEIGHT_RULES:
+            # 只接受净高标注注入的 height（_attribute_source=text_clear_height）。
+            # 真实图纸 road 实体自带 CAD 原生 height（如 1500，几何推断值），
+            # 非净高标注，误用会单位错配误判（实测 baa-file-584 ROAD_2190）。
+            if props.get("_attribute_source") != "text_clear_height":
+                return None
+            val = props.get("height", 0.0)
+            if val < 0.01:
+                return None  # 无净高标注，跳过判定（不误判宽度）
+            return val  # 阈值单位 m（DIM-011/085/098 threshold=4.0），返回 m 口径
+        if func_id in _RADIUS_RULES:
+            # 只接受转弯半径标注注入的 radius（_attribute_source=text_radius）。
+            if props.get("_attribute_source") != "text_radius":
+                return None
+            val = props.get("radius", 0.0)
+            if val < 0.01:
+                return None  # 无转弯半径标注，跳过判定
+            # 单位不一致：DIM-031 threshold=9000mm（mm 口径），
+            # DIM-086 threshold=12.0m（m 口径）。按 func_id 区分。
+            if func_id == "DIM-031":
+                return val * 1000.0  # m → mm（阈值 9000mm）
+            return val  # DIM-086：阈值 12.0m，返回 m 口径
+        # DIM-108 宽度+净高复合：净高不足时优先 FAIL（返回 <4.0），
+        # 否则回落到 width 判定（_GENERIC_DIM_RULES 已无 DIM-108，此处处理）。
+        if func_id == "DIM-108":
+            # 净高只接受标注来源（text_clear_height），避免误用 CAD 原生 height。
+            h = props.get("height", 0.0)
+            if props.get("_attribute_source") == "text_clear_height" and h >= 0.01 and h < 4.0:
+                return h  # 净高不足 → <4.0m → FAIL
+            # 净高合规或无净高标注 → 按宽度判定（阈值 4.0m）。
+            # 宽度优先级：width 属性 > bbox 短边（同 DIM-003 车道净宽口径）。
+            raw_w = props.get("width", 0.0)
+            if isinstance(raw_w, (int, float)) and raw_w >= 0.01:
+                return raw_w
+            # bbox 短边 fallback（仅闭合车道多边形，同 DIM-003）
+            lane_semantics = entity_type in ("fire_lane", "road", "driveway") or (
+                entity.get("subtype") in ("fire_lane", "road", "driveway")
+                or props.get("inferred_type") in ("fire_lane", "road", "driveway")
+            )
+            if lane_semantics:
+                points = props.get("points")
+                closed = props.get("closed")
+                if not (isinstance(points, (list, tuple)) and closed is True):
+                    return None
+                bbox = entity.get("bbox") or {}
+                bw, bh = bbox.get("width", 0), bbox.get("height", 0)
+                if bw > 0 and bh > 0 and min(bw, bh) >= 500:
+                    return min(bw, bh) / 1000.0  # 短边 = 车道净宽（mm → m，阈值 4.0m）
+            return None
         if func_id in _GENERIC_DIM_RULES:
             prop_key, req_unit, req_types = _GENERIC_DIM_RULES[func_id]
             # 宽度属性优先级：clear_width > width（语义层可能分别存储）

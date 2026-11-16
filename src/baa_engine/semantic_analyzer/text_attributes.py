@@ -35,6 +35,8 @@ _SLAB_TYPES = {"slab", "floor_slab", "slab_top", "roof", "floor"}
 # 门窗编号可绑定类型（doorway 与 door 同为墙体开口，见 relations.py 注释）
 _DOOR_TYPES = ("door", "doorway", "exit_door", "fire_door")
 _WINDOW_TYPES = ("window", "fire_window")
+# 车道候选：净高/转弯半径标注注入目标（2026-11-16 引入 3D 属性图纸）
+_LANE_TYPES = ("fire_lane", "road", "driveway", "access_road", "fire_access")
 
 # ── 匹配阈值与量纲 ──────────────────────────────────────
 # 沿用尺寸绑定「就近」的最大匹配距离量级（_DIM_MATCH_MAX_DIST=10000mm）
@@ -143,6 +145,71 @@ def _parse_opening_grade(text: str) -> Optional[Tuple[str, str]]:
     return None
 
 
+# ── 净高/转弯半径标注（2026-11-16 引入 3D 属性图纸）──────────
+# 净高标注：净高4.5m / H=4.5m / 净高4500 / 层高4.5m / 净空4.5米
+_CLEAR_HEIGHT_PATTERN = re.compile(
+    r"(?:净高|净空|层高|H\s*=|高度)\s*[=:]?\s*(\d+(?:\.\d+)?)\s*(m|mm|M|MM|米)?"
+)
+# 转弯半径标注：转弯半径12m / R=12m / 半径12m / 转弯半径12000
+_RADIUS_PATTERN = re.compile(
+    r"(?:转弯半径|R\s*=|半径)\s*[=:]?\s*(\d+(?:\.\d+)?)\s*(m|mm|M|MM|米)?"
+)
+# 合理范围：净高 2.0~6.0m（消防车道净高 ≥4m，层高常见 2.8~5m），
+# 转弯半径 3.0~30.0m（消防车道转弯半径 ≥9/12m）。越界视为误匹配。
+_CLEAR_HEIGHT_MIN_M, _CLEAR_HEIGHT_MAX_M = 2.0, 6.0
+_RADIUS_MIN_M, _RADIUS_MAX_M = 3.0, 30.0
+
+
+def _parse_clear_height_m(text: str) -> Optional[float]:
+    """解析净高标注 → 米。无匹配或越界返回 None。
+
+    无单位时按数量级启发式：>100 视为 mm（净高4500 → 4.5m），
+    否则视为 m（净高4.5 → 4.5m）。
+    """
+    if not text:
+        return None
+    m = _CLEAR_HEIGHT_PATTERN.search(text)
+    if not m:
+        return None
+    try:
+        val = float(m.group(1))
+    except (TypeError, ValueError):
+        return None
+    unit = (m.group(2) or "").lower()
+    if unit == "mm":
+        val = val / 1000.0
+    elif not unit and val > 100:
+        val = val / 1000.0  # 无单位大数视为 mm
+    if not (_CLEAR_HEIGHT_MIN_M <= val <= _CLEAR_HEIGHT_MAX_M):
+        return None
+    return val
+
+
+def _parse_turning_radius_m(text: str) -> Optional[float]:
+    """解析转弯半径标注 → 米。无匹配或越界返回 None。
+
+    无单位时按数量级启发式：>100 视为 mm（转弯半径12000 → 12m），
+    否则视为 m（转弯半径12 → 12m）。
+    """
+    if not text:
+        return None
+    m = _RADIUS_PATTERN.search(text)
+    if not m:
+        return None
+    try:
+        val = float(m.group(1))
+    except (TypeError, ValueError):
+        return None
+    unit = (m.group(2) or "").lower()
+    if unit == "mm":
+        val = val / 1000.0
+    elif not unit and val > 100:
+        val = val / 1000.0  # 无单位大数视为 mm
+    if not (_RADIUS_MIN_M <= val <= _RADIUS_MAX_M):
+        return None
+    return val
+
+
 def _rating_for_grade(kind: str, grade: str) -> Optional[float]:
     """等级字 → fire_rating 数值（门按级、窗按 h）。"""
     if kind == "window":
@@ -209,7 +276,9 @@ def _inject_text_attributes(
     wall_slab = [e for e in entities if e.type in _WALL_TYPES or e.type in _SLAB_TYPES]
     door_ish = [e for e in entities if e.type in _DOOR_TYPES]
     window_ish = [e for e in entities if e.type in _WINDOW_TYPES]
-    if not (wall_slab or door_ish or window_ish):
+    # 车道候选：净高/转弯半径标注注入目标（2026-11-16 引入 3D 属性图纸）
+    lane_ish = [e for e in entities if e.type in _LANE_TYPES]
+    if not (wall_slab or door_ish or window_ish or lane_ish):
         return entities
 
     # P0-3 优化：候选实体按 bbox 分桶到 grid，_nearest_entity 只查附近 cells。
@@ -261,6 +330,7 @@ def _inject_text_attributes(
     wall_slab_grid = _build_ent_grid(wall_slab)
     door_grid = _build_ent_grid(door_ish)
     window_grid = _build_ent_grid(window_ish)
+    lane_grid = _build_ent_grid(lane_ish) if lane_ish else None
 
     def _grid_nearest(text_bbox, grid, max_dist):
         """在 grid 中找与 text_bbox 边缘距离最近者（<=max_dist）。"""
@@ -333,5 +403,19 @@ def _inject_text_attributes(
                         _inject_fire_rating(
                             ent, _rating_for_grade(kind, grade_info[1]), "text_code_grade"
                         )
+
+        # 4) 净高标注 → 就近车道实体注入 height（2026-11-16 引入 3D 属性图纸）
+        clear_h = _parse_clear_height_m(text)
+        if clear_h is not None and lane_grid:
+            ent = _grid_nearest(text_bbox, lane_grid, _TEXT_ATTR_MAX_DIST)
+            if ent is not None:
+                _inject_attr(ent, "height", clear_h, "text_clear_height")
+
+        # 5) 转弯半径标注 → 就近车道实体注入 radius
+        radius_m = _parse_turning_radius_m(text)
+        if radius_m is not None and lane_grid:
+            ent = _grid_nearest(text_bbox, lane_grid, _TEXT_ATTR_MAX_DIST)
+            if ent is not None:
+                _inject_attr(ent, "radius", radius_m, "text_radius")
 
     return entities
