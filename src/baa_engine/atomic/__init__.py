@@ -159,6 +159,17 @@ UNSUPPORTED_2D_REASONS = {
     "ATTR-008": "product_spec",
     "ATTR-009": "product_spec",
     "ATTR-012": "product_spec",
+    # ── 结构参数规则（2026-11-16 标记准确性补齐）──
+    # STR-010 剪力墙洞口面积比：需洞口面积/墙面积结构计算，2D 无载体
+    # STR-011 墙肢最小厚度：需墙肢厚度结构参数，2D 无载体
+    # STR-012 抗震设防烈度：需结构设计参数，2D 无载体
+    # STR-013 抗震等级存在：需结构设计标注，2D 无载体
+    # STR-015 现浇楼板最小厚度：需楼板厚度结构参数，2D 无载体
+    "STR-010": "structural",
+    "STR-011": "structural",
+    "STR-012": "structural",
+    "STR-013": "structural",
+    "STR-015": "structural",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──

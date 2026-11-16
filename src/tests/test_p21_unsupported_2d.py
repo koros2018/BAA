@@ -16,11 +16,12 @@ from src.baa_engine.atomic_functions import FuncRegistry
 
 class TestUnsupported2dFlag:
     def test_mapping_size_and_unique(self):
-        # 88 条：C 桶 61 + 语义 12 + 依赖 2 + 路径 4（DIST-001/DIM-056/DIM-094/DIM-015）
-        # + 净高 4（DIM-013/016/087/099）+ 产品选型 5（ATTR-001/003/008/009/012，2026-11-16）
+        # 93 条：C 桶 61 + 语义 12 + 依赖 2 + 路径 4（DIST-001/DIM-056/DIM-094/DIM-015）
+        # + 净高 4（DIM-013/016/087/099）+ 产品选型 5（ATTR-001/003/008/009/012）
+        # + 结构 5（STR-010/011/012/013/015，2026-11-16）
         # （原 82 剔除 6 条 implementation_gate_defect）
-        assert len(UNSUPPORTED_2D_REASONS) == 88
-        assert len(set(UNSUPPORTED_2D_REASONS)) == 88
+        assert len(UNSUPPORTED_2D_REASONS) == 93
+        assert len(set(UNSUPPORTED_2D_REASONS)) == 93
 
     def test_every_id_exists_in_registry(self):
         known = {f.func_id for f in ATOMIC_FUNCTIONS}
@@ -59,7 +60,7 @@ class TestUnsupported2dFlag:
         assert "implementation_gate" not in counts
         assert counts["illuminance"] == 9
         assert counts["thermal"] == 8
-        assert counts["structural"] == 6
+        assert counts["structural"] == 11
         assert counts["product_spec"] == 16
 
     def test_flag_does_not_change_matching(self):
