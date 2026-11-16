@@ -709,6 +709,35 @@ class TestFuncExecute:  # class definition
         )
         assert r is None
 
+    # COUNT-019：防火分区安全出口数量判定（2026-11-16 深挖补齐）
+    # 语义层 _inject_container_counts 为 room 容器注入 exit_count。
+    def test_count019_room_exit_pass(self, registry):
+        # COUNT-019 房间安全出口 ≥2：exit_count 注入后判定
+        r = registry.get("COUNT-019").execute(
+            {"id": "R1", "type": "room", "properties": {"exit_count": 2.0}}
+        )
+        assert r.result == "PASS"  # 2 ≥ 2
+
+    def test_count019_room_exit_fail(self, registry):
+        r = registry.get("COUNT-019").execute(
+            {"id": "R2", "type": "room", "properties": {"exit_count": 1.0}}
+        )
+        assert r.result == "FAIL"  # 1 < 2
+
+    def test_count019_no_exit_count_skip(self, registry):
+        # 无 exit_count（无出口实体/非容器）→ 不判定
+        r = registry.get("COUNT-019").execute(
+            {"id": "R3", "type": "room", "properties": {}}
+        )
+        assert r is None
+
+    def test_count019_exit_entity_skip(self, registry):
+        # COUNT-019 对 exit 实体（无 exit_count）→ 不判定
+        r = registry.get("COUNT-019").execute(
+            {"id": "E1", "type": "exit", "properties": {}}
+        )
+        assert r is None
+
     # DIM-009: 疏散出口宽度
     def test_dim009_pass(self, registry):  # function: def test_dim009_pass(self, registry):
         r = registry.get("DIM-009").execute(

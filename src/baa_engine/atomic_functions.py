@@ -779,6 +779,18 @@ class AtomicFunction:  # class definition
                 return None  # 无房间疏散门数属性，跳过判定
             return float(val)
 
+        # COUNT-019：防火分区安全出口数量判定（2026-11-16 深挖补齐）
+        # 语义层 _inject_container_counts 已为 room 容器注入 exit_count
+        # （房间内安全出口数，bbox 包含 + 出口语义门禁）。COUNT-019 target
+        # 含 room/fire_compartment 容器；样本无 fire_compartment，room 容器
+        # 聚合 exit_count 是「房间安全出口 ≥2」的可判定载体（与 COUNT-016/020
+        # 的 room 容器 door_count 同口径）。exit 实体无 exit_count → 不判定。
+        if func_id == "COUNT-019":
+            val = props.get("exit_count")
+            if val is None:
+                return None  # 无房间安全出口数属性，跳过判定
+            return float(val)
+
         if func_id == "ATTR-001":  # 防火门等级
             # 区分"属性不存在"和"属性值为0"：
             # - 属性不存在（真实图纸）：跳过判定，不产生违规
