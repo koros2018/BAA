@@ -245,3 +245,18 @@ cable 329、sprinkler 89、fire_hydrant 14、power_supply 12、fire_pump 1 等�
 
 **新增文件：** `scripts/mep_rule_audit.py`（机电图设备规则审计，复用 fp_rate_audit
 核心逻辑但移除机电图跳过）、`data/drawings/real/mep/`（5 张机电图样本）。
+
+### 8.9 机电图 unsupported_2d 标记补齐（2026-11-16 续）
+
+机电图评估发现 17 条设备/系统参数规则需产品/流体参数（2D 无载体），补标记
+`product_spec`：
+
+- **泵/管网流体参数 10 条**：DIM-038/041/042/043/044/045（流量/时间/管径/吸高/压力）
+  + DIM-052/053/054/055（基础高度/流速/试压压力）
+- **机电设备参数 7 条**：DIM-100（排烟量）、DIM-116（探测器保护面积）、
+  DIM-118（报警器音量）、DIM-119（广播功率）、DIM-120（探测器安装高度）、
+  DIM-123（应急照明供电时间）、DIM-124（接地电阻）
+
+设备实体（fire_pump/pump/fire_hydrant/sprinkler）有 bbox 尺寸但无流体/产品
+参数，这些规则需流量/压力/时间/管径等，2D 图纸无载体，合理标记。
+unsupported_2d 93 → 110（product_spec 16 → 33）。3156 测试通过无回归。

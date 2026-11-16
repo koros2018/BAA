@@ -192,6 +192,21 @@ UNSUPPORTED_2D_REASONS = {
     "DIM-053": "product_spec",
     "DIM-054": "product_spec",
     "DIM-055": "product_spec",
+    # ── 机电设备参数规则（2026-11-16 机电图评估补齐）──
+    # DIM-100 机械排烟量 ≥7200m³/h：需风量参数，2D 无载体
+    # DIM-116 感烟探测器保护面积 ≤60m²：需保护面积参数，2D 无载体
+    # DIM-118 声光报警器音量 ≥60dB：需音量参数，2D 无载体
+    # DIM-119 消防广播功率 ≥3W：需功率参数，2D 无载体
+    # DIM-120 感烟探测器安装高度 ≤12m：需竖向尺寸，2D 无载体
+    # DIM-123 应急照明持续供电时间 ≥30min：需时间参数，2D 无载体
+    # DIM-124 消防系统接地电阻 ≤4Ω：需电阻参数，2D 无载体
+    "DIM-100": "product_spec",
+    "DIM-116": "product_spec",
+    "DIM-118": "product_spec",
+    "DIM-119": "product_spec",
+    "DIM-120": "product_spec",
+    "DIM-123": "product_spec",
+    "DIM-124": "product_spec",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
