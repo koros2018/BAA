@@ -137,6 +137,17 @@ UNSUPPORTED_2D_REASONS = {
     # 1187 条，全部落在 room 实体）。已从 _GENERIC_DIM_RULES 移除提取分支。
     "DIM-056": "path_topology",
     "DIM-094": "path_topology",
+    # ── 标记准确性补齐（2026-11-16）：适用但未判定且判据在 2D 无载体 ──
+    # DIM-013 安全出口净高 ≥2.0m：需 height，2D 平面图无净高语义
+    # DIM-016 消防车道净高 ≥4.0m：需 height，2D 平面图无净高语义
+    # DIM-087 救援窗口净高/净宽 ≥1.0m：需 height，2D 平面图无净高语义
+    # DIM-099 救援窗口最小净高 ≥1.0m：需 height，2D 平面图无净高语义
+    "DIM-013": "semantic_unmapped",
+    "DIM-016": "semantic_unmapped",
+    "DIM-087": "semantic_unmapped",
+    "DIM-099": "semantic_unmapped",
+    # DIM-015 袋形走道疏散距离 ≤15m：需疏散路径拓扑，同 DIM-056/094 口径
+    "DIM-015": "path_topology",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
