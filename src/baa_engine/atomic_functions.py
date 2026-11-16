@@ -1109,6 +1109,15 @@ class AtomicFunction:  # class definition
                 "polyline_", "line_chain_"
             )):
                 return None
+            # ── 楼梯净宽语义错配守卫（DIM-020/025/026，2026-11-16）──
+            # 楼梯 width 语义层赋的是踏步宽（stair_bbox_long_edge / stair_bbox_span，
+            # 实测 300~900mm），而 DIM-020/025 阈值 1100mm、DIM-026 阈值 900mm
+            # 是梯段净宽。用踏步宽判定梯段净宽 → 114 条全 FAIL（同 DIM-001 口径）。
+            # 仅 CAD 标注 / YOLO 等带来源的宽度参与判定。
+            if func_id in ("DIM-020", "DIM-025", "DIM-026"):
+                width_source = props.get("_width_source", "")
+                if width_source in ("stair_bbox_long_edge", "stair_bbox_span"):
+                    return None
             return val
 
         # ── DIM-016 消防车道净高（height 口径）──
