@@ -400,10 +400,19 @@ def run_review(dxf_path: Path) -> dict:
         "not_applicable_reason": PLAN_ONLY_REASON if _not_applicable else "",
     }
 
+    # 内容指纹（解析后图元）：DWG/DXF 重复样本（同建筑不同版本）去重用。
+    # 用前 200 图元 type+bbox 近似指纹，避免全量哈希开销。
+    import hashlib
+    _fp_parts = []
+    for _pr in (result.primitives or [])[:200]:
+        _fp_parts.append(f"{_pr.dxf_type}:{_pr.bbox}")
+    content_fingerprint = hashlib.sha256("".join(_fp_parts).encode()).hexdigest()[:16]
+
     return {
         "file": dxf_path.name,
         "success": True,
         "valid": True,
+        "content_fingerprint": content_fingerprint,
         "primitive_count": len(result.primitives),
         "entity_count": len(entities),
         "unclassified_count": len(unclassified_entities),
@@ -517,10 +526,29 @@ def main(argv: list[str]) -> int:
         if top:
             print(f"     Top 函数: {top}", flush=True)
 
+    # ── P2-7: 内容指纹去重（DWG/DXF 重复样本，同建筑不同版本）──
+    # 同 content_fingerprint 只保留一张图纸，避免重复样本放大 finding 计数。
+    # 保留首个（按 _drawings 顺序），后续重复样本标记 _dedup_fingerprint。
+    _seen_fp: dict[str, str] = {}
+    for rep in reports:
+        fp = rep.get("content_fingerprint")
+        if not fp:
+            continue
+        if fp in _seen_fp:
+            rep["_dedup_fingerprint"] = _seen_fp[fp]
+            print(
+                f"[DEDUP-FP] {rep['file']}: 内容指纹 {fp} 与 {_seen_fp[fp]} 重复，"
+                f"从基线排除（同建筑重复样本）",
+                flush=True,
+            )
+        else:
+            _seen_fp[fp] = rep["file"]
+
     valid_reports = [
         r
         for r in reports
         if r.get("success") and r.get("valid", True) and not r.get("skipped")
+        and not r.get("_dedup_fingerprint")
     ]
     invalid_reports = [r for r in reports if r.get("success") and not r.get("valid", True)]
     skipped_reports = [r for r in reports if r.get("success") and r.get("skipped")]
