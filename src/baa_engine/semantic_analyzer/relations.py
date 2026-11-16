@@ -1082,4 +1082,127 @@ def _infer_attribute_name(dim: Dict, entity: SemanticEntity) -> str:
         return "measurement"
 
 
+# ── DIST 实体对距离注入（2026-11-16）────────────────
+# 背景：DIST-004~010 需「任意实体对距离」（5m~120m），但 _build_relations
+# Phase 1 只算相邻实体对（ADJACENT_THRESHOLD=50mm），导致这些规则在
+# _extract_value 无 handler 可读 → 全部未判定。
+# 本函数对 DIST 目标类型计算同类/异类实体对距离，注入最近距离属性，
+# 供 _extract_value 的 DIST handler 读取。
+#
+# 语义门禁（防误报，与 DIM-005/DIM-010 同口径）：
+#   - DIST-004 救援窗间距：仅 rescue_window/fire_window 或显式 rescue 标注
+#     的 window 参与；普通 window 无救援窗语义，间距 <20m 极常见，判违规
+#     会误报（真实图 window 全部无 rescue 标注，rescue=0）。
+#
+# 注入属性（单位 mm，按规则语义独立命名，避免跨规则污染）：
+#   DIST-004 → nearest_rescue_window_mm   （救援窗-救援窗同类对）
+#   DIST-005/008 → nearest_exit_mm        （出口-出口同类对）
+#   DIST-006 → nearest_smoke_exit_mm      （排烟口-出口异类对，仅 smoke_vent 源）
+#   DIST-007/010 → nearest_hydrant_mm     （消火栓-消火栓同类对）
+#   DIST-009 → nearest_rescue_area_mm     （登高场地-登高场地同类对）
+# 无配对实体时不注入（保持 None → _extract_value 返回 None → 不判定）。
+
+# DIST 目标类型分组（按规则语义，同类对为主）→ (目标类型, 注入属性名)
+_DIST_SAME_TYPE_GROUPS = {
+    # DIST-004 救援窗间距（window 需 rescue 语义门禁）
+    "DIST-004": (("rescue_window", "fire_window", "window"), "nearest_rescue_window_mm"),
+    # DIST-005/008 安全出口间距（同类 exit 对）
+    "DIST-005": (("exit", "fire_door", "safety_exit"), "nearest_exit_mm"),
+    "DIST-008": (("exit", "fire_door", "safety_exit"), "nearest_exit_mm"),
+    # DIST-007/010 消火栓间距/保护半径（同类 hydrant 对）
+    "DIST-007": (("hydrant", "fire_hydrant"), "nearest_hydrant_mm"),
+    "DIST-010": (("hydrant", "fire_hydrant"), "nearest_hydrant_mm"),
+    # DIST-009 登高场地间距（同类 rescue_area/road/driveway 对）
+    "DIST-009": (("rescue_area", "road", "driveway"), "nearest_rescue_area_mm"),
+}
+
+# DIST-006 排烟口-安全出口间距（异类对：smoke_vent vs exit/fire_door）
+# 仅对 smoke_vent 源实体注入，判定对象是排烟口（出口实体不判 DIST-006）。
+_DIST_CROSS_PAIRS = {
+    "DIST-006": (
+        ("smoke_vent", "smoke_exhaust", "natural_vent"),
+        ("exit", "fire_door", "safety_exit"),
+        "nearest_smoke_exit_mm",
+    ),
+}
+
+# DIST-004 的 window 语义门禁：window 需显式救援窗语义才参与
+def _is_rescue_window(ent: SemanticEntity) -> bool:
+    if ent.type in ("rescue_window", "fire_window"):
+        return True
+    props = ent.properties or {}
+    if props.get("is_rescue_window") or props.get("rescue_window"):
+        return True
+    text = str(props.get("text") or "")
+    if "救援" in text or "RESCUE" in text.upper():
+        return True
+    return False
+
+
+def _inject_pair_distances(entities: List[SemanticEntity]) -> int:
+    """按 DIST 规则语义计算实体对距离并注入最近距离属性。
+
+    返回注入的实体数（供日志/审计）。
+    复杂度：每组目标实体两两配对，O(n²)。真实图 window ≤16 个/图、
+    exit ≤2 个/图，规模极小；即便 50 个同类实体也仅 1225 对，可接受。
+    """
+    if not entities:
+        return 0
+    injected = 0
+
+    # 同类对：组内两两配对，注入最近距离
+    for func_id, (types, attr_name) in _DIST_SAME_TYPE_GROUPS.items():
+        # DIST-004 语义门禁：window 需 rescue 标注
+        group = []
+        for ent in entities:
+            if ent.type not in types:
+                continue
+            if func_id == "DIST-004" and ent.type == "window" and not _is_rescue_window(ent):
+                continue
+            group.append(ent)
+        if len(group) < 2:
+            continue
+        for i in range(len(group)):
+            a = group[i]
+            best = None
+            best_type = ""
+            for j in range(len(group)):
+                if j == i:
+                    continue
+                b = group[j]
+                d = min_edge_distance(a.bbox, b.bbox)
+                if best is None or d < best:
+                    best = d
+                    best_type = b.type
+            if best is not None:
+                props = a.properties
+                props[attr_name] = round(best, 1)
+                props["pair_distance_source"] = "dist_pair_inject"
+                props["pair_distance_type"] = best_type
+                injected += 1
+
+    # 异类对：DIST-006 排烟口-安全出口（仅 smoke_vent 源实体）
+    for func_id, (src_types, dst_types, attr_name) in _DIST_CROSS_PAIRS.items():
+        srcs = [e for e in entities if e.type in src_types]
+        dsts = [e for e in entities if e.type in dst_types]
+        if not srcs or not dsts:
+            continue
+        for a in srcs:
+            best = None
+            best_type = ""
+            for b in dsts:
+                d = min_edge_distance(a.bbox, b.bbox)
+                if best is None or d < best:
+                    best = d
+                    best_type = b.type
+            if best is not None:
+                props = a.properties
+                props[attr_name] = round(best, 1)
+                props["pair_distance_source"] = "dist_pair_inject"
+                props["pair_distance_type"] = best_type
+                injected += 1
+
+    return injected
+
+
 # ── 走廊拓扑网络 ────────────────────────────────────

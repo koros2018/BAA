@@ -1169,6 +1169,31 @@ class AtomicFunction:  # class definition
                 return val / 1000.0  # return
             return val  # return
 
+        # DIST-004~010：实体对距离判定（2026-11-16 深挖补齐）
+        # 语义层 _inject_pair_distances 已按规则语义计算最近同类/异类实体对
+        # 距离并注入独立属性（按 func_id 区分，避免跨规则污染）。
+        # 无配对实体（属性缺失）→ 返回 None → 不判定，与 DIST-001/002 的
+        # 「数据缺失不判定」一致。
+        _DIST_PAIR_ATTR = {
+            "DIST-004": "nearest_rescue_window_mm",
+            "DIST-005": "nearest_exit_mm",
+            "DIST-006": "nearest_smoke_exit_mm",
+            "DIST-007": "nearest_hydrant_mm",
+            "DIST-008": "nearest_exit_mm",
+            "DIST-009": "nearest_rescue_area_mm",
+            "DIST-010": "nearest_hydrant_mm",
+        }
+        if func_id in _DIST_PAIR_ATTR:
+            val = props.get(_DIST_PAIR_ATTR[func_id])
+            if val is None:
+                return None  # 无实体对距离数据，跳过判定
+            # 单位：注入值为 mm。DIST-004 阈值单位 m（20m），需转 m；
+            # DIST-005~010 阈值单位 mm（5000/1500/120000/30000/150000），
+            # 保持 mm 原值比较。
+            if func_id == "DIST-004":
+                return float(val) / 1000.0  # mm→m
+            return float(val)  # mm 原值
+
         if func_id == "AREA-002":  # 消防电梯前室面积
             # T3: 前室类条款互斥——防烟楼梯间前室归 DIM-018（6㎡）、
             # 合用前室归 DIM-019（10㎡），AREA-002 只负责消防电梯前室。

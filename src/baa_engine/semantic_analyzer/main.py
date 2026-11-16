@@ -30,6 +30,7 @@ from .relations import (
     _build_relations,
     _bind_dimensions,
     _infer_attribute_name,
+    _inject_pair_distances,
 )
 from .text_attributes import _inject_text_attributes
 from .geometry_attributes import _inject_geometry_attributes
@@ -464,6 +465,17 @@ class SemanticAnalyzer:
 
         # Step 2: 空间关系构建（V2拓扑关系）
         relations = self._build_relations(entities)  # assign
+
+        # Step 2.0: DIST 实体对距离注入（2026-11-16）
+        # DIST-004~010 需任意实体对距离（5m~120m），Phase 1 只算相邻实体对
+        # （50mm）。此处对 DIST 目标类型计算实体对距离并注入最近距离属性，
+        # 供 _extract_value 的 DIST handler 读取。
+        _dist_injected = _inject_pair_distances(entities)
+        if _dist_injected:
+            logger.info(
+                f"[DIST-PAIR] 实体对距离注入: {_dist_injected} 个实体"
+                f"（DIST-004~010 判定前置）"
+            )
 
         # Step 2.1: P109 — 扫线法 room 属性推断（几何特征 + 文本关键词）
         entities = self._infer_room_types(entities, primitives, relations)  # assign

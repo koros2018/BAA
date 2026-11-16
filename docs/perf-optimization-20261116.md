@@ -261,3 +261,37 @@ cable 329、sprinkler 89、fire_hydrant 14、power_supply 12、fire_pump 1 等�
 设备实体（fire_pump/pump/fire_hydrant/sprinkler）有 bbox 尺寸但无流体/产品
 参数，这些规则需流量/压力/时间/管径等，2D 图纸无载体，合理标记。
 unsupported_2d 93 → 110（product_spec 16 → 33）。3156 测试通过无回归。
+
+### 8.10 DIST 距离提取补齐（2026-11-16 续）
+
+**背景：** DIST-004~010（救援窗间距/出口间距/排烟口-出口/消火栓间距/
+登高场地间距/消火栓保护半径）需「任意实体对距离」（5m~120m），但
+`_build_relations` Phase 1 只算相邻实体对（ADJACENT_THRESHOLD=50mm），
+`_extract_value` 无 handler 可读 → 全部未判定（DIST-004 适用 15 图、
+DIST-005/006/008 适用 11 图、DIST-007/010 适用 1 图、DIST-009 适用 2 图，
+判定均 0）。
+
+**根因：** 架构性缺口——语义层未计算任意实体对距离，DIST 规则无判据。
+
+**修复：**
+1. `relations.py` 新增 `_inject_pair_distances`：按规则语义计算同类/异类
+   实体对距离，注入独立属性（`nearest_rescue_window_mm`/`nearest_exit_mm`/
+   `nearest_smoke_exit_mm`/`nearest_hydrant_mm`/`nearest_rescue_area_mm`），
+   避免跨规则污染。
+2. `atomic_functions.py` `_extract_value` 添加 DIST-004~010 handler，按
+   func_id 读对应属性；DIST-004 阈值单位 m（20m）转 m，DIST-005~010
+   阈值单位 mm（5000/1500/120000/30000/150000）保持 mm。
+3. 语义门禁（防误报，与 DIM-005/DIM-010 同口径）：DIST-004 救援窗间距
+   仅 rescue_window/fire_window 或显式 rescue 标注的 window 参与；普通
+   window 无救援窗语义，间距 <20m 极常见，判违规会误报（真实图 window
+   全部无 rescue 标注，rescue=0）。
+
+**验证：** 合成图 exit=2 时 DIST-005/008 正确判定（synth_fire_lane
+actual=3157.2mm < 5000mm → FAIL 间距不足；synth_office_compliant
+5437.7mm ≥ 5000mm → PASS）。真实建筑图 DIST-004 适用但判定 0（window
+无 rescue 语义门禁拦截，不误报）。新增 13 个 DIST-004~010 单元测试，
+3169 测试通过无回归。
+
+**结论：** DIST 距离提取缺口已修复。真实建筑图无 rescue_window/exit/
+hydrant 实体（样本覆盖限制），DIST-004~010 判据在建筑图不可得；合成图
+与机电图（fire_hydrant 1 图）可判定。

@@ -568,6 +568,104 @@ class TestFuncExecute:  # class definition
         )  # function call
         assert r.result == "FAIL"  # 断言
 
+    # DIST-004~010：实体对距离判定（2026-11-16 深挖补齐）
+    # 语义层 _inject_pair_distances 注入 nearest_*_mm 属性，_extract_value
+    # 按 func_id 读取。无配对实体（属性缺失）→ None → 不判定。
+    def test_dist004_rescue_window_gap(self, registry):
+        # DIST-004 救援窗间距 ≤20m：nearest_rescue_window_mm 注入后判定
+        r = registry.get("DIST-004").execute(
+            {"id": "RW1", "type": "rescue_window",
+             "properties": {"nearest_rescue_window_mm": 15000.0}}
+        )
+        assert r.result == "PASS"  # 15m ≤ 20m
+
+    def test_dist004_rescue_window_gap_fail(self, registry):
+        r = registry.get("DIST-004").execute(
+            {"id": "RW2", "type": "rescue_window",
+             "properties": {"nearest_rescue_window_mm": 25000.0}}
+        )
+        assert r.result == "FAIL"  # 25m > 20m
+
+    def test_dist004_no_pair_skip(self, registry):
+        # 无配对实体（属性缺失）→ 不判定
+        r = registry.get("DIST-004").execute(
+            {"id": "RW3", "type": "rescue_window", "properties": {}}
+        )
+        assert r is None
+
+    def test_dist005_exit_gap_pass(self, registry):
+        # DIST-005 出口间距 ≥5m：nearest_exit_mm 注入后判定
+        r = registry.get("DIST-005").execute(
+            {"id": "E1", "type": "exit", "properties": {"nearest_exit_mm": 6000.0}}
+        )
+        assert r.result == "PASS"  # 6m ≥ 5m
+
+    def test_dist005_exit_gap_fail(self, registry):
+        r = registry.get("DIST-005").execute(
+            {"id": "E2", "type": "exit", "properties": {"nearest_exit_mm": 4000.0}}
+        )
+        assert r.result == "FAIL"  # 4m < 5m
+
+    def test_dist006_smoke_exit_gap(self, registry):
+        # DIST-006 排烟口-出口 ≥1.5m：nearest_smoke_exit_mm 注入后判定
+        r = registry.get("DIST-006").execute(
+            {"id": "SV1", "type": "smoke_vent",
+             "properties": {"nearest_smoke_exit_mm": 2000.0}}
+        )
+        assert r.result == "PASS"  # 2m ≥ 1.5m
+
+    def test_dist006_smoke_exit_gap_fail(self, registry):
+        r = registry.get("DIST-006").execute(
+            {"id": "SV2", "type": "smoke_vent",
+             "properties": {"nearest_smoke_exit_mm": 1000.0}}
+        )
+        assert r.result == "FAIL"  # 1m < 1.5m
+
+    def test_dist007_hydrant_gap_pass(self, registry):
+        # DIST-007 消火栓间距 ≤120m：nearest_hydrant_mm 注入后判定
+        r = registry.get("DIST-007").execute(
+            {"id": "H1", "type": "fire_hydrant",
+             "properties": {"nearest_hydrant_mm": 100000.0}}
+        )
+        assert r.result == "PASS"  # 100m ≤ 120m
+
+    def test_dist007_hydrant_gap_fail(self, registry):
+        r = registry.get("DIST-007").execute(
+            {"id": "H2", "type": "fire_hydrant",
+             "properties": {"nearest_hydrant_mm": 130000.0}}
+        )
+        assert r.result == "FAIL"  # 130m > 120m
+
+    def test_dist008_zone_exit_gap(self, registry):
+        # DIST-008 分区出口间距 ≥5m：nearest_exit_mm 注入后判定
+        r = registry.get("DIST-008").execute(
+            {"id": "E3", "type": "exit", "properties": {"nearest_exit_mm": 7000.0}}
+        )
+        assert r.result == "PASS"  # 7m ≥ 5m
+
+    def test_dist009_rescue_area_gap(self, registry):
+        # DIST-009 登高场地间距 ≤30m：nearest_rescue_area_mm 注入后判定
+        r = registry.get("DIST-009").execute(
+            {"id": "RA1", "type": "rescue_area",
+             "properties": {"nearest_rescue_area_mm": 25000.0}}
+        )
+        assert r.result == "PASS"  # 25m ≤ 30m
+
+    def test_dist010_hydrant_radius(self, registry):
+        # DIST-010 消火栓保护半径 ≤150m：nearest_hydrant_mm 注入后判定
+        r = registry.get("DIST-010").execute(
+            {"id": "H3", "type": "fire_hydrant",
+             "properties": {"nearest_hydrant_mm": 140000.0}}
+        )
+        assert r.result == "PASS"  # 140m ≤ 150m
+
+    def test_dist010_hydrant_radius_fail(self, registry):
+        r = registry.get("DIST-010").execute(
+            {"id": "H4", "type": "fire_hydrant",
+             "properties": {"nearest_hydrant_mm": 160000.0}}
+        )
+        assert r.result == "FAIL"  # 160m > 150m
+
     # DIM-009: 疏散出口宽度
     def test_dim009_pass(self, registry):  # function: def test_dim009_pass(self, registry):
         r = registry.get("DIM-009").execute(
