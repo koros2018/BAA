@@ -1304,6 +1304,23 @@ class AtomicFunction:  # class definition
                 return val
             if func_id == "ACCESS-010":  # 盲道设置（EXIST类）
                 return 1.0 if props.get("exists", False) or props.get("count", 0) > 0 else 0.0
+            if func_id == "ACCESS-014":  # 无障碍楼梯踏步宽度 ≥0.28m
+                # stair.width 语义层赋的是踏步宽（stair_bbox_long_edge/stair_bbox_span，
+                # 200~1500mm 合理范围），正是 ACCESS-014 的判据（踏步宽）。
+                # 仅带来源的踏步宽参与判定（同 DIM-020/025/026 守卫口径）。
+                ws = props.get("_width_source", "")
+                if ws not in ("stair_bbox_long_edge", "stair_bbox_span"):
+                    return None
+                val = props.get("width", props.get("clear_width", 0.0))
+                if val < 0.01:
+                    return None
+                if unit == "mm":
+                    return val / 1000.0
+                if unit == "m":
+                    return val
+                if val > 100:
+                    return val / 1000.0
+                return val
             return None
 
         # ── 通用 AREA 类别分支 ────────────────────────────────

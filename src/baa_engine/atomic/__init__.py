@@ -148,6 +148,17 @@ UNSUPPORTED_2D_REASONS = {
     "DIM-099": "semantic_unmapped",
     # DIM-015 袋形走道疏散距离 ≤15m：需疏散路径拓扑，同 DIM-056/094 口径
     "DIM-015": "path_topology",
+    # ── 产品/系统选型规则（2026-11-16 标记准确性补齐）──
+    # ATTR-001 防火门等级 ≥丙级：需 fire_rating 产品属性，2D 无载体
+    # ATTR-003 防火窗耐火极限 ≥1.0h：需耐火极限产品属性，2D 无载体
+    # ATTR-008 消防给水管道压力 ≥0.10MPa：需系统压力参数，2D 无载体
+    # ATTR-009 消防给水管道材质：需管材选型，2D 无载体
+    # ATTR-012 消火栓出口压力 ≤0.50MPa：需系统压力参数，2D 无载体
+    "ATTR-001": "product_spec",
+    "ATTR-003": "product_spec",
+    "ATTR-008": "product_spec",
+    "ATTR-009": "product_spec",
+    "ATTR-012": "product_spec",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
