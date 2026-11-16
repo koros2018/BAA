@@ -183,6 +183,15 @@ UNSUPPORTED_2D_REASONS = {
     "DIM-043": "product_spec",
     "DIM-044": "product_spec",
     "DIM-045": "product_spec",
+    # ── 泵/管网流体参数规则（2026-11-16 机电图评估补齐）──
+    # DIM-052 消防水泵基础高度 ≥0.1m：需竖向尺寸，2D 无载体
+    # DIM-053 消防水泵吸水管流速 ≤1.2m/s：需流速参数，2D 无载体
+    # DIM-054 消防水泵出水管流速 ≤2.0m/s：需流速参数，2D 无载体
+    # DIM-055 消防给水管网试压压力 ≥1.4MPa：需压力参数，2D 无载体
+    "DIM-052": "product_spec",
+    "DIM-053": "product_spec",
+    "DIM-054": "product_spec",
+    "DIM-055": "product_spec",
 }
 
 # ── P2-1b: 执行门禁缺陷（不计入 unsupported_2d，留在可判定分母）──
