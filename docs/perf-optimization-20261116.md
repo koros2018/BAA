@@ -329,3 +329,28 @@ door_count 未注入（合成图 door 无疏散语义标注，门禁正确拦截
 COUNT-016/020/026 handler）。样本覆盖限制下判据不可得（Demo 模板图无
 疏散门标注、fire_zone 未建模），但注入链路与 handler 已就绪，图纸含
 exit_door/evacuation_door 标注时可判定。
+
+### 8.12 COUNT-019 防火分区安全出口判定补齐（2026-11-16 续）
+
+**背景：** COUNT-019（公共建筑每个防火分区安全出口 ≥2，GB50016-5.5.8）
+target 含 room/fire_compartment 容器。`_inject_container_counts` 已为
+room 容器注入 `exit_count`（房间内安全出口数），但 `_extract_value` 无
+COUNT-019 handler → 已注入的 exit_count 无法消费（适用 43 图，判定 0）。
+这是**架构缺口**（判据载体已注入，handler 缺失），非样本覆盖限制。
+
+**修复：**
+1. `atomic_functions.py` `_extract_value` 添加 COUNT-019 handler：读 room
+   容器注入的 `exit_count`（bbox 包含 + 出口语义门禁）。与 COUNT-016/020/026
+   的 room 容器 door_count 同口径。
+2. exit 实体无 `exit_count` → 不判定（与 COUNT-016/020/026 的 door 实体
+   同口径），避免逐 exit 判 count 无意义。
+
+**验证：** 合成图 room 容器注入 exit_count（synth_evac=1、synth_fire_lane=2、
+synth_narrow_corridor=2、synth_office_compliant=1）；COUNT-019 在
+synth_fire_lane 判定 2 条 FAIL（room 容器 exit_count=1 < 2，合理）。真实图
+（Demo 模板）room 无 exit 实体（exit_inj=0），判据不可得——样本覆盖限制。
+新增 4 个 COUNT-019 单元测试，3179 测试通过无回归。
+
+**结论：** COUNT-019 架构缺口已修复。可判定口径 67.8% → 73.3%（+5.5pp）。
+样本覆盖限制下判据不可得（Demo 模板图无 exit 实体），但 handler 已就绪，
+图纸含 exit 实体时可判定。
